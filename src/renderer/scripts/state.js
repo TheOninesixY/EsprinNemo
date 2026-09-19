@@ -20,10 +20,29 @@ const State = {
     trashRetentionDays: 0,
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
     fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
+    // AI 助手接口配置（随 config.json 一起落盘，密钥仅存本机）
+    ai: { enabled: true, baseUrl: '', apiKey: '', model: '', scope: 'current', maxNotes: 10, systemPrompt: '' },
+    // AI 助手面板：是否展开，以及多对话（对话记录随数据目录保存到 ai_chats.json）
+    aiPanelOpen: false,
+    aiConversations: [],
+    aiActiveConversationId: '',
+    // 是否有请求在飞，以及它固定写入哪个对话（中途切换对话也不会串台）
+    aiStreaming: false,
+    aiRequestId: null,
+    aiStreamingChatId: null,
+    // 本次会话提问时附带的笔记范围：默认取配置中的设置
+    aiScope: 'current',
     autoSaveTimer: null,
     // MD 预览刷新的延时器：静默 1 秒后才刷新一次
     previewTimer: null
 };
+
+// AI 提问时附带的笔记范围（config.json 中的 ai.scope 只接受这几个值）
+const AI_SCOPE_VALUES = ['current', 'all', 'none'];
+
+function normalizeAiScope(value) {
+    return AI_SCOPE_VALUES.includes(value) ? value : 'current';
+}
 
 // 废纸篓自动清理的可选保留天数（0 = 永不自动清理，其余为保留天数）
 const TRASH_RETENTION_DAY_OPTIONS = [0, 10, 30, 60, 365];

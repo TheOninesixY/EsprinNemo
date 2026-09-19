@@ -204,7 +204,6 @@ html.sidebar-collapsed .sidebar {
 html.sidebar-collapsed .sidebar .nav-text,
 html.sidebar-collapsed .sidebar .nav-badge,
 html.sidebar-collapsed .sidebar .btn-clear-trash,
-html.sidebar-collapsed .sidebar #btn-open-settings,
 html.sidebar-collapsed .sidebar .nav-section-folders,
 html.sidebar-collapsed .sidebar .nav-section-tags {
     display: none;
@@ -225,29 +224,36 @@ html.sidebar-collapsed .sidebar .nav-item-left {
     justify-content: center;
     gap: 0;
 }
+/* 收起时不显示底栏上方的分界线（上方已无内容） */
 html.sidebar-collapsed .sidebar .sidebar-bottom {
+    flex-direction: column;
     justify-content: center;
     padding: 8px 0;
+    gap: 4px;
+    border-top: none;
 }
 html.sidebar-collapsed .sidebar .btn-sidebar-bottom {
     width: 24px;
     height: 24px;
 }
+/* 竖向排列后取消右推，让设置与展开按钮居中对齐 */
+html.sidebar-collapsed .sidebar #btn-open-settings {
+    margin-left: 0;
+}
 
 /* 展开过程：宽度过渡期间文字保持不可见（.text-fading 由脚本在过渡结束后移除），
-   从而先完成组件展开，再淡入文字 */
+   从而先完成组件展开，再淡入文字。
+   设置按钮在收起态也可见，因此不参与淡入淡出。 */
 .nav-text,
 .nav-badge,
 .nav-section-folders,
-.nav-section-tags,
-#btn-open-settings {
+.nav-section-tags {
     transition: opacity 0.16s ease;
 }
 .sidebar.text-fading .nav-text,
 .sidebar.text-fading .nav-badge,
 .sidebar.text-fading .nav-section-folders,
-.sidebar.text-fading .nav-section-tags,
-.sidebar.text-fading #btn-open-settings {
+.sidebar.text-fading .nav-section-tags {
     opacity: 0;
 }
 

@@ -106,6 +106,9 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.fonts = saved.fonts;
+        // AI 接口配置随数据目录走：新位置自带的配置（尤其是迁移过来的）优先
+        State.ai = saved.ai;
+        State.aiScope = State.ai.scope;
     } else {
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
@@ -115,6 +118,10 @@ function adoptDataDir(dir, options = {}) {
         State.fonts = prefs.fonts;
         saveConfig();
     }
+
+    // 对话记录与笔记一样属于新位置的内容：新位置没有记录就开一份空白对话，
+    // 不把上一个位置的对话带过去（避免迁移选择为“不迁移”时内容被悄悄带过去）。
+    adoptAiChats(saved.aiChats);
 
     State.notes = saved.notes;
     State.folders = saved.folders;
@@ -147,6 +154,9 @@ function adoptDataDir(dir, options = {}) {
     syncFontSelects();
     syncAccentControls();
     syncTrashRetentionSelect();
+    syncAiSettingsUI();
+    renderAiMessages();
+    renderAiChatList();
 
     dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };
     updateDataDirUI();

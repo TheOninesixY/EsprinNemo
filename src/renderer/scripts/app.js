@@ -11,6 +11,10 @@ window.onload = () => {
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.fonts = normalizeFonts(saved.fonts);
+    State.ai = normalizeAiConfig(saved.ai);
+    State.aiScope = State.ai.scope;
+    // 多对话记录（ai_chats.json）：载入后保证至少有一份可用对话
+    adoptAiChats(saved.aiChats);
 
     // 启动时自动清理无效索引：仅在确实检测到变更时才写回 index.json，避免每次启动都产生磁盘写入
     const cleanup = saved.indexCleanup;
@@ -39,6 +43,9 @@ window.onload = () => {
     initFonts();
     applySidebarCollapsed();
     initSettingsNav();
+    initAiSettings();
+    initAiChats();
+    initAiPanel();
     setupEvents();
     syncTrashRetentionSelect();
     refreshDataDirInfo();

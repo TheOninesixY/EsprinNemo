@@ -115,6 +115,10 @@ function setupEvents() {
         openScratchpadWindow();
     };
 
+    // AI 助手：右侧问答面板（未配置站点与模型时先引导去设置）
+    const btnAiAssistant = document.getElementById('btn-ai-assistant');
+    if (btnAiAssistant) btnAiAssistant.onclick = toggleAiAssistant;
+
     document.getElementById('btn-note-export-md').onclick = () => {
         const note = getActiveNote();
         if (!note) return;

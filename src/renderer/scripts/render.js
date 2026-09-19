@@ -397,6 +397,8 @@ function renderWorkspace() {
         updateDataDirUI();
         syncFontSelects();
         syncAccentControls();
+        syncAiSettingsUI();
+        applyAiPanelVisibility();
         return;
     }
 
@@ -404,6 +406,7 @@ function renderWorkspace() {
     if (notesPanel) notesPanel.classList.remove('hidden');
     if (workspace) workspace.classList.remove('hidden');
     if (settingsView) settingsView.classList.add('hidden');
+    applyAiPanelVisibility();
 
     const note = getActiveNote();
 
@@ -414,6 +417,7 @@ function renderWorkspace() {
         titleArea.classList.add('hidden');
         contentArea.classList.add('hidden');
         footer.classList.add('hidden');
+        updateAiContextHint();
         return;
     }
 
@@ -491,4 +495,6 @@ function renderWorkspace() {
     renderMarkdown();
     updateStats();
     updateViewModeUI();
+    // 切换笔记后，AI 面板的“附带笔记”提示要跟着变
+    updateAiContextHint();
 }

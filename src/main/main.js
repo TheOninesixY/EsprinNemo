@@ -12,6 +12,7 @@ const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
 const { closeScratchpadWindow, configureScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
+const { configureAiService, registerAiIpc } = require('./ai_service.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
 // 本文件位于 src/main/ 下，因此 assets/、src/renderer/ 与开发版 data/ 都相对它定位。
@@ -79,6 +80,9 @@ configureScratchpadWindow({
   getOwner: () => mainWindow,
   icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
+
+// AI 助手：接口配置（站点 / KEY / 模型）随数据目录存放，由主进程直接读取，不经 IPC 传递密钥
+configureAiService({ getDataDir: resolveDataDir });
 
 // 主窗口引用：小本本据此定位停靠屏幕，并在主窗口关闭时一并收掉
 let mainWindow = null;
@@ -342,6 +346,9 @@ app.whenReady().then(() => {
 
   // 小本本窗口的 IPC 通道（打开 / 读写内容 / 外观同步）
   registerScratchpadIpc();
+
+  // AI 助手：对话代理与模型列表
+  registerAiIpc();
 
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
   registerUiDefaults();

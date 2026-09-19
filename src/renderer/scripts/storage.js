@@ -1,20 +1,23 @@
-/* 数据持久化：数据目录，以及 config.json / index.json / notes/{id}.md 的读写 */
+/* 数据持久化：数据目录，以及 config.json / index.json / notes/{id}.md / ai_chats.json 的读写 */
 
 // 数据目录可在设置页中更改，因此路径均为可变变量（切换位置后就地生效，无需重启）
 let DATA_DIR = resolveDataDir();
 let NOTES_DIR = path.join(DATA_DIR, 'notes');
 let CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 let INDEX_FILE = path.join(DATA_DIR, 'index.json');
+let AI_CHATS_FILE = path.join(DATA_DIR, 'ai_chats.json');
 
 // 写入缓存：待写入内容与上次落盘完全一致时直接跳过，避免自动保存产生重复 I/O
 const savedNoteContent = new Map(); // noteId -> 已写入磁盘的正文
 let savedConfigJSON = null;
 let savedIndexJSON = null;
+let savedAiChatsJSON = null;
 
 function resetWriteCache() {
     savedNoteContent.clear();
     savedConfigJSON = null;
     savedIndexJSON = null;
+    savedAiChatsJSON = null;
 }
 
 // 应用新的数据目录（主进程已完成校验/迁移/记录，这里只负责切换本进程使用的路径）
@@ -23,6 +26,7 @@ function setDataPaths(dir) {
     NOTES_DIR = path.join(dir, 'notes');
     CONFIG_FILE = path.join(dir, 'config.json');
     INDEX_FILE = path.join(dir, 'index.json');
+    AI_CHATS_FILE = path.join(dir, 'ai_chats.json');
     // 换目录后旧缓存全部失效，否则会把新位置的首次写入误判为“无需写入”
     resetWriteCache();
     storageDirsReady = false;
@@ -52,6 +56,105 @@ function ensureStorageDirs() {
     }
 }
 
+// AI 对话记录：单条对话保留的消息数上限，超出后丢弃最早的（避免文件无限膨胀）
+const AI_CHAT_MESSAGE_LIMIT = 120;
+// 最多保留的对话数，超出后清理最久未使用的
+const AI_CHAT_LIMIT = 50;
+
+// 单条消息规范化：既没有正文也没有错误提示的空消息没有保存价值
+function normalizeAiChatMessage(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const role = raw.role === 'assistant' ? 'assistant' : (raw.role === 'user' ? 'user' : '');
+    if (!role) return null;
+
+    const content = typeof raw.content === 'string' ? raw.content : '';
+    const error = typeof raw.error === 'string' ? raw.error.trim() : '';
+    if (!content && !error) return null;
+
+    const message = { role, content };
+    if (error) {
+        message.content = '';
+        message.error = error;
+        if (raw.canceled) message.canceled = true;
+    }
+    if (typeof raw.contextLabel === 'string' && raw.contextLabel) message.contextLabel = raw.contextLabel;
+    message.createdAt = Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
+    return message;
+}
+
+// 单个对话规范化：ID 非法或重复的直接丢弃，消息超限时只保留最近的一批
+function normalizeAiConversation(raw, seenIds) {
+    if (!raw || typeof raw !== 'object') return null;
+    const id = typeof raw.id === 'string' ? raw.id.trim() : '';
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || seenIds.has(id)) return null;
+    seenIds.add(id);
+
+    const messages = (Array.isArray(raw.messages) ? raw.messages : [])
+        .map(normalizeAiChatMessage)
+        .filter(Boolean)
+        .slice(-AI_CHAT_MESSAGE_LIMIT);
+
+    return {
+        id,
+        title: typeof raw.title === 'string' ? raw.title.trim().slice(0, 60) : '',
+        messages,
+        createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
+        updatedAt: Number.isFinite(raw.updatedAt) ? raw.updatedAt : Date.now()
+    };
+}
+
+function normalizeAiChats(raw) {
+    const source = (raw && typeof raw === 'object') ? raw : {};
+    const seenIds = new Set();
+    const conversations = (Array.isArray(source.conversations) ? source.conversations : [])
+        .map(item => normalizeAiConversation(item, seenIds))
+        .filter(Boolean)
+        // 最近使用的排在前面，新建对话时 unshift 即可保持同一顺序
+        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+        .slice(0, AI_CHAT_LIMIT);
+
+    const activeId = conversations.some(item => item.id === source.activeId)
+        ? source.activeId
+        : (conversations[0] ? conversations[0].id : '');
+    return { conversations, activeId };
+}
+
+function loadAiChats() {
+    try {
+        if (!fs.existsSync(AI_CHATS_FILE)) return normalizeAiChats(null);
+        const raw = fs.readFileSync(AI_CHATS_FILE, 'utf8').trim();
+        if (!raw) return normalizeAiChats(null);
+        return normalizeAiChats(JSON.parse(raw));
+    } catch (err) {
+        console.error('读取 ai_chats.json 失败:', err);
+        return normalizeAiChats(null);
+    }
+}
+
+// 保存对话记录到 data/ai_chats.json（内容未变时直接跳过写入）
+function saveAiChats() {
+    ensureStorageDirs();
+    try {
+        const chats = Array.isArray(State.aiConversations) ? State.aiConversations : [];
+        const payload = {
+            activeId: State.aiActiveConversationId || '',
+            conversations: chats.map(chat => ({
+                id: chat.id,
+                title: chat.title || '',
+                createdAt: chat.createdAt || Date.now(),
+                updatedAt: chat.updatedAt || Date.now(),
+                messages: Array.isArray(chat.messages) ? chat.messages.slice(-AI_CHAT_MESSAGE_LIMIT) : []
+            }))
+        };
+        const json = JSON.stringify(payload, null, 2);
+        if (json === savedAiChatsJSON) return;
+        fs.writeFileSync(AI_CHATS_FILE, json, 'utf8');
+        savedAiChatsJSON = json;
+    } catch (err) {
+        console.error('保存 ai_chats.json 失败:', err);
+    }
+}
+
 // 字体配置规范化：容忍缺失/脏数据，统一为四个字符串字段
 function normalizeFonts(raw) {
     const source = (raw && typeof raw === 'object') ? raw : {};
@@ -64,9 +167,27 @@ function normalizeFonts(raw) {
     };
 }
 
+// AI 配置规范化：容忍缺失/脏数据，范围与数量都夹在合理区间内
+function normalizeAiConfig(raw) {
+    const source = (raw && typeof raw === 'object') ? raw : {};
+    const pick = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+    const maxNotes = Number(source.maxNotes);
+    return {
+        // 总开关：旧配置里还没有该字段时视为开启，保证升级前后的行为一致
+        enabled: source.enabled === undefined ? true : !!source.enabled,
+        baseUrl: pick('baseUrl'),
+        // 密钥不 trim 之外的任何改写：原样保存，避免用户粘贴的内容被破坏
+        apiKey: typeof source.apiKey === 'string' ? source.apiKey.trim() : '',
+        model: pick('model'),
+        scope: normalizeAiScope(source.scope),
+        maxNotes: Number.isFinite(maxNotes) ? Math.min(Math.max(Math.round(maxNotes), 1), 100) : 10,
+        systemPrompt: typeof source.systemPrompt === 'string' ? source.systemPrompt : ''
+    };
+}
+
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: '', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, fonts: {} };
+    let config = { theme: 'system', accentColor: '', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, fonts: {}, ai: {} };
     let indexData = { folders: [], notes: [] };
     let indexCorrupted = false; // index.json 解析失败时标记，启动后会用清理后的索引覆盖
 
@@ -180,6 +301,8 @@ function loadData() {
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         fonts: normalizeFonts(config.fonts),
+        ai: normalizeAiConfig(config.ai),
+        aiChats: loadAiChats(),
         folders,
         notes,
         indexCleanup: {
@@ -201,7 +324,8 @@ function saveConfig() {
             spellcheck: State.spellcheck,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
-            fonts: normalizeFonts(State.fonts)
+            fonts: normalizeFonts(State.fonts),
+            ai: normalizeAiConfig(State.ai)
         };
         const json = JSON.stringify(config, null, 2);
         if (json === savedConfigJSON) return;

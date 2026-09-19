@@ -5,6 +5,7 @@ const SETTINGS_CATEGORIES = [
     { id: 'editor', label: '编辑器与文本', icon: 'edit_note' },
     { id: 'appearance', label: '外观与主题色', icon: 'palette' },
     { id: 'fonts', label: '字体', icon: 'text_format' },
+    { id: 'ai', label: 'AI 助手', icon: 'smart_toy' },
     { id: 'data', label: '数据与存储', icon: 'folder' }
 ];
 
