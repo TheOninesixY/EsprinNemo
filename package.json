@@ -1,6 +1,6 @@
 {
   "name": "esprin_nemo",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "src/main/main.js",
   "description": "Note, Nothing.",
   "author": "TheOninesixY <oninesixy@qq.com>",
@@ -33,7 +33,7 @@
       ]
     },
     "portable": {
-      "artifactName": "EsprinNemo.${version}.portable.${ext}"
+      "artifactName": "EsprinNemo Portable ${version}.${ext}"
     },
     "nsis": {
       "include": "src/win_installer/installer.nsh",
