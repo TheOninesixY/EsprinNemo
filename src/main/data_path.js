@@ -91,6 +91,11 @@ function readStoredDataDir(appLike = null) {
 
 // 写入数据位置记录；dir 为空表示删除记录（回到默认位置）
 function writeStoredDataDir(dir, appLike = null) {
+  // 开发运行不维护位置记录（清空记录会误删安装版的选择）
+  if (isDevRun(appLike)) {
+    console.warn('[Esprin Nemo] 开发运行下忽略数据位置记录的写入');
+    return false;
+  }
   const file = getLocationFile(appLike);
   if (!file) return false;
   try {
@@ -106,6 +111,14 @@ function writeStoredDataDir(dir, appLike = null) {
     console.error('[Esprin Nemo] 保存数据位置失败:', error);
     return false;
   }
+}
+
+// 是否开发运行：bun start / npm start 走的是 `electron .`，此时应用未打包。
+// 开发运行固定使用项目内 data/，不读取也不写入 data_path.json，
+// 避免被安装版（或向导）记录的位置带到用户目录，令开发数据来源难以预期。
+function isDevRun(appLike = null) {
+  const app = getApp(appLike);
+  return !(app && app.isPackaged);
 }
 
 // 目录必须可创建且可写，否则视为不可用
@@ -143,21 +156,24 @@ function getDataDir(baseDir = __dirname, appLike = null) {
   const argDir = getDataDirFromArgv();
   if (argDir) return argDir;
 
-  // 2. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退，避免应用无法启动
+  // 2. 开发运行（bun start）：固定使用项目内 data/，不读位置记录也不接受自定义位置
+  if (isDevRun(appLike)) return getDefaultDataDir(baseDir, appLike);
+
+  // 3. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退，避免应用无法启动
   const stored = readStoredDataDir(appLike);
   if (stored) {
     if (ensureDirUsable(stored)) return stored;
     console.warn('[Esprin Nemo] 记录的数据位置不可用，已回退到默认位置:', stored);
   }
 
-  // 3. 默认位置
+  // 4. 默认位置
   return getDefaultDataDir(baseDir, appLike);
 }
 
 // 安装版首次运行时，把随应用分发的项目内 data/ 迁移到用户数据目录
 function migrateLegacyData(dir, baseDir = __dirname, appLike = null) {
   const app = getApp(appLike);
-  if (!app || !app.isPackaged || typeof app.getPath !== 'function') return;
+  if (isDevRun(appLike) || typeof app.getPath !== 'function') return;
 
   // 用户已显式指定了数据位置时不做迁移，避免把随应用分发的内容写入用户目录
   if (readStoredDataDir(appLike)) return;
@@ -183,6 +199,7 @@ function ensureDataDir(baseDir = __dirname, appLike = null) {
 
 module.exports = {
   DATA_DIR_ARG,
+  isDevRun,
   getDefaultDataDir,
   writeStoredDataDir,
   ensureDataDir

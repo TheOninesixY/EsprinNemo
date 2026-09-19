@@ -171,6 +171,10 @@
     opacity: 0.45;
     cursor: not-allowed;
 }
+/* 开发运行（bun start）下数据存放位置固定：整个选项置灰、不可更改 */
+.settings-row.is-locked {
+    opacity: 0.7;
+}
 .settings-select {
     flex-shrink: 0;
     min-width: 190px;

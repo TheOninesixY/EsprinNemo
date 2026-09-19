@@ -1,26 +1,49 @@
 /* 数据存放位置：展示当前目录，并支持更改 / 恢复默认 / 在文件管理器中打开 */
 
-// 数据位置信息（由主进程提供：当前目录、默认目录、是否为自定义位置）
-let dataDirInfo = { dataDir: DATA_DIR, defaultDir: '', isCustom: false };
+// 数据位置信息（由主进程提供：当前目录、默认目录、是否为自定义位置、是否开发运行）
+let dataDirInfo = { dataDir: DATA_DIR, defaultDir: '', isCustom: false, isDevRun: false };
+
+// 开发运行（bun start）下数据固定在项目内 data/，整行置灰不可更改
+const DATA_DIR_LOCKED_HINT = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
+
+// 锁定时整行淡化并禁用全部按钮；解锁时交由 updateDataDirUI 按实际状态恢复
+function applyDataDirLock(locked) {
+    const row = document.getElementById('setting-data-row');
+    if (row) row.classList.toggle('is-locked', locked);
+    if (!locked) return;
+    ['btn-data-change', 'btn-data-reset', 'btn-data-open'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = true;
+            btn.title = DATA_DIR_LOCKED_HINT;
+        }
+    });
+}
 
 function updateDataDirUI() {
     const text = document.getElementById('setting-data-dir-text');
     const tag = document.getElementById('setting-data-dir-tag');
     const resetBtn = document.getElementById('btn-data-reset');
     const status = document.getElementById('data-dir-status');
+    const locked = !!dataDirInfo.isDevRun;
 
     if (text) text.textContent = dataDirInfo.dataDir || DATA_DIR;
     if (tag) {
-        const custom = !!dataDirInfo.isCustom;
-        tag.textContent = custom ? '自定义位置' : '默认位置';
+        const custom = !locked && !!dataDirInfo.isCustom;
+        tag.textContent = locked ? '开发运行（固定）' : (custom ? '自定义位置' : '默认位置');
         tag.style.color = custom ? 'var(--accent)' : '';
     }
-    if (resetBtn) resetBtn.disabled = !dataDirInfo.isCustom;
+    if (resetBtn) resetBtn.disabled = locked || !dataDirInfo.isCustom;
     if (status) {
-        status.textContent = (dataDirInfo.isCustom && dataDirInfo.defaultDir)
-            ? `默认位置：${dataDirInfo.defaultDir}（可用“恢复默认”切回）`
-            : '更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。';
+        if (locked) {
+            status.textContent = `${DATA_DIR_LOCKED_HINT}该目录随项目一同管理，仅安装版可改变数据存放位置。`;
+        } else if (dataDirInfo.isCustom && dataDirInfo.defaultDir) {
+            status.textContent = `默认位置：${dataDirInfo.defaultDir}（可用“恢复默认”切回）`;
+        } else {
+            status.textContent = '更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。';
+        }
     }
+    applyDataDirLock(locked);
 }
 
 function setDataDirButtonsDisabled(disabled) {
@@ -43,7 +66,8 @@ async function refreshDataDirInfo() {
             dataDirInfo = {
                 dataDir: info.dataDir,
                 defaultDir: typeof info.defaultDir === 'string' ? info.defaultDir : '',
-                isCustom: !!info.isCustom
+                isCustom: !!info.isCustom,
+                isDevRun: !!info.isDevRun
             };
             // 兜底：渲染进程使用的目录始终与主进程保持一致
             if (path.resolve(info.dataDir) !== path.resolve(DATA_DIR)) {
@@ -146,6 +170,10 @@ async function handleDataDirResult(result, successMessage) {
 
 // 通过目录选择框更改数据存放位置（可选迁移现有数据）
 async function changeDataDir() {
+    if (dataDirInfo.isDevRun) {
+        showToast(DATA_DIR_LOCKED_HINT);
+        return;
+    }
     setDataDirButtonsDisabled(true);
     try {
         flushPendingSave(); // 先落盘，保证迁移/切换的是最新内容
@@ -162,6 +190,10 @@ async function changeDataDir() {
 
 // 恢复为默认数据存放位置
 async function resetDataDir() {
+    if (dataDirInfo.isDevRun) {
+        showToast(DATA_DIR_LOCKED_HINT);
+        return;
+    }
     setDataDirButtonsDisabled(true);
     try {
         flushPendingSave();

@@ -5,6 +5,7 @@ const {
   DATA_DIR_ARG,
   ensureDataDir,
   getDefaultDataDir,
+  isDevRun,
   writeStoredDataDir
 } = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
@@ -15,9 +16,12 @@ const { registerUiDefaults } = require('./ui_defaults.js');
 // 本文件位于 src/main/ 下，因此 assets/、src/renderer/ 与开发版 data/ 都相对它定位。
 const APP_ROOT = app.getAppPath();
 
-// 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/；
-// 安装向导与“设置 → 数据存放位置”都把选择写进 %APPDATA%/esprin_nemo/data_path.json，
-// 该记录优先于默认位置，记录不存在时使用默认位置。
+// 安装版使用 %APPDATA%/esprin_nemo/data，开发运行（bun start → electron .）使用项目内 data/。
+// 安装向导与“设置 → 数据存放位置”把选择写进 %APPDATA%/esprin_nemo/data_path.json，
+// 该记录优先于默认位置；开发运行不读该记录，也不允许在设置中更改位置。
+const IS_DEV_RUN = isDevRun(app);
+const DATA_DIR_LOCKED_MESSAGE = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
+
 let dataDir = null;
 function resolveDataDir() {
   if (!dataDir) {
@@ -193,13 +197,16 @@ ipcMain.handle('data:get-dir', () => {
   return {
     dataDir: current,
     defaultDir,
-    isCustom: !isSamePath(current, defaultDir),
-    isDefault: isSamePath(current, defaultDir)
+    // 开发运行固定使用项目内 data/，始终视为默认位置
+    isCustom: !IS_DEV_RUN && !isSamePath(current, defaultDir),
+    isDefault: isSamePath(current, defaultDir),
+    isDevRun: IS_DEV_RUN
   };
 });
 
 // 数据存放位置：弹出目录选择框并按需迁移
 ipcMain.handle('data:choose-dir', async (event) => {
+  if (IS_DEV_RUN) return { canceled: false, error: DATA_DIR_LOCKED_MESSAGE };
   const win = BrowserWindow.fromWebContents(event.sender);
   const result = await dialog.showOpenDialog(win, {
     title: '选择数据存放位置',
@@ -213,6 +220,7 @@ ipcMain.handle('data:choose-dir', async (event) => {
 
 // 数据存放位置：恢复为默认位置（并清除自定义记录）
 ipcMain.handle('data:reset-dir', async (event) => {
+  if (IS_DEV_RUN) return { canceled: false, error: DATA_DIR_LOCKED_MESSAGE };
   const win = BrowserWindow.fromWebContents(event.sender);
   const target = getDefaultDataDir(APP_ROOT, app);
   const result = await applyDataDirChange(target, win, { persist: false, targetLabel: '默认位置' });
