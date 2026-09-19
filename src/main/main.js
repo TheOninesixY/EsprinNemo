@@ -10,6 +10,7 @@ const {
 } = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
+const { closeScratchpadWindow, configureScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
@@ -68,6 +69,19 @@ configureDialogWindows({
   getAccent: resolveAccentColor,
   icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
+
+// 小本本（便利贴窗口）：右下角置顶小窗，内容随数据目录一起走
+configureScratchpadWindow({
+  getTheme: resolveEffectiveTheme,
+  getAccent: resolveAccentColor,
+  getDataDir: resolveDataDir,
+  // 便利贴停靠在哪块屏幕右下角，取决于主窗口当前所在的显示器
+  getOwner: () => mainWindow,
+  icon: path.join(APP_ROOT, 'assets', 'icon.png')
+});
+
+// 主窗口引用：小本本据此定位停靠屏幕，并在主窗口关闭时一并收掉
+let mainWindow = null;
 
 function normalizePathForCompare(target) {
   const resolved = path.resolve(target);
@@ -294,6 +308,12 @@ function createWindow() {
     win.show();
   });
 
+  // 主窗口关闭时同步关闭小本本，否则便利贴会独自留在屏幕上、应用也无法退出
+  win.once('closed', () => {
+    if (mainWindow === win) mainWindow = null;
+    closeScratchpadWindow();
+  });
+
   win.on('enter-full-screen', () => {
     win.webContents.send('window:fullscreen-changed', true);
   });
@@ -303,6 +323,9 @@ function createWindow() {
   });
 
   win.loadURL('file://' + path.join(APP_ROOT, 'src', 'renderer', 'main.html'));
+
+  mainWindow = win;
+  return win;
 }
 
 app.whenReady().then(() => {
@@ -316,6 +339,9 @@ app.whenReady().then(() => {
 
   // 窗口式消息弹窗的 IPC 通道
   registerDialogIpc();
+
+  // 小本本窗口的 IPC 通道（打开 / 读写内容 / 外观同步）
+  registerScratchpadIpc();
 
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
   registerUiDefaults();

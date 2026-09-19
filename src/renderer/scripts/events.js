@@ -110,6 +110,11 @@ function setupEvents() {
         winControls.toggleFullscreen();
     };
 
+    // 小本本：打开屏幕右下角的便利贴小窗口（已打开时恢复并前置）
+    document.getElementById('btn-scratchpad').onclick = () => {
+        openScratchpadWindow();
+    };
+
     document.getElementById('btn-note-export-md').onclick = () => {
         const note = getActiveNote();
         if (!note) return;

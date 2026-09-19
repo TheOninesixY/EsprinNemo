@@ -8,6 +8,18 @@ const winControls = {
     toggleFullscreen: () => ipcRenderer.invoke('window:toggle-fullscreen')
 };
 
+// 小本本（便利贴窗口）：窗口本身由主进程创建与管理，这里只负责请求打开，
+// 已存在时主进程会恢复并前置，因此重复点击是安全的。
+async function openScratchpadWindow() {
+    try {
+        return await ipcRenderer.invoke('scratchpad:toggle');
+    } catch (err) {
+        console.error('打开小本本失败:', err);
+        showToast('打开小本本失败');
+        return false;
+    }
+}
+
 document.getElementById('win-min').onclick = winControls.min;
 document.getElementById('win-max').onclick = winControls.max;
 document.getElementById('win-close').onclick = winControls.close;

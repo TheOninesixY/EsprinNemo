@@ -33,6 +33,7 @@
 - **主题色个性化**：强调色可选预设色板或自定义取色（支持 #RRGGBB / #RGB），实时预览并即时落盘，深浅主题下自动换算背景透明度与按钮文字色，消息弹窗同步生效
 - **字体自定义**：界面字体与文档字体可分别设置，西文与 CJK 字体分开配置，按字符逐个回退
 - **本机字体列表**：直接解析字体文件 `name` 表枚举字体，无需第三方依赖，并带实时预览
+- **小本本**：标题栏一键唤出屏幕右下角的便利贴小窗口，始终置顶，标题栏只有「选择笔记 / 保存 / 最小化 / 关闭」；自带标题与正文输入，自动保存，`Ctrl + S` 保存。未关联笔记时内容属于小本本自己（数据目录下的 `scratchpad.json`），点保存即在后台新建一篇笔记并自动关联；点选择可搜索并打开已有笔记，之后小本本里编辑的就是那篇笔记，主题与主题色跟随主窗口
 
 ### 数据与隐私
 - **完全离线**：不联网、不上传、无遥测
@@ -47,6 +48,8 @@
 | `Ctrl + N` | 新建笔记 |
 | `Ctrl + Shift + F` | 聚焦搜索框 |
 | `Ctrl + S` | 保存当前笔记 |
+| `Ctrl + S`（小本本窗口） | 未关联笔记时新建为笔记并关联，已关联时保存回那篇笔记 |
+| `Ctrl + O`（小本本窗口） | 打开笔记选择面板 |
 | `Tab`（编辑器内） | 插入缩进 |
 
 ## 快速开始
@@ -87,6 +90,7 @@ Windows 下由 electron-builder 生成安装包，产物位于 `dist/`。安装�
 data/
 ├── config.json     # 偏好设置：主题、主题色、字体、拼写检查、废纸篓保留天数等
 ├── index.json      # 笔记索引：标题、文件夹、标签、置顶/回收状态、时间戳
+├── scratchpad.json # 小本本：关联的笔记 ID 与标题/正文缓存
 └── notes/
     ├── <id>.md     # 笔记正文
     └── ...
@@ -124,6 +128,7 @@ data_path.json 中的位置（安装时选择或应用内更改）
 │   │   ├── main.js         # 窗口、菜单、数据目录解析与迁移、IPC
 │   │   ├── data_path.js    # 数据目录解析：默认位置、自定义位置记录、迁移
 │   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入）
+│   │   ├── scratchpad_window.js # 小本本：右下角置顶便利贴小窗口与内容读写
 │   │   ├── font_list.js    # 跨平台本机字体枚举（解析字体文件 name 表）
 │   │   └── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
 │   ├── win_installer/      # Windows 安装器：NSIS 自定义向导页（数据存放位置）
@@ -132,10 +137,11 @@ data_path.json 中的位置（安装时选择或应用内更改）
 │   └── renderer/           # 渲染进程
 │       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本
 │       ├── dialog.html     # 弹窗窗口页面
+│       ├── scratchpad.html # 小本本窗口页面（标题 + 正文、选择笔记、Ctrl+S 保存）
 │       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题色 / 字体预注入（无闪屏）
 │       ├── fonts/          # 随应用分发的品牌字体（Mohave）
 │       ├── styles/         # tokens / base / sidebar / editor / overlays / settings
-│       └── scripts/        # state / storage / markdown / ui / theme_color / notes / editor / render …
+│       └── scripts/        # state / storage / markdown / ui / theme_color / notes / scratchpad / editor / render …
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
 └── readme/                 # 文档配图

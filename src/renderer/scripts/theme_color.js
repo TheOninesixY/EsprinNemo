@@ -133,6 +133,8 @@ function setAccentColor(value) {
     applyAccentColor();
     syncAccentControls();
     saveConfig();
+    // 主题色不经过 applyTheme，这里单独同步一次给小本本
+    syncScratchpadAppearance();
 }
 
 // 仅实时预览（拖动取色器时调用），不落盘，避免连续写入 config.json

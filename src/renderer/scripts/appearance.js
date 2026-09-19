@@ -30,6 +30,21 @@ function applyTheme() {
         if (themeIcon) themeIcon.textContent = 'dark_mode';
         if (themeBtn) themeBtn.title = '主题：深色模式 (点击切换到跟随系统)';
     }
+
+    syncScratchpadAppearance();
+}
+
+// 小本本（便利贴窗口）与应用观感保持一致：明暗主题或主题色变化后同步给主进程，
+// 由主进程转发给便利贴窗口；便利贴未打开时这次广播会被忽略，无副作用。
+function syncScratchpadAppearance() {
+    try {
+        ipcRenderer.send('scratchpad:appearance', {
+            theme: getEffectiveTheme(),
+            accent: normalizeAccentColor(State.accentColor)
+        });
+    } catch (err) {
+        console.error('同步小本本外观失败:', err);
+    }
 }
 
 // 受"错词红波浪线检查"开关控制的可编辑区域（笔记标题 + 正文）

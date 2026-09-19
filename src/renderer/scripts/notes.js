@@ -1,24 +1,31 @@
 /* 笔记操作：新建与标签页，置顶/废纸篓/彻底删除，废纸篓自动清理，以及列表过滤 */
 
-// Note Operations
-function createNewNote() {
-    let defaultFolder = '默认';
-    if (State.currentFilter.startsWith('folder:')) {
-        defaultFolder = State.currentFilter.replace('folder:', '');
-    }
+// 新建笔记的默认归属：沿用当前筛选（在文件夹/标签视图下新建时直接落在该分类）
+function newNoteDefaults() {
+    return {
+        folder: State.currentFilter.startsWith('folder:') ? State.currentFilter.replace('folder:', '') : '默认',
+        tags: State.currentFilter.startsWith('tag:') ? [State.currentFilter.replace('tag:', '')] : []
+    };
+}
 
-    // 生成10位大小写英文+数字随机ID，查重保证唯一性
+// 生成10位大小写英文+数字随机ID，查重保证唯一性
+function generateUniqueNoteId() {
     let id = generateNoteId();
     while (State.notes.some(n => n.id === id)) {
         id = generateNoteId();
     }
+    return id;
+}
 
+// Note Operations
+function createNewNote() {
+    const defaults = newNoteDefaults();
     const newNote = {
-        id: id,
+        id: generateUniqueNoteId(),
         title: '',
         content: '',
-        folder: defaultFolder,
-        tags: State.currentFilter.startsWith('tag:') ? [State.currentFilter.replace('tag:', '')] : [],
+        folder: defaults.folder,
+        tags: defaults.tags,
         isPinned: false,
         isTrashed: false,
         createdAt: Date.now(),

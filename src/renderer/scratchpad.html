@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小本本</title>
+    <script>
+        // 明暗主题 / 主题色由主进程在创建窗口时经命令行参数传入，首屏渲染前应用，避免闪烁
+        function applyNoteTheme(theme) {
+            document.documentElement.classList.toggle('light', theme === 'light');
+        }
+
+        // 主题色派生变量：强调色及其浅底、底上文字色，规则与主窗口、弹窗窗口一致
+        function applyNoteAccent(value) {
+            const rootStyle = document.documentElement.style;
+            const matched = String(value == null ? '' : value).trim().match(/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+            if (!matched) {
+                rootStyle.removeProperty('--accent');
+                rootStyle.removeProperty('--accent-bg');
+                rootStyle.removeProperty('--accent-fg');
+                return;
+            }
+            const hex = matched[1].length === 3
+                ? matched[1].split('').map((c) => c + c).join('')
+                : matched[1];
+            const r = parseInt(hex.slice(0, 2), 16);
+            const g = parseInt(hex.slice(2, 4), 16);
+            const b = parseInt(hex.slice(4, 6), 16);
+            const alpha = document.documentElement.classList.contains('light') ? 0.1 : 0.15;
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            rootStyle.setProperty('--accent', '#' + hex.toUpperCase());
+            rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
+            rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
+        }
+
+        function applyNoteAppearance(theme, accent) {
+            applyNoteTheme(theme === 'light' ? 'light' : 'dark');
+            applyNoteAccent(accent);
+        }
+
+        try {
+            const argValue = (prefix) => {
+                const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(prefix));
+                return matched ? matched.slice(prefix.length).trim() : '';
+            };
+            applyNoteAppearance(argValue('--esprin-nemo-note-theme='), argValue('--esprin-nemo-note-accent='));
+        } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
+    <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-titlebar: #161b22;
+            --border-color: #30363d;
+
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+
+            --accent: #58a6ff;
+            --accent-bg: rgba(56, 139, 253, 0.15);
+            /* 强调色底面上的文字色：主进程会按自定义主题色的亮度覆盖该变量 */
+            --accent-fg: #ffffff;
+            --danger: #f85149;
+
+            --item-hover: rgba(255, 255, 255, 0.04);
+            --item-active: rgba(255, 255, 255, 0.08);
+
+            --radius-sm: 6px;
+        }
+
+        :root.light {
+            --bg-body: #ffffff;
+            --bg-titlebar: #f6f8fa;
+            --border-color: #d0d7de;
+
+            --text-primary: #1f2328;
+            --text-secondary: #656d76;
+            --text-muted: #8c959f;
+
+            --accent: #0969da;
+            --accent-bg: rgba(9, 105, 218, 0.1);
+            --danger: #cf222e;
+
+            --item-hover: rgba(0, 0, 0, 0.04);
+            --item-active: rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial,
+                         "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+            font-size: 13px;
+            color: var(--text-primary);
+            background-color: var(--bg-body);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .ms-icon {
+            font-family: 'Material Symbols Rounded';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 18px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            font-feature-settings: 'liga';
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        }
+        .ms-icon.xs { font-size: 14px; }
+        /* 实心图标：用于置顶等强调状态 */
+        .ms-icon.fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+
+        .hidden { display: none !important; }
+
+        button {
+            border: none;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+
+        /* 滚动条：与主窗口一致 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: var(--text-secondary);
+        }
+
+        .note-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: var(--bg-body);
+        }
+
+        /* 自绘标题栏：与主窗口同高，左侧图标 + 标题输入，右侧为窗口按钮 */
+        .titlebar {
+            height: 40px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 12px;
+            background-color: var(--bg-titlebar);
+            border-bottom: 1px solid var(--border-color);
+            -webkit-app-region: drag;
+            user-select: none;
+        }
+        .titlebar-icon {
+            font-size: 16px;
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+        /* 窗口名不再重复占位：原来显示“小本本”的位置就是标题输入框 */
+        #note-title {
+            flex: 1;
+            min-width: 0;
+            height: 100%;
+            padding: 0 6px;
+            border: none;
+            outline: none;
+            background-color: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            /* 按住标题拖动是搬窗口，因此不参与鼠标选中（键盘选中不受影响） */
+            user-select: none;
+            cursor: default;
+            -webkit-app-region: no-drag;
+        }
+        #note-title::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .window-controls {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            flex-shrink: 0;
+            -webkit-app-region: no-drag;
+        }
+        .win-btn {
+            width: 36px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: background 0.15s, color 0.15s;
+        }
+        .win-btn:hover {
+            background-color: var(--item-active);
+            color: var(--text-primary);
+        }
+        .win-btn.close:hover {
+            background-color: var(--danger);
+            color: #ffffff;
+        }
+
+        .note-body {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 标题：已移入标题栏（见上方 #note-title） */
+
+        #note-input {
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            padding: 12px 14px;
+            border: none;
+            outline: none;
+            resize: none;
+            background-color: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 13px;
+            line-height: 1.75;
+            user-select: text;
+        }
+        #note-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* 状态栏：显示保存进度与关联状态；整条兼作拖动区域，方便搬动小窗口 */
+        .note-status {
+            height: 24px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 14px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--bg-titlebar);
+            font-size: 11px;
+            color: var(--text-muted);
+            -webkit-app-region: drag;
+            user-select: none;
+        }
+        .note-status-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .note-status-text.pending { color: var(--text-secondary); }
+        .note-status-text.error { color: var(--danger); }
+        .note-status-right {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        /* 关联状态：已关联某篇笔记时用强调色提示，未关联时保持灰色 */
+        #note-binding {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            cursor: default;
+        }
+        #note-binding.bound { color: var(--accent); }
+        #note-binding .ms-icon { font-size: 12px; }
+
+        /* 笔记选择面板：覆盖在正文之上，不打断窗口本身的布局 */
+        .picker {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-body);
+            border-top: 1px solid var(--border-color);
+            z-index: 10;
+        }
+        .picker-head {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            height: 34px;
+            padding: 0 8px 0 12px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }
+        #picker-search {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            outline: none;
+            background-color: transparent;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 12px;
+        }
+        #picker-search::placeholder { color: var(--text-muted); }
+        .picker-close {
+            width: 22px;
+            height: 22px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+        .picker-close:hover {
+            background-color: var(--item-hover);
+            color: var(--text-primary);
+        }
+        .picker-list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 6px 0;
+        }
+        .picker-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            text-align: left;
+            color: var(--text-primary);
+            transition: background-color 0.12s;
+        }
+        .picker-item:hover {
+            background-color: var(--item-hover);
+        }
+        .picker-item.action {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .picker-item.current {
+            background-color: var(--accent-bg);
+        }
+        .picker-item-text {
+            flex: 1;
+            min-width: 0;
+        }
+        .picker-item-title {
+            font-size: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .picker-item-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .picker-sep {
+            height: 1px;
+            margin: 6px 12px;
+            background-color: var(--border-color);
+        }
+        .picker-empty {
+            padding: 14px 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="note-container">
+        <header class="titlebar" id="note-titlebar">
+            <span class="ms-icon titlebar-icon">sticky_note_2</span>
+            <input type="text" id="note-title" placeholder="标题" spellcheck="false">
+            <div class="window-controls">
+                <button class="win-btn" id="note-select" title="选择笔记（Ctrl+O）">
+                    <span class="ms-icon xs">library_books</span>
+                </button>
+                <button class="win-btn" id="note-save" title="保存（Ctrl+S）">
+                    <span class="ms-icon xs">save</span>
+                </button>
+                <button class="win-btn" id="note-min" title="最小化">
+                    <span class="ms-icon xs">remove</span>
+                </button>
+                <button class="win-btn close" id="note-close" title="关闭">
+                    <span class="ms-icon xs">close</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="note-body">
+            <textarea id="note-input" placeholder="随手记点什么…（Ctrl+S 保存）" spellcheck="false"></textarea>
+
+            <!-- 选择笔记：列出可选笔记，也可用当前内容新建一篇 -->
+            <div class="picker hidden" id="picker">
+                <div class="picker-head">
+                    <span class="ms-icon xs">search</span>
+                    <input type="text" id="picker-search" placeholder="搜索笔记…" spellcheck="false">
+                    <button class="picker-close" id="picker-close" title="关闭">
+                        <span class="ms-icon xs">close</span>
+                    </button>
+                </div>
+                <div class="picker-list" id="picker-list"></div>
+            </div>
+        </div>
+
+        <footer class="note-status">
+            <span class="note-status-text" id="note-status-text"></span>
+            <span class="note-status-right">
+                <span id="note-binding" title="未关联笔记"></span>
+                <span id="note-status-hint"></span>
+            </span>
+        </footer>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        const titleEl = document.getElementById('note-title');
+        const inputEl = document.getElementById('note-input');
+        const statusEl = document.getElementById('note-status-text');
+        const bindingEl = document.getElementById('note-binding');
+        const hintEl = document.getElementById('note-status-hint');
+        const pickerEl = document.getElementById('picker');
+        const pickerSearchEl = document.getElementById('picker-search');
+        const pickerListEl = document.getElementById('picker-list');
+
+        // 输入停顿后再落盘，避免每个按键都写一次文件
+        const SAVE_DELAY = 400;
+
+        // 关联的笔记：空字符串表示内容还只属于小本本自己（尚未成为笔记）
+        let boundNoteId = '';
+        // 已落盘的内容快照：与界面完全一致时跳过保存
+        let savedTitle = null;
+        let savedContent = null;
+        let saveTimer = null;
+        let pickerNotes = [];
+        let pickerOpen = false;
+        // 会话令牌：换笔记/取消关联后自增，用来丢弃还在路上的过期保存结果
+        let sessionToken = 0;
+        // 首次载入完成前不落盘，避免用还没读出来的空内容覆盖缓存
+        let ready = false;
+
+        function setStatus(text, tone) {
+            statusEl.textContent = text;
+            statusEl.className = 'note-status-text' + (tone ? ` ${tone}` : '');
+        }
+
+        function updateCount() {
+            hintEl.textContent = `${inputEl.value.length} 字`;
+        }
+
+        // 关联状态标记：让用户随时知道自己的内容是在小本本里，还是已经属于某篇笔记
+        function updateBinding() {
+            const icon = document.createElement('span');
+            icon.className = 'ms-icon xs';
+            icon.textContent = boundNoteId ? 'link' : 'link_off';
+
+            const label = document.createElement('span');
+            label.textContent = boundNoteId ? '已关联笔记' : '未关联';
+
+            bindingEl.textContent = '';
+            bindingEl.append(icon, label);
+            bindingEl.classList.toggle('bound', !!boundNoteId);
+            bindingEl.title = boundNoteId
+                ? '正在编辑一篇已有的笔记，保存（Ctrl+S）会写回这篇笔记'
+                : '内容还只在小本本里，保存（Ctrl+S）会把它新建为一篇笔记';
+        }
+
+        function clearSaveTimer() {
+            if (saveTimer) {
+                clearTimeout(saveTimer);
+                saveTimer = null;
+            }
+        }
+
+        function hasChanges() {
+            return titleEl.value !== savedTitle || inputEl.value !== savedContent;
+        }
+
+        // 落盘：未关联时收进小本本自己的缓存，已关联时写回那篇笔记
+        async function saveNow() {
+            clearSaveTimer();
+            if (!ready || !hasChanges()) return true;
+
+            const token = sessionToken;
+            const title = titleEl.value;
+            const content = inputEl.value;
+            const result = boundNoteId
+                ? await ipcRenderer.invoke('scratchpad:save-note', { noteId: boundNoteId, title, content })
+                : await ipcRenderer.invoke('scratchpad:persist', { noteId: '', title, content });
+
+            // 等待期间已经换了笔记：这次保存的结果已经过期，不再回写界面状态
+            if (token !== sessionToken) return false;
+
+            if (result && result.ok) {
+                savedTitle = title;
+                savedContent = content;
+                setStatus(boundNoteId ? '已保存到笔记' : '已保存');
+                return true;
+            }
+
+            // 关联的笔记已经不存在（被彻底删除/换了数据目录）：退回未关联，内容不丢
+            if (result && result.reason === 'missing') {
+                boundNoteId = '';
+                await ipcRenderer.invoke('scratchpad:persist', { noteId: '', title, content });
+                savedTitle = title;
+                savedContent = content;
+                updateBinding();
+                setStatus('原笔记已不存在，内容留在小本本里', 'error');
+                return true;
+            }
+
+            setStatus(result && result.reason === 'readonly' ? '笔记在废纸篓中，无法保存' : '保存失败', 'error');
+            return false;
+        }
+
+        function scheduleSave() {
+            setStatus('输入中…', 'pending');
+            clearSaveTimer();
+            saveTimer = setTimeout(saveNow, SAVE_DELAY);
+        }
+
+        // 新建笔记：后台建好后小本本自动关联到它，继续在原地编辑
+        async function createAndBind() {
+            clearSaveTimer();
+            // 已关联笔记时有未落盘的改动，先写回原笔记，避免被这次新建顺手丢掉
+            if (boundNoteId && hasChanges() && !(await saveNow())) return false;
+
+            setStatus('正在新建笔记…', 'pending');
+
+            const title = titleEl.value;
+            const content = inputEl.value;
+            const result = await ipcRenderer.invoke('scratchpad:create-note', { title, content });
+            if (!result || !result.ok) {
+                setStatus('新建笔记失败', 'error');
+                return false;
+            }
+
+            boundNoteId = result.noteId;
+            savedTitle = title;
+            savedContent = content;
+            sessionToken += 1;
+            updateBinding();
+            setStatus('已新建笔记并关联');
+            return true;
+        }
+
+        // 保存按钮 / Ctrl+S：未关联时新建笔记并关联，已关联时保存回那篇笔记
+        async function handleSave() {
+            if (!ready) return;
+            if (boundNoteId) {
+                await saveNow();
+                return;
+            }
+            if (!titleEl.value.trim() && !inputEl.value.trim()) {
+                setStatus('小本本还是空的', 'pending');
+                return;
+            }
+            await createAndBind();
+        }
+
+        // 取消关联：先把改动写回笔记，再让小本本回到空白
+        async function unbind() {
+            if (!boundNoteId) return;
+            if (!(await saveNow())) return;
+
+            const result = await ipcRenderer.invoke('scratchpad:unbind', { title: '', content: '' });
+            if (!result || !result.ok) {
+                setStatus('取消关联失败', 'error');
+                return;
+            }
+
+            boundNoteId = '';
+            titleEl.value = '';
+            inputEl.value = '';
+            savedTitle = '';
+            savedContent = '';
+            sessionToken += 1;
+            updateBinding();
+            updateCount();
+            setStatus('已回到空白小本本');
+            inputEl.focus();
+        }
+
+        // 未关联且已有内容时，换成另一篇笔记前先确认，避免内容被直接丢掉
+        async function confirmDiscardUnsaved() {
+            if (boundNoteId) return true;
+            if (!titleEl.value.trim() && !inputEl.value.trim()) return true;
+
+            const result = await ipcRenderer.invoke('dialog:message', {
+                type: 'question',
+                icon: 'help',
+                title: '小本本',
+                message: '小本本里还有内容没成为笔记',
+                detail: '继续打开其它笔记会丢掉这些内容。也可以先返回，用保存（Ctrl+S）把它们新建为一篇笔记。',
+                buttons: [
+                    { id: 'cancel', label: '取消', cancel: true },
+                    { id: 'discard', label: '丢弃内容并继续', variant: 'danger' }
+                ]
+            });
+            return !!result && result.id === 'discard';
+        }
+
+        function formatPickerDate(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            if (date.toDateString() === now.toDateString()) {
+                return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            }
+            return `${date.getMonth() + 1}月${date.getDate()}日`;
+        }
+
+        function pickerAction(label, icon, onClick) {
+            const el = document.createElement('button');
+            el.type = 'button';
+            el.className = 'picker-item action';
+
+            const iconEl = document.createElement('span');
+            iconEl.className = 'ms-icon xs';
+            iconEl.textContent = icon;
+
+            const textEl = document.createElement('span');
+            textEl.className = 'picker-item-text';
+            textEl.textContent = label;
+
+            el.append(iconEl, textEl);
+            el.onclick = onClick;
+            return el;
+        }
+
+        function renderPickerList(keyword) {
+            pickerListEl.innerHTML = '';
+            pickerListEl.appendChild(pickerAction('用当前内容新建笔记', 'add', createFromPicker));
+            if (boundNoteId) {
+                pickerListEl.appendChild(pickerAction('取消关联，回到空白小本本', 'link_off', () => {
+                    closePicker();
+                    unbind();
+                }));
+            }
+
+            const sep = document.createElement('div');
+            sep.className = 'picker-sep';
+            pickerListEl.appendChild(sep);
+
+            const query = String(keyword || '').trim().toLowerCase();
+            const items = pickerNotes.filter((note) => !query
+                || note.title.toLowerCase().includes(query)
+                || note.folder.toLowerCase().includes(query));
+
+            if (!items.length) {
+                const empty = document.createElement('div');
+                empty.className = 'picker-empty';
+                empty.textContent = query ? '没有匹配的笔记' : '还没有可选择的笔记';
+                pickerListEl.appendChild(empty);
+                return;
+            }
+
+            items.forEach((note) => {
+                const el = document.createElement('button');
+                el.type = 'button';
+                el.className = 'picker-item' + (note.id === boundNoteId ? ' current' : '');
+
+                const iconEl = document.createElement('span');
+                iconEl.className = note.isPinned ? 'ms-icon xs fill' : 'ms-icon xs';
+                iconEl.textContent = note.isPinned ? 'push_pin' : 'description';
+
+                const textEl = document.createElement('span');
+                textEl.className = 'picker-item-text';
+
+                const titleEl2 = document.createElement('div');
+                titleEl2.className = 'picker-item-title';
+                titleEl2.textContent = note.title || '未命名笔记';
+
+                const metaEl = document.createElement('div');
+                metaEl.className = 'picker-item-meta';
+                metaEl.textContent = `${note.folder} · ${formatPickerDate(note.updatedAt)}`;
+
+                textEl.append(titleEl2, metaEl);
+                el.append(iconEl, textEl);
+                el.onclick = () => openNote(note.id);
+                pickerListEl.appendChild(el);
+            });
+        }
+
+        function showPickerMessage(text) {
+            pickerListEl.innerHTML = '';
+            const el = document.createElement('div');
+            el.className = 'picker-empty';
+            el.textContent = text;
+            pickerListEl.appendChild(el);
+        }
+
+        async function openPicker() {
+            if (pickerOpen) return;
+            pickerOpen = true;
+            pickerEl.classList.remove('hidden');
+            pickerSearchEl.value = '';
+            showPickerMessage('正在读取笔记…');
+            pickerSearchEl.focus();
+
+            let result = null;
+            try {
+                result = await ipcRenderer.invoke('scratchpad:list-notes');
+            } catch (err) {
+                console.error('读取笔记列表失败:', err);
+            }
+            // 等待期间用户可能已经关掉了面板
+            if (!pickerOpen) return;
+
+            if (!result || !result.ok) {
+                showPickerMessage('读取笔记列表失败');
+                return;
+            }
+            pickerNotes = Array.isArray(result.notes) ? result.notes : [];
+            renderPickerList('');
+        }
+
+        function closePicker() {
+            pickerOpen = false;
+            pickerEl.classList.add('hidden');
+        }
+
+        // 用当前内容新建笔记（选择面板里的入口）
+        async function createFromPicker() {
+            if (!titleEl.value.trim() && !inputEl.value.trim()) {
+                closePicker();
+                setStatus('小本本还是空的', 'pending');
+                return;
+            }
+            closePicker();
+            await createAndBind();
+        }
+
+        // 打开一篇已有笔记：之后小本本里编辑的就是这篇笔记
+        async function openNote(noteId) {
+            if (noteId === boundNoteId) {
+                closePicker();
+                return;
+            }
+            // 已关联的笔记先把改动落盘；未关联的内容则要先确认是否丢弃
+            if (boundNoteId) {
+                if (!(await saveNow())) return;
+            } else if (!(await confirmDiscardUnsaved())) {
+                return;
+            }
+
+            const result = await ipcRenderer.invoke('scratchpad:bind', { noteId });
+            if (!result || !result.ok || !result.note) {
+                setStatus('打开笔记失败', 'error');
+                return;
+            }
+
+            boundNoteId = result.note.id;
+            titleEl.value = result.note.title || '';
+            inputEl.value = result.note.content || '';
+            savedTitle = titleEl.value;
+            savedContent = inputEl.value;
+
+            clearSaveTimer();
+            sessionToken += 1;
+            closePicker();
+            updateBinding();
+            updateCount();
+            setStatus('已打开笔记');
+            inputEl.focus();
+        }
+
+        inputEl.addEventListener('input', () => {
+            scheduleSave();
+            updateCount();
+        });
+        titleEl.addEventListener('input', scheduleSave);
+
+        // 标题兼作拖动把手：按住标题拖动就是搬动窗口，单击才是编辑。
+        // 渲染进程无法直接移动窗口，因此按屏幕增量转给主进程搬运。
+        const TITLE_DRAG_THRESHOLD = 3;
+        let titleDrag = null;
+
+        titleEl.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            // 先阻止默认行为：拖动过程中不会出现文本选区，也不会抢走光标
+            e.preventDefault();
+            titleDrag = {
+                startX: e.screenX,
+                startY: e.screenY,
+                // 单击而未拖动时，把光标放回按下前的位置（原本没聚焦则落到末尾）
+                caret: document.activeElement === titleEl ? titleEl.selectionStart : titleEl.value.length,
+                moved: false
+            };
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!titleDrag) return;
+            // 左键已松开（例如鼠标在窗口外松开）时立即收尾，避免后续移动被误当成拖动
+            if (!(e.buttons & 1)) {
+                titleDrag = null;
+                ipcRenderer.send('scratchpad:drag-end');
+                return;
+            }
+            const dx = e.screenX - titleDrag.startX;
+            const dy = e.screenY - titleDrag.startY;
+            // 微小滑动不算拖动，避免手抖把单击变成位移
+            if (!titleDrag.moved && Math.abs(dx) < TITLE_DRAG_THRESHOLD && Math.abs(dy) < TITLE_DRAG_THRESHOLD) return;
+
+            titleDrag.moved = true;
+            ipcRenderer.send('scratchpad:drag-move', { dx, dy });
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!titleDrag) return;
+            const drag = titleDrag;
+            titleDrag = null;
+
+            if (drag.moved) {
+                ipcRenderer.send('scratchpad:drag-end');
+                return;
+            }
+
+            // 没有移动：这一次是单击，进入标题编辑
+            titleEl.focus();
+            const caret = Math.max(0, Math.min(drag.caret, titleEl.value.length));
+            titleEl.setSelectionRange(caret, caret);
+        });
+
+        // 离开窗口（例如点开其它应用）时立刻落盘一次
+        window.addEventListener('blur', () => {
+            if (titleDrag) {
+                titleDrag = null;
+                ipcRenderer.send('scratchpad:drag-end');
+            }
+            saveNow();
+        });
+
+        // 关窗兜底：异步写盘来不及等待，直接交给主进程接着完成
+        window.addEventListener('beforeunload', () => {
+            if (hasChanges() || boundNoteId) {
+                ipcRenderer.send('scratchpad:flush', {
+                    noteId: boundNoteId,
+                    title: titleEl.value,
+                    content: inputEl.value
+                });
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && pickerOpen) {
+                e.preventDefault();
+                closePicker();
+                return;
+            }
+            if (!(e.ctrlKey || e.metaKey)) return;
+
+            const key = e.key.toLowerCase();
+            // Ctrl+S：保存（未关联时新建为笔记并关联）
+            if (key === 's') {
+                e.preventDefault();
+                handleSave();
+                return;
+            }
+            // Ctrl+O：打开笔记选择面板
+            if (key === 'o') {
+                e.preventDefault();
+                openPicker();
+            }
+        });
+
+        pickerSearchEl.addEventListener('input', () => renderPickerList(pickerSearchEl.value));
+        document.getElementById('picker-close').onclick = closePicker;
+        document.getElementById('note-select').onclick = () => {
+            if (pickerOpen) closePicker();
+            else openPicker();
+        };
+        document.getElementById('note-save').onclick = handleSave;
+        document.getElementById('note-min').onclick = () => ipcRenderer.invoke('window:minimize');
+        document.getElementById('note-close').onclick = () => ipcRenderer.invoke('window:close');
+
+        // 主窗口内切换主题 / 主题色时同步过来，两个窗口观感保持一致
+        ipcRenderer.on('scratchpad:appearance', (event, data) => {
+            const payload = data && typeof data === 'object' ? data : {};
+            applyNoteAppearance(payload.theme, payload.accent);
+        });
+
+        // 载入上次的内容（关联的笔记优先取最新正文），光标默认落在正文末尾
+        (async () => {
+            let session = null;
+            try {
+                session = await ipcRenderer.invoke('scratchpad:load');
+            } catch (err) {
+                console.error('读取小本本内容失败:', err);
+                setStatus('读取失败', 'error');
+            }
+
+            boundNoteId = session && session.noteId ? session.noteId : '';
+            titleEl.value = (session && session.title) || '';
+            inputEl.value = (session && session.content) || '';
+            savedTitle = titleEl.value;
+            savedContent = inputEl.value;
+            ready = true;
+
+            updateBinding();
+            updateCount();
+            if (!statusEl.textContent) {
+                if (boundNoteId) setStatus('已打开笔记');
+                else if (titleEl.value || inputEl.value) setStatus('已保存');
+            }
+
+            inputEl.focus();
+            inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+        })();
+    </script>
+</body>
+</html>
