@@ -1,6 +1,7 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session } = require('electron');
 const path = require('path');
 const { DATA_DIR_ARG, ensureDataDir } = require('./data_path.js');
+const { listSystemFonts } = require('./font_list.js');
 
 // 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/
 let dataDir = null;
@@ -38,6 +39,20 @@ ipcMain.handle('window:toggle-fullscreen', (event) => {
   const next = !win.isFullScreen();
   win.setFullScreen(next);
   return next;
+});
+
+// 系统字体列表：渲染进程可通过 Local Font Access API 直接获取，这里作为兜底
+let cachedSystemFonts = null;
+ipcMain.handle('fonts:list', () => {
+  if (!cachedSystemFonts) {
+    try {
+      cachedSystemFonts = listSystemFonts();
+    } catch (error) {
+      console.error('[Esprin Nemo] 读取系统字体失败:', error);
+      cachedSystemFonts = [];
+    }
+  }
+  return cachedSystemFonts;
 });
 
 function createWindow() {
@@ -107,7 +122,17 @@ function createWindow() {
   win.loadURL('file://' + path.join(__dirname, 'main.html'));
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // 允许 Local Font Access API 的 local-fonts 权限（保持其它权限默认放行行为）
+  try {
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => callback(true));
+    session.defaultSession.setPermissionCheckHandler(() => true);
+  } catch (error) {
+    console.error('[Esprin Nemo] 注册字体权限处理器失败:', error);
+  }
+
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

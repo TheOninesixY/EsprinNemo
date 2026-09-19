@@ -28,14 +28,32 @@
             const path = require('path');
             const configPath = path.join(resolveDataDir(), 'config.json');
             let theme = 'system';
+            let fonts = null;
             if (fs.existsSync(configPath)) {
                 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
                 if (config && config.theme) theme = config.theme;
+                if (config && config.fonts && typeof config.fonts === 'object') fonts = config.fonts;
             }
             const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
             if (isLight) {
                 document.documentElement.classList.add('light');
             }
+
+            // 字体：与主题同样在首屏渲染前注入 CSS 变量，避免字体切换时的跳变闪烁
+            const quoteFamily = (name) => {
+                if (typeof name !== 'string') return '';
+                const safe = name.trim().replace(/["\\;{}]/g, '');
+                return safe ? '"' + safe + '"' : '';
+            };
+            const fontVars = {
+                '--font-ui-latin': quoteFamily(fonts && fonts.uiLatin),
+                '--font-ui-cjk': quoteFamily(fonts && fonts.uiCjk),
+                '--font-doc-latin': quoteFamily(fonts && fonts.docLatin),
+                '--font-doc-cjk': quoteFamily(fonts && fonts.docCjk)
+            };
+            Object.keys(fontVars).forEach((key) => {
+                if (fontVars[key]) document.documentElement.style.setProperty(key, fontVars[key]);
+            });
         } catch (e) {}
     </script>
     <link rel="stylesheet" href="./node_modules/material-symbols/rounded.css">
@@ -82,7 +100,15 @@
             --radius-md: 8px;
             --radius-lg: 12px;
             
-            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            /* 字体族：西文与 CJK 分开配置，浏览器按字符逐个回退（西文优先，匹配不到的字符再交给 CJK 字体） */
+            --font-ui-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial;
+            --font-ui-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei";
+            --font-doc-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial;
+            --font-doc-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei";
+
+            /* 界面字体与文档字体（可被设置页覆盖，见 applyFonts） */
+            --font-sans: var(--font-ui-latin), var(--font-ui-cjk), sans-serif;
+            --font-doc: var(--font-doc-latin), var(--font-doc-cjk), var(--font-ui-cjk), sans-serif;
             --font-mono: "JetBrains Mono", "SF Mono", Consolas, "Fira Code", monospace;
         }
 
@@ -850,6 +876,7 @@
             width: 100%;
             height: 100%;
             resize: none;
+            font-family: var(--font-doc);
             font-size: 13.5px;
             line-height: 1.7;
             color: var(--text-primary);
@@ -859,6 +886,7 @@
 
         /* Markdown rendered layout */
         .markdown-body {
+            font-family: var(--font-doc);
             font-size: 13.5px;
             line-height: 1.7;
             color: var(--text-primary);
@@ -1095,6 +1123,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 16px;
             padding: 14px 16px;
             background: var(--bg-list);
             border: 1px solid var(--border-color);
@@ -1114,6 +1143,54 @@
         .settings-row-desc {
             font-size: 12px;
             color: var(--text-secondary);
+        }
+        .settings-subsection-title {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        .settings-select {
+            flex-shrink: 0;
+            min-width: 190px;
+            max-width: 260px;
+            padding: 6px 10px;
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+        .settings-select:hover { border-color: var(--text-muted); }
+        .settings-select:focus { border-color: var(--accent); }
+        .settings-select option,
+        .settings-select optgroup {
+            background: var(--bg-list);
+            color: var(--text-primary);
+        }
+        .font-preview {
+            font-family: var(--font-doc);
+            padding: 14px 16px;
+            background: var(--bg-list);
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            max-width: 680px;
+            line-height: 1.7;
+            font-size: 13.5px;
+        }
+        .font-preview-label {
+            display: block;
+            font-family: var(--font-sans);
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
         }
 
         /* Toggle Switch */
@@ -1205,7 +1282,6 @@
                 <!-- Top New Note Button in Sidebar -->
                 <div class="sidebar-action-wrap">
                     <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记 (Ctrl+N)">
-                        <span class="ms-icon sm">add</span>
                         <span>新建笔记</span>
                     </button>
                 </div>
@@ -1391,6 +1467,48 @@
                             <input type="checkbox" id="setting-spellcheck">
                             <span class="slider"></span>
                         </label>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">字体</div>
+                    <div class="settings-row-desc" id="font-list-status">正在读取本机字体列表…</div>
+
+                    <div class="settings-subsection-title">界面字体</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <span class="settings-row-label">西文字体</span>
+                            <span class="settings-row-desc">界面中拉丁字母与数字使用的字体</span>
+                        </div>
+                        <select class="settings-select" id="setting-font-ui-latin"></select>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <span class="settings-row-label">CJK 字体</span>
+                            <span class="settings-row-desc">界面中汉字、日文、韩文使用的字体</span>
+                        </div>
+                        <select class="settings-select" id="setting-font-ui-cjk"></select>
+                    </div>
+
+                    <div class="settings-subsection-title">文档字体</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <span class="settings-row-label">西文字体</span>
+                            <span class="settings-row-desc">笔记正文与预览中拉丁字母与数字使用的字体</span>
+                        </div>
+                        <select class="settings-select" id="setting-font-doc-latin"></select>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <span class="settings-row-label">CJK 字体</span>
+                            <span class="settings-row-desc">笔记正文与预览中汉字、日文、韩文使用的字体</span>
+                        </div>
+                        <select class="settings-select" id="setting-font-doc-cjk"></select>
+                    </div>
+
+                    <div class="font-preview">
+                        <span class="font-preview-label">文档字体预览</span>
+                        <span id="font-preview-text">汉字与西文混排预览 Aa Bb Cc 0123 — The quick brown fox jumps over the lazy dog.</span>
                     </div>
                 </div>
             </div>
@@ -1635,13 +1753,27 @@
             viewMode: 'edit',
             theme: 'system',
             spellcheck: false,
+            // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
+            fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
             autoSaveTimer: null
         };
 
         // Local Storage File Handlers (data/config.json, data/index.json, data/notes/{id}.md)
+        // 字体配置规范化：容忍缺失/脏数据，统一为四个字符串字段
+        function normalizeFonts(raw) {
+            const source = (raw && typeof raw === 'object') ? raw : {};
+            const pick = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+            return {
+                uiLatin: pick('uiLatin'),
+                uiCjk: pick('uiCjk'),
+                docLatin: pick('docLatin'),
+                docCjk: pick('docCjk')
+            };
+        }
+
         function loadData() {
             ensureStorageDirs();
-            let config = { theme: 'system', spellcheck: false };
+            let config = { theme: 'system', spellcheck: false, fonts: {} };
             let indexData = { folders: [], notes: [] };
             let indexCorrupted = false; // index.json 解析失败时标记，启动后会用清理后的索引覆盖
 
@@ -1747,6 +1879,7 @@
             return {
                 theme: config.theme || 'system',
                 spellcheck: !!config.spellcheck,
+                fonts: normalizeFonts(config.fonts),
                 folders,
                 notes,
                 indexCleanup: {
@@ -1764,7 +1897,8 @@
             try {
                 const config = {
                     theme: State.theme,
-                    spellcheck: State.spellcheck
+                    spellcheck: State.spellcheck,
+                    fonts: normalizeFonts(State.fonts)
                 };
                 fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
             } catch (err) {
@@ -1851,6 +1985,203 @@
             const enabled = !!State.spellcheck;
             if (textarea) textarea.spellcheck = enabled;
             if (toggle) toggle.checked = enabled;
+        }
+
+        /* ---------------- 字体设置 ---------------- */
+
+        // 内置常用字体：读取系统字体列表失败时兜底，同时用于在下拉框顶部置顶常用项
+        const COMMON_FONT_FAMILIES = [
+            'Inter', 'Segoe UI', 'Helvetica Neue', 'Arial', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Noto Sans',
+            'Georgia', 'Times New Roman', 'Cambria', 'Source Serif 4', 'Palatino Linotype',
+            'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Cascadia Mono', 'Consolas', 'Source Code Pro',
+            'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Microsoft YaHei UI', 'SimSun', 'SimHei', 'KaiTi', 'FangSong',
+            'Noto Sans SC', 'Noto Serif SC', 'Source Han Sans SC', 'Source Han Serif SC', 'LXGW WenKai', 'Microsoft JhengHei'
+        ];
+
+        // 仅用于列表分组：字体名称含 CJK 字符的归入「中日韩字体」
+        const CJK_FAMILY_PATTERN = /[\u2E80-\u9FFF\u3040-\u30FF\u31C0-\u31EF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
+
+        // 读取本机字体：优先使用 Chromium 的 Local Font Access API，其次回退到主进程字体文件解析
+        async function queryFontsViaApi() {
+            if (typeof window.queryLocalFonts !== 'function') return null;
+            try {
+                const available = await window.queryLocalFonts();
+                const families = [];
+                const seen = new Set();
+                (available || []).forEach((font) => {
+                    const family = font && typeof font.family === 'string' ? font.family.trim() : '';
+                    const key = family.toLowerCase();
+                    if (!family || seen.has(key)) return;
+                    seen.add(key);
+                    families.push(family);
+                });
+                return families.length ? families : null;
+            } catch (err) {
+                console.warn('Local Font Access API 不可用，改用主进程枚举字体:', err);
+                return null;
+            }
+        }
+
+        async function queryFontsViaMainProcess() {
+            try {
+                const families = await ipcRenderer.invoke('fonts:list');
+                return Array.isArray(families) && families.length ? families : null;
+            } catch (err) {
+                console.warn('主进程字体枚举失败:', err);
+                return null;
+            }
+        }
+
+        function normalizeFamilyList(families) {
+            const seen = new Set();
+            const list = [];
+            families.forEach((family) => {
+                const name = typeof family === 'string' ? family.trim() : '';
+                const key = name.toLowerCase();
+                if (!name || seen.has(key)) return;
+                seen.add(key);
+                list.push(name);
+            });
+            return list.sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base', numeric: true }));
+        }
+
+        function quoteFontFamily(name) {
+            if (typeof name !== 'string') return '';
+            const safe = name.trim().replace(/["\\;{}]/g, '');
+            return safe ? `"${safe}"` : '';
+        }
+
+        // 写入 CSS 变量；留空表示移除内联覆盖，回落到样式表中定义的默认字体栈
+        function applyFonts() {
+            const rootStyle = document.documentElement.style;
+            const fonts = normalizeFonts(State.fonts);
+            const vars = {
+                '--font-ui-latin': quoteFontFamily(fonts.uiLatin),
+                '--font-ui-cjk': quoteFontFamily(fonts.uiCjk),
+                '--font-doc-latin': quoteFontFamily(fonts.docLatin),
+                '--font-doc-cjk': quoteFontFamily(fonts.docCjk)
+            };
+            Object.keys(vars).forEach((key) => {
+                if (vars[key]) {
+                    rootStyle.setProperty(key, vars[key]);
+                } else {
+                    rootStyle.removeProperty(key);
+                }
+            });
+        }
+
+        // 西文与 CJK 分开选择，但两者共用同一份系统字体列表
+        const FONT_SELECT_CONFIG = [
+            { id: 'setting-font-ui-latin', key: 'uiLatin' },
+            { id: 'setting-font-ui-cjk', key: 'uiCjk' },
+            { id: 'setting-font-doc-latin', key: 'docLatin' },
+            { id: 'setting-font-doc-cjk', key: 'docCjk' }
+        ];
+
+        let fontListPopulated = false;
+
+        function createFontOptions(families) {
+            return families.map((family) => {
+                const option = document.createElement('option');
+                option.value = family;
+                option.textContent = family;
+                return option;
+            });
+        }
+
+        function appendFontGroup(select, label, families) {
+            if (!families.length) return;
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = label;
+            createFontOptions(families).forEach((option) => optgroup.appendChild(option));
+            select.appendChild(optgroup);
+        }
+
+        function populateFontSelects(families) {
+            const lower = (value) => String(value).toLowerCase();
+            const known = new Set(families.map(lower));
+            const common = COMMON_FONT_FAMILIES.filter((family) => known.has(lower(family)));
+            const commonKeys = new Set(common.map(lower));
+            const cjk = families.filter((family) => !commonKeys.has(lower(family)) && CJK_FAMILY_PATTERN.test(family));
+            const others = families.filter((family) => !commonKeys.has(lower(family)) && !CJK_FAMILY_PATTERN.test(family));
+
+            const fonts = normalizeFonts(State.fonts);
+            FONT_SELECT_CONFIG.forEach((config) => {
+                const select = document.getElementById(config.id);
+                if (!select) return;
+
+                select.innerHTML = '';
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '系统默认';
+                select.appendChild(defaultOption);
+
+                appendFontGroup(select, '常用字体', common);
+                appendFontGroup(select, '中日韩字体', cjk);
+                appendFontGroup(select, '其他字体', others);
+
+                // 已保存但本机已卸载/未枚举到的字体仍保留为选项，避免配置被静默丢弃
+                const selected = fonts[config.key];
+                if (selected && !known.has(lower(selected))) {
+                    appendFontGroup(select, '当前设置', [selected]);
+                }
+
+                select.value = selected || '';
+            });
+
+            fontListPopulated = true;
+        }
+
+        function syncFontSelects() {
+            if (!fontListPopulated) return;
+            const fonts = normalizeFonts(State.fonts);
+            FONT_SELECT_CONFIG.forEach((config) => {
+                const select = document.getElementById(config.id);
+                if (select) select.value = fonts[config.key] || '';
+            });
+        }
+
+        async function initFonts() {
+            FONT_SELECT_CONFIG.forEach((config) => {
+                const select = document.getElementById(config.id);
+                if (!select) return;
+                select.onchange = (e) => {
+                    State.fonts[config.key] = e.target.value || '';
+                    applyFonts();
+                    saveConfig();
+                };
+            });
+
+            // 首屏已注入过一遍，这里再同步一次以兜底
+            applyFonts();
+
+            try {
+                let families = await queryFontsViaApi();
+                let source = 'api';
+                if (!families) {
+                    families = await queryFontsViaMainProcess();
+                    source = 'system';
+                }
+                if (!families) {
+                    families = COMMON_FONT_FAMILIES;
+                    source = 'fallback';
+                }
+
+                families = normalizeFamilyList(families);
+                populateFontSelects(families);
+
+                const status = document.getElementById('font-list-status');
+                if (status) {
+                    status.textContent = source === 'fallback'
+                        ? '未能读取本机字体列表，已回退到内置常用字体'
+                        : `已读取本机字体 ${families.length} 个（西文与 CJK 共用同一列表）`;
+                }
+            } catch (err) {
+                console.error('读取本机字体列表失败:', err);
+                const status = document.getElementById('font-list-status');
+                if (status) status.textContent = '读取本机字体列表失败，已回退到内置常用字体';
+                populateFontSelects(normalizeFamilyList(COMMON_FONT_FAMILIES));
+            }
         }
 
         function initTheme() {
@@ -2289,6 +2620,7 @@
                 if (spellcheckToggle) {
                     spellcheckToggle.checked = !!State.spellcheck;
                 }
+                syncFontSelects();
                 return;
             }
 
@@ -2742,6 +3074,7 @@
             State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
             State.theme = saved.theme || 'system';
             State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
+            State.fonts = normalizeFonts(saved.fonts);
 
             // 启动时自动清理无效索引：仅在确实检测到变更时才写回 index.json，避免每次启动都产生磁盘写入
             const cleanup = saved.indexCleanup;
@@ -2763,6 +3096,7 @@
 
             initTheme();
             applySpellcheck();
+            initFonts();
             setupEvents();
 
             if (State.notes.length > 0) {
