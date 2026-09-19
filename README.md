@@ -1,3 +1,5 @@
+<!-- ![logo](assets/icon.png) -->
+
 # Esprin Nemo
 
 > Note, Nothing.
