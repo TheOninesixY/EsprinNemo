@@ -88,20 +88,34 @@ data/
 ## 项目结构
 
 ```
-├── main.js            # Electron 主进程：窗口、菜单、数据目录解析与迁移、IPC
-├── main.html          # 渲染进程：全部界面与业务逻辑（侧边栏 / 列表 / 编辑器 / 设置）
-├── data_path.js       # 数据目录解析：默认位置、自定义位置记录、迁移
-├── dialog_window.js   # 自绘标题栏的消息弹窗（提示 / 确认 / 输入）
-├── font_list.js       # 跨平台本机字体枚举（解析字体文件 name 表）
-├── ui_defaults.js     # 全局界面默认值注入（焦点描边、Tab 行为）
-├── data/              # 开发版默认数据目录
-├── fonts/             # 随应用分发的品牌字体（Mohave）
-└── readme/            # 文档图片
+├── package.json            # "main" 指向 src/main/main.js
+├── assets/
+│   └── icon.png            # 应用图标（窗口 + 构建资源）
+├── src/
+│   ├── main/               # 主进程
+│   │   ├── main.js         # 窗口、菜单、数据目录解析与迁移、IPC
+│   │   ├── data_path.js    # 数据目录解析：默认位置、自定义位置记录、迁移
+│   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入）
+│   │   ├── font_list.js    # 跨平台本机字体枚举（解析字体文件 name 表）
+│   │   └── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
+│   └── renderer/           # 渲染进程
+│       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本
+│       ├── dialog.html     # 弹窗窗口页面
+│       ├── boot.js         # 首屏引导：数据目录解析、主题与字体预注入（无闪屏）
+│       ├── fonts/          # 随应用分发的品牌字体（Mohave）
+│       ├── styles/         # tokens / base / sidebar / editor / overlays / settings
+│       └── scripts/        # state / storage / markdown / ui / notes / editor / render …
+├── data/                   # 开发版数据目录（已 gitignore）
+├── dist/                   # 构建产物（已 gitignore）
+└── readme/                 # 文档配图
 ```
+
+> 渲染进程按“经典脚本”拆分：`src/renderer/scripts/` 下的文件共享同一个全局作用域，`state.js`
+> 必须在其它脚本之前加载，`app.js` 负责在 `window.onload` 时启动应用。
 
 ## 技术栈
 
-- **Electron 44**：主进程 + 渲染进程，无打包步骤，直接加载 `main.html`
+- **Electron 44**：主进程（`src/main/`）+ 渲染进程（`src/renderer/`），无打包步骤，直接加载 `main.html`
 - **原生 JavaScript / HTML / CSS**：界面基于 CSS 变量实现主题与字体切换
 - **Node.js 文件系统直读直写**：渲染进程通过 `require('fs')` 直接读写数据目录
 - **material-symbols**：图标字体
@@ -109,7 +123,7 @@ data/
 
 ## 许可与致谢
 
-- 品牌字体 [Mohave](fonts/Mohave/) 遵循 SIL Open Font License，授权全文见 `fonts/Mohave/OFL.txt`
+- 品牌字体 [Mohave](src/renderer/fonts/Mohave/) 遵循 SIL Open Font License，授权全文见 `src/renderer/fonts/Mohave/OFL.txt`
 - 图标来自 [material-symbols](https://github.com/google/material-design-icons)
 
 ---

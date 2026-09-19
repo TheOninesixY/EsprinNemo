@@ -1,0 +1,63 @@
+/* 浮层：笔记右键菜单与 Toast 提示 */
+
+/* Context Menu */
+.context-menu {
+    position: fixed;
+    background: var(--bg-list);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    min-width: 140px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.context-menu-item {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.context-menu-item:hover {
+    background: var(--item-active);
+}
+.context-menu-item.danger {
+    color: var(--danger);
+}
+.context-menu-item.danger:hover {
+    background: var(--danger-bg);
+}
+
+/* Toast notifications */
+.toast-box {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 400;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+.toast-item {
+    background: var(--bg-titlebar);
+    border: 1px solid var(--border-color);
+    padding: 8px 14px;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideUp 0.15s ease-out;
+}
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}

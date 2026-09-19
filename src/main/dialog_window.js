@@ -5,7 +5,8 @@ const { BrowserWindow, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
 
 const DIALOG_THEME_ARG = '--esprin-nemo-dialog-theme=';
-const DIALOG_HTML = path.join(__dirname, 'dialog.html');
+// 弹窗页面与主窗口同属渲染进程资源，位于 ../renderer/
+const DIALOG_HTML = path.join(__dirname, '..', 'renderer', 'dialog.html');
 
 // 弹窗类型 -> 默认图标（Material Symbols 名称）
 const TYPE_ICONS = { info: 'info', question: 'help', warning: 'warning', error: 'error' };
@@ -20,7 +21,7 @@ const REVEAL_DELAY = 90;
 const entries = new Map(); // webContents.id -> entry
 
 let resolveTheme = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
-let iconPath = path.join(__dirname, 'icon.png');
+let iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
 let ipcRegistered = false;
 
 // 由 main.js 注入主题解析与图标路径（主题需要读取用户数据目录中的 config.json）

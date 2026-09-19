@@ -1,0 +1,297 @@
+/* 基础重置、通用控件样式，以及标题栏、标签页与窗口按钮 */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-primary);
+    background-color: var(--bg-body);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Material Symbols Utility */
+.ms-icon {
+    font-family: 'Material Symbols Rounded';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'liga';
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+.ms-icon.fill {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+.ms-icon.xs { font-size: 14px; }
+.ms-icon.sm { font-size: 16px; }
+
+button {
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    outline: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+}
+
+input, textarea, select {
+    font-family: inherit;
+    color: inherit;
+    border: none;
+    outline: none;
+    background: transparent;
+}
+
+/* Scrollbar Styling: 全局统一样式，默认隐藏或极细，悬浮时可见，内容不需要滚动时不常驻 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-muted);
+}
+
+/* App Container */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Titlebar */
+.titlebar {
+    height: 40px;
+    background-color: var(--bg-titlebar);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 0 14px;
+    -webkit-app-region: drag;
+    position: relative;
+    z-index: 100;
+    user-select: none;
+}
+
+.titlebar-brand {
+    font-family: 'Mohave', var(--font-sans);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--brand);
+    letter-spacing: 0.4px;
+    margin-right: 14px;
+    padding: 4px 6px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    -webkit-app-region: no-drag;
+    cursor: pointer;
+    transition: background-color 0.15s, opacity 0.15s;
+}
+.titlebar-brand:hover {
+    background-color: var(--item-hover);
+}
+.titlebar-brand:active {
+    opacity: 0.7;
+}
+
+/* 仅在需要交互的子元素上禁用拖动，保证标题栏与标签栏空白区域均可拖动窗口 */
+.titlebar-tabs {
+    -webkit-app-region: drag;
+}
+
+.tab-item {
+    -webkit-app-region: no-drag;
+}
+
+.titlebar-actions,
+.window-controls,
+.btn-new-note,
+.btn-action-icon,
+.win-btn {
+    -webkit-app-region: no-drag;
+}
+
+/* Titlebar Tabs Container - Extends horizontally to titlebar actions */
+.titlebar-tabs {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    gap: 6px;
+    padding: 0 8px;
+}
+.titlebar-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+/* 悬浮式标签页 (Floating Pill Tabs) */
+.tab-item {
+    height: 28px;
+    min-width: 110px;
+    max-width: 190px;
+    padding: 0 8px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    white-space: nowrap;
+}
+.tab-item:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+.tab-item.active {
+    background-color: var(--tab-active-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.tab-item .tab-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tab-close-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-sm);
+    opacity: 0.6;
+    transition: all 0.15s;
+}
+.tab-close-btn:hover {
+    opacity: 1;
+    background-color: var(--danger-bg);
+    color: var(--danger);
+}
+
+/* Titlebar Actions */
+.titlebar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    height: 100%;
+    flex-shrink: 0;
+}
+
+.btn-new-note {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    background-color: var(--accent);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    transition: opacity 0.15s;
+}
+.btn-new-note:hover {
+    opacity: 0.9;
+}
+
+.btn-action-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    transition: all 0.15s;
+}
+.btn-action-icon:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+
+/* Window Controls */
+.window-controls {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+body.is-fullscreen .window-controls {
+    display: none !important;
+}
+
+/* 全屏时禁用窗口拖拽区域，避免误拖导致窗口位移或退出全屏 */
+body.is-fullscreen .titlebar,
+body.is-fullscreen .titlebar-brand,
+body.is-fullscreen .titlebar-tabs {
+    -webkit-app-region: no-drag;
+}
+.win-btn {
+    width: 44px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: background 0.15s;
+}
+.win-btn:hover {
+    background-color: var(--item-active);
+    color: var(--text-primary);
+}
+.win-btn.close:hover {
+    background-color: var(--danger);
+    color: #ffffff;
+}
+
+/* Main Workspace Body */
+.app-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.hidden { display: none !important; }

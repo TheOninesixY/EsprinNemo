@@ -11,12 +11,16 @@ const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 
+// 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
+// 本文件位于 src/main/ 下，因此 assets/、src/renderer/ 与开发版 data/ 都相对它定位。
+const APP_ROOT = app.getAppPath();
+
 // 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/；
 // 用户在设置中自定义位置后，以应用配置目录中的 data-location.json 为准。
 let dataDir = null;
 function resolveDataDir() {
   if (!dataDir) {
-    dataDir = ensureDataDir(__dirname, app);
+    dataDir = ensureDataDir(APP_ROOT, app);
   }
   return dataDir;
 }
@@ -40,7 +44,7 @@ function resolveEffectiveTheme() {
 // 所有消息弹窗都在自绘标题栏的独立窗口中呈现，主题与当前界面保持一致
 configureDialogWindows({
   getTheme: resolveEffectiveTheme,
-  icon: path.join(__dirname, 'icon.png')
+  icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
 
 function normalizePathForCompare(target) {
@@ -184,7 +188,7 @@ ipcMain.on('data:get-dir-sync', (event) => {
 // 数据存放位置：读取当前/默认位置，供设置页展示
 ipcMain.handle('data:get-dir', () => {
   const current = resolveDataDir();
-  const defaultDir = getDefaultDataDir(__dirname, app);
+  const defaultDir = getDefaultDataDir(APP_ROOT, app);
   return {
     dataDir: current,
     defaultDir,
@@ -209,7 +213,7 @@ ipcMain.handle('data:choose-dir', async (event) => {
 // 数据存放位置：恢复为默认位置（并清除自定义记录）
 ipcMain.handle('data:reset-dir', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  const target = getDefaultDataDir(__dirname, app);
+  const target = getDefaultDataDir(APP_ROOT, app);
   const result = await applyDataDirChange(target, win, { persist: false, targetLabel: '默认位置' });
   if (!result || result.canceled || result.error) return result || { canceled: true };
   writeStoredDataDir(null, app);
@@ -233,8 +237,8 @@ function createWindow() {
   Menu.setApplicationMenu(null);
 
   // Clean sync file swap on start if main.html has duplicate appended content
-  const targetPath = path.join(__dirname, 'main.html');
-  const cleanPath = path.join(__dirname, 'main.html.new');
+  const targetPath = path.join(APP_ROOT, 'src', 'renderer', 'main.html');
+  const cleanPath = path.join(APP_ROOT, 'src', 'renderer', 'main.html.new');
   if (fs.existsSync(cleanPath)) {
     try {
       fs.writeFileSync(targetPath, fs.readFileSync(cleanPath, 'utf8'), 'utf8');
@@ -257,7 +261,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: initialBg,
-    icon: path.join(__dirname, 'icon.png'),
+    icon: path.join(APP_ROOT, 'assets', 'icon.png'),
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -277,7 +281,7 @@ function createWindow() {
     win.webContents.send('window:fullscreen-changed', false);
   });
 
-  win.loadURL('file://' + path.join(__dirname, 'main.html'));
+  win.loadURL('file://' + path.join(APP_ROOT, 'src', 'renderer', 'main.html'));
 }
 
 app.whenReady().then(() => {

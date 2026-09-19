@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esprin Nemo</title>
+    <script src="./boot.js"></script>
+    <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
+    <link rel="stylesheet" href="./styles/tokens.css">
+    <link rel="stylesheet" href="./styles/base.css">
+    <link rel="stylesheet" href="./styles/sidebar.css">
+    <link rel="stylesheet" href="./styles/editor.css">
+    <link rel="stylesheet" href="./styles/overlays.css">
+    <link rel="stylesheet" href="./styles/settings.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 1. Top Titlebar: Clean & Tab-oriented -->
+        <header class="titlebar" id="app-titlebar">
+            <!-- App Name Brand（点击可关闭全部标签页回到首页） -->
+            <div class="titlebar-brand" id="app-brand" title="回到首页">EsprinNemo</div>
+
+            <!-- Tabs container stretching to the new note button -->
+            <div class="titlebar-tabs" id="titlebar-tabs"></div>
+
+            <!-- Action buttons in titlebar -->
+            <div class="titlebar-actions">
+                <button class="btn-action-icon" id="btn-open-settings" title="设置">
+                    <span class="ms-icon sm">settings</span>
+                </button>
+                <button class="btn-action-icon" id="btn-theme-toggle" title="切换主题">
+                    <span class="ms-icon sm" id="theme-icon">computer</span>
+                </button>
+                <button class="btn-action-icon" id="btn-fullscreen" title="全屏">
+                    <span class="ms-icon sm">fullscreen</span>
+                </button>
+            </div>
+
+            <!-- Window controls for frameless electron window -->
+            <div class="window-controls">
+                <button class="win-btn" id="win-min" title="最小化">
+                    <span class="ms-icon xs">remove</span>
+                </button>
+                <button class="win-btn" id="win-max" title="最大化">
+                    <span class="ms-icon xs">crop_square</span>
+                </button>
+                <button class="win-btn close" id="win-close" title="关闭">
+                    <span class="ms-icon xs">close</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. Main Content Body -->
+        <div class="app-body">
+            <!-- Left Sidebar Navigation -->
+            <aside class="sidebar">
+                <!-- Top New Note Button in Sidebar -->
+                <div class="sidebar-action-wrap">
+                    <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记 (Ctrl+N)">
+                        <span>新建笔记</span>
+                    </button>
+                </div>
+
+                <!-- Main Filters -->
+                <div class="nav-section">
+                    <div class="nav-item active" data-filter="all">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">description</span>
+                            <span>全部笔记</span>
+                        </div>
+                        <span class="nav-badge" id="count-all">0</span>
+                    </div>
+                    <div class="nav-item" data-filter="pinned">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">push_pin</span>
+                            <span>已置顶</span>
+                        </div>
+                        <span class="nav-badge" id="count-pinned">0</span>
+                    </div>
+                    <div class="nav-item" data-filter="trash">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">delete</span>
+                            <span>废纸篓</span>
+                        </div>
+                        <span class="nav-badge" id="count-trash">0</span>
+                    </div>
+                </div>
+
+                <!-- Folders -->
+                <div class="nav-section">
+                    <div class="nav-section-title">
+                        <span>文件夹</span>
+                        <button id="btn-add-folder" title="新建文件夹">
+                            <span class="ms-icon xs">add</span>
+                        </button>
+                    </div>
+                    <div class="folder-list" id="sidebar-folder-list"></div>
+                </div>
+
+                <!-- Tags -->
+                <div class="nav-section" style="flex: 1; min-height: 0;">
+                    <div class="nav-section-title">
+                        <span>标签过滤</span>
+                    </div>
+                    <div class="tag-list" id="sidebar-tag-list"></div>
+                </div>
+
+                <!-- Footer Status & Trash Management -->
+                <div class="sidebar-bottom">
+                    <span id="sidebar-stat">共 0 篇笔记</span>
+                    <button class="btn-clear-trash hidden" id="btn-empty-trash" title="彻底清空废纸篓">
+                        <span class="ms-icon xs">delete_forever</span>
+                        <span>清空</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Middle Notes List -->
+            <section class="notes-panel">
+                <div class="notes-panel-header">
+                    <div class="search-box">
+                        <span class="ms-icon sm" style="color: var(--text-muted);">search</span>
+                        <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+Shift+F)" spellcheck="false">
+                        <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
+                    </div>
+                    <div class="notes-panel-info">
+                        <span id="panel-category-title">全部笔记</span>
+                        <select id="select-sort">
+                            <option value="updated-desc">修改时间 ↓</option>
+                            <option value="created-desc">创建时间 ↓</option>
+                            <option value="title-asc">标题 A-Z</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="notes-list" id="notes-list-box"></div>
+            </section>
+
+            <!-- Right Workspace / Editor -->
+            <main class="workspace" id="workspace-box">
+                <!-- Empty Placeholder Screen -->
+                <div class="empty-placeholder" id="empty-state">
+                    <span class="ms-icon">edit_note</span>
+                    <p>选择一篇笔记，或新建笔记</p>
+                    <button class="btn-new-note" id="btn-empty-new">新建笔记</button>
+                </div>
+
+                <!-- Workspace Topbar -->
+                <div class="editor-topbar" id="editor-topbar">
+                    <div class="editor-meta">
+                        <select class="select-folder" id="editor-folder-select"></select>
+                        <div class="note-tags-container" id="editor-tags-container"></div>
+                        <button class="btn-action-icon" id="btn-add-tag" title="添加标签">
+                            <span class="ms-icon sm">label</span>
+                        </button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="editor-view-modes">
+                            <button class="view-btn active" id="btn-mode-edit">编辑</button>
+                            <button class="view-btn" id="btn-mode-split">分屏</button>
+                            <button class="view-btn" id="btn-mode-preview">预览</button>
+                        </div>
+
+                        <div class="window-controls-divider"></div>
+
+                        <button class="btn-action-icon" id="btn-note-pin" title="固定笔记">
+                            <span class="ms-icon sm">push_pin</span>
+                        </button>
+                        <button class="btn-action-icon" id="btn-note-export-md" title="导出 Markdown (.md)">
+                            <span class="ms-icon sm">file_download</span>
+                        </button>
+                        <button class="btn-action-icon" id="btn-note-trash" title="放入废纸篓">
+                            <span class="ms-icon sm">delete</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formatting Toolbar -->
+                <div class="editor-toolbar" id="editor-toolbar">
+                    <button class="fmt-btn" data-fmt="bold" title="加粗">B</button>
+                    <button class="fmt-btn" data-fmt="italic" style="font-style: italic;" title="斜体">I</button>
+                    <div class="fmt-divider"></div>
+                    <button class="fmt-btn" data-fmt="h1">H1</button>
+                    <button class="fmt-btn" data-fmt="h2">H2</button>
+                    <button class="fmt-btn" data-fmt="h3">H3</button>
+                    <div class="fmt-divider"></div>
+                    <button class="fmt-btn" data-fmt="ul" title="无序列表"><span class="ms-icon sm">format_list_bulleted</span></button>
+                    <button class="fmt-btn" data-fmt="ol" title="有序列表"><span class="ms-icon sm">format_list_numbered</span></button>
+                    <button class="fmt-btn" data-fmt="task" title="待办清单"><span class="ms-icon sm">check_box</span></button>
+                    <button class="fmt-btn" data-fmt="quote" title="引用"><span class="ms-icon sm">format_quote</span></button>
+                    <button class="fmt-btn" data-fmt="code" title="代码块"><span class="ms-icon sm">code</span></button>
+                    <button class="fmt-btn" data-fmt="hr" title="分割线"><span class="ms-icon sm">horizontal_rule</span></button>
+                </div>
+
+                <!-- Note Title Input -->
+                <div class="editor-title-area">
+                    <input type="text" class="editor-title-input" id="input-note-title" placeholder="无标题笔记...">
+                </div>
+
+                <!-- Editor & Preview Body -->
+                <div class="editor-content-area">
+                    <div class="editor-pane" id="editor-pane">
+                        <textarea class="editor-textarea" id="textarea-note-content" placeholder="输入 Markdown 内容..." spellcheck="false"></textarea>
+                    </div>
+                    <div class="preview-pane hidden" id="preview-pane">
+                        <div class="markdown-body" id="preview-content"></div>
+                    </div>
+                </div>
+
+                <!-- Footer Status -->
+                <footer class="editor-footer">
+                    <div class="editor-footer-left">
+                        <span id="save-status">就绪</span>
+                        <span id="stat-last-edit">修改于 刚刚</span>
+                    </div>
+                    <div class="editor-footer-right">
+                        <span id="stat-char-count">字符: 0</span>
+                        <span id="stat-word-count">字数: 0</span>
+                    </div>
+                </footer>
+            </main>
+
+            <!-- 4. Settings View：分类侧边栏 + 分类内容面板 -->
+            <div class="settings-view hidden" id="settings-view">
+                <!-- 设置分类导航（条目由 SETTINGS_CATEGORIES 在 initSettingsNav 中生成） -->
+                <aside class="settings-sidebar">
+                    <nav class="settings-nav" id="settings-nav" aria-label="设置分类"></nav>
+                </aside>
+
+                <!-- 设置内容区：面板与侧边栏条目通过 data-settings-panel 一一对应 -->
+                <div class="settings-content">
+                    <div class="settings-header">
+                        <div class="settings-title">
+                            <span class="ms-icon md">settings</span>
+                            <span>设置</span>
+                        </div>
+                        <div class="settings-desc">管理 EsprinNemo 的偏好设置与编辑器行为</div>
+                    </div>
+
+                    <!-- 分类：编辑器与文本 -->
+                    <div class="settings-panel" data-settings-panel="editor">
+                        <div class="settings-section">
+                            <div class="settings-section-title">编辑器与文本</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">错词红波浪线检查</span>
+                                    <span class="settings-row-desc">在编辑笔记标题与正文时对拼写错误标出红色波浪下划线</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-spellcheck">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">废纸篓自动清理</span>
+                                    <span class="settings-row-desc">按笔记最后一次编辑时间计算，超过保留期限的废纸篓笔记会被自动永久删除，此操作无法撤销</span>
+                                </div>
+                                <select class="settings-select" id="setting-trash-retention">
+                                    <option value="0">永不自动清理</option>
+                                    <option value="10">保留 10 天</option>
+                                    <option value="30">保留 30 天</option>
+                                    <option value="60">保留 60 天</option>
+                                    <option value="365">保留 365 天</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分类：字体 -->
+                    <div class="settings-panel hidden" data-settings-panel="fonts">
+                        <div class="settings-section">
+                            <div class="settings-section-title">字体</div>
+                            <div class="settings-row-desc" id="font-list-status">正在读取本机字体列表…</div>
+
+                            <div class="settings-subsection-title">界面字体</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">西文字体</span>
+                                    <span class="settings-row-desc">界面中拉丁字母与数字使用的字体</span>
+                                </div>
+                                <select class="settings-select" id="setting-font-ui-latin"></select>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">CJK 字体</span>
+                                    <span class="settings-row-desc">界面中汉字、日文、韩文使用的字体</span>
+                                </div>
+                                <select class="settings-select" id="setting-font-ui-cjk"></select>
+                            </div>
+
+                            <div class="settings-subsection-title">文档字体</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">西文字体</span>
+                                    <span class="settings-row-desc">笔记正文与预览中拉丁字母与数字使用的字体</span>
+                                </div>
+                                <select class="settings-select" id="setting-font-doc-latin"></select>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">CJK 字体</span>
+                                    <span class="settings-row-desc">笔记正文与预览中汉字、日文、韩文使用的字体</span>
+                                </div>
+                                <select class="settings-select" id="setting-font-doc-cjk"></select>
+                            </div>
+
+                            <div class="font-preview">
+                                <span class="font-preview-label">文档字体预览</span>
+                                <span id="font-preview-text">汉字与西文混排预览 Aa Bb Cc 0123 — The quick brown fox jumps over the lazy dog.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分类：数据与存储 -->
+                    <div class="settings-panel hidden" data-settings-panel="data">
+                        <div class="settings-section">
+                            <div class="settings-section-title">数据与存储</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">数据存放位置</span>
+                                    <span class="settings-row-desc">笔记正文（notes/）、索引（index.json）与偏好配置（config.json）都保存在该目录中</span>
+                                    <span class="settings-path">
+                                        <span id="setting-data-dir-text">读取中…</span>
+                                        <span class="settings-path-tag" id="setting-data-dir-tag">默认位置</span>
+                                    </span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-data-open" title="在文件管理器中打开数据目录">打开文件夹</button>
+                                    <button class="settings-btn" id="btn-data-reset" title="改回默认数据目录" disabled>恢复默认</button>
+                                    <button class="settings-btn primary" id="btn-data-change" title="选择新的数据存放位置">更改位置</button>
+                                </div>
+                            </div>
+                            <div class="settings-row-desc" id="data-dir-status">
+                                更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Context Menu（菜单项按笔记状态动态生成） -->
+    <div class="context-menu hidden" id="note-context-menu"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-box" id="toast-container"></div>
+
+    <script src="./scripts/state.js"></script>
+    <script src="./scripts/storage.js"></script>
+    <script src="./scripts/markdown.js"></script>
+    <script src="./scripts/ui.js"></script>
+    <script src="./scripts/window-controls.js"></script>
+    <script src="./scripts/appearance.js"></script>
+    <script src="./scripts/fonts.js"></script>
+    <script src="./scripts/notes.js"></script>
+    <script src="./scripts/editor.js"></script>
+    <script src="./scripts/settings.js"></script>
+    <script src="./scripts/data-location.js"></script>
+    <script src="./scripts/render.js"></script>
+    <script src="./scripts/context-menu.js"></script>
+    <script src="./scripts/events.js"></script>
+    <script src="./scripts/app.js"></script>
+</body>
+</html>
