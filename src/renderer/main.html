@@ -268,6 +268,33 @@
                         </div>
                     </div>
 
+                    <!-- 分类：外观与主题色 -->
+                    <div class="settings-panel hidden" data-settings-panel="appearance">
+                        <div class="settings-section">
+                            <div class="settings-section-title">主题色</div>
+
+                            <div class="settings-subsection-title">预设配色</div>
+                            <div class="accent-swatches" id="accent-swatches"></div>
+
+                            <div class="settings-subsection-title">自定义颜色</div>
+                            <div class="accent-custom">
+                                <input type="color" class="accent-color-input" id="accent-color-input" value="#58a6ff" title="打开系统取色器">
+                                <input type="text" class="accent-hex-input" id="accent-hex-input" spellcheck="false" maxlength="7" placeholder="#58A6FF" aria-label="十六进制颜色值">
+                                <button class="settings-btn primary" id="btn-accent-apply">应用</button>
+                                <span class="accent-custom-hint">支持 #RRGGBB 或 #RGB，留空则跟随主题</span>
+                            </div>
+
+                            <div class="accent-preview">
+                                <span class="accent-preview-label">预览</span>
+                                <div class="accent-preview-row">
+                                    <button class="accent-preview-btn" type="button" tabindex="-1">新建笔记</button>
+                                    <span class="accent-preview-chip"><span class="ms-icon xs">description</span>已选中</span>
+                                    <span class="accent-preview-link">链接文字</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 分类：字体 -->
                     <div class="settings-panel hidden" data-settings-panel="fonts">
                         <div class="settings-section">
@@ -354,6 +381,7 @@
     <script src="./scripts/ui.js"></script>
     <script src="./scripts/window_controls.js"></script>
     <script src="./scripts/appearance.js"></script>
+    <script src="./scripts/theme_color.js"></script>
     <script src="./scripts/fonts.js"></script>
     <script src="./scripts/notes.js"></script>
     <script src="./scripts/editor.js"></script>

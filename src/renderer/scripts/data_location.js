@@ -85,6 +85,7 @@ async function refreshDataDirInfo() {
 function adoptDataDir(dir, options = {}) {
     const prefs = {
         theme: State.theme,
+        accentColor: State.accentColor,
         spellcheck: State.spellcheck,
         trashRetentionDays: State.trashRetentionDays,
         fonts: { ...State.fonts }
@@ -99,11 +100,13 @@ function adoptDataDir(dir, options = {}) {
 
     if (hasConfig) {
         State.theme = saved.theme;
+        State.accentColor = saved.accentColor;
         State.spellcheck = saved.spellcheck;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.fonts = saved.fonts;
     } else {
         State.theme = prefs.theme;
+        State.accentColor = prefs.accentColor;
         State.spellcheck = prefs.spellcheck;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.fonts = prefs.fonts;
@@ -138,6 +141,7 @@ function adoptDataDir(dir, options = {}) {
     applySpellcheck();
     applyFonts();
     syncFontSelects();
+    syncAccentControls();
     syncTrashRetentionSelect();
 
     dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };

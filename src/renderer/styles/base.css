@@ -229,7 +229,7 @@ input, textarea, select {
     padding: 0 10px;
     border-radius: var(--radius-sm);
     background-color: var(--accent);
-    color: #ffffff;
+    color: var(--accent-fg);
     font-size: 12px;
     font-weight: 500;
     transition: opacity 0.15s;

@@ -3,6 +3,7 @@
 // 设置分类：侧边栏条目与内容面板（data-settings-panel）按 id 一一对应
 const SETTINGS_CATEGORIES = [
     { id: 'editor', label: '编辑器与文本', icon: 'edit_note' },
+    { id: 'appearance', label: '外观与主题色', icon: 'palette' },
     { id: 'fonts', label: '字体', icon: 'text_format' },
     { id: 'data', label: '数据与存储', icon: 'folder' }
 ];

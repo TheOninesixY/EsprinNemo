@@ -11,6 +11,23 @@
             const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(argPrefix));
             const theme = matched ? matched.slice(argPrefix.length).trim() : '';
             if (theme === 'light') document.documentElement.classList.add('light');
+
+            // 主题色同样由主进程传入（用户在设置页自定义的强调色），在首屏渲染前应用
+            const accentPrefix = '--esprin-nemo-dialog-accent=';
+            const accentMatched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(accentPrefix));
+            const accentHex = accentMatched ? accentMatched.slice(accentPrefix.length).trim().replace(/^#/, '') : '';
+            if (/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accentHex)) {
+                const full = accentHex.length === 3 ? accentHex.split('').map((c) => c + c).join('') : accentHex;
+                const r = parseInt(full.slice(0, 2), 16);
+                const g = parseInt(full.slice(2, 4), 16);
+                const b = parseInt(full.slice(4, 6), 16);
+                const alpha = document.documentElement.classList.contains('light') ? 0.1 : 0.15;
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                const rootStyle = document.documentElement.style;
+                rootStyle.setProperty('--accent', '#' + full.toUpperCase());
+                rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
+                rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
+            }
         } catch (e) {}
     </script>
     <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
@@ -36,6 +53,8 @@
 
             --accent: #58a6ff;
             --accent-bg: rgba(56, 139, 253, 0.15);
+            /* 强调色底面上的文字色：主进程会按自定义主题色的亮度覆盖该变量 */
+            --accent-fg: #ffffff;
             --danger: #f85149;
             --warning: #d29922;
             --brand: #E6E8F3;
@@ -332,7 +351,7 @@
         }
         .dialog-btn.primary {
             background: var(--accent);
-            color: #ffffff;
+            color: var(--accent-fg);
         }
         .dialog-btn.danger {
             background: var(--danger);

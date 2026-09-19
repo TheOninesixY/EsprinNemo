@@ -5,6 +5,7 @@ const { BrowserWindow, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
 
 const DIALOG_THEME_ARG = '--esprin-nemo-dialog-theme=';
+const DIALOG_ACCENT_ARG = '--esprin-nemo-dialog-accent=';
 // 弹窗页面与主窗口同属渲染进程资源，位于 ../renderer/
 const DIALOG_HTML = path.join(__dirname, '..', 'renderer', 'dialog.html');
 
@@ -21,12 +22,15 @@ const REVEAL_DELAY = 90;
 const entries = new Map(); // webContents.id -> entry
 
 let resolveTheme = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
+// 主题色（#RRGGBB）：空字符串表示沿用 dialog.html 样式表里的默认强调色
+let resolveAccent = () => '';
 let iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
 let ipcRegistered = false;
 
 // 由 main.js 注入主题解析与图标路径（主题需要读取用户数据目录中的 config.json）
-function configureDialogWindows({ getTheme, icon } = {}) {
+function configureDialogWindows({ getTheme, getAccent, icon } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
+  if (typeof getAccent === 'function') resolveAccent = getAccent;
   if (typeof icon === 'string' && icon) iconPath = icon;
 }
 
@@ -178,6 +182,13 @@ function showDialogWindow(owner, rawOptions) {
   const options = normalizeOptions(rawOptions);
   const parentWin = owner && !owner.isDestroyed() ? owner : null;
   const theme = resolveTheme() === 'light' ? 'light' : 'dark';
+  let accent = '';
+  try {
+    const resolved = resolveAccent();
+    if (typeof resolved === 'string') accent = resolved.trim();
+  } catch (error) {
+    console.error('[Esprin Nemo] 读取主题色失败:', error);
+  }
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
@@ -199,7 +210,7 @@ function showDialogWindow(owner, rawOptions) {
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
-        additionalArguments: [DIALOG_THEME_ARG + theme]
+        additionalArguments: [DIALOG_THEME_ARG + theme, DIALOG_ACCENT_ARG + accent]
       }
     });
 

@@ -15,6 +15,9 @@ function applyTheme() {
         document.documentElement.classList.remove('light');
     }
 
+    // 强调色的浅色背景透明度随明暗主题变化，切换主题后需要重新计算
+    applyAccentColor();
+
     const themeIcon = document.getElementById('theme-icon');
     const themeBtn = document.getElementById('btn-theme-toggle');
     if (State.theme === 'system') {

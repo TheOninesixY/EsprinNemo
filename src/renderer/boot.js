@@ -29,10 +29,12 @@ try {
     const configPath = path.join(resolveDataDir(), 'config.json');
     let theme = 'system';
     let fonts = null;
+    let accentColor = '';
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config && config.theme) theme = config.theme;
         if (config && config.fonts && typeof config.fonts === 'object') fonts = config.fonts;
+        if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
     }
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (isLight) {
@@ -54,4 +56,23 @@ try {
     Object.keys(fontVars).forEach((key) => {
         if (fontVars[key]) document.documentElement.style.setProperty(key, fontVars[key]);
     });
+
+    // 主题色（强调色）：同样在首屏渲染前写入 CSS 变量，避免默认蓝一闪而过。
+    // 这里与 scripts/theme_color.js 的 applyAccentColor 逻辑一致，但本文件在头部同步执行，
+    // 此时其余脚本尚未加载，因此内联实现一份最小版本。
+    const matchedAccent = accentColor.trim().match(/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+    if (matchedAccent) {
+        let hex = matchedAccent[1];
+        if (hex.length === 3) hex = hex.split('').map((char) => char + char).join('');
+        hex = '#' + hex.toUpperCase();
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        const alpha = isLight ? 0.1 : 0.15;
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        const rootStyle = document.documentElement.style;
+        rootStyle.setProperty('--accent', hex);
+        rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
+        rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
+    }
 } catch (e) {}

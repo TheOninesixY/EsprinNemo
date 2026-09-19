@@ -25,6 +25,8 @@
 
     --accent: #58a6ff;
     --accent-bg: rgba(56, 139, 253, 0.15);
+    /* 强调色底面上的文字色：由设置页的"主题色"按亮度自动计算（见 applyAccentColor） */
+    --accent-fg: #ffffff;
     --danger: #f85149;
     --danger-bg: rgba(248, 81, 73, 0.15);
 

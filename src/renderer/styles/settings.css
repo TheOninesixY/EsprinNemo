@@ -107,6 +107,125 @@
     margin-top: 2px;
 }
 
+/* 主题色（强调色）：预设色板、自定义取色与效果预览 */
+.accent-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-width: 680px;
+}
+.accent-swatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background-color: var(--swatch-color, var(--bg-body));
+    transition: transform 0.12s, box-shadow 0.12s;
+}
+/* “跟随主题”色块：用明暗两套默认蓝的对角渐变表示未自定义 */
+.accent-swatch-default {
+    background-image: linear-gradient(135deg, #0969da 0 50%, #58a6ff 50% 100%);
+}
+.accent-swatch:hover {
+    transform: scale(1.08);
+}
+/* 选中环：外层与设置面板底色同色，避免圆环直接贴到色块边缘 */
+.accent-swatch.selected {
+    box-shadow: 0 0 0 2px var(--bg-editor), 0 0 0 4px var(--accent);
+}
+.accent-custom {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    max-width: 680px;
+    padding: 14px 16px;
+    background: var(--bg-list);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+.accent-color-input {
+    width: 44px;
+    height: 30px;
+    padding: 0;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.accent-color-input::-webkit-color-swatch-wrapper { padding: 2px; }
+.accent-color-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+.accent-hex-input {
+    width: 110px;
+    height: 30px;
+    padding: 0 10px;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    user-select: text;
+    transition: border-color .15s;
+}
+.accent-hex-input:hover { border-color: var(--text-muted); }
+.accent-hex-input:focus { border-color: var(--accent); }
+.accent-custom-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.accent-preview {
+    max-width: 680px;
+    padding: 14px 16px;
+    background: var(--bg-list);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+}
+.accent-preview-label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+.accent-preview-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.accent-preview-btn {
+    height: 28px;
+    padding: 0 14px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: default;
+}
+.accent-preview-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    background: var(--accent-bg);
+    color: var(--accent);
+    font-size: 12.5px;
+}
+.accent-preview-link {
+    color: var(--accent);
+    font-size: 12.5px;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
 /* 数据存放位置 */
 .settings-path {
     font-family: var(--font-mono);
@@ -162,9 +281,12 @@
 .settings-btn.primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #ffffff;
+    color: var(--accent-fg);
 }
 .settings-btn.primary:hover:not(:disabled) {
+    /* 悬浮时保持强调色底面上的文字色，避免被通用 hover 规则改成正文色（浅色主题下近似黑色） */
+    border-color: var(--accent);
+    color: var(--accent-fg);
     opacity: 0.9;
 }
 .settings-btn:disabled {

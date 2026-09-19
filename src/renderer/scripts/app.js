@@ -6,6 +6,7 @@ window.onload = () => {
     State.notes = Array.isArray(saved.notes) ? saved.notes : [];
     State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
     State.theme = saved.theme || 'system';
+    State.accentColor = normalizeAccentColor(saved.accentColor);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.fonts = normalizeFonts(saved.fonts);
@@ -32,6 +33,7 @@ window.onload = () => {
     const purgedTrashNotes = purgeExpiredTrashNotes();
 
     initTheme();
+    initAccentColor();
     applySpellcheck();
     initFonts();
     initSettingsNav();

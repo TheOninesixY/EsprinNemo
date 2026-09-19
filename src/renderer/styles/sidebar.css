@@ -22,7 +22,7 @@
     height: 32px;
     border-radius: var(--radius-sm);
     background-color: var(--accent);
-    color: #ffffff;
+    color: var(--accent-fg);
     font-size: 13px;
     font-weight: 500;
     transition: opacity 0.15s, transform 0.1s;

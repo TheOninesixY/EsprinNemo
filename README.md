@@ -30,6 +30,7 @@
 
 ### 外观与偏好
 - **主题**：浅色 / 深色 / 跟随系统，首屏渲染前同步注入，切换无闪屏
+- **主题色个性化**：强调色可选预设色板或自定义取色（支持 #RRGGBB / #RGB），实时预览并即时落盘，深浅主题下自动换算背景透明度与按钮文字色，消息弹窗同步生效
 - **字体自定义**：界面字体与文档字体可分别设置，西文与 CJK 字体分开配置，按字符逐个回退
 - **本机字体列表**：直接解析字体文件 `name` 表枚举字体，无需第三方依赖，并带实时预览
 
@@ -84,7 +85,7 @@ Windows 下由 electron-builder 生成安装包，产物位于 `dist/`。安装�
 
 ```
 data/
-├── config.json     # 偏好设置：主题、字体、拼写检查、废纸篓保留天数等
+├── config.json     # 偏好设置：主题、主题色、字体、拼写检查、废纸篓保留天数等
 ├── index.json      # 笔记索引：标题、文件夹、标签、置顶/回收状态、时间戳
 └── notes/
     ├── <id>.md     # 笔记正文
@@ -131,10 +132,10 @@ data_path.json 中的位置（安装时选择或应用内更改）
 │   └── renderer/           # 渲染进程
 │       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本
 │       ├── dialog.html     # 弹窗窗口页面
-│       ├── boot.js         # 首屏引导：数据目录解析、主题与字体预注入（无闪屏）
+│       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题色 / 字体预注入（无闪屏）
 │       ├── fonts/          # 随应用分发的品牌字体（Mohave）
 │       ├── styles/         # tokens / base / sidebar / editor / overlays / settings
-│       └── scripts/        # state / storage / markdown / ui / notes / editor / render …
+│       └── scripts/        # state / storage / markdown / ui / theme_color / notes / editor / render …
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
 └── readme/                 # 文档配图

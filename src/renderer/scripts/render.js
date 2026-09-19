@@ -330,6 +330,7 @@ function renderWorkspace() {
         syncTrashRetentionSelect();
         updateDataDirUI();
         syncFontSelects();
+        syncAccentControls();
         return;
     }
 

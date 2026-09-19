@@ -30,25 +30,42 @@ function resolveDataDir() {
   return dataDir;
 }
 
-// 读取用户配置的主题偏好并折算为实际生效的明暗色，供主窗口背景与弹窗窗口主题复用
-function resolveEffectiveTheme() {
-  let theme = 'system';
+// 读取用户配置（config.json）：主进程只关心主题与主题色两项，供主窗口背景与弹窗窗口复用
+function readUserConfig() {
   try {
     const configFile = path.join(resolveDataDir(), 'config.json');
     if (fs.existsSync(configFile)) {
       const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-      if (config && config.theme) theme = config.theme;
+      if (config && typeof config === 'object') return config;
     }
   } catch (error) {
-    console.error('[Esprin Nemo] 读取主题配置失败:', error);
+    console.error('[Esprin Nemo] 读取用户配置失败:', error);
   }
+  return {};
+}
+
+// 把主题偏好折算为实际生效的明暗色
+function resolveEffectiveTheme() {
+  const theme = readUserConfig().theme || 'system';
   const isLight = theme === 'light' || (theme === 'system' && !nativeTheme.shouldUseDarkColors);
   return isLight ? 'light' : 'dark';
+}
+
+// 主题色（强调色）：统一为 #RRGGBB；未设置或格式非法时返回空字符串，弹窗沿用内置默认色
+function resolveAccentColor() {
+  const raw = readUserConfig().accentColor;
+  if (typeof raw !== 'string') return '';
+  const matched = raw.trim().match(/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+  if (!matched) return '';
+  let hex = matched[1];
+  if (hex.length === 3) hex = hex.split('').map((char) => char + char).join('');
+  return `#${hex.toUpperCase()}`;
 }
 
 // 所有消息弹窗都在自绘标题栏的独立窗口中呈现，主题与当前界面保持一致
 configureDialogWindows({
   getTheme: resolveEffectiveTheme,
+  getAccent: resolveAccentColor,
   icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
 
