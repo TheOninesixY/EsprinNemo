@@ -41,7 +41,7 @@ function createNoteFromScratchpad(title, content) {
     const now = Date.now();
 
     const note = {
-        id: generateUniqueNoteId(),
+        id: generateUniqueItemId(),
         title: (typeof title === 'string' ? title.trim() : '') || scratchpadFallbackTitle(text),
         content: text,
         folder: defaults.folder,
@@ -55,7 +55,7 @@ function createNoteFromScratchpad(title, content) {
     saveNote(note);
     State.notes.unshift(note);
     renderCounts();
-    renderNotesList();
+    renderListPanel();
     showToast(`小本本已新建笔记：${note.title || '未命名笔记'}`);
     return note.id;
 }
@@ -64,7 +64,7 @@ function createNoteFromScratchpad(title, content) {
 function updateNoteFromScratchpad(noteId, title, content) {
     const note = State.notes.find(n => n.id === noteId);
     if (!note) return { ok: false, reason: 'missing' };
-    if (isReadOnlyNote(note)) return { ok: false, reason: 'readonly' };
+    if (isReadOnlyItem(note)) return { ok: false, reason: 'readonly' };
 
     const isActive = State.activeNoteId === noteId;
     // 主窗口可能也开着这篇笔记：先把它自己的改动落盘，避免稍后的自动保存用旧内容覆盖
@@ -78,7 +78,7 @@ function updateNoteFromScratchpad(noteId, title, content) {
     // 正在看这篇笔记时连编辑区一起刷新；否则只更新列表与标签页标题，尽量不打扰主窗口
     if (isActive) renderApp();
     else {
-        renderNotesList();
+        renderListPanel();
         renderTabs();
     }
     return { ok: true };

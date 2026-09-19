@@ -60,31 +60,38 @@
         <div class="app-body">
             <!-- Left Sidebar Navigation -->
             <aside class="sidebar" id="app-sidebar">
-                <!-- Top New Note Button in Sidebar -->
+                <!-- Top New Button in Sidebar：点击后在按钮下方展开「新建笔记 / 新建待办」菜单 -->
                 <div class="sidebar-action-wrap">
-                    <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记 (Ctrl+N)">
+                    <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记或待办 (Ctrl+N / Ctrl+Shift+N)">
                         <span class="ms-icon sm btn-new-note-icon">add</span>
-                        <span class="nav-text">新建笔记</span>
+                        <span class="nav-text">新建</span>
                     </button>
                 </div>
 
-                <!-- Main Filters -->
+                <!-- Main Filters：笔记 / 待办各自一个入口，已置顶与废纸篓两类混排 -->
                 <div class="nav-section nav-section-main">
                     <div class="nav-item active" data-filter="all" title="全部笔记">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">description</span>
-                            <span class="nav-text">全部笔记</span>
+                            <span class="nav-text">笔记</span>
                         </div>
                         <span class="nav-badge" id="count-all">0</span>
                     </div>
-                    <div class="nav-item" data-filter="pinned" title="已置顶">
+                    <div class="nav-item" data-filter="todos" title="全部待办">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">check_box</span>
+                            <span class="nav-text">待办</span>
+                        </div>
+                        <span class="nav-badge" id="count-todos">0</span>
+                    </div>
+                    <div class="nav-item" data-filter="pinned" title="已置顶的笔记与待办">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">push_pin</span>
                             <span class="nav-text">已置顶</span>
                         </div>
                         <span class="nav-badge" id="count-pinned">0</span>
                     </div>
-                    <div class="nav-item" data-filter="trash" title="废纸篓">
+                    <div class="nav-item" data-filter="trash" title="废纸篓（笔记与待办共用）">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">delete</span>
                             <span class="nav-text">废纸篓</span>
@@ -118,7 +125,6 @@
                     <span id="sidebar-stat" class="nav-text">共 0 篇笔记</span>
                     <button class="btn-clear-trash hidden" id="btn-empty-trash" title="彻底清空废纸篓">
                         <span class="ms-icon xs">delete_forever</span>
-                        <span class="nav-text">清空</span>
                     </button>
                     <!-- 设置入口（两种状态下均可见） -->
                     <button class="btn-sidebar-bottom" id="btn-open-settings" title="设置">
@@ -140,7 +146,7 @@
                         <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
                     </div>
                     <div class="notes-panel-info">
-                        <span id="panel-category-title">全部笔记</span>
+                        <span id="panel-category-title">全部内容</span>
                         <select id="select-sort">
                             <option value="updated-desc">修改时间 ↓</option>
                             <option value="created-desc">创建时间 ↓</option>
@@ -157,8 +163,8 @@
                 <!-- Empty Placeholder Screen -->
                 <div class="empty-placeholder" id="empty-state">
                     <span class="ms-icon">edit_note</span>
-                    <p>选择一篇笔记，或新建笔记</p>
-                    <button class="btn-new-note" id="btn-empty-new">新建笔记</button>
+                    <p>选择一篇笔记或一项待办，或新建</p>
+                    <button class="btn-new-note" id="btn-empty-new">新建</button>
                 </div>
 
                 <!-- Workspace Topbar -->
@@ -180,6 +186,10 @@
 
                         <div class="window-controls-divider"></div>
 
+                        <!-- 待办：标记完成 / 取消完成（仅待办条目可见） -->
+                        <button class="btn-action-icon hidden" id="btn-todo-done" title="标记为已完成">
+                            <span class="ms-icon sm">radio_button_unchecked</span>
+                        </button>
                         <button class="btn-action-icon" id="btn-note-pin" title="固定笔记">
                             <span class="ms-icon sm">push_pin</span>
                         </button>
@@ -283,7 +293,7 @@
                         <p>问点什么吧，AI 会结合你的笔记回答</p>
                         <div class="ai-example">
                             <button class="ai-example-chip" data-prompt="帮我总结一下当前笔记的要点">总结当前笔记</button>
-                            <button class="ai-example-chip" data-prompt="根据我的笔记，列出还没有完成的待办事项">找出未完成待办</button>
+                            <button class="ai-example-chip" data-prompt="根据我的笔记，列出其中还没有完成的待办项">找出笔记中的待办</button>
                             <button class="ai-example-chip" data-prompt="我的笔记里主要在关注哪些主题？请归类整理">笔记主题归类</button>
                         </div>
                         <p class="ai-empty-hint">回答可以复制、插入当前笔记，或直接存为新笔记；图片与文本文件可拖进来一起发。</p>
@@ -360,7 +370,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">废纸篓自动清理</span>
-                                    <span class="settings-row-desc">按笔记最后一次编辑时间计算，超过保留期限的废纸篓笔记会被自动永久删除，此操作无法撤销</span>
+                                    <span class="settings-row-desc">按最后一次编辑时间计算，超过保留期限的废纸篓笔记与待办会被自动永久删除，此操作无法撤销</span>
                                 </div>
                                 <select class="settings-select" id="setting-trash-retention">
                                     <option value="0">永不自动清理</option>
@@ -565,7 +575,7 @@
                             <div class="settings-row" id="setting-data-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">数据存放位置</span>
-                                    <span class="settings-row-desc">笔记（notes/ 下的 Markdown 文件，元数据内嵌在文件开头）与偏好配置（config.json）都保存在该目录中</span>
+                                    <span class="settings-row-desc">笔记（notes/）与待办（todos/）都是自带头部元数据的 Markdown 文件，连同偏好配置（config.json）一起保存在该目录中</span>
                                     <span class="settings-path">
                                         <span id="setting-data-dir-text">读取中…</span>
                                         <span class="settings-path-tag" id="setting-data-dir-tag">默认位置</span>
@@ -587,8 +597,11 @@
         </div>
     </div>
 
-    <!-- Note Context Menu（菜单项按笔记状态动态生成） -->
+    <!-- Item Context Menu（菜单项按条目类型与状态动态生成） -->
     <div class="context-menu hidden" id="note-context-menu"></div>
+
+    <!-- New Item Menu（点侧边栏顶部「新建」或空状态按钮后展开：新建笔记 / 新建待办） -->
+    <div class="context-menu hidden" id="new-item-menu"></div>
 
     <!-- Toast Container -->
     <div class="toast-box" id="toast-container"></div>
@@ -607,6 +620,7 @@
     <script src="./scripts/ai_agent.js"></script>
     <script src="./scripts/ai.js"></script>
     <script src="./scripts/notes.js"></script>
+    <script src="./scripts/todos.js"></script>
     <script src="./scripts/scratchpad.js"></script>
     <script src="./scripts/editor.js"></script>
     <script src="./scripts/settings.js"></script>

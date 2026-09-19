@@ -11,14 +11,15 @@ function setupEvents() {
         renderApp();
     };
 
-    document.getElementById('btn-new-note').onclick = createNewNote;
-    document.getElementById('btn-empty-new').onclick = createNewNote;
+    // 两个「新建」入口都展开同一个菜单：新建笔记 / 新建待办
+    document.getElementById('btn-new-note').onclick = (e) => toggleNewItemMenu(e.currentTarget);
+    document.getElementById('btn-empty-new').onclick = (e) => toggleNewItemMenu(e.currentTarget);
     document.getElementById('btn-toggle-sidebar').onclick = toggleSidebarCollapsed;
 
-    document.getElementById('input-note-title').oninput = autoSaveNote;
+    document.getElementById('input-note-title').oninput = autoSaveActiveItem;
     const contentTextarea = document.getElementById('textarea-note-content');
     contentTextarea.oninput = () => {
-        autoSaveNote();
+        autoSaveActiveItem();
         scheduleRenderMarkdown();
     };
     // Tab / Shift+Tab 用于缩进，避免浏览器默认行为把焦点移出编辑器
@@ -29,10 +30,10 @@ function setupEvents() {
     };
 
     document.getElementById('editor-folder-select').onchange = (e) => {
-        const note = getActiveNote();
-        if (note && !isReadOnlyNote(note)) {
-            note.folder = e.target.value;
-            saveNote(note);
+        const item = getActiveItem();
+        if (item && !isReadOnlyItem(item)) {
+            item.folder = e.target.value;
+            saveItem(item);
             renderApp();
         }
     };
@@ -40,10 +41,14 @@ function setupEvents() {
     document.getElementById('btn-note-pin').onclick = () => {
         if (State.activeNoteId) togglePin(State.activeNoteId);
     };
+    // 待办：完成 / 取消完成
+    document.getElementById('btn-todo-done').onclick = () => {
+        if (State.activeNoteId) toggleTodoDone(State.activeNoteId);
+    };
     document.getElementById('btn-note-trash').onclick = () => {
         if (!State.activeNoteId) return;
-        // 废纸篓中的笔记：同一个按钮变成“恢复笔记”
-        if (isReadOnlyNote(getActiveNote())) restoreFromTrash(State.activeNoteId);
+        // 废纸篓中的条目：同一个按钮变成“恢复”
+        if (isReadOnlyItem(getActiveItem())) restoreFromTrash(State.activeNoteId);
         else moveToTrash(State.activeNoteId);
     };
     document.getElementById('btn-empty-trash').onclick = clearTrash;
@@ -73,14 +78,14 @@ function setupEvents() {
             e.target.value = String(State.trashRetentionDays);
             saveConfig();
 
-            const removed = purgeExpiredTrashNotes();
+            const removed = purgeExpiredTrashItems();
             renderApp();
             if (!State.trashRetentionDays) {
                 showToast('已关闭废纸篓自动清理');
             } else if (removed > 0) {
-                showToast(`已自动清理 ${removed} 篇超过 ${State.trashRetentionDays} 天的废纸篓笔记`);
+                showToast(`已自动清理 ${removed} 条超过 ${State.trashRetentionDays} 天的废纸篓内容`);
             } else {
-                showToast(`废纸篓中超过 ${State.trashRetentionDays} 天的笔记将被自动删除`);
+                showToast(`废纸篓中超过 ${State.trashRetentionDays} 天的笔记与待办将被自动删除`);
             }
         };
     }
@@ -139,6 +144,7 @@ function setupEvents() {
                 version: '2.0',
                 exportDate: new Date().toISOString(),
                 notes: State.notes,
+                todos: State.todos,
                 folders: State.folders
             };
             const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -163,12 +169,22 @@ function setupEvents() {
                     const parsed = JSON.parse(evt.target.result);
                     if (parsed && Array.isArray(parsed.notes)) {
                         State.notes = parsed.notes.filter(note => note && typeof note === 'object');
+                        // 待办：新备份里带 todos 字段，旧备份没有则保持现状
+                        if (Array.isArray(parsed.todos)) {
+                            State.todos = parsed.todos.filter(todo => todo && typeof todo === 'object');
+                        }
                         const customFolders = Array.isArray(parsed.folders) ? parsed.folders.filter(f => f && f !== '默认') : [];
                         State.folders = ['默认', ...customFolders];
                         // 每篇笔记写入自己的 notes/{id}.md（元数据与正文同处一份文件）
                         State.notes.forEach(note => {
-                            if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(note.id || ''))) note.id = generateUniqueNoteId();
+                            if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(note.id || ''))) note.id = generateUniqueItemId();
                             saveNote(note);
+                        });
+                        // 每项待办写入自己的 todos/{id}.md，格式与笔记一致（仅多一行 isDone）
+                        State.todos.forEach(todo => {
+                            if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(todo.id || ''))) todo.id = generateUniqueItemId();
+                            todo.isDone = !!todo.isDone;
+                            saveTodo(todo);
                         });
                         saveConfig();
                         renderApp();
@@ -198,19 +214,19 @@ function setupEvents() {
         State.searchQuery = e.target.value;
         clearSearchBtn.classList.toggle('hidden', !State.searchQuery);
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(renderNotesList, 120);
+        searchTimer = setTimeout(renderListPanel, 120);
     };
     clearSearchBtn.onclick = () => {
         clearTimeout(searchTimer);
         searchInput.value = '';
         State.searchQuery = '';
         clearSearchBtn.classList.add('hidden');
-        renderNotesList();
+        renderListPanel();
     };
 
     document.getElementById('select-sort').onchange = (e) => {
         State.sortBy = e.target.value;
-        renderNotesList();
+        renderListPanel();
     };
 
     document.querySelectorAll('.fmt-btn[data-fmt]').forEach(btn => {
@@ -236,10 +252,10 @@ function setupEvents() {
     };
 
     document.getElementById('btn-add-tag').onclick = async () => {
-        const note = getActiveNote();
-        if (!note || isReadOnlyNote(note)) return;
-        // 候选项：应用中已有的标签，当前笔记已添加的不再重复列出
-        const added = Array.isArray(note.tags) ? note.tags : [];
+        const item = getActiveItem();
+        if (!item || isReadOnlyItem(item)) return;
+        // 候选项：应用中已有的标签（笔记与待办合在一起），当前条目已添加的不再重复列出
+        const added = Array.isArray(item.tags) ? item.tags : [];
         const choices = getAllTags().filter(tag => !added.includes(tag));
         const picked = await showPromptWithChoices('请输入要添加的标签名称', {
             title: '添加标签',
@@ -258,17 +274,22 @@ function setupEvents() {
         const newTags = pending.filter(tag => !added.includes(tag));
         if (!newTags.length) return;
 
-        if (!note.tags) note.tags = [];
-        newTags.forEach(tag => note.tags.push(tag));
-        saveNote(note);
+        if (!item.tags) item.tags = [];
+        newTags.forEach(tag => item.tags.push(tag));
+        saveItem(item);
         renderApp();
         showToast(newTags.length > 1 ? `已添加 ${newTags.length} 个标签` : '已添加标签');
     };
 
     window.onkeydown = (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+        // Ctrl+N 新建笔记；Ctrl+Shift+N 新建待办（与「新建」菜单里的两项对应）
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
             e.preventDefault();
             createNewNote();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n') {
+            e.preventDefault();
+            createNewTodo();
         }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
             e.preventDefault();
@@ -276,12 +297,12 @@ function setupEvents() {
         }
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
             e.preventDefault();
-            // 废纸篓中的笔记为只读，不写盘也不提示“已保存”
-            if (isReadOnlyNote(getActiveNote())) {
-                showToast('废纸篓中的笔记为只读');
+            // 废纸篓中的条目为只读，不写盘也不提示“已保存”
+            if (isReadOnlyItem(getActiveItem())) {
+                showToast('废纸篓中的内容为只读');
                 return;
             }
-            autoSaveNote();
+            autoSaveActiveItem();
             showToast('已保存');
         }
     };

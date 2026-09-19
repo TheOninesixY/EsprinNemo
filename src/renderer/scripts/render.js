@@ -1,7 +1,7 @@
-/* 界面渲染：侧边栏、标签页、笔记列表与工作区 */
+/* 界面渲染：侧边栏、标签页、中栏列表（笔记与待办混排）与工作区 */
 
 // 各区域的渲染签名：与上一次一致时跳过 DOM 重建，避免无意义的整树重排
-const renderSignatures = { folders: null, tags: null, tabs: null, notes: null };
+const renderSignatures = { folders: null, tags: null, tabs: null, list: null };
 
 // 侧边栏顶部的筛选条目（静态节点，只需查询一次）
 const sidebarNavItems = document.querySelectorAll('.sidebar .nav-item');
@@ -12,7 +12,7 @@ function renderApp() {
     renderFolders();
     renderTags();
     renderTabs();
-    renderNotesList();
+    renderListPanel();
     renderWorkspace();
 }
 
@@ -82,24 +82,46 @@ function toggleSidebarCollapsed() {
     saveConfig();
 }
 
+// 中栏标题：与当前筛选一一对应
+function panelCategoryTitle(filter) {
+    if (filter === 'all') return '全部笔记';
+    if (filter === 'todos') return '全部待办';
+    if (filter === 'pinned') return '已置顶';
+    if (filter === 'trash') return '废纸篓';
+    if (filter.startsWith('folder:')) return filter.replace('folder:', '');
+    if (filter.startsWith('tag:')) return '#' + filter.replace('tag:', '');
+    return '全部笔记';
+}
+
 function renderCounts() {
-    // 一次遍历同时统计全部 / 已置顶 / 废纸篓，避免对笔记数组反复过滤
-    let activeCount = 0;
+    // 笔记与待办各统计一个「全部」；已置顶与废纸篓里两类混排，因此一并计入
+    let activeNoteCount = 0;
+    let activeTodoCount = 0;
     let pinnedCount = 0;
     let trashedCount = 0;
     State.notes.forEach(note => {
         if (note.isTrashed) {
             trashedCount++;
         } else {
-            activeCount++;
+            activeNoteCount++;
             if (note.isPinned) pinnedCount++;
         }
     });
 
-    document.getElementById('count-all').textContent = activeCount;
+    State.todos.forEach(todo => {
+        if (todo.isTrashed) {
+            trashedCount++;
+        } else {
+            activeTodoCount++;
+            if (todo.isPinned) pinnedCount++;
+        }
+    });
+
+    document.getElementById('count-all').textContent = activeNoteCount;
+    document.getElementById('count-todos').textContent = activeTodoCount;
     document.getElementById('count-pinned').textContent = pinnedCount;
     document.getElementById('count-trash').textContent = trashedCount;
-    document.getElementById('sidebar-stat').textContent = `共 ${activeCount} 篇笔记`;
+    document.getElementById('sidebar-stat').textContent = `共 ${activeNoteCount} 篇笔记 · ${activeTodoCount} 项待办`;
 
     sidebarNavItems.forEach(el => {
         const f = el.getAttribute('data-filter');
@@ -107,17 +129,10 @@ function renderCounts() {
         else el.classList.remove('active');
     });
 
+    // 「清空」按钮只在废纸篓视图出现，一次清空笔记与待办
     const clearBtn = document.getElementById('btn-empty-trash');
-    if (State.currentFilter === 'trash') {
-        clearBtn.classList.remove('hidden');
-        document.getElementById('panel-category-title').textContent = '废纸篓';
-    } else {
-        clearBtn.classList.add('hidden');
-        if (State.currentFilter === 'all') document.getElementById('panel-category-title').textContent = '全部笔记';
-        else if (State.currentFilter === 'pinned') document.getElementById('panel-category-title').textContent = '已置顶';
-        else if (State.currentFilter.startsWith('folder:')) document.getElementById('panel-category-title').textContent = State.currentFilter.replace('folder:', '');
-        else if (State.currentFilter.startsWith('tag:')) document.getElementById('panel-category-title').textContent = '#' + State.currentFilter.replace('tag:', '');
-    }
+    clearBtn.classList.toggle('hidden', State.currentFilter !== 'trash');
+    document.getElementById('panel-category-title').textContent = panelCategoryTitle(State.currentFilter);
 }
 
 function renderFolders() {
@@ -156,7 +171,7 @@ function renderFolders() {
                 e.stopPropagation();
                 const confirmed = await showConfirm(`删除文件夹“${folder}”？`, {
                     title: '删除文件夹',
-                    detail: '该文件夹中的笔记将移入“默认”文件夹，笔记本身不会被删除。',
+                    detail: '该文件夹中的笔记与待办将移入“默认”文件夹，内容本身不会被删除。',
                     type: 'warning',
                     icon: 'delete',
                     confirmLabel: '删除',
@@ -164,11 +179,11 @@ function renderFolders() {
                 });
                 if (!confirmed) return;
                 State.folders = State.folders.filter(f => f !== folder);
-                // 文件夹下的笔记移回“默认”，需要连同元数据一起写回各自文件
-                State.notes.forEach(n => {
-                    if (n.folder !== folder) return;
-                    n.folder = '默认';
-                    saveNote(n);
+                // 文件夹下的笔记与待办移回“默认”，需要连同元数据一起写回各自文件
+                [...State.notes, ...State.todos].forEach(entry => {
+                    if (entry.folder !== folder) return;
+                    entry.folder = '默认';
+                    saveItem(entry);
                 });
                 if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
                 saveConfig();
@@ -180,20 +195,21 @@ function renderFolders() {
     });
 }
 
-// 应用中已有的标签（仅统计未删除的笔记），排序后供弹窗里的候选项列表使用
+// 应用中已有的标签（仅统计未删除的笔记与待办），排序后供弹窗里的候选项列表使用
 function getAllTags() {
     const tags = new Set();
-    State.notes.filter(n => !n.isTrashed).forEach(n => {
-        if (Array.isArray(n.tags)) n.tags.forEach(t => { if (t) tags.add(t); });
+    [...State.notes, ...State.todos].filter(item => !item.isTrashed).forEach(item => {
+        if (Array.isArray(item.tags)) item.tags.forEach(t => { if (t) tags.add(t); });
     });
     return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 }
 
 function renderTags() {
+    // 标签面板统计未删除的笔记与待办：两者共用同一个列表，标签过滤因此对两类都生效
     const tagSet = new Set();
-    State.notes.forEach(n => {
-        if (n.isTrashed) return;
-        if (Array.isArray(n.tags)) n.tags.forEach(t => { if (t) tagSet.add(t); });
+    [...State.notes, ...State.todos].forEach(item => {
+        if (item.isTrashed) return;
+        if (Array.isArray(item.tags)) item.tags.forEach(t => { if (t) tagSet.add(t); });
     });
 
     const signature = `${State.currentFilter}\u0001${Array.from(tagSet).join('\u0001')}`;
@@ -235,12 +251,12 @@ function renderTabs() {
         };
     }
 
-    // 丢弃指向已不存在笔记的标签，避免留下打不开的幽灵标签
-    State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || State.notes.some(n => n.id === id));
+    // 丢弃指向已不存在条目的标签，避免留下打不开的幽灵标签
+    State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || !!getItemById(id));
 
     const signature = `${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
-        const note = id === 'settings' ? null : State.notes.find(n => n.id === id);
-        return `${id}\u0002${note ? (note.title || '') : ''}`;
+        const item = id === 'settings' ? null : getItemById(id);
+        return `${id}\u0002${item ? (item.title || '') : ''}`;
     }).join('\u0001')}`;
     if (renderSignatures.tabs === signature) return;
     renderSignatures.tabs = signature;
@@ -261,11 +277,13 @@ function renderTabs() {
                 </button>
             `;
         } else {
-            const note = State.notes.find(n => n.id === id);
-            if (!note) return;
+            const item = getItemById(id);
+            if (!item) return;
+            // 笔记与待办共用标签栏，用图标区分类型
+            const icon = isTodoItem(item) ? 'check_box' : 'description';
             tab.innerHTML = `
-                <span class="ms-icon xs" style="opacity: 0.7;">description</span>
-                <span class="tab-title">${escapeHTML(note.title || '未命名笔记')}</span>
+                <span class="ms-icon xs" style="opacity: 0.7;">${icon}</span>
+                <span class="tab-title">${escapeHTML(itemDisplayTitle(item))}</span>
                 <button class="tab-close-btn" title="关闭标签">
                     <span class="ms-icon xs">close</span>
                 </button>
@@ -303,30 +321,44 @@ function renderTabs() {
 // 列表卡片只展示首行摘要，先截断再转义，避免长文档每次都做整篇转义
 const PREVIEW_MAX_LENGTH = 120;
 
-function notePreviewText(note) {
-    const content = String(note.content || '').trim();
+// 列表卡片摘要：取正文首行（笔记与待办的卡片共用同一个函数）
+function notePreviewText(item) {
+    const content = String(item.content || '').trim();
     if (!content) return '暂无内容';
     const firstLine = content.split('\n', 1)[0];
     return firstLine.length > PREVIEW_MAX_LENGTH ? firstLine.slice(0, PREVIEW_MAX_LENGTH) : firstLine;
 }
 
-function renderNotesList() {
-    const container = document.getElementById('notes-list-box');
-    const list = getFilteredNotes();
+// 搜索框提示随当前视图变化：笔记 / 待办两个入口各说各的，其余视图为两类混合
+function searchPlaceholderText(filter) {
+    if (filter === 'all') return '搜索笔记... (Ctrl+Shift+F)';
+    if (filter === 'todos') return '搜索待办... (Ctrl+Shift+F)';
+    return '搜索笔记与待办... (Ctrl+Shift+F)';
+}
 
-    // 签名里用列表实际展示的时间（分钟精度）：顺序变化会体现为条目顺序变化，
-    // 而“编辑内容但展示时间未变”这类提交不会触发整列表重建
+// 中栏列表：笔记与待办混排在同一个列表里，待办卡片多一个完成勾选框
+function renderListPanel() {
+    const container = document.getElementById('notes-list-box');
+    const list = getFilteredItems();
+    const isTrashView = State.currentFilter === 'trash';
+
+    const searchInput = document.getElementById('input-search');
+    const placeholder = searchPlaceholderText(State.currentFilter);
+    if (searchInput.placeholder !== placeholder) searchInput.placeholder = placeholder;
+
+    // 签名里用列表实际展示的时间（分钟精度）与完成状态：顺序或完成状态变化会重建整列列表，
+    // 而“编辑正文但展示时间未变”这类提交不会触发整树重建
     const signature = `${State.currentFilter}\u0001${State.searchQuery}\u0002${State.sortBy}\u0003${State.activeNoteId}\u0004`
-        + list.map(note => `${note.id}\u0005${note.title || ''}\u0005${formatDate(note.updatedAt)}\u0005${note.folder}\u0005${note.isPinned ? 1 : 0}\u0005${notePreviewText(note)}`).join('\u0006');
-    if (renderSignatures.notes === signature) return;
-    renderSignatures.notes = signature;
+        + list.map(item => `${item.id}\u0005${isTodoItem(item) ? 1 : 0}\u0005${item.title || ''}\u0005${formatDate(item.updatedAt)}\u0005${item.folder}\u0005${item.isPinned ? 1 : 0}\u0005${item.isDone ? 1 : 0}\u0005${notePreviewText(item)}`).join('\u0006');
+    if (renderSignatures.list === signature) return;
+    renderSignatures.list = signature;
 
     container.innerHTML = '';
 
     if (list.length === 0) {
         container.innerHTML = `
             <div style="text-align: center; padding: 32px 10px; color: var(--text-muted); font-size: 12px;">
-                无匹配笔记
+                无匹配内容
             </div>
         `;
         return;
@@ -334,37 +366,39 @@ function renderNotesList() {
 
     // 先插入到文档碎片，一次性挂载，避免逐个卡片触发样式计算与重排
     const fragment = document.createDocumentFragment();
+    list.forEach(item => {
+        fragment.appendChild(isTodoItem(item) ? createTodoCard(item, { isTrashView }) : createNoteCard(item));
+    });
+    container.appendChild(fragment);
+}
 
-    list.forEach(note => {
-        const card = document.createElement('div');
-        const isActive = note.id === State.activeNoteId;
-        card.className = `note-card ${isActive ? 'active' : ''}`;
-        card.innerHTML = `
-            <div class="note-card-title">
-                <span>${escapeHTML(note.title || '未命名笔记')}</span>
-                ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
-            </div>
-            <div class="note-card-preview">${escapeHTML(notePreviewText(note))}</div>
-            <div class="note-card-footer">
-                <span>${formatDate(note.updatedAt)}</span>
-                <span class="note-card-folder">${escapeHTML(note.folder)}</span>
-            </div>
-        `;
+// 单张笔记卡片
+function createNoteCard(note) {
+    const card = document.createElement('div');
+    card.className = `note-card ${note.id === State.activeNoteId ? 'active' : ''}`;
+    card.innerHTML = `
+        <div class="note-card-title">
+            <span>${escapeHTML(note.title || '未命名笔记')}</span>
+            ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+        </div>
+        <div class="note-card-preview">${escapeHTML(notePreviewText(note))}</div>
+        <div class="note-card-footer">
+            <span>${formatDate(note.updatedAt)}</span>
+            <span class="note-card-folder">${escapeHTML(note.folder)}</span>
+        </div>
+    `;
 
-        card.addEventListener('click', () => {
-            openTab(note.id);
-            renderApp();
-        });
-
-        card.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showContextMenu(e.clientX, e.clientY, note.id);
-        });
-
-        fragment.appendChild(card);
+    card.addEventListener('click', () => {
+        openTab(note.id);
+        renderApp();
     });
 
-    container.appendChild(fragment);
+    card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showContextMenu(e.clientX, e.clientY, note.id);
+    });
+
+    return card;
 }
 
 function renderWorkspace() {
@@ -411,9 +445,9 @@ function renderWorkspace() {
     if (settingsView) settingsView.classList.add('hidden');
     applyAiPanelVisibility();
 
-    const note = getActiveNote();
+    const item = getActiveItem();
 
-    if (!note) {
+    if (!item) {
         emptyState.classList.remove('hidden');
         topbar.classList.add('hidden');
         toolbar.classList.add('hidden');
@@ -431,18 +465,20 @@ function renderWorkspace() {
     contentArea.classList.remove('hidden');
     footer.classList.remove('hidden');
 
+    const todoItem = isTodoItem(item);
     const titleInput = document.getElementById('input-note-title');
     const contentAreaInput = document.getElementById('textarea-note-content');
 
+    titleInput.placeholder = todoItem ? '无标题待办...' : '无标题笔记...';
     if (document.activeElement !== titleInput) {
-        titleInput.value = note.title || '';
+        titleInput.value = item.title || '';
     }
     if (document.activeElement !== contentAreaInput) {
-        contentAreaInput.value = note.content || '';
+        contentAreaInput.value = item.content || '';
     }
 
     const folderSelect = document.getElementById('editor-folder-select');
-    const foldersSignature = `${note.folder}\u0001${State.folders.join('\u0001')}`;
+    const foldersSignature = `${item.folder}\u0001${State.folders.join('\u0001')}`;
     if (folderSelect.dataset.signature !== foldersSignature) {
         folderSelect.dataset.signature = foldersSignature;
         folderSelect.innerHTML = '';
@@ -450,14 +486,14 @@ function renderWorkspace() {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
-            if (f === note.folder) opt.selected = true;
+            if (f === item.folder) opt.selected = true;
             folderSelect.appendChild(opt);
         });
     }
 
     const tagsContainer = document.getElementById('editor-tags-container');
-    const readOnly = isReadOnlyNote(note);
-    const tags = Array.isArray(note.tags) ? note.tags : [];
+    const readOnly = isReadOnlyItem(item);
+    const tags = Array.isArray(item.tags) ? item.tags : [];
     const tagsSignature = `${readOnly ? 1 : 0}\u0001${tags.join('\u0001')}`;
     if (tagsContainer.dataset.signature !== tagsSignature) {
         tagsContainer.dataset.signature = tagsSignature;
@@ -471,12 +507,12 @@ function renderWorkspace() {
                 const removeBtn = document.createElement('button');
                 removeBtn.title = '移除标签';
                 removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
-                // 每次点击都重新取回当前笔记，避免闭包引用已被替换的旧对象
+                // 每次点击都重新取回当前条目，避免闭包引用已被替换的旧对象
                 removeBtn.onclick = () => {
-                    const active = getActiveNote();
+                    const active = getActiveItem();
                     if (!active || !Array.isArray(active.tags)) return;
                     active.tags = active.tags.filter(t => t !== tag);
-                    saveNote(active);
+                    saveItem(active);
                     renderApp();
                 };
                 chip.appendChild(removeBtn);
@@ -486,7 +522,7 @@ function renderWorkspace() {
     }
 
     const pinBtn = document.getElementById('btn-note-pin');
-    if (note.isPinned) {
+    if (item.isPinned) {
         pinBtn.querySelector('.ms-icon').classList.add('fill');
         pinBtn.style.color = 'var(--accent)';
     } else {
@@ -494,10 +530,20 @@ function renderWorkspace() {
         pinBtn.style.color = 'var(--text-secondary)';
     }
 
-    applyEditorReadOnly(note);
+    // 待办多一个完成状态开关，非待办条目下隐藏该按钮
+    const doneBtn = document.getElementById('btn-todo-done');
+    doneBtn.classList.toggle('hidden', !todoItem);
+    if (todoItem) {
+        doneBtn.querySelector('.ms-icon').textContent = item.isDone ? 'check_circle' : 'radio_button_unchecked';
+        doneBtn.style.color = item.isDone ? 'var(--accent)' : 'var(--text-secondary)';
+        doneBtn.title = item.isDone ? '标记为未完成' : '标记为已完成';
+        doneBtn.disabled = readOnly;
+    }
+
+    applyEditorReadOnly(item);
     renderMarkdown();
     updateStats();
     updateViewModeUI();
-    // 切换笔记后，AI 面板的“附带笔记”提示要跟着变
+    // 切换条目后，AI 面板的“附带笔记”提示要跟着变
     updateAiContextHint();
 }

@@ -31,7 +31,8 @@ function collectAiContextNotes() {
 
     const maxNotes = Math.max(1, Number(State.ai && State.ai.maxNotes) || 10);
     if (State.aiScope === 'current') {
-        const active = getActiveNote();
+        // 当前条目：正打开的笔记或待办
+        const active = getActiveItem();
         return active ? [active] : [];
     }
 
@@ -51,8 +52,8 @@ function buildAiContextMessage() {
     const included = [];
     let used = 0;
 
-    candidates.forEach((note) => {
-        const content = String(note.content || '').trim();
+    candidates.forEach((item) => {
+        const content = String(item.content || '').trim();
         if (!content) return;
         const remaining = AI_TOTAL_CONTEXT_CHAR_LIMIT - used;
         if (remaining <= 200) return;
@@ -62,24 +63,24 @@ function buildAiContextMessage() {
         const body = truncated ? `${content.slice(0, limit)}\n…（内容过长，已截断）` : content;
         used += body.length;
 
-        const tags = Array.isArray(note.tags) && note.tags.length
-            ? `；标签：${note.tags.map(tag => `#${tag}`).join(' ')}`
+        const tags = Array.isArray(item.tags) && item.tags.length
+            ? `；标签：${item.tags.map(tag => `#${tag}`).join(' ')}`
             : '';
         blocks.push([
-            `【笔记】${note.title || '未命名笔记'}`,
-            `文件夹：${note.folder || '默认'}${tags}`,
-            `最后修改：${formatAiTime(note.updatedAt)}`,
+            `【${itemKindLabel(item)}】${itemDisplayTitle(item)}`,
+            `文件夹：${item.folder || '默认'}${tags}`,
+            `最后修改：${formatAiTime(item.updatedAt)}`,
             '',
             body
         ].join('\n'));
-        included.push(note);
+        included.push(item);
     });
 
     if (!blocks.length) return null;
     return {
         count: blocks.length,
-        content: `以下是用户笔记库中的 ${blocks.length} 篇笔记，请优先依据这些内容回答；`
-            + `笔记中没有的信息请说明未找到。\n\n${blocks.join('\n\n---\n\n')}`
+        content: `以下是用户笔记库中的 ${blocks.length} 条内容，请优先依据这些内容回答；`
+            + `其中没有的信息请说明未找到。\n\n${blocks.join('\n\n---\n\n')}`
     };
 }
 
@@ -233,7 +234,7 @@ function createAiMessageActions(msg) {
             showToast('复制失败');
         }
     }));
-    bar.appendChild(createAiActionButton('插入当前笔记', 'playlist_add', () => insertAiAnswerToNote(msg.content || '')));
+    bar.appendChild(createAiActionButton('插入当前内容', 'playlist_add', () => insertAiAnswerToItem(msg.content || '')));
     bar.appendChild(createAiActionButton('存为新笔记', 'note_add', () => saveAiAnswerAsNote(msg.content || '')));
     return bar;
 }
@@ -424,8 +425,8 @@ function updateAiContextHint() {
         return;
     }
     if (State.aiScope === 'current') {
-        const note = getActiveNote();
-        hint.textContent = note ? `附带：${note.title || '未命名笔记'}` : '当前没有打开的笔记';
+        const item = getActiveItem();
+        hint.textContent = item ? `附带：${itemDisplayTitle(item)}` : '当前没有打开的内容';
         return;
     }
     const count = collectAiContextNotes().length;
@@ -754,27 +755,28 @@ async function runAiTurn(chat, initialMessages) {
 
 // ---------- 回答的落地方式 ----------
 
-function insertAiAnswerToNote(content) {
-    const note = getActiveNote();
-    if (!note) {
-        showToast('请先打开一篇笔记');
+// 把回答插入当前条目（笔记或待办）末尾
+function insertAiAnswerToItem(content) {
+    const item = getActiveItem();
+    if (!item) {
+        showToast('请先打开一篇笔记或一项待办');
         return;
     }
-    if (isReadOnlyNote(note)) {
-        showToast('废纸篓中的笔记为只读，无法写入');
+    if (isReadOnlyItem(item)) {
+        showToast('废纸篓中的内容为只读，无法写入');
         return;
     }
 
     flushPendingSave();
-    const base = String(note.content || '').replace(/\s+$/, '');
-    note.content = base ? `${base}\n\n${content}` : content;
+    const base = String(item.content || '').replace(/\s+$/, '');
+    item.content = base ? `${base}\n\n${content}` : content;
 
     // 与预览区勾选待办项的做法一致：同步编辑器输入框后再走自动保存
     const textarea = document.getElementById('textarea-note-content');
-    if (textarea) textarea.value = note.content;
-    autoSaveNote();
+    if (textarea) textarea.value = item.content;
+    autoSaveActiveItem();
     flushRenderMarkdown();
-    showToast('已插入到当前笔记');
+    showToast('已插入到当前内容');
 }
 
 function saveAiAnswerAsNote(content) {
@@ -782,7 +784,7 @@ function saveAiAnswerAsNote(content) {
     const now = Date.now();
 
     const note = {
-        id: generateUniqueNoteId(),
+        id: generateUniqueItemId(),
         title: `AI 回答 · ${formatDate(now)}`,
         content,
         folder: defaults.folder,

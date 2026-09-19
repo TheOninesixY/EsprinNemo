@@ -1,10 +1,12 @@
-/* 数据持久化：数据目录，以及 config.json / notes/{id}.md / ai_chats/{id}.json 的读写。
-   笔记的标题、文件夹、标签、置顶与废纸篓状态、创建/修改时间都以内嵌注释（EsprinData）写在
-   各自 .md 文件开头；AI 对话同样一份对话一个文件。两者都不再有独立的索引文件。 */
+/* 数据持久化：数据目录，以及 config.json / notes/{id}.md / todos/{id}.md / ai_chats/{id}.json 的读写。
+   笔记与待办的标题、文件夹、标签、置顶与废纸篓状态、创建/修改时间都以内嵌注释（EsprinData）写在
+   各自 .md 文件开头（待办仅多一行 isDone 完成状态，文件格式与笔记完全一致）；
+   AI 对话同样一份对话一个文件。三者都不再有独立的索引文件。 */
 
 // 数据目录可在设置页中更改，因此路径均为可变变量（切换位置后就地生效，无需重启）
 let DATA_DIR = resolveDataDir();
 let NOTES_DIR = path.join(DATA_DIR, 'notes');
+let TODOS_DIR = path.join(DATA_DIR, 'todos');
 let AI_CHATS_DIR = path.join(DATA_DIR, 'ai_chats');
 let CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 // 旧版单文件记录：仅在启动时读一次用于迁移，完成后归档为同名 .bak
@@ -13,11 +15,13 @@ let LEGACY_AI_CHATS_FILE = path.join(DATA_DIR, 'ai_chats.json');
 
 // 写入缓存：待写入内容与上次落盘完全一致时直接跳过，避免自动保存产生重复 I/O
 const savedNoteFiles = new Map(); // noteId -> 已写入磁盘的完整文件内容（注释 + 正文）
+const savedTodoFiles = new Map(); // todoId -> 已写入磁盘的完整文件内容（注释 + 正文）
 const savedAiChatFiles = new Map(); // chatId -> 已写入磁盘的对话 JSON
 let savedConfigJSON = null;
 
 function resetWriteCache() {
     savedNoteFiles.clear();
+    savedTodoFiles.clear();
     savedAiChatFiles.clear();
     savedConfigJSON = null;
 }
@@ -26,6 +30,7 @@ function resetWriteCache() {
 function setDataPaths(dir) {
     DATA_DIR = dir;
     NOTES_DIR = path.join(dir, 'notes');
+    TODOS_DIR = path.join(dir, 'todos');
     AI_CHATS_DIR = path.join(dir, 'ai_chats');
     CONFIG_FILE = path.join(dir, 'config.json');
     LEGACY_INDEX_FILE = path.join(dir, 'index.json');
@@ -45,6 +50,19 @@ function generateNoteId() {
     return result;
 }
 
+// 生成唯一的条目 id：笔记与待办共用同一套标签页编号空间，
+// 因此内存两侧与磁盘上的 notes/、todos/ 文件都要避开。
+function generateUniqueItemId() {
+    let id = generateNoteId();
+    while (State.notes.some(n => n.id === id)
+        || State.todos.some(t => t.id === id)
+        || fs.existsSync(path.join(NOTES_DIR, `${id}.md`))
+        || fs.existsSync(path.join(TODOS_DIR, `${id}.md`))) {
+        id = generateNoteId();
+    }
+    return id;
+}
+
 // 目录只需确保一次：自动保存频繁调用，避免每次写入都做一轮同步 stat
 let storageDirsReady = false;
 
@@ -53,6 +71,7 @@ function ensureStorageDirs() {
     try {
         fs.mkdirSync(DATA_DIR, { recursive: true });
         fs.mkdirSync(NOTES_DIR, { recursive: true });
+        fs.mkdirSync(TODOS_DIR, { recursive: true });
         fs.mkdirSync(AI_CHATS_DIR, { recursive: true });
         storageDirsReady = true;
     } catch (err) {
@@ -121,22 +140,34 @@ function formatNoteMetaLine(key, value) {
     return text ? `    ${key}: ${text}` : `    ${key}:`;
 }
 
-// 生成笔记文件内容：元数据注释 + 空行 + 正文（正文为空时只留注释）
-function serializeNoteFile(note) {
-    const folder = note.folder && note.folder !== '默认' ? note.folder : '';
+// 生成条目文件内容：元数据注释 + 空行 + 正文（正文为空时只留注释）。
+// extraLines 用于笔记之外的附加字段（待办的 isDone），写法与其余元数据行保持一致。
+function serializeItemFile(item, extraLines = []) {
+    const folder = item.folder && item.folder !== '默认' ? item.folder : '';
     const header = [
         `<!--${NOTE_META_HEADER}`,
-        formatNoteMetaLine('title', note.title || ''),
+        formatNoteMetaLine('title', item.title || ''),
         formatNoteMetaLine('folder', folder),
-        formatNoteMetaLine('tags', Array.isArray(note.tags) ? note.tags : []),
-        formatNoteMetaLine('isPinned', !!note.isPinned),
-        formatNoteMetaLine('isTrashed', !!note.isTrashed),
-        formatNoteMetaLine('createdAt', Number(note.createdAt) || Date.now()),
-        formatNoteMetaLine('updatedAt', Number(note.updatedAt) || Date.now()),
+        formatNoteMetaLine('tags', Array.isArray(item.tags) ? item.tags : []),
+        formatNoteMetaLine('isPinned', !!item.isPinned),
+        formatNoteMetaLine('isTrashed', !!item.isTrashed),
+        ...extraLines,
+        formatNoteMetaLine('createdAt', Number(item.createdAt) || Date.now()),
+        formatNoteMetaLine('updatedAt', Number(item.updatedAt) || Date.now()),
         '-->'
     ].join('\n');
-    const content = String(note.content || '');
+    const content = String(item.content || '');
     return content ? `${header}\n\n${content}` : `${header}\n`;
+}
+
+// 笔记文件：只有上面那几个通用字段
+function serializeNoteFile(note) {
+    return serializeItemFile(note);
+}
+
+// 待办文件：与笔记完全同一套格式，仅多一行完成状态
+function serializeTodoFile(todo) {
+    return serializeItemFile(todo, [formatNoteMetaLine('isDone', !!todo.isDone)]);
 }
 
 // 注释里的字符串：优先按 JSON 字符串解析（写入时即为该格式），其次按原文，空值返回空字符串
@@ -215,15 +246,15 @@ function normalizeCustomFolders(raw) {
     return folders;
 }
 
-// 扫描 notes/ 目录，逐篇读出原始文本并解析内嵌元数据；返回 { files, skipped }
-function readNoteFiles() {
+// 扫描 notes/ 或 todos/ 目录，逐份读出原始文本并解析内嵌元数据；返回 { files, skipped }
+function readItemFiles(dir, label) {
     const files = [];
     let skipped = 0;
     let entries = [];
     try {
-        entries = fs.readdirSync(NOTES_DIR, { withFileTypes: true });
+        entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch (err) {
-        console.error('读取笔记目录失败:', err);
+        console.error(`读取${label}目录失败:`, err);
         return { files, skipped };
     }
 
@@ -231,12 +262,12 @@ function readNoteFiles() {
         if (!entry.isFile()) return;
         const matched = entry.name.match(NOTE_FILE_PATTERN);
         if (!matched) {
-            console.warn(`笔记目录中已忽略非笔记文件：${entry.name}`);
+            console.warn(`${label}目录中已忽略非${label}文件：${entry.name}`);
             skipped++;
             return;
         }
         try {
-            const filePath = path.join(NOTES_DIR, entry.name);
+            const filePath = path.join(dir, entry.name);
             const stat = fs.statSync(filePath);
             const raw = fs.readFileSync(filePath, 'utf8');
             const parsed = parseNoteFile(raw);
@@ -249,12 +280,20 @@ function readNoteFiles() {
                 content: parsed.content
             });
         } catch (err) {
-            console.error(`读取笔记文件 ${entry.name} 失败:`, err);
+            console.error(`读取${label}文件 ${entry.name} 失败:`, err);
             skipped++;
         }
     });
 
     return { files, skipped };
+}
+
+function readNoteFiles() {
+    return readItemFiles(NOTES_DIR, '笔记');
+}
+
+function readTodoFiles() {
+    return readItemFiles(TODOS_DIR, '待办');
 }
 
 // 以文件内容为主、旧索引记录为辅，拼出一篇完整的笔记
@@ -277,6 +316,27 @@ function buildNoteFromFile(file, legacy) {
         isTrashed: readNoteMetaBoolean(pick('isTrashed'), false),
         createdAt,
         updatedAt: readNoteMetaNumber(meta.updatedAt, readNoteMetaNumber(fallback.updatedAt, Math.max(createdAt, statTime))),
+        content: file.content
+    };
+}
+
+// 拼出一份完整的待办：文件格式与笔记一致，仅多一个 isDone 完成状态
+function buildTodoFromFile(file) {
+    const meta = file.meta || {};
+    const statTime = file.stat && Number.isFinite(file.stat.mtimeMs) ? Math.round(file.stat.mtimeMs) : Date.now();
+    const createdAt = readNoteMetaNumber(meta.createdAt, statTime);
+
+    return {
+        id: file.id,
+        // 完全没有注释的文件（例如手工放进 todos/ 的 Markdown）用正文首个非空行当标题
+        title: readNoteMetaString(meta.title) || (file.hasMeta ? '' : deriveNoteTitle(file.content)),
+        folder: readNoteMetaString(meta.folder),
+        tags: readNoteMetaTags(meta.tags),
+        isPinned: readNoteMetaBoolean(meta.isPinned, false),
+        isTrashed: readNoteMetaBoolean(meta.isTrashed, false),
+        isDone: readNoteMetaBoolean(meta.isDone, false),
+        createdAt,
+        updatedAt: readNoteMetaNumber(meta.updatedAt, Math.max(createdAt, statTime)),
         content: file.content
     };
 }
@@ -669,7 +729,11 @@ function loadData() {
     // 旧索引里仍有记录、但文件已不在：说明该笔记早已被删除，不再保留任何痕迹
     const vanishedLegacyNotes = legacyEntries.size;
 
-    // 4. 文件夹列表 = config.json 中记录的 + 各笔记实际用到的 + 旧索引里出现过的
+    // 4. 扫描 todos/：与笔记同一套格式（内嵌注释 + 正文，多一行 isDone）
+    const scannedTodos = readTodoFiles();
+    const todos = scannedTodos.files.map(file => buildTodoFromFile(file));
+
+    // 5. 文件夹列表 = config.json 中记录的 + 各笔记/待办实际用到的 + 旧索引里出现过的
     const customFolders = [];
     const addFolder = (name) => {
         const trimmed = typeof name === 'string' ? name.trim() : '';
@@ -679,13 +743,17 @@ function loadData() {
     normalizeCustomFolders(config.folders).forEach(addFolder);
     normalizeCustomFolders(legacyIndex.folders).forEach(addFolder);
     notes.forEach(note => addFolder(note.folder));
+    todos.forEach(todo => addFolder(todo.folder));
 
-    // 5. 文件夹落到实际存在的名字上（与旧行为一致：已不存在的文件夹回退到“默认”）
+    // 6. 文件夹落到实际存在的名字上（与旧行为一致：已不存在的文件夹回退到“默认”）
     notes.forEach((note) => {
         if (!note.folder || !customFolders.includes(note.folder)) note.folder = '默认';
     });
+    todos.forEach((todo) => {
+        if (!todo.folder || !customFolders.includes(todo.folder)) todo.folder = '默认';
+    });
 
-    // 6. 与磁盘原文逐字节比对：缺少注释、格式过时或字段脏的笔记就地写回，磁盘因此始终与内存一致
+    // 7. 与磁盘原文逐字节比对：缺少注释、格式过时或字段脏的笔记就地写回，磁盘因此始终与内存一致
     const fileById = new Map(scanned.files.map(file => [file.id, file]));
     const serialized = new Map();
     let repairedNotes = 0;
@@ -704,19 +772,38 @@ function loadData() {
         }
     });
 
-    // 7. 元数据都已落到各自的笔记文件，旧索引即可归档（保留 .bak 以便万一回退）
+    // 8. 元数据都已落到各自的笔记文件，旧索引即可归档（保留 .bak 以便万一回退）
     const legacyArchived = (legacyIndex.found && !rewriteFailed)
         ? archiveLegacyFile(LEGACY_INDEX_FILE, '索引迁移：元数据已写入各笔记文件')
         : false;
 
+    // 9. 待办同样与磁盘原文逐字节比对，格式不一致（缺少 isDone 等）就写回
+    const todoFileById = new Map(scannedTodos.files.map(file => [file.id, file]));
+    const serializedTodos = new Map();
+    let repairedTodos = 0;
+    todos.forEach((todo) => {
+        const text = serializeTodoFile(todo);
+        serializedTodos.set(todo.id, text);
+        const file = todoFileById.get(todo.id);
+        if (file && file.raw === text) return;
+        try {
+            fs.writeFileSync(path.join(TODOS_DIR, `${todo.id}.md`), text, 'utf8');
+            repairedTodos++;
+        } catch (err) {
+            console.error(`写入待办 ${todo.id} 失败:`, err);
+        }
+    });
+
     // 写入缓存与磁盘内容对齐，避免紧接着的首次保存重复写盘
     resetWriteCache();
     notes.forEach(note => savedNoteFiles.set(note.id, serialized.get(note.id)));
+    todos.forEach(todo => savedTodoFiles.set(todo.id, serializedTodos.get(todo.id)));
 
     // 最近修改的排在前面，与列表默认排序一致
     notes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    todos.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-    // 8. 载入 AI 对话记录：一份对话一个文件，当前选中的对话记在 config.json 里
+    // 10. 载入 AI 对话记录：一份对话一个文件，当前选中的对话记在 config.json 里
     const aiChats = loadAiChats(config.aiActiveChat);
 
     return {
@@ -731,9 +818,12 @@ function loadData() {
         aiChats: { conversations: aiChats.conversations, activeId: aiChats.activeId },
         folders: ['默认', ...customFolders],
         notes,
+        todos,
         dataCleanup: {
             repairedNotes,
+            repairedTodos,
             skippedFiles: scanned.skipped,
+            skippedTodoFiles: scannedTodos.skipped,
             // 自定义文件夹列表需要写回 config.json 时标记
             foldersChanged: JSON.stringify(normalizeCustomFolders(config.folders)) !== JSON.stringify(customFolders),
             legacyIndex: {
@@ -796,4 +886,40 @@ function deleteNoteFile(noteId) {
     } catch (err) {
         console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
     }
+}
+
+// 保存单份待办：写回 data/todos/{id}.md，格式与笔记一致（内容未变时跳过写入）
+function saveTodo(todo) {
+    if (!todo || !todo.id) return;
+    ensureStorageDirs();
+    try {
+        const text = serializeTodoFile(todo);
+        if (savedTodoFiles.get(todo.id) === text) return;
+        fs.writeFileSync(path.join(TODOS_DIR, `${todo.id}.md`), text, 'utf8');
+        savedTodoFiles.set(todo.id, text);
+    } catch (err) {
+        console.error(`保存待办 ${todo.id} 失败:`, err);
+    }
+}
+
+// 删除待办文件（元数据与正文同在一份文件，删掉即彻底移除），并同步丢弃写入缓存
+function deleteTodoFile(todoId) {
+    savedTodoFiles.delete(todoId);
+    try {
+        const todoPath = path.join(TODOS_DIR, `${todoId}.md`);
+        if (fs.existsSync(todoPath)) fs.unlinkSync(todoPath);
+    } catch (err) {
+        console.error(`删除待办文件 ${todoId}.md 失败:`, err);
+    }
+}
+
+// 按条目类型分发读写：笔记与待办共用编辑器与标签页，保存/删除时按归属选目标目录
+function saveItem(item) {
+    if (isTodoItem(item)) saveTodo(item);
+    else saveNote(item);
+}
+
+function deleteItemFile(itemId) {
+    if (State.todos.some(todo => todo.id === itemId)) deleteTodoFile(itemId);
+    else deleteNoteFile(itemId);
 }

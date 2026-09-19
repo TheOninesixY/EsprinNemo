@@ -170,12 +170,18 @@
     font-size: 11px;
     color: var(--text-muted);
 }
+/* 清空废纸篓：与底栏的设置、收起按钮同尺寸的图标按钮，悬停高亮大小一致（保留危险操作的红色） */
 .btn-clear-trash {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
     color: var(--danger);
-    font-size: 11px;
+    transition: background-color 0.15s, color 0.15s;
+}
+.btn-clear-trash:hover {
+    background-color: var(--item-hover);
+    color: var(--danger);
 }
 /* 底栏右侧的小图标按钮：设置与收起/展开，成组靠右（收起按钮在最右侧） */
 .btn-sidebar-bottom {
@@ -193,6 +199,13 @@
 #btn-open-settings {
     margin-left: auto;
 }
+/* 底栏概览文字优先给按钮让位：过长时省略，不换行也不把按钮挤出侧边栏 */
+#sidebar-stat {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
 
 /* Sidebar Collapsed State: 只保留一条窄条与图标入口。
    状态类挂在 <html> 上：boot.js 会在首屏渲染前根据 config.sidebarCollapsed 写一次，
@@ -200,13 +213,17 @@
 html.sidebar-collapsed .sidebar {
     width: 48px;
 }
-/* 收起后隐藏所有文字、计数、文件夹与标签过滤分区 */
+/* 收起后隐藏所有文字、计数、文件夹与标签过滤分区（清空废纸篓保留为图标按钮） */
 html.sidebar-collapsed .sidebar .nav-text,
 html.sidebar-collapsed .sidebar .nav-badge,
-html.sidebar-collapsed .sidebar .btn-clear-trash,
 html.sidebar-collapsed .sidebar .nav-section-folders,
 html.sidebar-collapsed .sidebar .nav-section-tags {
     display: none;
+}
+/* 收起时清空按钮与设置按钮一起放大到 24×24，位置就在设置上方（靠 DOM 顺序） */
+html.sidebar-collapsed .sidebar .btn-clear-trash {
+    width: 24px;
+    height: 24px;
 }
 html.sidebar-collapsed .sidebar .btn-new-note-icon {
     display: inline-flex;
@@ -380,4 +397,51 @@ html.sidebar-collapsed .sidebar #btn-open-settings {
     padding: 1px 4px;
     border-radius: 4px;
     background: var(--item-hover);
+}
+
+/* 待办卡片：左侧勾选框 + 右侧标题/摘要/时间（卡片本体沿用笔记卡片的视觉，整体保持轻量） */
+.todo-card {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+}
+.todo-check {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: color 0.15s, background-color 0.15s;
+}
+/* 悬浮只轻轻提亮图标，不铺一层更深的底色 */
+.todo-check:hover {
+    background-color: var(--item-hover);
+    color: var(--accent);
+}
+/* 完成状态靠图标形状与删除线区分，不用高对比的实心色块 */
+.todo-card.done .todo-check {
+    color: var(--text-muted);
+}
+/* 选中卡片底色变深，勾选框相应提亮一点，避免图标糊在背景里 */
+.todo-card.active .todo-check {
+    color: var(--text-secondary);
+}
+.todo-card-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.todo-card.done .note-card-title span {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+.todo-card.done .note-card-preview {
+    color: var(--text-muted);
+    opacity: 0.85;
 }

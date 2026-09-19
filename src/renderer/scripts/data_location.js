@@ -124,26 +124,28 @@ function adoptDataDir(dir, options = {}) {
     adoptAiChats(saved.aiChats);
 
     State.notes = saved.notes;
+    State.todos = Array.isArray(saved.todos) ? saved.todos : [];
     State.folders = saved.folders;
 
     // 新位置同样执行一次数据清理（与启动流程一致）：
-    // 笔记与对话文件的格式修正已在 loadData 内完成，文件夹列表有变化时写回配置
+    // 笔记、待办与对话文件的格式修正已在 loadData 内完成，文件夹列表有变化时写回配置
     const cleanup = saved.dataCleanup;
     if (cleanup && cleanup.foldersChanged) saveConfig();
 
-    // 丢弃在新位置不存在的标签页，避免指向幽灵笔记
-    State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || State.notes.some(n => n.id === id));
+    // 丢弃在新位置不存在的标签页，避免指向幽灵条目
+    State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || !!getItemById(id));
     if (!State.openNoteIds.includes(State.activeNoteId)) {
         State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
     }
 
-    // 过滤条件在新位置可能已失效，回退到"全部笔记"
+    // 过滤条件在新位置可能已失效，回退到“全部笔记”
     if (State.currentFilter.startsWith('folder:')) {
         const folder = State.currentFilter.replace('folder:', '');
         if (!State.folders.includes(folder)) State.currentFilter = 'all';
     } else if (State.currentFilter.startsWith('tag:')) {
         const tag = State.currentFilter.replace('tag:', '');
-        if (!State.notes.some(n => Array.isArray(n.tags) && n.tags.includes(tag))) State.currentFilter = 'all';
+        const hasTag = (item) => Array.isArray(item.tags) && item.tags.includes(tag);
+        if (!State.notes.some(hasTag) && !State.todos.some(hasTag)) State.currentFilter = 'all';
     }
 
     applyTheme();
@@ -160,13 +162,13 @@ function adoptDataDir(dir, options = {}) {
     dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };
     updateDataDirUI();
 
-    // 新位置可能自带过期的废纸篓笔记，按当前保留策略清理一次
-    const purged = purgeExpiredTrashNotes();
+    // 新位置可能自带过期的废纸篓条目，按当前保留策略清理一次
+    const purged = purgeExpiredTrashItems();
 
     renderApp();
     showToast(options.message || '数据存放位置已切换');
     if (purged > 0) {
-        showToast(`已自动清理 ${purged} 篇超过 ${State.trashRetentionDays} 天的废纸篓笔记`);
+        showToast(`已自动清理 ${purged} 条超过 ${State.trashRetentionDays} 天的废纸篓内容`);
     }
 }
 

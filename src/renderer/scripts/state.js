@@ -3,9 +3,13 @@
 // State Store
 const State = {
     notes: [],
+    // 待办：与笔记同一套文件格式（多一个 isDone 完成状态），存放在数据目录的 todos/ 下
+    todos: [],
     folders: ['默认'],
     activeNoteId: null,
     openNoteIds: [],
+    // 中栏列表的筛选标识：all / pinned / trash / folder:<名称> / tag:<标签>，
+    // 以及待办视图 todo:undone / todo:done / todo:trash
     currentFilter: 'all',
     searchQuery: '',
     sortBy: 'updated-desc',

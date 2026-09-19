@@ -1,4 +1,5 @@
-/* 编辑器：Markdown 预览刷新、字数统计、只读态与视图模式，以及格式化与 Tab 缩进 */
+/* 编辑器：Markdown 预览刷新、字数统计、只读态与视图模式，以及格式化与 Tab 缩进。
+   编辑器同时服务于笔记与待办，取用当前条目一律走 getActiveItem()。 */
 
 // MD 预览刷新节流：连续输入时每次字符变动都重置计时，
 // 只有静默满 1 秒才真正重新解析 Markdown 并刷新预览
@@ -25,16 +26,16 @@ function flushRenderMarkdown() {
 
 // force 为 true 时强制重解析；否则内容与上次一致就直接返回
 function renderMarkdown(force = false) {
-    const note = getActiveNote();
-    const noteId = note ? note.id : null;
-    const content = note ? (note.content || '') : '';
+    const item = getActiveItem();
+    const itemId = item ? item.id : null;
+    const content = item ? (item.content || '') : '';
 
-    if (!force && noteId === lastPreviewNoteId && content === lastPreviewContent) return;
-    lastPreviewNoteId = noteId;
+    if (!force && itemId === lastPreviewNoteId && content === lastPreviewContent) return;
+    lastPreviewNoteId = itemId;
     lastPreviewContent = content;
 
     const container = document.getElementById('preview-content');
-    if (!note) {
+    if (!item) {
         container.innerHTML = '';
         return;
     }
@@ -43,9 +44,9 @@ function renderMarkdown(force = false) {
     container.querySelectorAll('input[type="checkbox"]').forEach((cb, idx) => {
         cb.removeAttribute('disabled');
         cb.onchange = () => {
-            // 重新取回当前笔记，避免闭包引用已被替换的旧对象
-            const active = getActiveNote();
-            if (!active || isReadOnlyNote(active)) return;
+            // 重新取回当前条目，避免闭包引用已被替换的旧对象
+            const active = getActiveItem();
+            if (!active || isReadOnlyItem(active)) return;
             let curIdx = 0;
             active.content = (active.content || '').replace(/(- \[ ]|- \[x])/gi, (match) => {
                 if (curIdx === idx) {
@@ -56,7 +57,7 @@ function renderMarkdown(force = false) {
                 return match;
             });
             document.getElementById('textarea-note-content').value = active.content;
-            autoSaveNote();
+            autoSaveActiveItem();
         };
     });
 }
@@ -67,26 +68,26 @@ let lastStatsContent = null;
 let lastStatsUpdatedAt = null;
 
 function updateStats() {
-    const note = getActiveNote();
-    if (!note) return;
+    const item = getActiveItem();
+    if (!item) return;
 
-    const content = note.content || '';
-    if (note.id === lastStatsNoteId && content === lastStatsContent && note.updatedAt === lastStatsUpdatedAt) return;
-    lastStatsNoteId = note.id;
+    const content = item.content || '';
+    if (item.id === lastStatsNoteId && content === lastStatsContent && item.updatedAt === lastStatsUpdatedAt) return;
+    lastStatsNoteId = item.id;
     lastStatsContent = content;
-    lastStatsUpdatedAt = note.updatedAt;
+    lastStatsUpdatedAt = item.updatedAt;
 
     document.getElementById('stat-char-count').textContent = `字符: ${content.length}`;
     const trimmed = content.trim();
     document.getElementById('stat-word-count').textContent = `字数: ${trimmed ? trimmed.split(/\s+/).length : 0}`;
-    document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(note.updatedAt)}`;
+    document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(item.updatedAt)}`;
 }
 
-// 只读模式：废纸篓中的笔记只能查看与导出，所有编辑入口统一在这里关闭
+// 只读模式：废纸篓中的条目只能查看与导出，所有编辑入口统一在这里关闭
 const READONLY_STATUS_TEXT = '只读 · 位于废纸篓';
 
-function applyEditorReadOnly(note) {
-    const readOnly = isReadOnlyNote(note);
+function applyEditorReadOnly(item) {
+    const readOnly = isReadOnlyItem(item);
 
     const titleInput = document.getElementById('input-note-title');
     const contentInput = document.getElementById('textarea-note-content');
@@ -108,7 +109,7 @@ function applyEditorReadOnly(note) {
     // 同一个按钮承担两种语义：普通笔记=移入废纸篓，废纸篓中=恢复
     const trashIcon = trashBtn.querySelector('.ms-icon');
     if (trashIcon) trashIcon.textContent = readOnly ? 'restore_from_trash' : 'delete';
-    trashBtn.title = readOnly ? '恢复笔记' : '放入废纸篓';
+    trashBtn.title = readOnly ? `恢复${itemKindLabel(item)}` : '放入废纸篓';
 
     const saveStatus = document.getElementById('save-status');
     if (readOnly) {
@@ -163,7 +164,7 @@ function formatMarkdown(type) {
 
     textarea.value = textarea.value.substring(0, start) + ins + textarea.value.substring(end);
     textarea.focus();
-    autoSaveNote();
+    autoSaveActiveItem();
     flushRenderMarkdown();
 }
 
@@ -233,6 +234,6 @@ function handleContentTab(e) {
     }
 
     textarea.focus();
-    autoSaveNote();
+    autoSaveActiveItem();
     scheduleRenderMarkdown();
 }
