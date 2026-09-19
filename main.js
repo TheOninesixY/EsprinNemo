@@ -1,15 +1,109 @@
-const { app, BrowserWindow, Menu, ipcMain, session } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
-const { DATA_DIR_ARG, ensureDataDir } = require('./data_path.js');
+const {
+  DATA_DIR_ARG,
+  ensureDataDir,
+  getDefaultDataDir,
+  writeStoredDataDir
+} = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
 
-// 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/
+// 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/；
+// 用户在设置中自定义位置后，以应用配置目录中的 data-location.json 为准。
 let dataDir = null;
 function resolveDataDir() {
   if (!dataDir) {
     dataDir = ensureDataDir(__dirname, app);
   }
   return dataDir;
+}
+
+function normalizePathForCompare(target) {
+  const resolved = path.resolve(target);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isSamePath(a, b) {
+  return normalizePathForCompare(a) === normalizePathForCompare(b);
+}
+
+// child 是否为 parent 的子路径（用于阻止把数据目录搬到自己的子目录/父目录，避免递归复制）
+function isPathInside(parent, child) {
+  const rel = path.relative(parent, child);
+  return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+function isDirWritable(dir) {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function dirHasData(dir) {
+  return fs.existsSync(path.join(dir, 'index.json')) || fs.existsSync(path.join(dir, 'notes'));
+}
+
+// 切换数据位置：按需迁移数据、写记录文件，并让当前缓存与后续窗口都使用新目录。
+// 渲染进程拿到返回的 dataDir 后会就地切换路径并重新加载数据，无需重启应用。
+async function applyDataDirChange(targetPath, win, { persist = true, confirmExisting = true, targetLabel = '所选位置' } = {}) {
+  const current = resolveDataDir();
+  const target = path.resolve(targetPath);
+
+  if (isSamePath(target, current)) {
+    return { canceled: false, unchanged: true, dataDir: current };
+  }
+  if (isPathInside(current, target) || isPathInside(target, current)) {
+    return { error: '新位置不能是当前数据目录的子目录或上级目录' };
+  }
+  if (!isDirWritable(target)) {
+    return { error: '所选目录不可写，请检查访问权限或换一个位置' };
+  }
+
+  const existing = dirHasData(target);
+  let migrate = false;
+
+  if (existing && confirmExisting) {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'question',
+      buttons: ['使用该位置的现有数据', '取消'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+      message: `${targetLabel}已存在 EsprinNemo 数据`,
+      detail: '继续后应用会直接使用该位置中的笔记与配置，不会覆盖或删除任何文件。\n' + `位置：${target}`
+    });
+    if (response !== 0) return { canceled: true };
+  } else if (!existing) {
+    const { response } = await dialog.showMessageBox(win, {
+      type: 'question',
+      buttons: ['迁移现有数据', '不迁移', '取消'],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+      message: `是否把现有数据迁移到${targetLabel}？`,
+      detail: '“迁移现有数据”会把当前数据目录完整复制到该位置；选择“不迁移”则该位置从空白开始（原位置的数据会原样保留）。\n' + `位置：${target}`
+    });
+    if (response === 2) return { canceled: true };
+    migrate = response === 0;
+  }
+
+  if (migrate) {
+    try {
+      fs.cpSync(current, target, { recursive: true, force: true });
+    } catch (error) {
+      console.error('[Esprin Nemo] 迁移数据失败:', error);
+      return { error: `迁移数据失败：${error.message}` };
+    }
+  }
+
+  if (persist) writeStoredDataDir(target, app);
+  dataDir = target;
+  return { canceled: false, dataDir: target, migrated: migrate };
 }
 
 ipcMain.handle('window:minimize', (event) => {
@@ -55,11 +149,63 @@ ipcMain.handle('fonts:list', () => {
   return cachedSystemFonts;
 });
 
+// 数据存放位置：渲染进程启动阶段同步查询（早于页面脚本执行，确保路径一致）
+ipcMain.on('data:get-dir-sync', (event) => {
+  event.returnValue = resolveDataDir();
+});
+
+// 数据存放位置：读取当前/默认位置，供设置页展示
+ipcMain.handle('data:get-dir', () => {
+  const current = resolveDataDir();
+  const defaultDir = getDefaultDataDir(__dirname, app);
+  return {
+    dataDir: current,
+    defaultDir,
+    isCustom: !isSamePath(current, defaultDir),
+    isDefault: isSamePath(current, defaultDir)
+  };
+});
+
+// 数据存放位置：弹出目录选择框并按需迁移
+ipcMain.handle('data:choose-dir', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const result = await dialog.showOpenDialog(win, {
+    title: '选择数据存放位置',
+    defaultPath: resolveDataDir(),
+    buttonLabel: '选择此文件夹',
+    properties: ['openDirectory', 'createDirectory']
+  });
+  if (result.canceled || !result.filePaths.length) return { canceled: true };
+  return applyDataDirChange(result.filePaths[0], win);
+});
+
+// 数据存放位置：恢复为默认位置（并清除自定义记录）
+ipcMain.handle('data:reset-dir', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const target = getDefaultDataDir(__dirname, app);
+  const result = await applyDataDirChange(target, win, { persist: false, targetLabel: '默认位置' });
+  if (!result || result.canceled || result.error) return result || { canceled: true };
+  writeStoredDataDir(null, app);
+  dataDir = target;
+  return { ...result, isCustom: false };
+});
+
+// 数据存放位置：在文件管理器中打开当前数据目录
+ipcMain.handle('data:open-dir', async () => {
+  const dir = resolveDataDir();
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    return await shell.openPath(dir);
+  } catch (error) {
+    console.error('[Esprin Nemo] 打开数据目录失败:', error);
+    return String(error && error.message ? error.message : error);
+  }
+});
+
 function createWindow() {
   Menu.setApplicationMenu(null);
 
   // Clean sync file swap on start if main.html has duplicate appended content
-  const fs = require('fs');
   const targetPath = path.join(__dirname, 'main.html');
   const cleanPath = path.join(__dirname, 'main.html.new');
   if (fs.existsSync(cleanPath)) {

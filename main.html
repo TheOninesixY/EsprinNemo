@@ -5,9 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esprin Nemo</title>
     <script>
-        // 数据目录解析：安装版为 %APPDATA%/esprin_nemo/data，开发版为项目内 data/
-        // 主进程会通过 --esprin-nemo-data-dir= 参数把最终目录传给渲染进程
+        // 数据目录解析：优先向主进程同步查询（主进程已处理用户在设置中自定义的位置），
+        // 失败时回退到命令行参数（主进程启动时会通过 --esprin-nemo-data-dir= 传入）。
         function resolveDataDir() {
+            try {
+                const dir = require('electron').ipcRenderer.sendSync('data:get-dir-sync');
+                if (typeof dir === 'string' && dir) return dir;
+            } catch (e) {}
             try {
                 const path = require('path');
                 const argPrefix = '--esprin-nemo-data-dir=';
@@ -1134,6 +1138,8 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex: 1;
+            min-width: 0;
         }
         .settings-row-label {
             font-size: 14px;
@@ -1151,6 +1157,71 @@
             color: var(--text-secondary);
             text-transform: uppercase;
             margin-top: 2px;
+        }
+
+        /* 数据存放位置 */
+        .settings-path {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--item-hover);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 5px 8px;
+            word-break: break-all;
+            user-select: text;
+            cursor: text;
+        }
+        .settings-path-tag {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 0 5px;
+            border-radius: 4px;
+            font-family: var(--font-sans);
+            font-size: 10.5px;
+            color: var(--text-muted);
+            background: var(--item-active);
+        }
+        .settings-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex-shrink: 0;
+            /* 与左侧底部的路径框保持在同一行，避免出现“按钮一行、路径一行”的错位观感 */
+            align-self: flex-end;
+        }
+        .settings-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            height: 30px;
+            padding: 0 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-body);
+            color: var(--text-secondary);
+            font-size: 12px;
+            white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .settings-btn:hover:not(:disabled) {
+            border-color: var(--text-muted);
+            color: var(--text-primary);
+        }
+        .settings-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #ffffff;
+        }
+        .settings-btn.primary:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+        .settings-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
         }
         .settings-select {
             flex-shrink: 0;
@@ -1511,6 +1582,28 @@
                         <span id="font-preview-text">汉字与西文混排预览 Aa Bb Cc 0123 — The quick brown fox jumps over the lazy dog.</span>
                     </div>
                 </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">数据与存储</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <span class="settings-row-label">数据存放位置</span>
+                            <span class="settings-row-desc">笔记正文（notes/）、索引（index.json）与偏好配置（config.json）都保存在该目录中</span>
+                            <span class="settings-path">
+                                <span id="setting-data-dir-text">读取中…</span>
+                                <span class="settings-path-tag" id="setting-data-dir-tag">默认位置</span>
+                            </span>
+                        </div>
+                        <div class="settings-actions">
+                            <button class="settings-btn" id="btn-data-open" title="在文件管理器中打开数据目录">打开文件夹</button>
+                            <button class="settings-btn" id="btn-data-reset" title="改回默认数据目录" disabled>恢复默认</button>
+                            <button class="settings-btn primary" id="btn-data-change" title="选择新的数据存放位置">更改位置</button>
+                        </div>
+                    </div>
+                    <div class="settings-row-desc" id="data-dir-status">
+                        更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1564,10 +1657,19 @@
         const fs = require('fs');
         const path = require('path');
 
-        const DATA_DIR = resolveDataDir();
-        const NOTES_DIR = path.join(DATA_DIR, 'notes');
-        const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
-        const INDEX_FILE = path.join(DATA_DIR, 'index.json');
+        // 数据目录可在设置页中更改，因此路径均为可变变量（切换位置后就地生效，无需重启）
+        let DATA_DIR = resolveDataDir();
+        let NOTES_DIR = path.join(DATA_DIR, 'notes');
+        let CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+        let INDEX_FILE = path.join(DATA_DIR, 'index.json');
+
+        // 应用新的数据目录（主进程已完成校验/迁移/记录，这里只负责切换本进程使用的路径）
+        function setDataPaths(dir) {
+            DATA_DIR = dir;
+            NOTES_DIR = path.join(dir, 'notes');
+            CONFIG_FILE = path.join(dir, 'config.json');
+            INDEX_FILE = path.join(dir, 'index.json');
+        }
 
         // 生成10位的大小写英语+数字的随机ID
         function generateNoteId() {
@@ -1950,6 +2052,185 @@
             saveConfig();
         }
 
+        /* ---------------- 数据存放位置 ---------------- */
+
+        // 数据位置信息（由主进程提供：当前目录、默认目录、是否为自定义位置）
+        let dataDirInfo = { dataDir: DATA_DIR, defaultDir: '', isCustom: false, isDefault: true };
+
+        function updateDataDirUI() {
+            const text = document.getElementById('setting-data-dir-text');
+            const tag = document.getElementById('setting-data-dir-tag');
+            const resetBtn = document.getElementById('btn-data-reset');
+            const status = document.getElementById('data-dir-status');
+
+            if (text) text.textContent = dataDirInfo.dataDir || DATA_DIR;
+            if (tag) {
+                const custom = !!dataDirInfo.isCustom;
+                tag.textContent = custom ? '自定义位置' : '默认位置';
+                tag.style.color = custom ? 'var(--accent)' : '';
+            }
+            if (resetBtn) resetBtn.disabled = !dataDirInfo.isCustom;
+            if (status) {
+                status.textContent = (dataDirInfo.isCustom && dataDirInfo.defaultDir)
+                    ? `默认位置：${dataDirInfo.defaultDir}（可用“恢复默认”切回）`
+                    : '更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。';
+            }
+        }
+
+        function setDataDirButtonsDisabled(disabled) {
+            ['btn-data-change', 'btn-data-open'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = disabled;
+            });
+            if (disabled) {
+                const resetBtn = document.getElementById('btn-data-reset');
+                if (resetBtn) resetBtn.disabled = true;
+            } else {
+                updateDataDirUI();
+            }
+        }
+
+        async function refreshDataDirInfo() {
+            try {
+                const info = await ipcRenderer.invoke('data:get-dir');
+                if (info && typeof info.dataDir === 'string') {
+                    dataDirInfo = {
+                        dataDir: info.dataDir,
+                        defaultDir: typeof info.defaultDir === 'string' ? info.defaultDir : '',
+                        isCustom: !!info.isCustom,
+                        isDefault: !!info.isDefault
+                    };
+                    // 兜底：渲染进程使用的目录始终与主进程保持一致
+                    if (path.resolve(info.dataDir) !== path.resolve(DATA_DIR)) {
+                        setDataPaths(info.dataDir);
+                    }
+                }
+            } catch (err) {
+                console.error('读取数据存放位置失败:', err);
+                dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };
+            }
+            updateDataDirUI();
+        }
+
+        // 切换到主进程确认后的新位置：更新路径 → 重新载入数据 → 刷新界面（无需重启）
+        function adoptDataDir(dir, options = {}) {
+            const prefs = {
+                theme: State.theme,
+                spellcheck: State.spellcheck,
+                fonts: { ...State.fonts }
+            };
+
+            setDataPaths(dir);
+            ensureStorageDirs();
+
+            // 新位置自带配置（尤其是迁移过来的数据）时采用其中的偏好，否则沿用当前偏好并写入
+            const hasConfig = fs.existsSync(CONFIG_FILE);
+            const saved = loadData();
+
+            if (hasConfig) {
+                State.theme = saved.theme;
+                State.spellcheck = saved.spellcheck;
+                State.fonts = saved.fonts;
+            } else {
+                State.theme = prefs.theme;
+                State.spellcheck = prefs.spellcheck;
+                State.fonts = prefs.fonts;
+                saveConfig();
+            }
+
+            State.notes = saved.notes;
+            State.folders = saved.folders;
+
+            // 新位置同样执行一次索引清理（与启动流程一致）
+            const cleanup = saved.indexCleanup;
+            if (cleanup && (cleanup.removedNotes > 0 || cleanup.repairedNotes > 0 || cleanup.foldersChanged || cleanup.indexCorrupted)) {
+                saveIndex();
+            }
+
+            // 丢弃在新位置不存在的标签页，避免指向幽灵笔记
+            State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || State.notes.some(n => n.id === id));
+            if (!State.openNoteIds.includes(State.activeNoteId)) {
+                State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
+            }
+
+            // 过滤条件在新位置可能已失效，回退到"全部笔记"
+            if (State.currentFilter.startsWith('folder:')) {
+                const folder = State.currentFilter.replace('folder:', '');
+                if (!State.folders.includes(folder)) State.currentFilter = 'all';
+            } else if (State.currentFilter.startsWith('tag:')) {
+                const tag = State.currentFilter.replace('tag:', '');
+                if (!State.notes.some(n => Array.isArray(n.tags) && n.tags.includes(tag))) State.currentFilter = 'all';
+            }
+
+            applyTheme();
+            applySpellcheck();
+            applyFonts();
+            syncFontSelects();
+
+            dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };
+            updateDataDirUI();
+            renderApp();
+            showToast(options.message || '数据存放位置已切换');
+        }
+
+        async function handleDataDirResult(result, successMessage) {
+            if (!result || result.canceled) return;
+            if (result.error) {
+                showToast(result.error);
+                return;
+            }
+            if (result.unchanged) {
+                showToast('当前已在使用该位置');
+                return;
+            }
+            adoptDataDir(result.dataDir, {
+                message: result.migrated ? `${successMessage}（已迁移现有数据）` : `${successMessage}（未迁移数据）`
+            });
+        }
+
+        // 通过目录选择框更改数据存放位置（可选迁移现有数据）
+        async function changeDataDir() {
+            setDataDirButtonsDisabled(true);
+            try {
+                flushPendingSave(); // 先落盘，保证迁移/切换的是最新内容
+                const result = await ipcRenderer.invoke('data:choose-dir');
+                await handleDataDirResult(result, '数据存放位置已切换');
+                await refreshDataDirInfo();
+            } catch (err) {
+                console.error('切换数据存放位置失败:', err);
+                showToast('切换数据存放位置失败');
+            } finally {
+                setDataDirButtonsDisabled(false);
+            }
+        }
+
+        // 恢复为默认数据存放位置
+        async function resetDataDir() {
+            setDataDirButtonsDisabled(true);
+            try {
+                flushPendingSave();
+                const result = await ipcRenderer.invoke('data:reset-dir');
+                await handleDataDirResult(result, '已恢复默认数据存放位置');
+                await refreshDataDirInfo();
+            } catch (err) {
+                console.error('恢复默认数据存放位置失败:', err);
+                showToast('恢复默认数据存放位置失败');
+            } finally {
+                setDataDirButtonsDisabled(false);
+            }
+        }
+
+        // 在系统文件管理器中打开当前数据目录
+        async function openDataDir() {
+            try {
+                const error = await ipcRenderer.invoke('data:open-dir');
+                if (error) showToast(`打开数据文件夹失败：${error}`);
+            } catch (err) {
+                console.error('打开数据文件夹失败:', err);
+                showToast('打开数据文件夹失败');
+            }
+        }
+
         function getEffectiveTheme() {
             if (State.theme === 'system') {
                 return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
@@ -2308,27 +2589,61 @@
             return State.notes.find(n => n.id === State.activeNoteId) || null;
         }
 
+        // 待保存的编辑内容：记录目标笔记，避免切换标签页后把草稿写进别的笔记
+        let pendingSave = null;
+
         function autoSaveNote() {
             const note = getActiveNote();
             if (!note) return;
+
+            pendingSave = {
+                noteId: note.id,
+                title: document.getElementById('input-note-title').value,
+                content: document.getElementById('textarea-note-content').value
+            };
 
             document.getElementById('save-status').textContent = '保存中...';
             clearTimeout(State.autoSaveTimer);
 
             State.autoSaveTimer = setTimeout(() => {
-                note.title = document.getElementById('input-note-title').value;
-                note.content = document.getElementById('textarea-note-content').value;
-                note.updatedAt = Date.now();
-
-                // 保存正文到 .md 文件，元数据到 index.json
-                saveNoteContent(note);
-                saveIndex();
+                State.autoSaveTimer = null;
+                commitPendingSave();
 
                 renderTabs();
                 renderNotesList();
                 updateStats();
                 document.getElementById('save-status').textContent = '已保存';
             }, 300);
+        }
+
+        // 把待保存内容写入磁盘，返回是否确实写入了内容
+        function commitPendingSave() {
+            const pending = pendingSave;
+            pendingSave = null;
+            if (!pending) return false;
+
+            const note = State.notes.find(n => n.id === pending.noteId);
+            if (!note) return false;
+
+            note.title = pending.title;
+            note.content = pending.content;
+            note.updatedAt = Date.now();
+
+            // 保存正文到 .md 文件，元数据到 index.json
+            saveNoteContent(note);
+            saveIndex();
+            return true;
+        }
+
+        // 立即落盘未保存的编辑（切换数据存放位置等场景必须调用）
+        function flushPendingSave() {
+            if (State.autoSaveTimer) {
+                clearTimeout(State.autoSaveTimer);
+                State.autoSaveTimer = null;
+            }
+            if (commitPendingSave()) {
+                document.getElementById('save-status').textContent = '已保存';
+            }
         }
 
         function togglePin(noteId) {
@@ -2654,6 +2969,7 @@
                 if (spellcheckToggle) {
                     spellcheckToggle.checked = !!State.spellcheck;
                 }
+                updateDataDirUI();
                 syncFontSelects();
                 return;
             }
@@ -2936,6 +3252,14 @@
                 };
             }
 
+            // 数据存放位置：更改 / 恢复默认 / 打开文件夹
+            const btnDataChange = document.getElementById('btn-data-change');
+            if (btnDataChange) btnDataChange.onclick = changeDataDir;
+            const btnDataReset = document.getElementById('btn-data-reset');
+            if (btnDataReset) btnDataReset.onclick = resetDataDir;
+            const btnDataOpen = document.getElementById('btn-data-open');
+            if (btnDataOpen) btnDataOpen.onclick = openDataDir;
+
             document.getElementById('btn-theme-toggle').onclick = () => {
                 // 循环切换：跟随系统 (computer) -> 浅色 (light_mode) -> 深色 (dark_mode) -> 跟随系统
                 if (State.theme === 'system') {
@@ -3132,11 +3456,11 @@
             applySpellcheck();
             initFonts();
             setupEvents();
+            refreshDataDirInfo();
 
-            if (State.notes.length > 0) {
-                State.openNoteIds = [State.notes[0].id];
-                State.activeNoteId = State.notes[0].id;
-            }
+            // 启动时不自动打开任何标签页：停留在空状态，由用户自行选择或新建笔记
+            State.openNoteIds = [];
+            State.activeNoteId = null;
 
             renderApp();
 
