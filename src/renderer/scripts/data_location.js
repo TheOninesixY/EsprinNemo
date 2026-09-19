@@ -87,6 +87,7 @@ function adoptDataDir(dir, options = {}) {
         theme: State.theme,
         accentColor: State.accentColor,
         spellcheck: State.spellcheck,
+        sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         fonts: { ...State.fonts }
     };
@@ -102,12 +103,14 @@ function adoptDataDir(dir, options = {}) {
         State.theme = saved.theme;
         State.accentColor = saved.accentColor;
         State.spellcheck = saved.spellcheck;
+        State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.fonts = saved.fonts;
     } else {
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
         State.spellcheck = prefs.spellcheck;
+        State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.fonts = prefs.fonts;
         saveConfig();
@@ -140,6 +143,7 @@ function adoptDataDir(dir, options = {}) {
     applyTheme();
     applySpellcheck();
     applyFonts();
+    applySidebarCollapsed();
     syncFontSelects();
     syncAccentControls();
     syncTrashRetentionSelect();

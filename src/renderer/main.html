@@ -25,9 +25,6 @@
 
             <!-- Action buttons in titlebar -->
             <div class="titlebar-actions">
-                <button class="btn-action-icon" id="btn-open-settings" title="设置">
-                    <span class="ms-icon sm">settings</span>
-                </button>
                 <button class="btn-action-icon" id="btn-theme-toggle" title="切换主题">
                     <span class="ms-icon sm" id="theme-icon">computer</span>
                 </button>
@@ -53,41 +50,42 @@
         <!-- 2. Main Content Body -->
         <div class="app-body">
             <!-- Left Sidebar Navigation -->
-            <aside class="sidebar">
+            <aside class="sidebar" id="app-sidebar">
                 <!-- Top New Note Button in Sidebar -->
                 <div class="sidebar-action-wrap">
                     <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记 (Ctrl+N)">
-                        <span>新建笔记</span>
+                        <span class="ms-icon sm btn-new-note-icon">add</span>
+                        <span class="nav-text">新建笔记</span>
                     </button>
                 </div>
 
                 <!-- Main Filters -->
-                <div class="nav-section">
-                    <div class="nav-item active" data-filter="all">
+                <div class="nav-section nav-section-main">
+                    <div class="nav-item active" data-filter="all" title="全部笔记">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">description</span>
-                            <span>全部笔记</span>
+                            <span class="nav-text">全部笔记</span>
                         </div>
                         <span class="nav-badge" id="count-all">0</span>
                     </div>
-                    <div class="nav-item" data-filter="pinned">
+                    <div class="nav-item" data-filter="pinned" title="已置顶">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">push_pin</span>
-                            <span>已置顶</span>
+                            <span class="nav-text">已置顶</span>
                         </div>
                         <span class="nav-badge" id="count-pinned">0</span>
                     </div>
-                    <div class="nav-item" data-filter="trash">
+                    <div class="nav-item" data-filter="trash" title="废纸篓">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">delete</span>
-                            <span>废纸篓</span>
+                            <span class="nav-text">废纸篓</span>
                         </div>
                         <span class="nav-badge" id="count-trash">0</span>
                     </div>
                 </div>
 
                 <!-- Folders -->
-                <div class="nav-section">
+                <div class="nav-section nav-section-folders">
                     <div class="nav-section-title">
                         <span>文件夹</span>
                         <button id="btn-add-folder" title="新建文件夹">
@@ -98,7 +96,7 @@
                 </div>
 
                 <!-- Tags -->
-                <div class="nav-section" style="flex: 1; min-height: 0;">
+                <div class="nav-section nav-section-tags">
                     <div class="nav-section-title">
                         <span>标签过滤</span>
                     </div>
@@ -107,10 +105,18 @@
 
                 <!-- Footer Status & Trash Management -->
                 <div class="sidebar-bottom">
-                    <span id="sidebar-stat">共 0 篇笔记</span>
+                    <span id="sidebar-stat" class="nav-text">共 0 篇笔记</span>
                     <button class="btn-clear-trash hidden" id="btn-empty-trash" title="彻底清空废纸篓">
                         <span class="ms-icon xs">delete_forever</span>
-                        <span>清空</span>
+                        <span class="nav-text">清空</span>
+                    </button>
+                    <!-- 设置入口（收起侧边栏时隐藏） -->
+                    <button class="btn-sidebar-bottom" id="btn-open-settings" title="设置">
+                        <span class="ms-icon xs">settings</span>
+                    </button>
+                    <!-- 收起/展开侧边栏 -->
+                    <button class="btn-sidebar-bottom" id="btn-toggle-sidebar" title="收起侧边栏">
+                        <span class="ms-icon xs" id="sidebar-toggle-icon">keyboard_double_arrow_left</span>
                     </button>
                 </div>
             </aside>

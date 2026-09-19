@@ -8,6 +8,7 @@ window.onload = () => {
     State.theme = saved.theme || 'system';
     State.accentColor = normalizeAccentColor(saved.accentColor);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
+    State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.fonts = normalizeFonts(saved.fonts);
 
@@ -36,6 +37,7 @@ window.onload = () => {
     initAccentColor();
     applySpellcheck();
     initFonts();
+    applySidebarCollapsed();
     initSettingsNav();
     setupEvents();
     syncTrashRetentionSelect();

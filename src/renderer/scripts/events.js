@@ -13,6 +13,7 @@ function setupEvents() {
 
     document.getElementById('btn-new-note').onclick = createNewNote;
     document.getElementById('btn-empty-new').onclick = createNewNote;
+    document.getElementById('btn-toggle-sidebar').onclick = toggleSidebarCollapsed;
 
     document.getElementById('input-note-title').oninput = autoSaveNote;
     const contentTextarea = document.getElementById('textarea-note-content');

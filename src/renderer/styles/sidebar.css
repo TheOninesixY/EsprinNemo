@@ -8,6 +8,8 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    overflow: hidden;
+    transition: width 0.18s ease;
 }
 
 .sidebar-action-wrap {
@@ -28,6 +30,10 @@
     transition: opacity 0.15s, transform 0.1s;
     cursor: pointer;
 }
+/* 展开时只显示文字，收起时文字换成加号图标 */
+.btn-new-note-icon {
+    display: none;
+}
 .btn-sidebar-new:hover {
     opacity: 0.92;
 }
@@ -40,6 +46,12 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+/* 标签区占满剩余高度，便于标签过多时内部滚动 */
+.nav-section-tags {
+    flex: 1;
+    min-height: 0;
 }
 
 .nav-section-title {
@@ -154,6 +166,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 6px;
     font-size: 11px;
     color: var(--text-muted);
 }
@@ -163,6 +176,79 @@
     gap: 4px;
     color: var(--danger);
     font-size: 11px;
+}
+/* 底栏右侧的小图标按钮：设置与收起/展开，成组靠右（收起按钮在最右侧） */
+.btn-sidebar-bottom {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: background-color 0.15s, color 0.15s;
+}
+.btn-sidebar-bottom:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+#btn-open-settings {
+    margin-left: auto;
+}
+
+/* Sidebar Collapsed State: 只保留一条窄条与图标入口。
+   状态类挂在 <html> 上：boot.js 会在首屏渲染前根据 config.sidebarCollapsed 写一次，
+   因此启动时已是收起态，既不会先展开再收起，也不会补播收起动效。 */
+html.sidebar-collapsed .sidebar {
+    width: 48px;
+}
+/* 收起后隐藏所有文字、计数、文件夹与标签过滤分区 */
+html.sidebar-collapsed .sidebar .nav-text,
+html.sidebar-collapsed .sidebar .nav-badge,
+html.sidebar-collapsed .sidebar .btn-clear-trash,
+html.sidebar-collapsed .sidebar #btn-open-settings,
+html.sidebar-collapsed .sidebar .nav-section-folders,
+html.sidebar-collapsed .sidebar .nav-section-tags {
+    display: none;
+}
+html.sidebar-collapsed .sidebar .btn-new-note-icon {
+    display: inline-flex;
+}
+html.sidebar-collapsed .sidebar .btn-sidebar-new {
+    width: 32px;
+    height: 32px;
+    margin: 0 auto;
+}
+html.sidebar-collapsed .sidebar .nav-item {
+    justify-content: center;
+    padding: 7px 0;
+}
+html.sidebar-collapsed .sidebar .nav-item-left {
+    justify-content: center;
+    gap: 0;
+}
+html.sidebar-collapsed .sidebar .sidebar-bottom {
+    justify-content: center;
+    padding: 8px 0;
+}
+html.sidebar-collapsed .sidebar .btn-sidebar-bottom {
+    width: 24px;
+    height: 24px;
+}
+
+/* 展开过程：宽度过渡期间文字保持不可见（.text-fading 由脚本在过渡结束后移除），
+   从而先完成组件展开，再淡入文字 */
+.nav-text,
+.nav-badge,
+.nav-section-folders,
+.nav-section-tags,
+#btn-open-settings {
+    transition: opacity 0.16s ease;
+}
+.sidebar.text-fading .nav-text,
+.sidebar.text-fading .nav-badge,
+.sidebar.text-fading .nav-section-folders,
+.sidebar.text-fading .nav-section-tags,
+.sidebar.text-fading #btn-open-settings {
+    opacity: 0;
 }
 
 /* 2. Notes List Panel */

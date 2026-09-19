@@ -14,6 +14,8 @@ const State = {
     // 主题色（强调色）：#RRGGBB，空字符串表示跟随主题使用内置默认色
     accentColor: '',
     spellcheck: false,
+    // 侧边栏是否收起：收起后只保留一条窄条，筛选入口仅显示图标
+    sidebarCollapsed: false,
     // 废纸篓自动清理：保留天数，0 表示永不自动清理
     trashRetentionDays: 0,
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈

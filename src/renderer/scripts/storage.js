@@ -66,7 +66,7 @@ function normalizeFonts(raw) {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: '', spellcheck: false, trashRetentionDays: 0, fonts: {} };
+    let config = { theme: 'system', accentColor: '', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, fonts: {} };
     let indexData = { folders: [], notes: [] };
     let indexCorrupted = false; // index.json 解析失败时标记，启动后会用清理后的索引覆盖
 
@@ -177,6 +177,7 @@ function loadData() {
         theme: config.theme || 'system',
         accentColor: normalizeAccentColor(config.accentColor),
         spellcheck: !!config.spellcheck,
+        sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         fonts: normalizeFonts(config.fonts),
         folders,
@@ -198,6 +199,7 @@ function saveConfig() {
             theme: State.theme,
             accentColor: normalizeAccentColor(State.accentColor),
             spellcheck: State.spellcheck,
+            sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
             fonts: normalizeFonts(State.fonts)
         };

@@ -3,6 +3,9 @@ const { ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
+// 侧边栏收起状态类：挂在 <html> 上。styles/sidebar.css 依赖该类名，scripts/render.js 复用此常量。
+const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
+
 // 数据目录解析：优先向主进程同步查询（主进程已处理用户在设置中自定义的位置），
 // 失败时回退到命令行参数（主进程启动时会通过 --esprin-nemo-data-dir= 传入）。
 function resolveDataDir() {
@@ -35,6 +38,12 @@ try {
         if (config && config.theme) theme = config.theme;
         if (config && config.fonts && typeof config.fonts === 'object') fonts = config.fonts;
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
+
+        // 侧边栏收起状态也在这里落定：首屏直接按收起态绘制，
+        // 否则会先画出一整个展开的侧边栏，再补播一次收起动效。
+        if (config && config.sidebarCollapsed) {
+            document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
+        }
     }
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
     if (isLight) {

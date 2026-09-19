@@ -16,6 +16,72 @@ function renderApp() {
     renderWorkspace();
 }
 
+// 侧边栏宽度过渡时长（与 CSS 中 .sidebar 的 width 过渡保持一致）
+const SIDEBAR_WIDTH_TRANSITION_MS = 180;
+
+let sidebarFadeTimer = null;
+let sidebarFadeInBound = false;
+
+// 淡入结束：移除临时类并清掉兜底定时器
+function finishSidebarTextFadeIn() {
+    if (sidebarFadeTimer) {
+        clearTimeout(sidebarFadeTimer);
+        sidebarFadeTimer = null;
+    }
+    const sidebar = document.getElementById('app-sidebar');
+    if (sidebar) sidebar.classList.remove('text-fading');
+}
+
+// 侧边栏收起/展开：收起后只剩一条窄条，筛选入口仅保留图标
+function applySidebarCollapsed() {
+    const sidebar = document.getElementById('app-sidebar');
+    if (!sidebar) return;
+
+    // 宽度过渡结束（或超时兜底）后再让文字淡入
+    if (!sidebarFadeInBound) {
+        sidebar.addEventListener('transitionend', (e) => {
+            if (e.target === sidebar && e.propertyName === 'width') finishSidebarTextFadeIn();
+        });
+        sidebarFadeInBound = true;
+    }
+
+    const collapsed = !!State.sidebarCollapsed;
+    // 收起状态类挂在 <html> 上：boot.js 在首屏渲染前已写入同一个类，
+    // 因此启动时这里改的是相同状态，不会产生任何过渡或动效
+    const rootClass = document.documentElement.classList;
+    // 仅真正的"收起 → 展开"才需要延迟淡入，启动时的初始渲染直接显示
+    const expanding = !collapsed && rootClass.contains(SIDEBAR_COLLAPSED_CLASS);
+
+    if (collapsed) {
+        // 收起：文字直接隐藏，避免收缩过程中出现被挤压的文字
+        finishSidebarTextFadeIn();
+        rootClass.add(SIDEBAR_COLLAPSED_CLASS);
+    } else {
+        rootClass.remove(SIDEBAR_COLLAPSED_CLASS);
+        if (expanding) {
+            sidebar.classList.add('text-fading');
+            if (sidebarFadeTimer) clearTimeout(sidebarFadeTimer);
+            // 兜底：侧边栏处于隐藏状态时不会触发过渡，靠定时器保证文字最终可见
+            sidebarFadeTimer = setTimeout(finishSidebarTextFadeIn, SIDEBAR_WIDTH_TRANSITION_MS + 60);
+        } else {
+            finishSidebarTextFadeIn();
+        }
+    }
+
+    const btn = document.getElementById('btn-toggle-sidebar');
+    if (btn) btn.title = collapsed ? '展开侧边栏' : '收起侧边栏';
+
+    const icon = document.getElementById('sidebar-toggle-icon');
+    if (icon) icon.textContent = collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
+}
+
+// 切换收起状态并写入配置，下次启动沿用同一状态
+function toggleSidebarCollapsed() {
+    State.sidebarCollapsed = !State.sidebarCollapsed;
+    applySidebarCollapsed();
+    saveConfig();
+}
+
 function renderCounts() {
     // 一次遍历同时统计全部 / 已置顶 / 废纸篓，避免对笔记数组反复过滤
     let activeCount = 0;
@@ -69,7 +135,7 @@ function renderFolders() {
         item.innerHTML = `
             <div class="nav-item-left">
                 <span class="ms-icon sm">folder</span>
-                <span>${escapeHTML(folder)}</span>
+                <span class="nav-text">${escapeHTML(folder)}</span>
             </div>
             ${folder !== '默认' ? `
                 <button class="btn-del-folder" title="删除文件夹">
