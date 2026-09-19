@@ -2,6 +2,8 @@
   "name": "esprin_nemo",
   "version": "1.0.0",
   "main": "main.js",
+  "description": "Note, Nothing.",
+  "author": "TheOninesixY <oninesixy@qq.com>",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win"
@@ -16,14 +18,22 @@
     "typescript": "^7"
   },
   "build": {
-    "appId": "io.github.theoninesixy.esprinnemo",
+    "appId": "io.github.theoninesixy.esprin_nemo",
     "productName": "Esprin Nemo",
+    "icon": "icon.png",
     "files": [
       "**/*"
     ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    },
     "directories": {
       "buildResources": "assets"
     }
-    }
+  },
+  "dependencies": {
+    "material-symbols": "^0.47.4"
   }
-
+}

@@ -1,607 +1,1897 @@
 <!DOCTYPE html>
-<html lang="zh-CN" class="h-full">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Esprin Nemo - 极简笔记</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Marked.js for Markdown parsing -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <title>Esprin Nemo</title>
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        mono: {
-                            50: '#f9fafb',
-                            100: '#f3f4f6',
-                            200: '#e5e7eb',
-                            300: '#d1d5db',
-                            400: '#9ca3af',
-                            500: '#6b7280',
-                            600: '#4b5563',
-                            700: '#374151',
-                            800: '#1f2937',
-                            850: '#18202c',
-                            900: '#111827',
-                            950: '#0b0f17',
-                        }
-                    },
-                    borderRadius: {
-                        'nemo': '6px',
-                    },
-                    boxShadow: {
-                        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.03), 0 1px 3px 0 rgba(0, 0, 0, 0.02)',
-                        'float': '0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',
-                    }
+        // 数据目录解析：安装版为 %APPDATA%/esprin_nemo/data，开发版为项目内 data/
+        // 主进程会通过 --esprin-nemo-data-dir= 参数把最终目录传给渲染进程
+        function resolveDataDir() {
+            try {
+                const path = require('path');
+                const argPrefix = '--esprin-nemo-data-dir=';
+                const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(argPrefix));
+                if (matched) {
+                    const dir = matched.slice(argPrefix.length).trim();
+                    if (dir) return dir;
                 }
+                return path.join(__dirname, 'data');
+            } catch (e) {
+                return __dirname + '/data';
             }
         }
+
+        // 渲染前极速同步读取配置并应用主题，彻底杜绝闪光弹/白屏/黑屏闪烁
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const configPath = path.join(resolveDataDir(), 'config.json');
+            let theme = 'system';
+            if (fs.existsSync(configPath)) {
+                const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                if (config && config.theme) theme = config.theme;
+            }
+            const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isLight) {
+                document.documentElement.classList.add('light');
+            }
+        } catch (e) {}
     </script>
+    <link rel="stylesheet" href="./node_modules/material-symbols/rounded.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        /* 品牌字体：Mohave 可变字重字体（仅用于左上角应用名） */
+        @font-face {
+            font-family: 'Mohave';
+            src: url('./fonts/Mohave/Mohave-VariableFont_wght.ttf') format('truetype-variations'),
+                 url('./fonts/Mohave/Mohave-VariableFont_wght.ttf') format('truetype');
+            font-weight: 300 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        :root {
+            --bg-body: #0d1117;
+            --bg-titlebar: #161b22;
+            --bg-sidebar: #0d1117;
+            --bg-list: #161b22;
+            --bg-editor: #0d1117;
+            --border-color: #30363d;
+            --border-light: rgba(255, 255, 255, 0.08);
+
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            
+            --accent: #58a6ff;
+            --accent-bg: rgba(56, 139, 253, 0.15);
+            --danger: #f85149;
+            --danger-bg: rgba(248, 81, 73, 0.15);
+
+            /* 左上角应用名专用颜色（深色模式） */
+            --brand: #E6E8F3;
+
+            --item-hover: rgba(255, 255, 255, 0.04);
+            --item-active: rgba(255, 255, 255, 0.08);
+
+            --tab-bg: #161b22;
+            --tab-active-bg: #0d1117;
+            --tab-border: #30363d;
+
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            --font-mono: "JetBrains Mono", "SF Mono", Consolas, "Fira Code", monospace;
+        }
+
+        :root.light {
+            --bg-body: #ffffff;
+            --bg-titlebar: #f6f8fa;
+            --bg-sidebar: #f6f8fa;
+            --bg-list: #ffffff;
+            --bg-editor: #ffffff;
+            --border-color: #d0d7de;
+            --border-light: rgba(0, 0, 0, 0.06);
+
+            --text-primary: #1f2328;
+            --text-secondary: #656d76;
+            --text-muted: #8c959f;
+
+            --accent: #0969da;
+            --accent-bg: rgba(9, 105, 218, 0.1);
+            --danger: #cf222e;
+            --danger-bg: rgba(207, 34, 46, 0.1);
+
+            /* 左上角应用名专用颜色（浅色模式） */
+            --brand: #280C7D;
+
+            --item-hover: rgba(0, 0, 0, 0.04);
+            --item-active: rgba(0, 0, 0, 0.08);
+
+            --tab-bg: #f6f8fa;
+            --tab-active-bg: #ffffff;
+            --tab-border: #d0d7de;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            color: var(--text-primary);
+            background-color: var(--bg-body);
             -webkit-font-smoothing: antialiased;
         }
 
-        code, textarea#note-content-input {
-            font-family: 'JetBrains Mono', monospace;
+        /* Material Symbols Utility */
+        .ms-icon {
+            font-family: 'Material Symbols Rounded';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 18px;
+            line-height: 1;
+            letter-spacing: normal;
+            text-transform: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            white-space: nowrap;
+            word-wrap: normal;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: 'liga';
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        }
+        .ms-icon.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        }
+        .ms-icon.xs { font-size: 14px; }
+        .ms-icon.sm { font-size: 16px; }
+
+        button {
+            border: none;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
         }
 
-        /* Subtle scrollbars */
+        input, textarea, select {
+            font-family: inherit;
+            color: inherit;
+            border: none;
+            outline: none;
+            background: transparent;
+        }
+
+        /* Scrollbar Styling: 全局统一样式，默认隐藏或极细，悬浮时可见，内容不需要滚动时不常驻 */
         ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
+            width: 6px;
+            height: 6px;
         }
         ::-webkit-scrollbar-track {
             background: transparent;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(156, 163, 175, 0.25);
-            border-radius: 4px;
+            background-color: var(--border-color);
+            border-radius: 999px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: rgba(156, 163, 175, 0.45);
+            background-color: var(--text-muted);
         }
 
-        /* Strict Minimal Markdown Styles */
-        .markdown-body h1 { font-size: 1.65rem; font-weight: 700; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(156, 163, 175, 0.2); padding-bottom: 0.4rem; color: currentColor; }
-        .markdown-body h2 { font-size: 1.35rem; font-weight: 600; margin-top: 1.25rem; margin-bottom: 0.5rem; color: currentColor; }
-        .markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.375rem; color: currentColor; }
-        .markdown-body p { margin-bottom: 0.85rem; line-height: 1.65; opacity: 0.9; }
-        .markdown-body ul { list-style-type: disc; padding-left: 1.25rem; margin-bottom: 0.85rem; }
-        .markdown-body ol { list-style-type: decimal; padding-left: 1.25rem; margin-bottom: 0.85rem; }
-        .markdown-body li { margin-bottom: 0.25rem; }
-        .markdown-body blockquote { border-left: 3px solid #6b7280; padding-left: 0.85rem; opacity: 0.8; font-style: italic; margin-bottom: 0.85rem; }
-        .markdown-body code:not(pre code) { background-color: rgba(156, 163, 175, 0.15); padding: 0.15rem 0.35rem; border-radius: 4px; font-size: 0.875em; font-family: 'JetBrains Mono', monospace; }
-        .markdown-body pre { background-color: #111827; color: #f3f4f6; padding: 1rem; border-radius: 6px; overflow-x: auto; margin-bottom: 1rem; border: 1px solid #1f2937; position: relative; }
-        .dark .markdown-body pre { background-color: #0b0f17; border-color: #1f2937; }
-        .markdown-body pre code { background-color: transparent; padding: 0; color: inherit; font-size: 0.85rem; }
-        .markdown-body a { color: currentColor; text-decoration: underline; text-underline-offset: 3px; opacity: 0.85; }
-        .markdown-body a:hover { opacity: 1; }
-        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.875rem; }
-        .markdown-body th, .markdown-body td { border: 1px solid rgba(156, 163, 175, 0.25); padding: 0.5rem 0.75rem; text-align: left; }
-        .markdown-body th { background-color: rgba(156, 163, 175, 0.08); font-weight: 600; }
-        .markdown-body hr { border: 0; border-top: 1px solid rgba(156, 163, 175, 0.25); margin: 1.5rem 0; }
-        .markdown-body input[type="checkbox"] { margin-right: 0.5rem; accent-color: #374151; cursor: pointer; }
+        /* App Container */
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-        /* Code Copy Button */
-        .code-copy-btn {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.7rem;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #d1d5db;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            transition: all 0.15s ease;
+        /* Titlebar */
+        .titlebar {
+            height: 40px;
+            background-color: var(--bg-titlebar);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 0 0 14px;
+            -webkit-app-region: drag;
+            position: relative;
+            z-index: 100;
+            user-select: none;
+        }
+
+        .titlebar-brand {
+            font-family: 'Mohave', var(--font-sans);
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--brand);
+            letter-spacing: 0.4px;
+            margin-right: 14px;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            -webkit-app-region: drag;
+        }
+
+        /* 仅在需要交互的子元素上禁用拖动，保证标题栏与标签栏空白区域均可拖动窗口 */
+        .titlebar-tabs {
+            -webkit-app-region: drag;
+        }
+
+        .tab-item {
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-actions,
+        .window-controls,
+        .btn-new-note,
+        .btn-action-icon,
+        .win-btn {
+            -webkit-app-region: no-drag;
+        }
+
+        /* Titlebar Tabs Container - Extends horizontally to titlebar actions */
+        .titlebar-tabs {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            flex: 1;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            gap: 6px;
+            padding: 0 8px;
+        }
+        .titlebar-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 悬浮式标签页 (Floating Pill Tabs) */
+        .tab-item {
+            height: 28px;
+            min-width: 110px;
+            max-width: 190px;
+            padding: 0 8px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            white-space: nowrap;
+        }
+        .tab-item:hover {
+            background-color: var(--item-hover);
+            color: var(--text-primary);
+        }
+        .tab-item.active {
+            background-color: var(--tab-active-bg);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .tab-item .tab-title {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tab-close-btn {
+            width: 18px;
+            height: 18px;
+            border-radius: var(--radius-sm);
+            opacity: 0.6;
+            transition: all 0.15s;
+        }
+        .tab-close-btn:hover {
+            opacity: 1;
+            background-color: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        /* Titlebar Actions */
+        .titlebar-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px;
+            height: 100%;
+            flex-shrink: 0;
+        }
+
+        .btn-new-note {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 26px;
+            padding: 0 10px;
+            border-radius: var(--radius-sm);
+            background-color: var(--accent);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 500;
+            transition: opacity 0.15s;
+        }
+        .btn-new-note:hover {
+            opacity: 0.9;
+        }
+
+        .btn-action-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+        .btn-action-icon:hover {
+            background-color: var(--item-hover);
+            color: var(--text-primary);
+        }
+
+        /* Window Controls */
+        .window-controls {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+        body.is-fullscreen .window-controls {
+            display: none !important;
+        }
+
+        /* 全屏时禁用窗口拖拽区域，避免误拖导致窗口位移或退出全屏 */
+        body.is-fullscreen .titlebar,
+        body.is-fullscreen .titlebar-brand,
+        body.is-fullscreen .titlebar-tabs {
+            -webkit-app-region: no-drag;
+        }
+        .win-btn {
+            width: 44px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: background 0.15s;
+        }
+        .win-btn:hover {
+            background-color: var(--item-active);
+            color: var(--text-primary);
+        }
+        .win-btn.close:hover {
+            background-color: var(--danger);
+            color: #ffffff;
+        }
+
+        /* Main Workspace Body */
+        .app-body {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        /* 1. Sidebar */
+        .sidebar {
+            width: 210px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-action-wrap {
+            padding: 10px 8px 4px 8px;
+        }
+        .btn-sidebar-new {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            background-color: var(--accent);
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 500;
+            transition: opacity 0.15s, transform 0.1s;
             cursor: pointer;
         }
-        .code-copy-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
+        .btn-sidebar-new:hover {
+            opacity: 0.92;
+        }
+        .btn-sidebar-new:active {
+            transform: scale(0.98);
         }
 
-        .transition-fast {
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        .nav-section {
+            padding: 10px 8px 4px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
+
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 8px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 12.5px;
+        }
+        .nav-item:hover {
+            background-color: var(--item-hover);
+            color: var(--text-primary);
+        }
+        .nav-item.active {
+            background-color: var(--item-active);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .nav-item-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .nav-item-left span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .nav-badge {
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background-color: var(--item-hover);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .folder-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .folder-item {
+            position: relative;
+        }
+        .folder-item:hover .btn-del-folder {
+            opacity: 1;
+        }
+        .btn-del-folder {
+            width: 18px;
+            height: 18px;
+            border-radius: var(--radius-sm);
+            opacity: 0;
+            color: var(--text-muted);
+        }
+        .btn-del-folder:hover {
+            color: var(--danger);
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            padding: 4px 8px;
+            overflow-y: auto;
+            max-height: 150px;
+        }
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 7px;
+            border-radius: 12px;
+            background-color: var(--item-hover);
+            color: var(--text-secondary);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .tag-pill:hover {
+            background-color: var(--item-active);
+            color: var(--text-primary);
+        }
+        .tag-pill.active {
+            background-color: var(--accent-bg);
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            padding: 8px 12px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .btn-clear-trash {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--danger);
+            font-size: 11px;
+        }
+
+        /* 2. Notes List Panel */
+        .notes-panel {
+            width: 270px;
+            background-color: var(--bg-list);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .notes-panel-header {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .search-box {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background-color: var(--item-hover);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0 8px;
+            height: 28px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 0 6px;
+            font-size: 12px;
+            color: var(--text-primary);
+            user-select: text;
+        }
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+        .search-box .btn-clear {
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .search-box .btn-clear:hover {
+            color: var(--text-primary);
+        }
+
+        .notes-panel-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 0 2px;
+        }
+        .notes-panel-info select {
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .notes-panel-info select option {
+            background: var(--bg-list);
+            color: var(--text-primary);
+        }
+
+        .notes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .note-card {
+            padding: 10px 12px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .note-card:hover {
+            background-color: var(--item-hover);
+            border-color: var(--border-light);
+        }
+        .note-card.active {
+            background-color: var(--item-active);
+            border-color: var(--border-color);
+        }
+
+        .note-card-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .note-card-preview {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.4;
+        }
+        .note-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 10.5px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .note-card-folder {
+            padding: 1px 4px;
+            border-radius: 4px;
+            background: var(--item-hover);
+        }
+
+        /* 3. Editor & Workspace */
+        .workspace {
+            flex: 1;
+            background-color: var(--bg-editor);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            position: relative;
+        }
+
+        /* Topbar in workspace */
+        .editor-topbar {
+            height: 40px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            flex-shrink: 0;
+        }
+
+        .editor-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+        .select-folder {
+            padding: 3px 6px;
+            background: var(--item-hover);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .select-folder option {
+            background: var(--bg-list);
+            color: var(--text-primary);
+        }
+
+        .note-tags-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .editor-tag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: var(--item-hover);
+            border: 1px solid var(--border-light);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .editor-tag-chip button {
+            color: var(--text-muted);
+        }
+        .editor-tag-chip button:hover {
+            color: var(--danger);
+        }
+
+        .editor-view-modes {
+            display: flex;
+            background: var(--item-hover);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 2px;
+        }
+        .view-btn {
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+        .view-btn.active {
+            background: var(--bg-list);
+            color: var(--text-primary);
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Formatting Toolbar */
+        .editor-toolbar {
+            height: 34px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 16px;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .fmt-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+        .fmt-btn:hover {
+            background: var(--item-hover);
+            color: var(--text-primary);
+        }
+        .fmt-divider {
+            width: 1px;
+            height: 14px;
+            background: var(--border-color);
+            margin: 0 4px;
+        }
+
+        /* Note Title Input */
+        .editor-title-area {
+            padding: 16px 20px 8px 20px;
+            flex-shrink: 0;
+        }
+        .editor-title-input {
+            width: 100%;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            user-select: text;
+        }
+        .editor-title-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Note Content Area */
+        .editor-content-area {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            position: relative;
+        }
+
+        .editor-pane, .preview-pane {
+            flex: 1;
+            height: 100%;
+            padding: 8px 20px 20px 20px;
+            user-select: text;
+        }
+        .editor-pane {
+            border-right: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .preview-pane {
+            overflow-y: auto;
+        }
+        .editor-textarea {
+            width: 100%;
+            height: 100%;
+            resize: none;
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            user-select: text;
+            overflow-y: auto;
+        }
+
+        /* Markdown rendered layout */
+        .markdown-body {
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+        .markdown-body h1 { font-size: 20px; margin: 16px 0 8px 0; font-weight: 600; border-bottom: 1px solid var(--border-light); padding-bottom: 6px; }
+        .markdown-body h2 { font-size: 17px; margin: 14px 0 6px 0; font-weight: 600; border-bottom: 1px solid var(--border-light); padding-bottom: 4px; }
+        .markdown-body h3 { font-size: 15px; margin: 12px 0 4px 0; font-weight: 600; }
+        .markdown-body h4 { font-size: 14px; margin: 10px 0 4px 0; font-weight: 600; }
+        .markdown-body h5, .markdown-body h6 { font-size: 13px; margin: 8px 0 4px 0; font-weight: 600; }
+        .markdown-body p { margin-bottom: 10px; }
+        .markdown-body ul, .markdown-body ol { padding-left: 22px; margin-bottom: 10px; }
+        .markdown-body li { margin-bottom: 4px; }
+        .markdown-body blockquote {
+            margin: 10px 0;
+            padding: 4px 14px;
+            border-left: 3px solid var(--accent);
+            background: var(--item-hover);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            color: var(--text-secondary);
+        }
+        .markdown-body blockquote p {
+            margin-bottom: 4px;
+        }
+        .markdown-body blockquote p:last-child {
+            margin-bottom: 0;
+        }
+        .markdown-body code { font-family: var(--font-mono); background: var(--item-hover); padding: 2px 5px; border-radius: 4px; font-size: 12px; }
+        .markdown-body pre { background: var(--item-active); padding: 12px 14px; border-radius: var(--radius-md); overflow-x: auto; margin: 10px 0; border: 1px solid var(--border-light); }
+        .markdown-body pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.5; }
+        .markdown-body hr { border: none; border-top: 1px solid var(--border-color); margin: 16px 0; }
+        .markdown-body a { color: var(--accent); text-decoration: none; }
+        .markdown-body a:hover { text-decoration: underline; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        .markdown-body th, .markdown-body td { border: 1px solid var(--border-color); padding: 6px 10px; font-size: 12.5px; }
+        .markdown-body th { background: var(--item-hover); font-weight: 600; }
+
+        /* Footer status */
+        .editor-footer {
+            height: 28px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: var(--bg-editor);
+        }
+        .editor-footer-left, .editor-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* Empty State */
+        .empty-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: var(--bg-editor);
+            color: var(--text-muted);
+            z-index: 10;
+        }
+        .empty-placeholder .ms-icon {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+        .empty-placeholder p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        /* Dialogs / Modals */
+        .modal-mask {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-card {
+            width: 320px;
+            background: var(--bg-list);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+        .modal-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .modal-card input {
+            background: var(--item-hover);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            font-size: 13px;
+            user-select: text;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .modal-btn {
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+        }
+        .modal-btn.primary {
+            background: var(--accent);
+            color: #ffffff;
+        }
+        .modal-btn.cancel {
+            color: var(--text-secondary);
+        }
+        .modal-btn.cancel:hover {
+            background: var(--item-hover);
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: var(--bg-list);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 4px;
+            min-width: 140px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .context-menu-item {
+            padding: 6px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        .context-menu-item:hover {
+            background: var(--item-active);
+        }
+        .context-menu-item.danger {
+            color: var(--danger);
+        }
+        .context-menu-item.danger:hover {
+            background: var(--danger-bg);
+        }
+
+        /* Toast notifications */
+        .toast-box {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast-item {
+            background: var(--bg-titlebar);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideUp 0.15s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Settings View */
+        .settings-view {
+            flex: 1;
+            height: 100%;
+            overflow-y: auto;
+            background-color: var(--bg-editor);
+            padding: 32px 48px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .settings-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+        .settings-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .settings-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .settings-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: var(--bg-list);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            max-width: 680px;
+        }
+        .settings-row-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .settings-row-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .settings-row-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .2s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .2s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--accent);
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .hidden { display: none !important; }
     </style>
 </head>
-<body class="bg-mono-50 dark:bg-mono-950 text-mono-800 dark:text-mono-200 h-full flex flex-col overflow-hidden transition-colors duration-200">
+<body>
+    <div class="app-container">
+        <!-- 1. Top Titlebar: Clean & Tab-oriented -->
+        <header class="titlebar" id="app-titlebar">
+            <!-- App Name Brand -->
+            <div class="titlebar-brand">EsprinNemo</div>
 
-    <!-- Top Navigation Bar -->
-    <header class="h-12 border-b border-mono-200 dark:border-mono-850 bg-white/90 dark:bg-mono-900/90 backdrop-blur-sm flex items-center justify-between px-3 z-30 shrink-0 select-none">
-        <div class="flex items-center space-x-2">
-            <button id="btn-toggle-sidebar" class="p-1.5 rounded-nemo hover:bg-mono-100 dark:hover:bg-mono-800 text-mono-600 dark:text-mono-400 transition-fast" title="切换侧边栏 (Alt+S)">
-                <i class="fa-solid fa-bars text-sm"></i>
-            </button>
-            <div class="flex items-center space-x-2">
-                <div class="w-5 h-5 rounded-nemo bg-mono-900 dark:bg-mono-100 text-white dark:text-mono-950 flex items-center justify-center font-bold text-xs">
-                    N
-                </div>
-                <span class="font-semibold text-sm tracking-tight text-mono-900 dark:text-mono-100">Esprin Nemo</span>
-                <span class="text-[10px] px-1.5 py-0.2 rounded border border-mono-200 dark:border-mono-800 text-mono-500 font-mono">v2.0</span>
-            </div>
-        </div>
+            <!-- Tabs container stretching to the new note button -->
+            <div class="titlebar-tabs" id="titlebar-tabs"></div>
 
-        <div class="flex items-center space-x-1">
-            <!-- New Note Quick Button -->
-            <button id="btn-top-new" class="flex items-center space-x-1.5 bg-mono-900 dark:bg-mono-100 hover:bg-mono-800 dark:hover:bg-white text-white dark:text-mono-950 px-2.5 py-1 rounded-nemo text-xs font-medium transition-fast shadow-subtle active:scale-98">
-                <i class="fa-solid fa-plus text-[10px]"></i>
-                <span class="hidden sm:inline">新建笔记</span>
-            </button>
-
-            <div class="h-3.5 w-[1px] bg-mono-200 dark:bg-mono-800 mx-1"></div>
-
-            <!-- Import / Export Menu -->
-            <button id="btn-export-backup" class="p-1.5 rounded-nemo hover:bg-mono-100 dark:hover:bg-mono-800 text-mono-600 dark:text-mono-400 transition-fast" title="导出 JSON 全量备份">
-                <i class="fa-solid fa-download text-xs"></i>
-            </button>
-            <label class="p-1.5 rounded-nemo hover:bg-mono-100 dark:hover:bg-mono-800 text-mono-600 dark:text-mono-400 transition-fast cursor-pointer" title="导入 JSON 备份数据">
-                <i class="fa-solid fa-upload text-xs"></i>
-                <input type="file" id="input-import-backup" accept=".json" class="hidden">
-            </label>
-
-            <!-- Theme Toggle -->
-            <button id="btn-theme-toggle" class="p-1.5 rounded-nemo hover:bg-mono-100 dark:hover:bg-mono-800 text-mono-600 dark:text-mono-400 transition-fast" title="切换深浅主题">
-                <i class="fa-solid fa-moon dark:hidden text-xs"></i>
-                <i class="fa-solid fa-sun hidden dark:block text-xs"></i>
-            </button>
-
-            <!-- Fullscreen -->
-            <button id="btn-fullscreen" class="p-1.5 rounded-nemo hover:bg-mono-100 dark:hover:bg-mono-800 text-mono-600 dark:text-mono-400 transition-fast" title="全屏切换">
-                <i class="fa-solid fa-expand text-xs"></i>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Content Grid / Flex Structure -->
-    <div class="flex-1 flex overflow-hidden relative">
-
-        <!-- Sidebar Navigation -->
-        <aside id="sidebar" class="w-64 border-r border-mono-200 dark:border-mono-850 bg-mono-50/50 dark:bg-mono-900/50 flex flex-col shrink-0 transition-all duration-200 absolute md:relative z-20 h-full shadow-lg md:shadow-none -translate-x-full md:translate-x-0">
-            
-            <!-- Global Primary Navigation -->
-            <div class="p-2 space-y-0.5 border-b border-mono-200/60 dark:border-mono-850/60">
-                <button data-filter="all" class="nav-filter-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-nemo text-xs font-medium text-mono-700 dark:text-mono-300 hover:bg-mono-200/60 dark:hover:bg-mono-800/60 transition-fast">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-regular fa-folder text-mono-500"></i>
-                        <span>全部笔记</span>
-                    </div>
-                    <span id="cnt-all" class="text-[10px] bg-mono-200 dark:bg-mono-800 text-mono-600 dark:text-mono-400 px-1.5 py-0.2 rounded-full font-mono">0</span>
+            <!-- Action buttons in titlebar -->
+            <div class="titlebar-actions">
+                <button class="btn-action-icon" id="btn-open-settings" title="设置">
+                    <span class="ms-icon sm">settings</span>
                 </button>
-                
-                <button data-filter="pinned" class="nav-filter-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-nemo text-xs font-medium text-mono-700 dark:text-mono-300 hover:bg-mono-200/60 dark:hover:bg-mono-800/60 transition-fast">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-solid fa-thumbtack text-mono-500 text-[11px]"></i>
-                        <span>已置顶</span>
-                    </div>
-                    <span id="cnt-pinned" class="text-[10px] bg-mono-200 dark:bg-mono-800 text-mono-600 dark:text-mono-400 px-1.5 py-0.2 rounded-full font-mono">0</span>
+                <button class="btn-action-icon" id="btn-theme-toggle" title="切换主题">
+                    <span class="ms-icon sm" id="theme-icon">computer</span>
                 </button>
-
-                <button data-filter="trash" class="nav-filter-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-nemo text-xs font-medium text-mono-700 dark:text-mono-300 hover:bg-mono-200/60 dark:hover:bg-mono-800/60 transition-fast">
-                    <div class="flex items-center space-x-2">
-                        <i class="fa-regular fa-trash-can text-mono-500"></i>
-                        <span>废纸篓</span>
-                    </div>
-                    <span id="cnt-trash" class="text-[10px] bg-mono-200 dark:bg-mono-800 text-mono-600 dark:text-mono-400 px-1.5 py-0.2 rounded-full font-mono">0</span>
+                <button class="btn-action-icon" id="btn-fullscreen" title="全屏">
+                    <span class="ms-icon sm">fullscreen</span>
                 </button>
             </div>
 
-            <!-- Folders Section -->
-            <div class="p-2 border-b border-mono-200/60 dark:border-mono-850/60 flex-1 flex flex-col min-h-0">
-                <div class="flex items-center justify-between text-[11px] font-semibold text-mono-400 dark:text-mono-500 px-2 mb-1.5 uppercase tracking-wider">
-                    <span>文件夹</span>
-                    <button id="btn-add-folder" class="hover:text-mono-800 dark:hover:text-mono-200 transition-fast" title="新建文件夹">
-                        <i class="fa-solid fa-plus text-[10px]"></i>
+            <!-- Window controls for frameless electron window -->
+            <div class="window-controls">
+                <button class="win-btn" id="win-min" title="最小化">
+                    <span class="ms-icon xs">remove</span>
+                </button>
+                <button class="win-btn" id="win-max" title="最大化">
+                    <span class="ms-icon xs">crop_square</span>
+                </button>
+                <button class="win-btn close" id="win-close" title="关闭">
+                    <span class="ms-icon xs">close</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. Main Content Body -->
+        <div class="app-body">
+            <!-- Left Sidebar Navigation -->
+            <aside class="sidebar">
+                <!-- Top New Note Button in Sidebar -->
+                <div class="sidebar-action-wrap">
+                    <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记 (Ctrl+N)">
+                        <span class="ms-icon sm">add</span>
+                        <span>新建笔记</span>
                     </button>
                 </div>
-                <div id="folder-list" class="space-y-0.5 overflow-y-auto pr-1">
-                    <!-- Folders rendered dynamically -->
-                </div>
-            </div>
 
-            <!-- Tag Cloud Section -->
-            <div class="p-2 border-b border-mono-200/60 dark:border-mono-850/60 h-32 flex flex-col shrink-0">
-                <div class="text-[11px] font-semibold text-mono-400 dark:text-mono-500 px-2 mb-1.5 uppercase tracking-wider">
-                    <span>标签过滤</span>
+                <!-- Main Filters -->
+                <div class="nav-section">
+                    <div class="nav-item active" data-filter="all">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">description</span>
+                            <span>全部笔记</span>
+                        </div>
+                        <span class="nav-badge" id="count-all">0</span>
+                    </div>
+                    <div class="nav-item" data-filter="pinned">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">push_pin</span>
+                            <span>已置顶</span>
+                        </div>
+                        <span class="nav-badge" id="count-pinned">0</span>
+                    </div>
+                    <div class="nav-item" data-filter="trash">
+                        <div class="nav-item-left">
+                            <span class="ms-icon sm">delete</span>
+                            <span>废纸篓</span>
+                        </div>
+                        <span class="nav-badge" id="count-trash">0</span>
+                    </div>
                 </div>
-                <div id="tag-cloud" class="flex flex-wrap gap-1 overflow-y-auto pr-1">
-                    <!-- Dynamic tag list -->
+
+                <!-- Folders -->
+                <div class="nav-section">
+                    <div class="nav-section-title">
+                        <span>文件夹</span>
+                        <button id="btn-add-folder" title="新建文件夹">
+                            <span class="ms-icon xs">add</span>
+                        </button>
+                    </div>
+                    <div class="folder-list" id="sidebar-folder-list"></div>
                 </div>
-            </div>
 
-            <!-- Sidebar Footer Status -->
-            <div class="p-2 px-3 text-[11px] text-mono-400 dark:text-mono-500 border-t border-mono-200/60 dark:border-mono-850/60 flex justify-between items-center bg-mono-100/40 dark:bg-mono-900/40">
-                <span id="sidebar-footer-stat">共 0 篇笔记</span>
-                <button id="btn-empty-trash-sidebar" class="hidden text-mono-500 hover:text-mono-900 dark:hover:text-mono-100 transition-fast" title="清空回收站">
-                    <i class="fa-solid fa-broom mr-1"></i>清空
-                </button>
-            </div>
-        </aside>
+                <!-- Tags -->
+                <div class="nav-section" style="flex: 1; min-height: 0;">
+                    <div class="nav-section-title">
+                        <span>标签过滤</span>
+                    </div>
+                    <div class="tag-list" id="sidebar-tag-list"></div>
+                </div>
 
-        <!-- Middle Notes Selection List Panel -->
-        <section id="notes-panel" class="w-72 border-r border-mono-200 dark:border-mono-850 bg-white dark:bg-mono-900 flex flex-col shrink-0 transition-all duration-200">
-            <!-- Search & Filter Controls Bar -->
-            <div class="p-2 border-b border-mono-200/60 dark:border-mono-850/60 space-y-1.5">
-                <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-mono-400 text-xs"></i>
-                    <input type="text" id="search-input" placeholder="搜索标题与内容... (Ctrl+Shift+F)" class="w-full bg-mono-100/80 dark:bg-mono-850/80 text-xs pl-7 pr-6 py-1.5 rounded-nemo border border-transparent focus:border-mono-400 dark:focus:border-mono-600 outline-none transition-fast placeholder:text-mono-400">
-                    <button id="btn-clear-search" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-mono-400 hover:text-mono-600 dark:hover:text-mono-200 text-xs">
-                        <i class="fa-solid fa-circle-xmark"></i>
+                <!-- Footer Status & Trash Management -->
+                <div class="sidebar-bottom">
+                    <span id="sidebar-stat">共 0 篇笔记</span>
+                    <button class="btn-clear-trash hidden" id="btn-empty-trash" title="彻底清空废纸篓">
+                        <span class="ms-icon xs">delete_forever</span>
+                        <span>清空</span>
                     </button>
                 </div>
-                
-                <div class="flex items-center justify-between text-[11px] text-mono-500 px-1">
-                    <span id="panel-title-label" class="font-medium truncate max-w-[140px]">全部笔记</span>
-                    <select id="sort-select" class="bg-transparent text-mono-500 dark:text-mono-400 outline-none cursor-pointer hover:text-mono-800 dark:hover:text-mono-200 transition-fast">
-                        <option value="updated-desc">修改时间 ↓</option>
-                        <option value="created-desc">创建时间 ↓</option>
-                        <option value="title-asc">标题 A-Z</option>
-                    </select>
-                </div>
-            </div>
+            </aside>
 
-            <!-- Notes Cards Container -->
-            <div id="notes-list-container" class="flex-1 overflow-y-auto p-1.5 space-y-1">
-                <!-- Dynamic cards injected here -->
-            </div>
-        </section>
-
-        <!-- Right Main Workspace -->
-        <main id="workspace" class="flex-1 flex flex-col bg-white dark:bg-mono-900 min-w-0 relative">
-            
-            <!-- Empty State Overlay -->
-            <div id="empty-state" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-10 bg-white dark:bg-mono-900 select-none">
-                <div class="w-12 h-12 rounded-nemo border border-mono-200 dark:border-mono-800 flex items-center justify-center text-mono-400 text-xl mb-3 shadow-subtle">
-                    <i class="fa-regular fa-pen-to-square"></i>
-                </div>
-                <h3 class="text-sm font-semibold text-mono-700 dark:text-mono-300 mb-1">未选中任何笔记</h3>
-                <p class="text-mono-400 dark:text-mono-500 text-xs max-w-xs mb-4">在左侧列表选择笔记，或快捷键 Ctrl+N 新建。</p>
-                <button id="btn-empty-create" class="bg-mono-900 dark:bg-mono-100 text-white dark:text-mono-950 px-3 py-1.5 rounded-nemo text-xs font-medium hover:bg-mono-800 dark:hover:bg-white transition-fast">
-                    新建第一篇笔记
-                </button>
-            </div>
-
-            <!-- Note Header Actions & Metadata -->
-            <div id="editor-header" class="px-4 py-2 border-b border-mono-200/60 dark:border-mono-850/60 flex flex-wrap items-center justify-between gap-2 shrink-0">
-                
-                <!-- Left: Folder Dropdown & Tags List -->
-                <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                    <!-- Folder Picker -->
-                    <div class="relative">
-                        <select id="editor-folder-select" class="bg-mono-100 dark:bg-mono-800 text-mono-700 dark:text-mono-300 text-xs font-medium px-2 py-1 rounded-nemo border border-mono-200 dark:border-mono-700/60 outline-none cursor-pointer hover:border-mono-400 transition-fast">
-                            <!-- Dynamic Folders -->
+            <!-- Middle Notes List -->
+            <section class="notes-panel">
+                <div class="notes-panel-header">
+                    <div class="search-box">
+                        <span class="ms-icon sm" style="color: var(--text-muted);">search</span>
+                        <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+Shift+F)">
+                        <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
+                    </div>
+                    <div class="notes-panel-info">
+                        <span id="panel-category-title">全部笔记</span>
+                        <select id="select-sort">
+                            <option value="updated-desc">修改时间 ↓</option>
+                            <option value="created-desc">创建时间 ↓</option>
+                            <option value="title-asc">标题 A-Z</option>
                         </select>
                     </div>
+                </div>
 
-                    <!-- Tags list & Add tag button -->
-                    <div id="editor-tags-list" class="flex items-center space-x-1 flex-wrap">
-                        <!-- Rendered Tags -->
+                <div class="notes-list" id="notes-list-box"></div>
+            </section>
+
+            <!-- Right Workspace / Editor -->
+            <main class="workspace" id="workspace-box">
+                <!-- Empty Placeholder Screen -->
+                <div class="empty-placeholder" id="empty-state">
+                    <span class="ms-icon">edit_note</span>
+                    <p>选择一篇笔记，或新建笔记</p>
+                    <button class="btn-new-note" id="btn-empty-new">新建笔记</button>
+                </div>
+
+                <!-- Workspace Topbar -->
+                <div class="editor-topbar" id="editor-topbar">
+                    <div class="editor-meta">
+                        <select class="select-folder" id="editor-folder-select"></select>
+                        <div class="note-tags-container" id="editor-tags-container"></div>
+                        <button class="btn-action-icon" id="btn-add-tag" title="添加标签">
+                            <span class="ms-icon sm">label</span>
+                        </button>
                     </div>
-                    <button id="btn-add-tag" class="text-xs text-mono-400 hover:text-mono-700 dark:hover:text-mono-200 px-1 py-0.5 rounded transition-fast" title="添加标签">
-                        <i class="fa-solid fa-tag text-[10px]"></i> +
-                    </button>
-                </div>
 
-                <!-- Right: View Modes & Action Tools -->
-                <div class="flex items-center space-x-1">
-                    <!-- View Switcher -->
-                    <div class="flex bg-mono-100 dark:bg-mono-800 p-0.5 rounded-nemo border border-mono-200/60 dark:border-mono-700/60 text-xs">
-                        <button id="mode-edit" class="px-2 py-0.5 rounded font-medium transition-fast" title="纯编辑">编辑</button>
-                        <button id="mode-split" class="px-2 py-0.5 rounded font-medium transition-fast hidden sm:block" title="双栏实时预览">分屏</button>
-                        <button id="mode-preview" class="px-2 py-0.5 rounded font-medium transition-fast" title="纯预览">预览</button>
-                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="editor-view-modes">
+                            <button class="view-btn active" id="btn-mode-edit">编辑</button>
+                            <button class="view-btn" id="btn-mode-split">分屏</button>
+                            <button class="view-btn" id="btn-mode-preview">预览</button>
+                        </div>
 
-                    <div class="h-3.5 w-[1px] bg-mono-200 dark:bg-mono-800 mx-1"></div>
+                        <div class="window-controls-divider"></div>
 
-                    <!-- Pin Action -->
-                    <button id="btn-action-pin" class="p-1.5 text-mono-400 hover:text-mono-800 dark:hover:text-mono-200 rounded-nemo transition-fast" title="置顶笔记">
-                        <i class="fa-solid fa-thumbtack text-xs"></i>
-                    </button>
-
-                    <!-- Export Single Note MD -->
-                    <button id="btn-action-export-md" class="p-1.5 text-mono-400 hover:text-mono-800 dark:hover:text-mono-200 rounded-nemo transition-fast" title="导出 Markdown (.md)">
-                        <i class="fa-solid fa-file-arrow-down text-xs"></i>
-                    </button>
-
-                    <!-- Trash Action -->
-                    <button id="btn-action-trash" class="p-1.5 text-mono-400 hover:text-mono-800 dark:hover:text-mono-200 rounded-nemo transition-fast" title="放入废纸篓">
-                        <i class="fa-regular fa-trash-can text-xs"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Quick Markdown Insertion Formatting Bar -->
-            <div id="editor-toolbar" class="px-4 py-1 border-b border-mono-200/40 dark:border-mono-850/40 bg-mono-50/40 dark:bg-mono-900/40 flex items-center space-x-0.5 overflow-x-auto text-mono-600 dark:text-mono-400 shrink-0">
-                <button data-fmt="bold" class="fmt-btn px-2 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs font-bold transition-fast" title="加粗 (Ctrl+B)">B</button>
-                <button data-fmt="italic" class="fmt-btn px-2 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs italic transition-fast" title="斜体 (Ctrl+I)">I</button>
-                <div class="h-3 w-[1px] bg-mono-200 dark:bg-mono-800 mx-1"></div>
-                <button data-fmt="h1" class="fmt-btn px-2 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs font-semibold transition-fast">H1</button>
-                <button data-fmt="h2" class="fmt-btn px-2 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs font-semibold transition-fast">H2</button>
-                <button data-fmt="h3" class="fmt-btn px-2 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs font-semibold transition-fast">H3</button>
-                <div class="h-3 w-[1px] bg-mono-200 dark:bg-mono-800 mx-1"></div>
-                <button data-fmt="ul" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="无序列表"><i class="fa-solid fa-list-ul"></i></button>
-                <button data-fmt="ol" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="有序列表"><i class="fa-solid fa-list-ol"></i></button>
-                <button data-fmt="task" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="任务清单"><i class="fa-regular fa-square-check"></i></button>
-                <button data-fmt="quote" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="引用块"><i class="fa-solid fa-quote-left"></i></button>
-                <button data-fmt="code" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="代码块"><i class="fa-solid fa-code"></i></button>
-                <button data-fmt="link" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="插入链接"><i class="fa-solid fa-link"></i></button>
-                <button data-fmt="hr" class="fmt-btn px-1.5 py-1 hover:bg-mono-200 dark:hover:bg-mono-800 rounded text-xs transition-fast" title="分割线"><i class="fa-solid fa-minus"></i></button>
-            </div>
-
-            <!-- Note Title Line -->
-            <div class="px-6 pt-4 pb-2 shrink-0">
-                <input type="text" id="note-title-input" placeholder="无标题笔记..." class="w-full text-xl font-bold bg-transparent border-none outline-none text-mono-900 dark:text-mono-100 placeholder:text-mono-300 dark:placeholder:text-mono-700 tracking-tight">
-            </div>
-
-            <!-- Main Content Area: Editor & Preview Containers -->
-            <div class="flex-1 flex min-h-0 relative">
-                
-                <!-- Editor Box -->
-                <div id="editor-box" class="flex-1 h-full p-6 pt-1">
-                    <textarea id="note-content-input" placeholder="在此输入 Markdown 正文..." class="w-full h-full bg-transparent border-none outline-none resize-none text-mono-800 dark:text-mono-200 leading-relaxed text-sm placeholder:text-mono-300 dark:placeholder:text-mono-700"></textarea>
-                </div>
-
-                <!-- Preview Box -->
-                <div id="preview-box" class="hidden flex-1 h-full p-6 pt-1 overflow-y-auto border-l border-mono-200/60 dark:border-mono-850/60 bg-mono-50/20 dark:bg-mono-950/20">
-                    <div id="markdown-preview" class="markdown-body text-mono-800 dark:text-mono-200 text-sm">
-                        <!-- Preview content -->
+                        <button class="btn-action-icon" id="btn-note-pin" title="固定笔记">
+                            <span class="ms-icon sm">push_pin</span>
+                        </button>
+                        <button class="btn-action-icon" id="btn-note-export-md" title="导出 Markdown (.md)">
+                            <span class="ms-icon sm">file_download</span>
+                        </button>
+                        <button class="btn-action-icon" id="btn-note-trash" title="放入废纸篓">
+                            <span class="ms-icon sm">delete</span>
+                        </button>
                     </div>
                 </div>
 
-            </div>
-
-            <!-- Footer Stats & Auto-save Status Indicator -->
-            <div class="px-6 py-1.5 border-t border-mono-200/60 dark:border-mono-850/60 bg-white dark:bg-mono-900 text-[11px] text-mono-400 dark:text-mono-500 flex items-center justify-between shrink-0 select-none">
-                <div class="flex items-center space-x-3">
-                    <span id="save-status-indicator" class="flex items-center space-x-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-mono-400"></span>
-                        <span>就绪</span>
-                    </span>
-                    <span id="stat-last-edited">修改于 刚刚</span>
+                <!-- Formatting Toolbar -->
+                <div class="editor-toolbar" id="editor-toolbar">
+                    <button class="fmt-btn" data-fmt="bold" title="加粗">B</button>
+                    <button class="fmt-btn" data-fmt="italic" style="font-style: italic;" title="斜体">I</button>
+                    <div class="fmt-divider"></div>
+                    <button class="fmt-btn" data-fmt="h1">H1</button>
+                    <button class="fmt-btn" data-fmt="h2">H2</button>
+                    <button class="fmt-btn" data-fmt="h3">H3</button>
+                    <div class="fmt-divider"></div>
+                    <button class="fmt-btn" data-fmt="ul" title="无序列表"><span class="ms-icon sm">format_list_bulleted</span></button>
+                    <button class="fmt-btn" data-fmt="ol" title="有序列表"><span class="ms-icon sm">format_list_numbered</span></button>
+                    <button class="fmt-btn" data-fmt="task" title="待办清单"><span class="ms-icon sm">check_box</span></button>
+                    <button class="fmt-btn" data-fmt="quote" title="引用"><span class="ms-icon sm">format_quote</span></button>
+                    <button class="fmt-btn" data-fmt="code" title="代码块"><span class="ms-icon sm">code</span></button>
+                    <button class="fmt-btn" data-fmt="hr" title="分割线"><span class="ms-icon sm">horizontal_rule</span></button>
                 </div>
-                <div class="flex items-center space-x-3 font-mono">
-                    <span id="stat-chars">字符: 0</span>
-                    <span id="stat-words">词数: 0</span>
-                    <span id="stat-readtime">预计阅读: 1分</span>
+
+                <!-- Note Title Input -->
+                <div class="editor-title-area">
+                    <input type="text" class="editor-title-input" id="input-note-title" placeholder="无标题笔记...">
                 </div>
-            </div>
 
-        </main>
-    </div>
+                <!-- Editor & Preview Body -->
+                <div class="editor-content-area">
+                    <div class="editor-pane" id="editor-pane">
+                        <textarea class="editor-textarea" id="textarea-note-content" placeholder="输入 Markdown 内容..." spellcheck="false"></textarea>
+                    </div>
+                    <div class="preview-pane hidden" id="preview-pane">
+                        <div class="markdown-body" id="preview-content"></div>
+                    </div>
+                </div>
 
-    <!-- Custom Dialog Modals -->
-    
-    <!-- Tag Modal -->
-    <div id="modal-tag" class="hidden fixed inset-0 bg-mono-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-mono-850 rounded-nemo shadow-float w-full max-w-xs p-4 space-y-3 border border-mono-200 dark:border-mono-700">
-            <h4 class="text-xs font-semibold text-mono-800 dark:text-mono-200">添加标签</h4>
-            <input type="text" id="input-tag-name" placeholder="输入标签名称..." class="w-full bg-mono-100 dark:bg-mono-900 border border-mono-200 dark:border-mono-700 rounded-nemo px-2.5 py-1.5 text-xs outline-none focus:border-mono-500">
-            <div class="flex justify-end space-x-1.5">
-                <button id="btn-cancel-tag" class="px-2.5 py-1 text-xs text-mono-500 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-nemo transition-fast">取消</button>
-                <button id="btn-confirm-tag" class="px-2.5 py-1 text-xs bg-mono-900 dark:bg-mono-100 text-white dark:text-mono-950 rounded-nemo font-medium transition-fast">确定</button>
+                <!-- Footer Status -->
+                <footer class="editor-footer">
+                    <div class="editor-footer-left">
+                        <span id="save-status">就绪</span>
+                        <span id="stat-last-edit">修改于 刚刚</span>
+                    </div>
+                    <div class="editor-footer-right">
+                        <span id="stat-char-count">字符: 0</span>
+                        <span id="stat-word-count">字数: 0</span>
+                    </div>
+                </footer>
+            </main>
+
+            <!-- 4. Settings View -->
+            <div class="settings-view hidden" id="settings-view">
+                <div class="settings-header">
+                    <div class="settings-title">
+                        <span class="ms-icon md">settings</span>
+                        <span>设置</span>
+                    </div>
+                    <div class="settings-desc">管理 EsprinNemo 的偏好设置与编辑器行为</div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">编辑器与文本</div>
+                    <div class="settings-row">
+                        <div class="settings-row-info">
+                            <span class="settings-row-label">错词红波浪线检查</span>
+                            <span class="settings-row-desc">在编辑笔记正文时对拼写错误标出红色波浪下划线（默认关闭）</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-spellcheck">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Folder Modal -->
-    <div id="modal-folder" class="hidden fixed inset-0 bg-mono-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-mono-850 rounded-nemo shadow-float w-full max-w-xs p-4 space-y-3 border border-mono-200 dark:border-mono-700">
-            <h4 class="text-xs font-semibold text-mono-800 dark:text-mono-200">新建文件夹</h4>
-            <input type="text" id="input-folder-name" placeholder="文件夹名称..." class="w-full bg-mono-100 dark:bg-mono-900 border border-mono-200 dark:border-mono-700 rounded-nemo px-2.5 py-1.5 text-xs outline-none focus:border-mono-500">
-            <div class="flex justify-end space-x-1.5">
-                <button id="btn-cancel-folder" class="px-2.5 py-1 text-xs text-mono-500 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-nemo transition-fast">取消</button>
-                <button id="btn-confirm-folder" class="px-2.5 py-1 text-xs bg-mono-900 dark:bg-mono-100 text-white dark:text-mono-950 rounded-nemo font-medium transition-fast">创建</button>
+    <!-- Modals -->
+    <!-- New Tag Modal -->
+    <div class="modal-mask hidden" id="modal-tag">
+        <div class="modal-card">
+            <h3>添加标签</h3>
+            <input type="text" id="input-tag-name" placeholder="标签名称...">
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="btn-tag-cancel">取消</button>
+                <button class="modal-btn primary" id="btn-tag-confirm">添加</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast Floating Overlay Container -->
-    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col space-y-1.5 pointer-events-none"></div>
+    <!-- New Folder Modal -->
+    <div class="modal-mask hidden" id="modal-folder">
+        <div class="modal-card">
+            <h3>新建文件夹</h3>
+            <input type="text" id="input-folder-name" placeholder="文件夹名称...">
+            <div class="modal-actions">
+                <button class="modal-btn cancel" id="btn-folder-cancel">取消</button>
+                <button class="modal-btn primary" id="btn-folder-confirm">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Context Menu -->
+    <div class="context-menu hidden" id="note-context-menu">
+        <div class="context-menu-item" data-action="open">
+            <span class="ms-icon sm">open_in_new</span>
+            <span>在标签页打开</span>
+        </div>
+        <div class="context-menu-item" data-action="pin" id="context-menu-pin">
+            <span class="ms-icon sm" id="context-menu-pin-icon">push_pin</span>
+            <span id="context-menu-pin-text">置顶笔记</span>
+        </div>
+        <div class="context-menu-item danger" data-action="delete">
+            <span class="ms-icon sm">delete</span>
+            <span>移入废纸篓</span>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-box" id="toast-container"></div>
 
     <script>
-        /**
-         * Esprin Nemo - Core Application Engine
-         * Built with pure JavaScript, self-contained architecture.
-         */
+        const { ipcRenderer } = require('electron');
+        const fs = require('fs');
+        const path = require('path');
 
-        const WELCOME_NOTE = {
-            id: 'nemo_welcome_note',
-            title: '欢迎使用 Esprin Nemo 极简笔记 ✦',
-            content: `# Esprin Nemo 极简笔记指南
+        const DATA_DIR = resolveDataDir();
+        const NOTES_DIR = path.join(DATA_DIR, 'notes');
+        const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+        const INDEX_FILE = path.join(DATA_DIR, 'index.json');
 
-**Esprin Nemo** 是一款去除所有花哨色彩、专注于沉浸式表达的高质感 Markdown 笔记应用。
+        // 生成10位的大小写英语+数字的随机ID
+        function generateNoteId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < 10; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
 
----
-
-### 💡 核心设计与功能特性：
-
-1. **绝对极简冷灰调**
-   - 采用低饱和单色系界面，支持随系统或手动**深浅色**无缝切换。
-
-2. **完整 Markdown 支持**
-   - 实时预览与交互式任务列表：
-     - [x] 代码块带有**一键复制**功能
-     - [x] 支持粗体、斜体、标题、表格、引用块
-     - [ ] 支持按快捷键快速排版
-
-3. **快捷键一览**
-   - \`Cmd / Ctrl + S\`：手动保存笔记
-   - \`Cmd / Ctrl + N\`：新建笔记
-   - \`Cmd / Ctrl + Shift + F\`：快速聚焦搜索框
-   - \`Cmd / Ctrl + P\`：快速切换预览模式
-
-4. **数据安全与备份**
-   - 所有数据存于浏览器 \`LocalStorage\`。
-   - 支持全量导出与导入恢复 JSON 配置文件。
-
-\`\`\`javascript
-// 简单优雅的逻辑结构
-const memo = {
-    minimal: true,
-    speed: "ultra-fast",
-    focus: 100
-};
-console.log("Welcome to Esprin Nemo");
-\`\`\`
-
-> *“设计不是关于添加东西，而是关于去掉多余的部分。”*
-`,
-            folder: '默认',
-            tags: ['指南', '欢迎'],
-            isPinned: true,
-            isTrashed: false,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
-
-        // Application State StateManager
-        const State = {
-            notes: [],
-            folders: ['默认', '工作', '思考', '归档'],
-            activeNoteId: null,
-            currentFilter: 'all', // 'all', 'pinned', 'trash', 'folder:[name]', 'tag:[name]'
-            searchQuery: '',
-            sortBy: 'updated-desc',
-            viewMode: 'edit', // 'edit', 'split', 'preview'
-            darkMode: false,
-            autoSaveTimer: null
-        };
-
-        // DOM Element Caching
-        const $ = id => document.getElementById(id);
-        const DOM = {
-            sidebar: $('sidebar'),
-            btnToggleSidebar: $('btn-toggle-sidebar'),
-            btnThemeToggle: $('btn-theme-toggle'),
-            btnTopNew: $('btn-top-new'),
-            btnExportBackup: $('btn-export-backup'),
-            inputImportBackup: $('input-import-backup'),
-            btnFullscreen: $('btn-fullscreen'),
-            
-            // Sidebar Navigation
-            folderList: $('folder-list'),
-            tagCloud: $('tag-cloud'),
-            cntAll: $('cnt-all'),
-            cntPinned: $('cnt-pinned'),
-            cntTrash: $('cnt-trash'),
-            sidebarFooterStat: $('sidebar-footer-stat'),
-            btnEmptyTrashSidebar: $('btn-empty-trash-sidebar'),
-            btnAddFolder: $('btn-add-folder'),
-
-            // Notes List Panel
-            searchInput: $('search-input'),
-            btnClearSearch: $('btn-clear-search'),
-            panelTitleLabel: $('panel-title-label'),
-            sortSelect: $('sort-select'),
-            notesListContainer: $('notes-list-container'),
-
-            // Workspace & Editor
-            emptyState: $('empty-state'),
-            btnEmptyCreate: $('btn-empty-create'),
-            editorFolderSelect: $('editor-folder-select'),
-            editorTagsList: $('editor-tags-list'),
-            btnAddTag: $('btn-add-tag'),
-            
-            // View Switcher Buttons
-            modeEdit: $('mode-edit'),
-            modeSplit: $('mode-split'),
-            modePreview: $('mode-preview'),
-
-            // Action Buttons
-            btnActionPin: $('btn-action-pin'),
-            btnActionExportMd: $('btn-action-export-md'),
-            btnActionTrash: $('btn-action-trash'),
-
-            // Editor Text Inputs
-            noteTitleInput: $('note-title-input'),
-            noteContentInput: $('note-content-input'),
-            editorBox: $('editor-box'),
-            previewBox: $('preview-box'),
-            markdownPreview: $('markdown-preview'),
-
-            // Footer Status
-            saveStatusIndicator: $('save-status-indicator'),
-            statLastEdited: $('stat-last-edited'),
-            statChars: $('stat-chars'),
-            statWords: $('stat-words'),
-            statReadtime: $('stat-readtime'),
-
-            // Modals
-            modalTag: $('modal-tag'),
-            inputTagName: $('input-tag-name'),
-            btnCancelTag: $('btn-cancel-tag'),
-            btnConfirmTag: $('btn-confirm-tag'),
-
-            modalFolder: $('modal-folder'),
-            inputFolderName: $('input-folder-name'),
-            btnCancelFolder: $('btn-cancel-folder'),
-            btnConfirmFolder: $('btn-confirm-folder'),
-            toastContainer: $('toast-container')
-        };
-
-        // --- LocalStorage Operations ---
-        function loadStateFromStorage() {
+        function ensureStorageDirs() {
             try {
-                const savedNotes = localStorage.getItem('esprin_nemo_notes');
-                const savedFolders = localStorage.getItem('esprin_nemo_folders');
-                const savedTheme = localStorage.getItem('esprin_nemo_theme');
-
-                if (savedNotes) {
-                    State.notes = JSON.parse(savedNotes);
-                } else {
-                    State.notes = [WELCOME_NOTE];
+                if (!fs.existsSync(DATA_DIR)) {
+                    fs.mkdirSync(DATA_DIR, { recursive: true });
                 }
-
-                if (savedFolders) {
-                    State.folders = JSON.parse(savedFolders);
-                }
-
-                if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    State.darkMode = true;
-                    document.documentElement.classList.add('dark');
-                } else {
-                    State.darkMode = false;
-                    document.documentElement.classList.remove('dark');
+                if (!fs.existsSync(NOTES_DIR)) {
+                    fs.mkdirSync(NOTES_DIR, { recursive: true });
                 }
             } catch (err) {
-                console.error("Storage Load Error:", err);
-                State.notes = [WELCOME_NOTE];
+                console.error('创建数据目录失败:', err);
             }
         }
 
-        function saveNotesToStorage() {
-            localStorage.setItem('esprin_nemo_notes', JSON.stringify(State.notes));
+        // Markdown Renderer (支持代码块、引用块、无序/有序列表、任务清单、标题、链接、粗斜体、水平线、行内代码)
+        const marked = {
+            parse(value = '') {
+                if (!value) return '';
+
+                // 1. 暂存代码块，避免代码块内容被其他正则破坏
+                const codeBlocks = [];
+                let text = String(value).replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+                    const id = `__CODE_BLOCK_${codeBlocks.length}__`;
+                    const escapedCode = code
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#039;');
+                    codeBlocks.push(`<pre><code class="language-${lang || 'text'}">${escapedCode}</code></pre>`);
+                    return id;
+                });
+
+                // 2. 暂存行内代码
+                const inlineCodes = [];
+                text = text.replace(/`([^`\n]+)`/g, (match, code) => {
+                    const id = `__INLINE_CODE_${inlineCodes.length}__`;
+                    const escapedCode = code
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    inlineCodes.push(`<code>${escapedCode}</code>`);
+                    return id;
+                });
+
+                // 3. 基础 HTML 转义
+                text = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+
+                // 4. 标题解析
+                text = text
+                    .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
+                    .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
+                    .replace(/^#### (.*)$/gm, '<h4>$1</h4>')
+                    .replace(/^### (.*)$/gm, '<h3>$1</h3>')
+                    .replace(/^## (.*)$/gm, '<h2>$1</h2>')
+                    .replace(/^# (.*)$/gm, '<h1>$1</h1>');
+
+                // 5. 分割线
+                text = text.replace(/^(?:---|\*\*\*|___)\s*$/gm, '<hr>');
+
+                // 6. 引用块解析（支持多行连续引用）
+                text = text.replace(/(?:^&gt; ?[^\r\n]*(?:\r?\n|$))+/gm, (block) => {
+                    const inner = block
+                        .split(/\r?\n/)
+                        .filter(line => line.length > 0)
+                        .map(line => line.replace(/^&gt; ?/, ''))
+                        .join('<br>');
+                    return `<blockquote><p>${inner}</p></blockquote>\n`;
+                });
+
+                // 7. 任务清单与普通列表项
+                text = text.replace(/^- \[ \] (.*)$/gm, '<li class="task-item"><input type="checkbox" disabled> $1</li>');
+                text = text.replace(/^- \[x\] (.*)$/gm, '<li class="task-item"><input type="checkbox" checked disabled> $1</li>');
+                text = text.replace(/^[-*+] (.*)$/gm, '<li>$1</li>');
+                text = text.replace(/^\d+\. (.*)$/gm, '<li class="ordered">$1</li>');
+
+                // 将连续的 <li> 包裹在 <ul> 或 <ol> 中
+                text = text.replace(/(<li class="ordered">[\s\S]*?<\/li>)(?=(?:\s*<li class="ordered">)|\b)/g, '$1');
+                text = text.replace(/(?:<li class="ordered">.*?<\/li>\s*)+/g, '<ol>$&</ol>');
+                text = text.replace(/(?:<li>.*?<\/li>\s*|<li class="task-item">.*?<\/li>\s*)+/g, '<ul>$&</ul>');
+
+                // 8. 粗体、斜体、删除线与链接
+                text = text
+                    .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+                    .replace(/\*([^\*\n]+?)\*/g, '<em>$1</em>')
+                    .replace(/_([^_\n]+?)_/g, '<em>$1</em>')
+                    .replace(/~~(.+?)~~/g, '<del>$1</del>')
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+                // 9. 段落与换行处理
+                const paragraphs = text.split(/(?:\r?\n){2,}/);
+                text = paragraphs.map(p => {
+                    p = p.trim();
+                    if (!p) return '';
+                    // 如果块级元素开头，则不额外包 <p>
+                    if (/^<(?:h[1-6]|ul|ol|blockquote|hr|pre|div|table)/i.test(p)) {
+                        return p;
+                    }
+                    return `<p>${p.replace(/\r?\n/g, '<br>')}</p>`;
+                }).filter(Boolean).join('\n');
+
+                // 10. 恢复行内代码与代码块
+                inlineCodes.forEach((code, idx) => {
+                    text = text.replace(`__INLINE_CODE_${idx}__`, code);
+                });
+                codeBlocks.forEach((block, idx) => {
+                    text = text.replace(`__CODE_BLOCK_${idx}__`, block);
+                });
+
+                return text;
+            }
+        };
+
+        // Window Controls
+        const winControls = {
+            min: () => ipcRenderer.invoke('window:minimize'),
+            max: () => ipcRenderer.invoke('window:maximize'),
+            close: () => ipcRenderer.invoke('window:close'),
+            toggleFullscreen: () => ipcRenderer.invoke('window:toggle-fullscreen')
+        };
+
+        document.getElementById('win-min').onclick = winControls.min;
+        document.getElementById('win-max').onclick = winControls.max;
+        document.getElementById('win-close').onclick = winControls.close;
+
+        function updateFullscreenState(isFullscreen) {
+            if (isFullscreen) {
+                document.body.classList.add('is-fullscreen');
+                const fsIcon = document.querySelector('#btn-fullscreen .ms-icon');
+                if (fsIcon) fsIcon.textContent = 'fullscreen_exit';
+                const fsBtn = document.getElementById('btn-fullscreen');
+                if (fsBtn) fsBtn.title = '退出全屏';
+            } else {
+                document.body.classList.remove('is-fullscreen');
+                const fsIcon = document.querySelector('#btn-fullscreen .ms-icon');
+                if (fsIcon) fsIcon.textContent = 'fullscreen';
+                const fsBtn = document.getElementById('btn-fullscreen');
+                if (fsBtn) fsBtn.title = '全屏';
+            }
         }
 
-        function saveFoldersToStorage() {
-            localStorage.setItem('esprin_nemo_folders', JSON.stringify(State.folders));
+        ipcRenderer.on('window:fullscreen-changed', (event, isFullscreen) => {
+            updateFullscreenState(isFullscreen);
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            const isFullscreen = !!document.fullscreenElement;
+            updateFullscreenState(isFullscreen);
+        });
+
+        document.getElementById('app-titlebar').ondblclick = (e) => {
+            if (document.body.classList.contains('is-fullscreen')) return;
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;
+            winControls.max();
+        };
+
+        // State Store
+        const State = {
+            notes: [],
+            folders: ['默认'],
+            activeNoteId: null,
+            openNoteIds: [],
+            currentFilter: 'all',
+            searchQuery: '',
+            sortBy: 'updated-desc',
+            viewMode: 'edit',
+            theme: 'system',
+            spellcheck: false,
+            autoSaveTimer: null
+        };
+
+        // Local Storage File Handlers (data/config.json, data/index.json, data/notes/{id}.md)
+        function loadData() {
+            ensureStorageDirs();
+            let config = { theme: 'system', spellcheck: false };
+            let indexData = { folders: [], notes: [] };
+            let indexCorrupted = false; // index.json 解析失败时标记，启动后会用清理后的索引覆盖
+
+            // 1. 读取应用配置 config.json
+            try {
+                if (fs.existsSync(CONFIG_FILE)) {
+                    const rawConfig = fs.readFileSync(CONFIG_FILE, 'utf8');
+                    if (rawConfig) config = { ...config, ...JSON.parse(rawConfig) };
+                } else {
+                    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+                }
+            } catch (err) {
+                console.error('读取 config.json 失败:', err);
+            }
+
+            // 2. 读取文档信息索引 index.json
+            try {
+                if (fs.existsSync(INDEX_FILE)) {
+                    const rawIndex = fs.readFileSync(INDEX_FILE, 'utf8').trim();
+                    const parsedIndex = rawIndex ? JSON.parse(rawIndex) : null;
+                    if (parsedIndex && typeof parsedIndex === 'object' && !Array.isArray(parsedIndex)) {
+                        indexData = { ...indexData, ...parsedIndex };
+                    } else {
+                        // 空文件或结构异常（非对象），视为无效索引，启动后按清理结果重建
+                        indexCorrupted = true;
+                    }
+                } else {
+                    fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2), 'utf8');
+                }
+            } catch (err) {
+                console.error('读取 index.json 失败:', err);
+                indexCorrupted = true;
+            }
+
+            // 3. 规范化自定义文件夹列表（去空白、去重、剔除空名与"默认"），运行时保证包含"默认"
+            const rawFolders = Array.isArray(indexData.folders) ? indexData.folders : [];
+            const customFolders = [];
+            rawFolders.forEach(folder => {
+                if (typeof folder !== 'string') return;
+                const name = folder.trim();
+                if (!name || name === '默认' || customFolders.includes(name)) return;
+                customFolders.push(name);
+            });
+            const foldersChanged = JSON.stringify(rawFolders) !== JSON.stringify(customFolders);
+            const folders = ['默认', ...customFolders];
+
+            // 4. 载入正文并校验索引项：剔除 ID 非法、ID 重复、缺少 data/notes/{id}.md 正文文件的无效条目
+            const rawNotes = Array.isArray(indexData.notes) ? indexData.notes : [];
+            const notes = [];
+            const seenIds = new Set();
+            let removedNotes = 0;
+            let repairedNotes = 0;
+
+            rawNotes.forEach(entry => {
+                // ID 必须是安全的文件名字符串（现有生成规则为 10 位大小写字母+数字）
+                const id = entry && typeof entry.id === 'string' ? entry.id.trim() : '';
+                if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || seenIds.has(id)) {
+                    removedNotes++;
+                    return;
+                }
+
+                const notePath = path.join(NOTES_DIR, `${id}.md`);
+                if (!fs.existsSync(notePath)) {
+                    // 正文文件缺失，索引项无效，直接清理
+                    removedNotes++;
+                    return;
+                }
+
+                let content = '';
+                try {
+                    content = fs.readFileSync(notePath, 'utf8');
+                } catch (err) {
+                    console.error(`读取笔记内容失败 ${id}:`, err);
+                    removedNotes++;
+                    return;
+                }
+
+                seenIds.add(id);
+
+                const rawFolder = typeof entry.folder === 'string' ? entry.folder.trim() : '';
+                const note = {
+                    id,
+                    title: typeof entry.title === 'string' ? entry.title : '',
+                    folder: (rawFolder && rawFolder !== '默认' && folders.includes(rawFolder)) ? rawFolder : '默认',
+                    tags: Array.isArray(entry.tags)
+                        ? [...new Set(entry.tags.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim()))]
+                        : [],
+                    isPinned: !!entry.isPinned,
+                    isTrashed: !!entry.isTrashed,
+                    createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now(),
+                    updatedAt: Number.isFinite(entry.updatedAt) ? entry.updatedAt : Date.now(),
+                    content
+                };
+
+                // 与 index.json 的存储形式逐字段比对（"默认"文件夹存储为空字符串），判断是否发生了修正
+                const before = [entry.title, rawFolder, entry.tags, !!entry.isPinned, !!entry.isTrashed, entry.createdAt, entry.updatedAt];
+                const after = [note.title, note.folder === '默认' ? '' : note.folder, note.tags, note.isPinned, note.isTrashed, note.createdAt, note.updatedAt];
+                if (JSON.stringify(before) !== JSON.stringify(after)) repairedNotes++;
+
+                notes.push(note);
+            });
+
+            return {
+                theme: config.theme || 'system',
+                spellcheck: !!config.spellcheck,
+                folders,
+                notes,
+                indexCleanup: {
+                    removedNotes,
+                    repairedNotes,
+                    foldersChanged,
+                    indexCorrupted
+                }
+            };
         }
 
-        function saveThemeToStorage() {
-            localStorage.setItem('esprin_nemo_theme', State.darkMode ? 'dark' : 'light');
+        // 保存配置到 config.json
+        function saveConfig() {
+            ensureStorageDirs();
+            try {
+                const config = {
+                    theme: State.theme,
+                    spellcheck: State.spellcheck
+                };
+                fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+            } catch (err) {
+                console.error('保存 config.json 失败:', err);
+            }
         }
 
-        // --- Note CRUD Operations ---
+        // 保存单个笔记的正文到 data/notes/{id}.md
+        function saveNoteContent(note) {
+            if (!note || !note.id) return;
+            ensureStorageDirs();
+            try {
+                const notePath = path.join(NOTES_DIR, `${note.id}.md`);
+                fs.writeFileSync(notePath, note.content || '', 'utf8');
+            } catch (err) {
+                console.error(`保存笔记 ${note.id} 内容失败:`, err);
+            }
+        }
+
+        // 保存索引元数据到 index.json（文档信息不包含正文大文本，保证轻量快速；folders只记录自定义文件夹）
+        function saveIndex() {
+            ensureStorageDirs();
+            try {
+                const notesMetadata = State.notes.map(n => ({
+                    id: n.id,
+                    title: n.title || '',
+                    folder: (n.folder === '默认' || !n.folder) ? '' : n.folder,
+                    tags: Array.isArray(n.tags) ? n.tags : [],
+                    isPinned: !!n.isPinned,
+                    isTrashed: !!n.isTrashed,
+                    createdAt: n.createdAt || Date.now(),
+                    updatedAt: n.updatedAt || Date.now()
+                }));
+
+                const customFolders = State.folders.filter(f => f && f !== '默认');
+
+                const indexData = {
+                    folders: customFolders,
+                    notes: notesMetadata
+                };
+                fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2), 'utf8');
+            } catch (err) {
+                console.error('保存 index.json 失败:', err);
+            }
+        }
+
+        function saveData() {
+            saveIndex();
+            saveConfig();
+        }
+
+        function getEffectiveTheme() {
+            if (State.theme === 'system') {
+                return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+            }
+            return State.theme;
+        }
+
+        function applyTheme() {
+            const effective = getEffectiveTheme();
+            if (effective === 'light') {
+                document.documentElement.classList.add('light');
+            } else {
+                document.documentElement.classList.remove('light');
+            }
+
+            const themeIcon = document.getElementById('theme-icon');
+            const themeBtn = document.getElementById('btn-theme-toggle');
+            if (State.theme === 'system') {
+                if (themeIcon) themeIcon.textContent = 'computer';
+                if (themeBtn) themeBtn.title = '主题：跟随系统 (点击切换到浅色)';
+            } else if (State.theme === 'light') {
+                if (themeIcon) themeIcon.textContent = 'light_mode';
+                if (themeBtn) themeBtn.title = '主题：浅色模式 (点击切换到深色)';
+            } else {
+                if (themeIcon) themeIcon.textContent = 'dark_mode';
+                if (themeBtn) themeBtn.title = '主题：深色模式 (点击切换到跟随系统)';
+            }
+        }
+
+        function applySpellcheck() {
+            const textarea = document.getElementById('textarea-note-content');
+            const toggle = document.getElementById('setting-spellcheck');
+            const enabled = !!State.spellcheck;
+            if (textarea) textarea.spellcheck = enabled;
+            if (toggle) toggle.checked = enabled;
+        }
+
+        function initTheme() {
+            applyTheme();
+            if (window.matchMedia) {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                // 监听系统深浅色切换事件
+                if (mediaQuery.addEventListener) {
+                    mediaQuery.addEventListener('change', () => {
+                        if (State.theme === 'system') {
+                            applyTheme();
+                        }
+                    });
+                } else if (mediaQuery.addListener) {
+                    mediaQuery.addListener(() => {
+                        if (State.theme === 'system') {
+                            applyTheme();
+                        }
+                    });
+                }
+            }
+        }
+
+        // Note Operations
         function createNewNote() {
-            const currentFolder = State.currentFilter.startsWith('folder:') 
-                ? State.currentFilter.replace('folder:', '') 
-                : '默认';
+            let defaultFolder = '默认';
+            if (State.currentFilter.startsWith('folder:')) {
+                defaultFolder = State.currentFilter.replace('folder:', '');
+            }
+
+            // 生成10位大小写英文+数字随机ID，查重保证唯一性
+            let id = generateNoteId();
+            while (State.notes.some(n => n.id === id)) {
+                id = generateNoteId();
+            }
 
             const newNote = {
-                id: 'note_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                id: id,
                 title: '',
                 content: '',
-                folder: currentFolder,
+                folder: defaultFolder,
                 tags: State.currentFilter.startsWith('tag:') ? [State.currentFilter.replace('tag:', '')] : [],
                 isPinned: false,
                 isTrashed: false,
@@ -609,124 +1899,152 @@ console.log("Welcome to Esprin Nemo");
                 updatedAt: Date.now()
             };
 
+            // 创建对应 data/notes/{id}.md 文件
+            saveNoteContent(newNote);
+
             State.notes.unshift(newNote);
-            State.activeNoteId = newNote.id;
-            saveNotesToStorage();
+            openTab(newNote.id);
+            saveIndex();
             renderApp();
 
             setTimeout(() => {
-                DOM.noteTitleInput.focus();
+                const titleInput = document.getElementById('input-note-title');
+                if (titleInput) titleInput.focus();
             }, 50);
 
-            showToast('已新建笔记', 'info');
+            showToast('已创建新笔记');
+        }
+
+        function openTab(noteId) {
+            if (!noteId) return;
+            if (!State.openNoteIds.includes(noteId)) {
+                State.openNoteIds.push(noteId);
+            }
+            State.activeNoteId = noteId;
+        }
+
+        function openSettingsTab() {
+            if (!State.openNoteIds.includes('settings')) {
+                State.openNoteIds.push('settings');
+            }
+            State.activeNoteId = 'settings';
+            renderApp();
+        }
+
+        function closeTab(noteId) {
+            State.openNoteIds = State.openNoteIds.filter(id => id !== noteId);
+            if (State.activeNoteId === noteId) {
+                State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
+            }
         }
 
         function getActiveNote() {
-            return State.notes.find(n => n.id === State.activeNoteId);
+            if (!State.activeNoteId) return null;
+            return State.notes.find(n => n.id === State.activeNoteId) || null;
         }
 
-        function handleAutoSave() {
-            updateSaveIndicator('saving');
-            clearTimeout(State.autoSaveTimer);
-            State.autoSaveTimer = setTimeout(() => {
-                const note = getActiveNote();
-                if (!note) return;
+        function autoSaveNote() {
+            const note = getActiveNote();
+            if (!note) return;
 
-                note.title = DOM.noteTitleInput.value;
-                note.content = DOM.noteContentInput.value;
+            document.getElementById('save-status').textContent = '保存中...';
+            clearTimeout(State.autoSaveTimer);
+
+            State.autoSaveTimer = setTimeout(() => {
+                note.title = document.getElementById('input-note-title').value;
+                note.content = document.getElementById('textarea-note-content').value;
                 note.updatedAt = Date.now();
 
-                saveNotesToStorage();
-                renderNotesList(); // Live update card in panel
-                updateFooterStats();
-                updateSaveIndicator('saved');
-            }, 400);
+                // 保存正文到 .md 文件，元数据到 index.json
+                saveNoteContent(note);
+                saveIndex();
+
+                renderTabs();
+                renderNotesList();
+                updateStats();
+                document.getElementById('save-status').textContent = '已保存';
+            }, 300);
         }
 
-        function togglePinNote(id) {
-            const note = State.notes.find(n => n.id === id);
+        function togglePin(noteId) {
+            const note = State.notes.find(n => n.id === noteId);
             if (!note) return;
-
             note.isPinned = !note.isPinned;
-            saveNotesToStorage();
+            saveIndex();
             renderApp();
-            showToast(note.isPinned ? '已固定笔记' : '已取消固定', 'info');
+            showToast(note.isPinned ? '已置顶' : '已取消置顶');
         }
 
-        function toggleTrashNote(id) {
-            const note = State.notes.find(n => n.id === id);
+        function moveToTrash(noteId) {
+            const note = State.notes.find(n => n.id === noteId);
             if (!note) return;
-
             note.isTrashed = !note.isTrashed;
-            saveNotesToStorage();
-
-            if (State.activeNoteId === id) {
-                const remaining = getFilteredNotes();
-                State.activeNoteId = remaining.length > 0 ? remaining[0].id : null;
+            if (note.isTrashed) {
+                closeTab(noteId);
             }
-
+            saveIndex();
             renderApp();
-            showToast(note.isTrashed ? '已移入回收站' : '已恢复笔记', 'info');
+            showToast(note.isTrashed ? '已移入废纸篓' : '已恢复');
         }
 
-        function permanentlyDeleteNote(id) {
-            State.notes = State.notes.filter(n => n.id !== id);
-            saveNotesToStorage();
-
-            if (State.activeNoteId === id) {
-                const remaining = getFilteredNotes();
-                State.activeNoteId = remaining.length > 0 ? remaining[0].id : null;
+        function deleteNoteFile(noteId) {
+            try {
+                const notePath = path.join(NOTES_DIR, `${noteId}.md`);
+                if (fs.existsSync(notePath)) {
+                    fs.unlinkSync(notePath);
+                }
+            } catch (err) {
+                console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
             }
-
-            renderApp();
-            showToast('已彻底删除笔记', 'warning');
         }
 
-        function emptyTrash() {
-            if (confirm('确定要彻底清空废纸篓中的所有笔记吗？此操作无法撤销。')) {
+        function permanentlyDelete(noteId) {
+            deleteNoteFile(noteId);
+            State.notes = State.notes.filter(n => n.id !== noteId);
+            closeTab(noteId);
+            saveIndex();
+            renderApp();
+            showToast('已彻底删除');
+        }
+
+        function clearTrash() {
+            if (confirm('确认清空废纸篓吗？此操作无法撤销。')) {
+                State.notes.filter(n => n.isTrashed).forEach(n => deleteNoteFile(n.id));
                 State.notes = State.notes.filter(n => !n.isTrashed);
-                saveNotesToStorage();
+                saveIndex();
                 renderApp();
-                showToast('已清空废纸篓', 'info');
+                showToast('已清空废纸篓');
             }
         }
 
-        // --- Filtering and Sorting ---
+        // Filtering
         function getFilteredNotes() {
             return State.notes.filter(note => {
-                // Filter Categories
                 if (State.currentFilter === 'trash') {
                     if (!note.isTrashed) return false;
                 } else {
                     if (note.isTrashed) return false;
-
                     if (State.currentFilter === 'pinned' && !note.isPinned) return false;
                     if (State.currentFilter.startsWith('folder:')) {
-                        const targetFolder = State.currentFilter.replace('folder:', '');
-                        if (note.folder !== targetFolder) return false;
+                        const folder = State.currentFilter.replace('folder:', '');
+                        if (note.folder !== folder) return false;
                     }
                     if (State.currentFilter.startsWith('tag:')) {
-                        const targetTag = State.currentFilter.replace('tag:', '');
-                        if (!note.tags || !note.tags.includes(targetTag)) return false;
+                        const tag = State.currentFilter.replace('tag:', '');
+                        if (!note.tags || !note.tags.includes(tag)) return false;
                     }
                 }
 
-                // Text Search Query
-                if (State.searchQuery.trim() !== '') {
+                if (State.searchQuery.trim()) {
                     const q = State.searchQuery.toLowerCase();
-                    const titleMatch = (note.title || '').toLowerCase().includes(q);
-                    const contentMatch = (note.content || '').toLowerCase().includes(q);
-                    return titleMatch || contentMatch;
+                    return (note.title || '').toLowerCase().includes(q) || (note.content || '').toLowerCase().includes(q);
                 }
-
                 return true;
             }).sort((a, b) => {
-                // Pinned notes priority
                 if (State.currentFilter !== 'trash') {
                     if (a.isPinned && !b.isPinned) return -1;
                     if (!a.isPinned && b.isPinned) return 1;
                 }
-
                 if (State.sortBy === 'updated-desc') return b.updatedAt - a.updatedAt;
                 if (State.sortBy === 'created-desc') return b.createdAt - a.createdAt;
                 if (State.sortBy === 'title-asc') return (a.title || '未命名').localeCompare(b.title || '未命名', 'zh-CN');
@@ -734,665 +2052,729 @@ console.log("Welcome to Esprin Nemo");
             });
         }
 
-        // --- Rendering Core UI ---
+        // UI Rendering
         function renderApp() {
-            renderNavCounts();
-            renderFolderList();
-            renderTagCloud();
+            renderCounts();
+            renderFolders();
+            renderTags();
+            renderTabs();
             renderNotesList();
             renderWorkspace();
         }
 
-        function renderNavCounts() {
+        function renderCounts() {
             const activeNotes = State.notes.filter(n => !n.isTrashed);
-            DOM.cntAll.textContent = activeNotes.length;
-            DOM.cntPinned.textContent = activeNotes.filter(n => n.isPinned).length;
-            DOM.cntTrash.textContent = State.notes.filter(n => n.isTrashed).length;
-            DOM.sidebarFooterStat.textContent = `共 ${activeNotes.length} 篇笔记`;
+            document.getElementById('count-all').textContent = activeNotes.length;
+            document.getElementById('count-pinned').textContent = activeNotes.filter(n => n.isPinned).length;
+            document.getElementById('count-trash').textContent = State.notes.filter(n => n.isTrashed).length;
+            document.getElementById('sidebar-stat').textContent = `共 ${activeNotes.length} 篇笔记`;
 
-            // Active nav button highlights
-            document.querySelectorAll('.nav-filter-btn').forEach(btn => {
-                const filter = btn.getAttribute('data-filter');
-                if (filter === State.currentFilter) {
-                    btn.classList.add('bg-mono-200', 'dark:bg-mono-800', 'text-mono-900', 'dark:text-mono-100');
-                } else {
-                    btn.classList.remove('bg-mono-200', 'dark:bg-mono-800', 'text-mono-900', 'dark:text-mono-100');
-                }
+            document.querySelectorAll('.sidebar .nav-item').forEach(el => {
+                const f = el.getAttribute('data-filter');
+                if (f === State.currentFilter) el.classList.add('active');
+                else el.classList.remove('active');
             });
 
+            const clearBtn = document.getElementById('btn-empty-trash');
             if (State.currentFilter === 'trash') {
-                DOM.btnEmptyTrashSidebar.classList.remove('hidden');
-                DOM.panelTitleLabel.textContent = '废纸篓';
+                clearBtn.classList.remove('hidden');
+                document.getElementById('panel-category-title').textContent = '废纸篓';
             } else {
-                DOM.btnEmptyTrashSidebar.classList.add('hidden');
-                if (State.currentFilter === 'all') DOM.panelTitleLabel.textContent = '全部笔记';
-                else if (State.currentFilter === 'pinned') DOM.panelTitleLabel.textContent = '已置顶笔记';
-                else if (State.currentFilter.startsWith('folder:')) DOM.panelTitleLabel.textContent = '目录: ' + State.currentFilter.replace('folder:', '');
-                else if (State.currentFilter.startsWith('tag:')) DOM.panelTitleLabel.textContent = '标签: #' + State.currentFilter.replace('tag:', '');
+                clearBtn.classList.add('hidden');
+                if (State.currentFilter === 'all') document.getElementById('panel-category-title').textContent = '全部笔记';
+                else if (State.currentFilter === 'pinned') document.getElementById('panel-category-title').textContent = '已置顶';
+                else if (State.currentFilter.startsWith('folder:')) document.getElementById('panel-category-title').textContent = State.currentFilter.replace('folder:', '');
+                else if (State.currentFilter.startsWith('tag:')) document.getElementById('panel-category-title').textContent = '#' + State.currentFilter.replace('tag:', '');
             }
         }
 
-        function renderFolderList() {
-            DOM.folderList.innerHTML = '';
+        function renderFolders() {
+            const container = document.getElementById('sidebar-folder-list');
+            container.innerHTML = '';
+
             State.folders.forEach(folder => {
                 const isSelected = State.currentFilter === `folder:${folder}`;
-                const div = document.createElement('div');
-                div.className = `group flex items-center justify-between px-2 py-1 rounded-nemo text-xs cursor-pointer transition-fast ${
-                    isSelected 
-                        ? 'bg-mono-200 dark:bg-mono-800 text-mono-900 dark:text-mono-100 font-medium' 
-                        : 'text-mono-600 dark:text-mono-400 hover:bg-mono-200/50 dark:hover:bg-mono-800/50'
-                }`;
-
-                div.innerHTML = `
-                    <div class="flex items-center space-x-2 truncate">
-                        <i class="fa-regular fa-folder text-mono-400 text-[11px]"></i>
-                        <span class="truncate">${escapeHTML(folder)}</span>
+                const item = document.createElement('div');
+                item.className = `nav-item folder-item ${isSelected ? 'active' : ''}`;
+                item.innerHTML = `
+                    <div class="nav-item-left">
+                        <span class="ms-icon sm">folder</span>
+                        <span>${escapeHTML(folder)}</span>
                     </div>
                     ${folder !== '默认' ? `
-                        <button class="btn-del-folder text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 opacity-0 group-hover:opacity-100 p-0.5" data-folder="${escapeHTML(folder)}" title="删除文件夹">
-                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                        <button class="btn-del-folder" title="删除文件夹">
+                            <span class="ms-icon xs">close</span>
                         </button>
                     ` : ''}
                 `;
 
-                div.addEventListener('click', (e) => {
+                item.addEventListener('click', (e) => {
                     if (e.target.closest('.btn-del-folder')) return;
                     State.currentFilter = `folder:${folder}`;
                     renderApp();
                 });
 
-                DOM.folderList.appendChild(div);
-            });
+                const delBtn = item.querySelector('.btn-del-folder');
+                if (delBtn) {
+                    delBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (confirm(`删除文件夹 "${folder}"？其中的笔记将移入"默认"`)) {
+                            State.folders = State.folders.filter(f => f !== folder);
+                            State.notes.forEach(n => {
+                                if (n.folder === folder) n.folder = '默认';
+                            });
+                            if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
+                            saveData();
+                            renderApp();
+                        }
+                    });
+                }
 
-            // Bind delete folder event
-            document.querySelectorAll('.btn-del-folder').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const folderName = btn.getAttribute('data-folder');
-                    if (confirm(`确定删除文件夹 "${folderName}" 吗？其内部笔记将移动至"默认"目录。`)) {
-                        State.folders = State.folders.filter(f => f !== folderName);
-                        State.notes.forEach(n => {
-                            if (n.folder === folderName) n.folder = '默认';
-                        });
-                        saveFoldersToStorage();
-                        saveNotesToStorage();
-                        if (State.currentFilter === `folder:${folderName}`) State.currentFilter = 'all';
-                        renderApp();
-                    }
-                });
+                container.appendChild(item);
             });
         }
 
-        function renderTagCloud() {
-            DOM.tagCloud.innerHTML = '';
+        function renderTags() {
+            const container = document.getElementById('sidebar-tag-list');
+            container.innerHTML = '';
+
             const tagSet = new Set();
             State.notes.filter(n => !n.isTrashed).forEach(n => {
                 if (n.tags) n.tags.forEach(t => tagSet.add(t));
             });
 
             if (tagSet.size === 0) {
-                DOM.tagCloud.innerHTML = `<span class="text-[11px] text-mono-400 italic px-1">无关联标签</span>`;
+                container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); padding: 4px;">无标签</span>`;
                 return;
             }
 
             tagSet.forEach(tag => {
                 const isSelected = State.currentFilter === `tag:${tag}`;
-                const span = document.createElement('span');
-                span.className = `px-2 py-0.5 text-[11px] rounded border transition-fast cursor-pointer ${
-                    isSelected 
-                        ? 'bg-mono-900 dark:bg-mono-100 text-white dark:text-mono-950 border-mono-900 dark:border-mono-100 font-medium' 
-                        : 'border-mono-200 dark:border-mono-800 text-mono-600 dark:text-mono-400 hover:border-mono-400'
-                }`;
-                span.textContent = `#${tag}`;
-                span.addEventListener('click', () => {
+                const pill = document.createElement('span');
+                pill.className = `tag-pill ${isSelected ? 'active' : ''}`;
+                pill.textContent = `#${tag}`;
+                pill.addEventListener('click', () => {
                     State.currentFilter = isSelected ? 'all' : `tag:${tag}`;
                     renderApp();
                 });
-                DOM.tagCloud.appendChild(span);
+                container.appendChild(pill);
+            });
+        }
+
+        // Titlebar Tabs (Extends up to the new note button, mouse wheel over container scrolls horizontally)
+        function renderTabs() {
+            const tabsContainer = document.getElementById('titlebar-tabs');
+            tabsContainer.innerHTML = '';
+
+            State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || State.notes.some(n => n.id === id));
+
+            tabsContainer.onwheel = (e) => {
+                if (tabsContainer.scrollWidth > tabsContainer.clientWidth) {
+                    e.preventDefault();
+                    tabsContainer.scrollLeft += e.deltaY !== 0 ? e.deltaY : e.deltaX;
+                }
+            };
+
+            State.openNoteIds.forEach(id => {
+                const isActive = id === State.activeNoteId;
+                const tab = document.createElement('div');
+                tab.className = `tab-item ${isActive ? 'active' : ''}`;
+
+                if (id === 'settings') {
+                    tab.innerHTML = `
+                        <span class="ms-icon xs" style="opacity: 0.7;">settings</span>
+                        <span class="tab-title">设置</span>
+                        <button class="tab-close-btn" title="关闭设置">
+                            <span class="ms-icon xs">close</span>
+                        </button>
+                    `;
+                } else {
+                    const note = State.notes.find(n => n.id === id);
+                    if (!note) return;
+                    tab.innerHTML = `
+                        <span class="ms-icon xs" style="opacity: 0.7;">description</span>
+                        <span class="tab-title">${escapeHTML(note.title || '未命名笔记')}</span>
+                        <button class="tab-close-btn" title="关闭标签">
+                            <span class="ms-icon xs">close</span>
+                        </button>
+                    `;
+                }
+
+                tab.addEventListener('click', (e) => {
+                    if (e.target.closest('.tab-close-btn')) return;
+                    State.activeNoteId = id;
+                    renderApp();
+                });
+
+                tab.querySelector('.tab-close-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeTab(id);
+                    renderApp();
+                });
+
+                tabsContainer.appendChild(tab);
             });
         }
 
         function renderNotesList() {
-            const filtered = getFilteredNotes();
-            DOM.notesListContainer.innerHTML = '';
+            const container = document.getElementById('notes-list-box');
+            container.innerHTML = '';
+            const list = getFilteredNotes();
 
-            if (filtered.length === 0) {
-                DOM.notesListContainer.innerHTML = `
-                    <div class="text-center py-12 px-4 text-mono-400">
-                        <i class="fa-regular fa-note-sticky text-xl mb-1.5 opacity-60"></i>
-                        <p class="text-xs">无匹配笔记</p>
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 32px 10px; color: var(--text-muted); font-size: 12px;">
+                        无匹配笔记
                     </div>
                 `;
                 return;
             }
 
-            filtered.forEach(note => {
-                const isActive = note.id === State.activeNoteId;
+            list.forEach(note => {
                 const card = document.createElement('div');
-                card.className = `p-2.5 rounded-nemo cursor-pointer transition-fast border ${
-                    isActive 
-                        ? 'bg-mono-100 dark:bg-mono-800/90 border-mono-300 dark:border-mono-700 shadow-subtle' 
-                        : 'bg-white dark:bg-mono-900 border-mono-200/60 dark:border-mono-850 hover:border-mono-300 dark:hover:border-mono-800'
-                }`;
-
-                const summary = note.content ? note.content.replace(/[#*`~>-]/g, '').slice(0, 50) : '无附加内容';
-                const dateStr = formatDate(note.updatedAt);
-
+                const isActive = note.id === State.activeNoteId;
+                card.className = `note-card ${isActive ? 'active' : ''}`;
                 card.innerHTML = `
-                    <div class="flex items-start justify-between gap-1 mb-1">
-                        <h4 class="text-xs font-semibold text-mono-900 dark:text-mono-100 truncate flex-1">
-                            ${note.isPinned ? '<i class="fa-solid fa-thumbtack text-[10px] mr-1 text-mono-500"></i>' : ''}
-                            ${escapeHTML(note.title) || '未命名笔记'}
-                        </h4>
+                    <div class="note-card-title">
+                        <span>${escapeHTML(note.title || '未命名笔记')}</span>
+                        ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
                     </div>
-                    <p class="text-[11px] text-mono-500 dark:text-mono-400 line-clamp-2 leading-relaxed mb-1.5 font-normal">
-                        ${escapeHTML(summary)}
-                    </p>
-                    <div class="flex items-center justify-between text-[10px] text-mono-400 font-mono">
-                        <span>${dateStr}</span>
-                        <div class="flex items-center space-x-1">
-                            <span class="bg-mono-100 dark:bg-mono-800 px-1.5 py-0.2 rounded text-[10px] text-mono-500">${escapeHTML(note.folder)}</span>
-                            ${note.isTrashed ? `
-                                <button class="btn-restore hover:text-mono-900 dark:hover:text-mono-100 p-0.5" title="恢复" data-id="${note.id}">
-                                    <i class="fa-solid fa-rotate-left"></i>
-                                </button>
-                                <button class="btn-perm-del hover:text-mono-900 dark:hover:text-mono-100 p-0.5" title="彻底删除" data-id="${note.id}">
-                                    <i class="fa-solid fa-xmark"></i>
-                                </button>
-                            ` : ''}
-                        </div>
+                    <div class="note-card-preview">${escapeHTML(note.content || '暂无内容')}</div>
+                    <div class="note-card-footer">
+                        <span>${formatDate(note.updatedAt)}</span>
+                        <span class="note-card-folder">${escapeHTML(note.folder)}</span>
                     </div>
                 `;
 
-                card.addEventListener('click', (e) => {
-                    if (e.target.closest('.btn-restore') || e.target.closest('.btn-perm-del')) return;
-                    State.activeNoteId = note.id;
+                card.addEventListener('click', () => {
+                    openTab(note.id);
                     renderApp();
                 });
 
-                DOM.notesListContainer.appendChild(card);
-            });
-
-            // Trash action listeners
-            document.querySelectorAll('.btn-restore').forEach(b => {
-                b.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    toggleTrashNote(b.getAttribute('data-id'));
+                card.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showContextMenu(e.clientX, e.clientY, note.id);
                 });
-            });
 
-            document.querySelectorAll('.btn-perm-del').forEach(b => {
-                b.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    permanentlyDeleteNote(b.getAttribute('data-id'));
-                });
+                container.appendChild(card);
             });
         }
 
         function renderWorkspace() {
-            const note = getActiveNote();
+            const settingsView = document.getElementById('settings-view');
+            const sidebar = document.querySelector('.sidebar');
+            const notesPanel = document.querySelector('.notes-panel');
+            const workspace = document.getElementById('workspace-box');
+            const emptyState = document.getElementById('empty-state');
+            const topbar = document.getElementById('editor-topbar');
+            const toolbar = document.getElementById('editor-toolbar');
+            const titleArea = document.querySelector('.editor-title-area');
+            const contentArea = document.querySelector('.editor-content-area');
+            const footer = document.querySelector('.editor-footer');
 
-            if (!note) {
-                DOM.emptyState.classList.remove('hidden');
+            // 1. 如果当前选中的是设置标签
+            if (State.activeNoteId === 'settings') {
+                if (sidebar) sidebar.classList.add('hidden');
+                if (notesPanel) notesPanel.classList.add('hidden');
+                if (workspace) workspace.classList.add('hidden');
+                if (settingsView) settingsView.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                topbar.classList.add('hidden');
+                toolbar.classList.add('hidden');
+                titleArea.classList.add('hidden');
+                contentArea.classList.add('hidden');
+                footer.classList.add('hidden');
+
+                const spellcheckToggle = document.getElementById('setting-spellcheck');
+                if (spellcheckToggle) {
+                    spellcheckToggle.checked = !!State.spellcheck;
+                }
                 return;
             }
 
-            DOM.emptyState.classList.add('hidden');
+            if (sidebar) sidebar.classList.remove('hidden');
+            if (notesPanel) notesPanel.classList.remove('hidden');
+            if (workspace) workspace.classList.remove('hidden');
+            if (settingsView) settingsView.classList.add('hidden');
 
-            // Synchronize Input Fields
-            if (DOM.noteTitleInput.value !== note.title && document.activeElement !== DOM.noteTitleInput) {
-                DOM.noteTitleInput.value = note.title;
-            }
-            if (DOM.noteContentInput.value !== note.content && document.activeElement !== DOM.noteContentInput) {
-                DOM.noteContentInput.value = note.content;
-            }
+            const note = getActiveNote();
 
-            // Pin State Icon
-            if (note.isPinned) {
-                DOM.btnActionPin.classList.add('text-mono-900', 'dark:text-mono-100');
-                DOM.btnActionPin.classList.remove('text-mono-400');
-            } else {
-                DOM.btnActionPin.classList.remove('text-mono-900', 'dark:text-mono-100');
-                DOM.btnActionPin.classList.add('text-mono-400');
+            if (!note) {
+                emptyState.classList.remove('hidden');
+                topbar.classList.add('hidden');
+                toolbar.classList.add('hidden');
+                titleArea.classList.add('hidden');
+                contentArea.classList.add('hidden');
+                footer.classList.add('hidden');
+                return;
             }
 
-            // Folder Select Options
-            DOM.editorFolderSelect.innerHTML = '';
+            emptyState.classList.add('hidden');
+            topbar.classList.remove('hidden');
+            toolbar.classList.remove('hidden');
+            titleArea.classList.remove('hidden');
+            contentArea.classList.remove('hidden');
+            footer.classList.remove('hidden');
+
+            const titleInput = document.getElementById('input-note-title');
+            const contentAreaInput = document.getElementById('textarea-note-content');
+
+            if (document.activeElement !== titleInput) {
+                titleInput.value = note.title || '';
+            }
+            if (document.activeElement !== contentAreaInput) {
+                contentAreaInput.value = note.content || '';
+            }
+
+            const folderSelect = document.getElementById('editor-folder-select');
+            folderSelect.innerHTML = '';
             State.folders.forEach(f => {
                 const opt = document.createElement('option');
                 opt.value = f;
                 opt.textContent = f;
                 if (f === note.folder) opt.selected = true;
-                DOM.editorFolderSelect.appendChild(opt);
+                folderSelect.appendChild(opt);
             });
 
-            // Tags List
-            DOM.editorTagsList.innerHTML = '';
+            const tagsContainer = document.getElementById('editor-tags-container');
+            tagsContainer.innerHTML = '';
             if (note.tags) {
                 note.tags.forEach(tag => {
-                    const tagEl = document.createElement('span');
-                    tagEl.className = 'inline-flex items-center space-x-1 text-[11px] bg-mono-100 dark:bg-mono-800 text-mono-700 dark:text-mono-300 px-1.5 py-0.5 rounded border border-mono-200/60 dark:border-mono-700/60';
-                    tagEl.innerHTML = `
+                    const chip = document.createElement('span');
+                    chip.className = 'editor-tag-chip';
+                    chip.innerHTML = `
                         <span>#${escapeHTML(tag)}</span>
-                        <button class="btn-remove-tag hover:text-mono-900 dark:hover:text-mono-100 ml-1 text-[10px]" data-tag="${escapeHTML(tag)}">&times;</button>
+                        <button title="移除标签"><span class="ms-icon xs">close</span></button>
                     `;
-                    DOM.editorTagsList.appendChild(tagEl);
+                    chip.querySelector('button').onclick = () => {
+                        note.tags = note.tags.filter(t => t !== tag);
+                        saveIndex();
+                        renderApp();
+                    };
+                    tagsContainer.appendChild(chip);
                 });
             }
 
-            // Remove tag listener
-            document.querySelectorAll('.btn-remove-tag').forEach(b => {
-                b.addEventListener('click', () => {
-                    const t = b.getAttribute('data-tag');
-                    note.tags = note.tags.filter(item => item !== t);
-                    saveNotesToStorage();
-                    renderApp();
-                });
-            });
+            const pinBtn = document.getElementById('btn-note-pin');
+            if (note.isPinned) {
+                pinBtn.querySelector('.ms-icon').classList.add('fill');
+                pinBtn.style.color = 'var(--accent)';
+            } else {
+                pinBtn.querySelector('.ms-icon').classList.remove('fill');
+                pinBtn.style.color = 'var(--text-secondary)';
+            }
 
             renderMarkdown();
-            updateFooterStats();
+            updateStats();
             updateViewModeUI();
         }
 
-        // --- Markdown Engine ---
         function renderMarkdown() {
             const note = getActiveNote();
             if (!note) return;
+            const container = document.getElementById('preview-content');
+            container.innerHTML = marked.parse(note.content || '*空内容*');
 
-            const html = marked.parse(note.content || '*空笔记*');
-            DOM.markdownPreview.innerHTML = html;
-
-            // Add Copy Buttons to Code Blocks
-            DOM.markdownPreview.querySelectorAll('pre').forEach(pre => {
-                if (pre.querySelector('.code-copy-btn')) return;
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'code-copy-btn';
-                copyBtn.textContent = '复制';
-                copyBtn.addEventListener('click', () => {
-                    const codeText = pre.querySelector('code')?.innerText || pre.innerText;
-                    navigator.clipboard.writeText(codeText).then(() => {
-                        copyBtn.textContent = '已复制!';
-                        setTimeout(() => copyBtn.textContent = '复制', 1500);
-                    });
-                });
-                pre.appendChild(copyBtn);
-            });
-
-            // Interactive Task Checkboxes
-            DOM.markdownPreview.querySelectorAll('input[type="checkbox"]').forEach((checkbox, index) => {
-                checkbox.removeAttribute('disabled');
-                checkbox.addEventListener('change', () => {
-                    let taskIndex = 0;
-                    const updatedContent = note.content.replace(/(- \[ ]|- \[x])/gi, (match) => {
-                        if (taskIndex === index) {
-                            taskIndex++;
-                            return checkbox.checked ? '- [x]' : '- [ ]';
+            container.querySelectorAll('input[type="checkbox"]').forEach((cb, idx) => {
+                cb.removeAttribute('disabled');
+                cb.onchange = () => {
+                    let curIdx = 0;
+                    note.content = note.content.replace(/(- \[ ]|- \[x])/gi, (match) => {
+                        if (curIdx === idx) {
+                            curIdx++;
+                            return cb.checked ? '- [x]' : '- [ ]';
                         }
-                        taskIndex++;
+                        curIdx++;
                         return match;
                     });
-                    note.content = updatedContent;
-                    DOM.noteContentInput.value = updatedContent;
-                    handleAutoSave();
-                });
+                    document.getElementById('textarea-note-content').value = note.content;
+                    autoSaveNote();
+                };
             });
         }
 
-        function updateFooterStats() {
+        function updateStats() {
             const note = getActiveNote();
             if (!note) return;
-
             const text = note.content || '';
-            const chars = text.length;
-            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-            const readTime = Math.max(1, Math.ceil(words / 200));
-
-            DOM.statChars.textContent = `字符: ${chars}`;
-            DOM.statWords.textContent = `词数: ${words}`;
-            DOM.statReadtime.textContent = `预计阅读: ${readTime}分`;
-            DOM.statLastEdited.textContent = `修改于 ${formatDate(note.updatedAt)}`;
-        }
-
-        function updateSaveIndicator(status) {
-            if (status === 'saving') {
-                DOM.saveStatusIndicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-mono-400 animate-ping"></span><span>保存中...</span>`;
-            } else if (status === 'saved') {
-                DOM.saveStatusIndicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-mono-700 dark:bg-mono-300"></span><span>已保存</span>`;
-            }
+            document.getElementById('stat-char-count').textContent = `字符: ${text.length}`;
+            document.getElementById('stat-word-count').textContent = `字数: ${text.trim() ? text.trim().split(/\s+/).length : 0}`;
+            document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(note.updatedAt)}`;
         }
 
         function updateViewModeUI() {
-            const m = State.viewMode;
-            [DOM.modeEdit, DOM.modeSplit, DOM.modePreview].forEach(b => {
-                b.classList.remove('bg-white', 'dark:bg-mono-700', 'text-mono-900', 'dark:text-mono-100', 'shadow-subtle');
-                b.classList.add('text-mono-500');
-            });
+            const editPane = document.getElementById('editor-pane');
+            const previewPane = document.getElementById('preview-pane');
 
-            if (m === 'edit') {
-                DOM.modeEdit.classList.add('bg-white', 'dark:bg-mono-700', 'text-mono-900', 'dark:text-mono-100', 'shadow-subtle');
-                DOM.editorBox.classList.remove('hidden');
-                DOM.previewBox.classList.add('hidden');
-            } else if (m === 'split') {
-                DOM.modeSplit.classList.add('bg-white', 'dark:bg-mono-700', 'text-mono-900', 'dark:text-mono-100', 'shadow-subtle');
-                DOM.editorBox.classList.remove('hidden');
-                DOM.previewBox.classList.remove('hidden');
-            } else if (m === 'preview') {
-                DOM.modePreview.classList.add('bg-white', 'dark:bg-mono-700', 'text-mono-900', 'dark:text-mono-100', 'shadow-subtle');
-                DOM.editorBox.classList.add('hidden');
-                DOM.previewBox.classList.remove('hidden');
+            document.getElementById('btn-mode-edit').classList.toggle('active', State.viewMode === 'edit');
+            document.getElementById('btn-mode-split').classList.toggle('active', State.viewMode === 'split');
+            document.getElementById('btn-mode-preview').classList.toggle('active', State.viewMode === 'preview');
+
+            if (State.viewMode === 'edit') {
+                editPane.classList.remove('hidden');
+                previewPane.classList.add('hidden');
+            } else if (State.viewMode === 'split') {
+                editPane.classList.remove('hidden');
+                previewPane.classList.remove('hidden');
+            } else {
+                editPane.classList.add('hidden');
+                previewPane.classList.remove('hidden');
             }
         }
 
-        // --- Formatting Insertion ---
-        function insertFormatting(type) {
-            const textarea = DOM.noteContentInput;
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const text = textarea.value;
-            const sel = text.substring(start, end);
-
-            let sub = '';
-            switch (type) {
-                case 'bold': sub = `**${sel || '粗体文本'}**`; break;
-                case 'italic': sub = `*${sel || '斜体文本'}*`; break;
-                case 'h1': sub = `# ${sel || '一级标题'}`; break;
-                case 'h2': sub = `## ${sel || '二级标题'}`; break;
-                case 'h3': sub = `### ${sel || '三级标题'}`; break;
-                case 'ul': sub = `- ${sel || '列表项'}`; break;
-                case 'ol': sub = `1. ${sel || '列表项'}`; break;
-                case 'task': sub = `- [ ] ${sel || '待办任务'}`; break;
-                case 'quote': sub = `> ${sel || '引用块'}`; break;
-                case 'code': sub = `\`\`\`javascript\n${sel || '// 代码块'}\n\`\`\``; break;
-                case 'link': sub = `[${sel || '链接说明'}](https://)`; break;
-                case 'hr': sub = `\n---\n`; break;
+        // Note Context Menu
+        let contextNoteId = null;
+        function showContextMenu(x, y, noteId) {
+            contextNoteId = noteId;
+            const note = State.notes.find(n => n.id === noteId);
+            const menu = document.getElementById('note-context-menu');
+            
+            // 动态更新置顶选项文案与图标
+            const pinText = document.getElementById('context-menu-pin-text');
+            const pinIcon = document.getElementById('context-menu-pin-icon');
+            if (note && note.isPinned) {
+                pinText.textContent = '取消置顶';
+                pinIcon.textContent = 'keep_off';
+            } else {
+                pinText.textContent = '置顶笔记';
+                pinIcon.textContent = 'push_pin';
             }
 
-            textarea.value = text.substring(0, start) + sub + text.substring(end);
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+            menu.classList.remove('hidden');
+        }
+
+        function hideContextMenu() {
+            document.getElementById('note-context-menu').classList.add('hidden');
+        }
+
+        document.getElementById('note-context-menu').onclick = (e) => {
+            const item = e.target.closest('[data-action]');
+            if (!item || !contextNoteId) return;
+            const action = item.getAttribute('data-action');
+            if (action === 'open') {
+                openTab(contextNoteId);
+                renderApp();
+            } else if (action === 'pin') {
+                togglePin(contextNoteId);
+            } else if (action === 'delete') {
+                moveToTrash(contextNoteId);
+            }
+            hideContextMenu();
+        };
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('#note-context-menu')) hideContextMenu();
+        });
+
+        // Markdown Formatter Shortcuts
+        function formatMarkdown(type) {
+            const textarea = document.getElementById('textarea-note-content');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const sel = textarea.value.substring(start, end);
+            let ins = '';
+
+            switch (type) {
+                case 'bold': ins = `**${sel || '加粗文本'}**`; break;
+                case 'italic': ins = `*${sel || '斜体文本'}*`; break;
+                case 'h1': ins = `# ${sel || '一级标题'}`; break;
+                case 'h2': ins = `## ${sel || '二级标题'}`; break;
+                case 'h3': ins = `### ${sel || '三级标题'}`; break;
+                case 'ul': ins = `- ${sel || '列表项目'}`; break;
+                case 'ol': ins = `1. ${sel || '列表项目'}`; break;
+                case 'task': ins = `- [ ] ${sel || '待办项'}`; break;
+                case 'quote': ins = `> ${sel || '引用内容'}`; break;
+                case 'code': ins = `\`\`\`javascript\n${sel || '// 代码块'}\n\`\`\``; break;
+                case 'hr': ins = `\n---\n`; break;
+            }
+
+            textarea.value = textarea.value.substring(0, start) + ins + textarea.value.substring(end);
             textarea.focus();
-            
-            handleAutoSave();
+            autoSaveNote();
             renderMarkdown();
         }
 
-        // --- Event Listener Registration ---
-        function setupEventListeners() {
-            // New Note Clicks
-            DOM.btnTopNew.addEventListener('click', createNewNote);
-            DOM.btnEmptyCreate.addEventListener('click', createNewNote);
-
-            // Inputs Sync
-            DOM.noteTitleInput.addEventListener('input', handleAutoSave);
-            DOM.noteContentInput.addEventListener('input', () => {
-                handleAutoSave();
-                renderMarkdown();
-            });
-
-            // Folder Assignment
-            DOM.editorFolderSelect.addEventListener('change', (e) => {
-                const note = getActiveNote();
-                if (note) {
-                    note.folder = e.target.value;
-                    saveNotesToStorage();
-                    renderApp();
-                }
-            });
-
-            // Action Buttons
-            DOM.btnActionPin.addEventListener('click', () => {
-                if (State.activeNoteId) togglePinNote(State.activeNoteId);
-            });
-
-            DOM.btnActionTrash.addEventListener('click', () => {
-                if (State.activeNoteId) toggleTrashNote(State.activeNoteId);
-            });
-
-            DOM.btnEmptyTrashSidebar.addEventListener('click', emptyTrash);
-
-            // Export Single Markdown File
-            DOM.btnActionExportMd.addEventListener('click', () => {
-                const note = getActiveNote();
-                if (!note) return;
-                const blob = new Blob([note.content], { type: 'text/markdown;charset=utf-8' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${note.title || 'Untitled'}.md`;
-                a.click();
-                URL.revokeObjectURL(url);
-                showToast('已导出 Markdown 文件', 'info');
-            });
-
-            // Export Full JSON Backup
-            DOM.btnExportBackup.addEventListener('click', () => {
-                const data = {
-                    app: 'Esprin Nemo',
-                    version: '2.0',
-                    exportedAt: new Date().toISOString(),
-                    notes: State.notes,
-                    folders: State.folders
-                };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `esprin_nemo_backup_${new Date().toISOString().slice(0, 10)}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-                showToast('已完成全量 JSON 备份', 'info');
-            });
-
-            // Import JSON Backup
-            DOM.inputImportBackup.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    try {
-                        const parsed = JSON.parse(evt.target.result);
-                        if (parsed && Array.isArray(parsed.notes)) {
-                            State.notes = parsed.notes;
-                            if (Array.isArray(parsed.folders)) State.folders = parsed.folders;
-                            saveNotesToStorage();
-                            saveFoldersToStorage();
-                            State.activeNoteId = State.notes.length > 0 ? State.notes[0].id : null;
-                            renderApp();
-                            showToast('备份导入成功！', 'info');
-                        } else {
-                            showToast('解析失败：无效的备份格式', 'warning');
-                        }
-                    } catch (err) {
-                        showToast('导入失败，文件非有效 JSON', 'warning');
-                    }
-                };
-                reader.readAsText(file);
-                e.target.value = '';
-            });
-
-            // View Modes Switch
-            DOM.modeEdit.addEventListener('click', () => { State.viewMode = 'edit'; updateViewModeUI(); });
-            DOM.modeSplit.addEventListener('click', () => { State.viewMode = 'split'; updateViewModeUI(); });
-            DOM.modePreview.addEventListener('click', () => { State.viewMode = 'preview'; updateViewModeUI(); });
-
-            // Navigation Filter Buttons
-            document.querySelectorAll('.nav-filter-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    State.currentFilter = btn.getAttribute('data-filter');
-                    renderApp();
-                });
-            });
-
-            // Search Bar Filter
-            DOM.searchInput.addEventListener('input', (e) => {
-                State.searchQuery = e.target.value;
-                if (State.searchQuery.trim()) DOM.btnClearSearch.classList.remove('hidden');
-                else DOM.btnClearSearch.classList.add('hidden');
-                renderNotesList();
-            });
-
-            DOM.btnClearSearch.addEventListener('click', () => {
-                DOM.searchInput.value = '';
-                State.searchQuery = '';
-                DOM.btnClearSearch.classList.add('hidden');
-                renderNotesList();
-            });
-
-            // Sort Select
-            DOM.sortSelect.addEventListener('change', (e) => {
-                State.sortBy = e.target.value;
-                renderNotesList();
-            });
-
-            // Formatting Buttons
-            document.querySelectorAll('.fmt-btn').forEach(b => {
-                b.addEventListener('click', () => {
-                    insertFormatting(b.getAttribute('data-fmt'));
-                });
-            });
-
-            // Dark Mode Toggle
-            DOM.btnThemeToggle.addEventListener('click', () => {
-                State.darkMode = !State.darkMode;
-                document.documentElement.classList.toggle('dark', State.darkMode);
-                saveThemeToStorage();
-            });
-
-            // Toggle Sidebar
-            DOM.btnToggleSidebar.addEventListener('click', () => {
-                DOM.sidebar.classList.toggle('-translate-x-full');
-            });
-
-            // Modals - Tag
-            DOM.btnAddTag.addEventListener('click', () => {
-                DOM.inputTagName.value = '';
-                DOM.modalTag.classList.remove('hidden');
-                DOM.inputTagName.focus();
-            });
-            DOM.btnCancelTag.addEventListener('click', () => DOM.modalTag.classList.add('hidden'));
-            DOM.btnConfirmTag.addEventListener('click', () => {
-                const tagVal = DOM.inputTagName.value.trim();
-                const note = getActiveNote();
-                if (tagVal && note) {
-                    if (!note.tags) note.tags = [];
-                    if (!note.tags.includes(tagVal)) {
-                        note.tags.push(tagVal);
-                        saveNotesToStorage();
-                        renderApp();
-                    }
-                }
-                DOM.modalTag.classList.add('hidden');
-            });
-
-            // Modals - Folder
-            DOM.btnAddFolder.addEventListener('click', () => {
-                DOM.inputFolderName.value = '';
-                DOM.modalFolder.classList.remove('hidden');
-                DOM.inputFolderName.focus();
-            });
-            DOM.btnCancelFolder.addEventListener('click', () => DOM.modalFolder.classList.add('hidden'));
-            DOM.btnConfirmFolder.addEventListener('click', () => {
-                const folderVal = DOM.inputFolderName.value.trim();
-                if (folderVal && !State.folders.includes(folderVal)) {
-                    State.folders.push(folderVal);
-                    saveFoldersToStorage();
-                    renderApp();
-                }
-                DOM.modalFolder.classList.add('hidden');
-            });
-
-            // Fullscreen
-            DOM.btnFullscreen.addEventListener('click', () => {
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen().catch(() => showToast('无法启用全屏', 'warning'));
-                } else {
-                    document.exitFullscreen();
-                }
-            });
-
-            // Global Hotkeys
-            window.addEventListener('keydown', (e) => {
-                // Ctrl+S / Cmd+S: Manual Save
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                    e.preventDefault();
-                    handleAutoSave();
-                    showToast('笔记已保存', 'info');
-                }
-                // Ctrl+N / Cmd+N: New Note
-                if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-                    e.preventDefault();
-                    createNewNote();
-                }
-                // Ctrl+Shift+F: Focus Search
-                if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-                    e.preventDefault();
-                    DOM.searchInput.focus();
-                }
-                // Ctrl+P: Toggle Preview Mode
-                if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
-                    e.preventDefault();
-                    State.viewMode = State.viewMode === 'preview' ? 'edit' : 'preview';
-                    updateViewModeUI();
-                }
-            });
-        }
-
-        // --- Toast Notifications ---
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `flex items-center space-x-2 bg-mono-900 dark:bg-mono-100 text-white dark:text-mono-950 px-3 py-2 rounded-nemo shadow-float text-xs font-medium transform translate-y-2 opacity-0 transition-fast pointer-events-auto border border-mono-700 dark:border-mono-200`;
-            
-            let icon = 'fa-circle-info';
-            if (type === 'warning') icon = 'fa-triangle-exclamation';
-            
-            toast.innerHTML = `<i class="fa-solid ${icon}"></i><span>${escapeHTML(message)}</span>`;
-            DOM.toastContainer.appendChild(toast);
-
-            setTimeout(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-            }, 10);
-
-            setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-2');
-                setTimeout(() => toast.remove(), 200);
-            }, 2000);
-        }
-
-        // --- Helper Utilities ---
         function formatDate(timestamp) {
-            const date = new Date(timestamp);
+            const d = new Date(timestamp);
             const now = new Date();
-            const isToday = date.toDateString() === now.toDateString();
-
-            if (isToday) {
-                return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            if (d.toDateString() === now.toDateString()) {
+                return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
             }
-            return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+            return `${d.getMonth() + 1}月${d.getDate()}日`;
         }
 
         function escapeHTML(str) {
             if (!str) return '';
-            return str.replace(/[&<>"']/g, function(m) {
-                return {
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    '"': '&quot;',
-                    "'": '&#039;'
-                }[m];
-            });
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            }[m]));
         }
 
-        // --- Application Bootstrap ---
-        window.onload = function() {
-            loadStateFromStorage();
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const item = document.createElement('div');
+            item.className = 'toast-item';
+            item.innerHTML = `<span class="ms-icon sm">info</span><span>${escapeHTML(msg)}</span>`;
+            container.appendChild(item);
+            setTimeout(() => {
+                item.style.opacity = '0';
+                item.style.transition = 'opacity 0.2s';
+                setTimeout(() => item.remove(), 200);
+            }, 1800);
+        }
 
-            if (State.notes.length > 0 && !State.activeNoteId) {
+        // Global Event Setup
+        function setupEvents() {
+            document.getElementById('btn-new-note').onclick = createNewNote;
+            document.getElementById('btn-empty-new').onclick = createNewNote;
+
+            document.getElementById('input-note-title').oninput = autoSaveNote;
+            document.getElementById('textarea-note-content').oninput = () => {
+                autoSaveNote();
+                renderMarkdown();
+            };
+
+            document.getElementById('editor-folder-select').onchange = (e) => {
+                const note = getActiveNote();
+                if (note) {
+                    note.folder = e.target.value;
+                    saveIndex();
+                    renderApp();
+                }
+            };
+
+            document.getElementById('btn-note-pin').onclick = () => {
+                if (State.activeNoteId) togglePin(State.activeNoteId);
+            };
+            document.getElementById('btn-note-trash').onclick = () => {
+                if (State.activeNoteId) moveToTrash(State.activeNoteId);
+            };
+            document.getElementById('btn-empty-trash').onclick = clearTrash;
+
+            document.getElementById('btn-mode-edit').onclick = () => { State.viewMode = 'edit'; updateViewModeUI(); };
+            document.getElementById('btn-mode-split').onclick = () => { State.viewMode = 'split'; updateViewModeUI(); };
+            document.getElementById('btn-mode-preview').onclick = () => { State.viewMode = 'preview'; updateViewModeUI(); };
+
+            document.getElementById('btn-open-settings').onclick = () => {
+                openSettingsTab();
+            };
+
+            const settingSpellcheck = document.getElementById('setting-spellcheck');
+            if (settingSpellcheck) {
+                settingSpellcheck.onchange = (e) => {
+                    State.spellcheck = e.target.checked;
+                    applySpellcheck();
+                    saveConfig();
+                };
+            }
+
+            document.getElementById('btn-theme-toggle').onclick = () => {
+                // 循环切换：跟随系统 (computer) -> 浅色 (light_mode) -> 深色 (dark_mode) -> 跟随系统
+                if (State.theme === 'system') {
+                    State.theme = 'light';
+                } else if (State.theme === 'light') {
+                    State.theme = 'dark';
+                } else {
+                    State.theme = 'system';
+                }
+                applyTheme();
+                saveConfig();
+            };
+
+            document.getElementById('btn-fullscreen').onclick = () => {
+                winControls.toggleFullscreen();
+            };
+
+            document.getElementById('btn-note-export-md').onclick = () => {
+                const note = getActiveNote();
+                if (!note) return;
+                const blob = new Blob([note.content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${note.title || '无标题'}.md`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('已导出 Markdown');
+            };
+
+            const btnBackupExport = document.getElementById('btn-backup-export');
+            if (btnBackupExport) {
+                btnBackupExport.onclick = () => {
+                    const payload = {
+                        version: '2.0',
+                        exportDate: new Date().toISOString(),
+                        notes: State.notes,
+                        folders: State.folders
+                    };
+                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `esprin_backup_${Date.now()}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showToast('已导出完整备份');
+                };
+            }
+
+            const inputBackupImport = document.getElementById('input-backup-import');
+            if (inputBackupImport) {
+                inputBackupImport.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        try {
+                            const parsed = JSON.parse(evt.target.result);
+                            if (parsed && Array.isArray(parsed.notes)) {
+                                State.notes = parsed.notes;
+                                const customFolders = Array.isArray(parsed.folders) ? parsed.folders.filter(f => f && f !== '默认') : [];
+                                State.folders = ['默认', ...customFolders];
+                                // 将导入的笔记写入各自的 .md 文件与 index.json
+                                State.notes.forEach(note => saveNoteContent(note));
+                                saveIndex();
+                                renderApp();
+                                showToast('备份导入成功');
+                            }
+                        } catch (err) {
+                            showToast('导入失败，文件格式错误');
+                        }
+                    };
+                    reader.readAsText(file);
+                    e.target.value = '';
+                };
+            }
+
+            document.querySelectorAll('.sidebar .nav-item[data-filter]').forEach(item => {
+                item.onclick = () => {
+                    State.currentFilter = item.getAttribute('data-filter');
+                    renderApp();
+                };
+            });
+
+            const searchInput = document.getElementById('input-search');
+            const clearSearchBtn = document.getElementById('btn-search-clear');
+            searchInput.oninput = (e) => {
+                State.searchQuery = e.target.value;
+                clearSearchBtn.classList.toggle('hidden', !State.searchQuery);
+                renderNotesList();
+            };
+            clearSearchBtn.onclick = () => {
+                searchInput.value = '';
+                State.searchQuery = '';
+                clearSearchBtn.classList.add('hidden');
+                renderNotesList();
+            };
+
+            document.getElementById('select-sort').onchange = (e) => {
+                State.sortBy = e.target.value;
+                renderNotesList();
+            };
+
+            document.querySelectorAll('.fmt-btn[data-fmt]').forEach(btn => {
+                btn.onclick = () => formatMarkdown(btn.getAttribute('data-fmt'));
+            });
+
+            const modalFolder = document.getElementById('modal-folder');
+            const inputFolder = document.getElementById('input-folder-name');
+            document.getElementById('btn-add-folder').onclick = () => {
+                inputFolder.value = '';
+                modalFolder.classList.remove('hidden');
+                inputFolder.focus();
+            };
+            document.getElementById('btn-folder-cancel').onclick = () => modalFolder.classList.add('hidden');
+            document.getElementById('btn-folder-confirm').onclick = () => {
+                const name = inputFolder.value.trim();
+                if (name && !State.folders.includes(name)) {
+                    State.folders.push(name);
+                    saveIndex();
+                    renderApp();
+                }
+                modalFolder.classList.add('hidden');
+            };
+
+            const modalTag = document.getElementById('modal-tag');
+            const inputTag = document.getElementById('input-tag-name');
+            document.getElementById('btn-add-tag').onclick = () => {
+                inputTag.value = '';
+                modalTag.classList.remove('hidden');
+                inputTag.focus();
+            };
+            document.getElementById('btn-tag-cancel').onclick = () => modalTag.classList.add('hidden');
+            document.getElementById('btn-tag-confirm').onclick = () => {
+                const tag = inputTag.value.trim();
+                const note = getActiveNote();
+                if (tag && note) {
+                    if (!note.tags) note.tags = [];
+                    if (!note.tags.includes(tag)) {
+                        note.tags.push(tag);
+                        saveIndex();
+                        renderApp();
+                    }
+                }
+                modalTag.classList.add('hidden');
+            };
+
+            window.onkeydown = (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+                    e.preventDefault();
+                    createNewNote();
+                }
+                if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    autoSaveNote();
+                    showToast('已保存');
+                }
+            };
+        }
+
+        // App Boot
+        window.onload = () => {
+            const saved = loadData();
+            State.notes = Array.isArray(saved.notes) ? saved.notes : [];
+            State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
+            State.theme = saved.theme || 'system';
+            State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
+
+            // 启动时自动清理无效索引：仅在确实检测到变更时才写回 index.json，避免每次启动都产生磁盘写入
+            const cleanup = saved.indexCleanup;
+            if (cleanup && (cleanup.removedNotes > 0 || cleanup.repairedNotes > 0 || cleanup.foldersChanged || cleanup.indexCorrupted)) {
+                saveIndex();
+                if (cleanup.removedNotes > 0) {
+                    console.warn(`索引清理：已移除 ${cleanup.removedNotes} 条无效笔记记录`);
+                }
+                if (cleanup.repairedNotes > 0) {
+                    console.warn(`索引清理：已修正 ${cleanup.repairedNotes} 条笔记记录的字段`);
+                }
+                if (cleanup.foldersChanged) {
+                    console.warn('索引清理：已规范化文件夹列表');
+                }
+                if (cleanup.indexCorrupted) {
+                    console.warn('索引清理：index.json 解析失败，已按清理结果重建');
+                }
+            }
+
+            initTheme();
+            applySpellcheck();
+            setupEvents();
+
+            if (State.notes.length > 0) {
+                State.openNoteIds = [State.notes[0].id];
                 State.activeNoteId = State.notes[0].id;
             }
 
-            setupEventListeners();
             renderApp();
+
+            if (cleanup && cleanup.removedNotes > 0) {
+                showToast(`已清理 ${cleanup.removedNotes} 条无效笔记记录`);
+            }
         };
     </script>
 </body>
