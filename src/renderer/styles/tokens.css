@@ -32,6 +32,8 @@
 
     /* 左上角应用名专用颜色（深色模式） */
     --brand: #E6E8F3;
+    /* 应用名实际显示色：默认取品牌色，可在设置页切换为黑/白或跟随主题色 */
+    --brand-fg: var(--brand);
 
     --item-hover: rgba(255, 255, 255, 0.04);
     --item-active: rgba(255, 255, 255, 0.08);
@@ -74,4 +76,16 @@
 
     --item-hover: rgba(0, 0, 0, 0.04);
     --item-active: rgba(0, 0, 0, 0.08);
+}
+
+/* 应用名文字颜色模式：由设置页写入 <html data-brand-color>（brand / mono / accent）。
+   brand 为默认，沿用上面的 --brand；mono 按明暗主题取白或黑；accent 跟随当前主题色。 */
+:root[data-brand-color="mono"] {
+    --brand-fg: #ffffff;
+}
+:root.light[data-brand-color="mono"] {
+    --brand-fg: #000000;
+}
+:root[data-brand-color="accent"] {
+    --brand-fg: var(--accent);
 }

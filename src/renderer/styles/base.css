@@ -110,7 +110,8 @@ input, textarea, select {
     font-family: 'Mohave', var(--font-sans);
     font-size: 16px;
     font-weight: 600;
-    color: var(--brand);
+    /* 实际颜色由设置页的「应用名颜色」决定（见 tokens.css 的 --brand-fg） */
+    color: var(--brand-fg);
     letter-spacing: 0.4px;
     margin-right: 14px;
     padding: 4px 6px;

@@ -6,6 +6,7 @@ const path = require('path');
 
 const DIALOG_THEME_ARG = '--esprin-nemo-dialog-theme=';
 const DIALOG_ACCENT_ARG = '--esprin-nemo-dialog-accent=';
+const DIALOG_BRAND_ARG = '--esprin-nemo-dialog-brand=';
 // 弹窗页面与主窗口同属渲染进程资源，位于 ../renderer/
 const DIALOG_HTML = path.join(__dirname, '..', 'renderer', 'dialog.html');
 
@@ -24,13 +25,16 @@ const entries = new Map(); // webContents.id -> entry
 let resolveTheme = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 // 主题色（#RRGGBB）：空字符串表示沿用 dialog.html 样式表里的默认强调色
 let resolveAccent = () => '';
+// 应用名文字颜色模式：brand / mono / accent，非法值回退为品牌色
+let resolveBrandColor = () => 'brand';
 let iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
 let ipcRegistered = false;
 
 // 由 main.js 注入主题解析与图标路径（主题需要读取用户数据目录中的 config.json）
-function configureDialogWindows({ getTheme, getAccent, icon } = {}) {
+function configureDialogWindows({ getTheme, getAccent, getBrandColor, icon } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
+  if (typeof getBrandColor === 'function') resolveBrandColor = getBrandColor;
   if (typeof icon === 'string' && icon) iconPath = icon;
 }
 
@@ -189,6 +193,13 @@ function showDialogWindow(owner, rawOptions) {
   } catch (error) {
     console.error('[Esprin Nemo] 读取主题色失败:', error);
   }
+  let brandColor = 'brand';
+  try {
+    const resolved = resolveBrandColor();
+    if (resolved === 'mono' || resolved === 'accent') brandColor = resolved;
+  } catch (error) {
+    console.error('[Esprin Nemo] 读取应用名颜色失败:', error);
+  }
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
@@ -210,7 +221,7 @@ function showDialogWindow(owner, rawOptions) {
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
-        additionalArguments: [DIALOG_THEME_ARG + theme, DIALOG_ACCENT_ARG + accent]
+        additionalArguments: [DIALOG_THEME_ARG + theme, DIALOG_ACCENT_ARG + accent, DIALOG_BRAND_ARG + brandColor]
       }
     });
 

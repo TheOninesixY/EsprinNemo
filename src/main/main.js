@@ -64,10 +64,17 @@ function resolveAccentColor() {
   return `#${hex.toUpperCase()}`;
 }
 
+// 应用名文字颜色模式：brand（品牌色）/ mono（跟随明暗的黑白）/ accent（跟随主题色）
+function resolveBrandColor() {
+  const raw = readUserConfig().brandColor;
+  return raw === 'mono' || raw === 'accent' ? raw : 'brand';
+}
+
 // 所有消息弹窗都在自绘标题栏的独立窗口中呈现，主题与当前界面保持一致
 configureDialogWindows({
   getTheme: resolveEffectiveTheme,
   getAccent: resolveAccentColor,
+  getBrandColor: resolveBrandColor,
   icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
 

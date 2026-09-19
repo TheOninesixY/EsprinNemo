@@ -259,7 +259,7 @@ function normalizeAiConfig(raw) {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: '', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, fonts: {}, ai: {} };
+    let config = { theme: 'system', accentColor: '', brandColor: 'brand', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, fonts: {}, ai: {} };
     let indexData = { folders: [], notes: [] };
     let indexCorrupted = false; // index.json 解析失败时标记，启动后会用清理后的索引覆盖
 
@@ -369,6 +369,7 @@ function loadData() {
     return {
         theme: config.theme || 'system',
         accentColor: normalizeAccentColor(config.accentColor),
+        brandColor: normalizeBrandColor(config.brandColor),
         spellcheck: !!config.spellcheck,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
@@ -393,6 +394,7 @@ function saveConfig() {
         const config = {
             theme: State.theme,
             accentColor: normalizeAccentColor(State.accentColor),
+            brandColor: normalizeBrandColor(State.brandColor),
             spellcheck: State.spellcheck,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),

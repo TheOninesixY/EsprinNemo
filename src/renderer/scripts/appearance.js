@@ -89,6 +89,40 @@ function applySpellcheck() {
     });
 }
 
+/* 左上角应用名文字颜色：品牌色 / 跟随明暗主题的黑白 / 跟随当前主题色 */
+
+// 可选值：brand 为内置品牌色（样式表中的 --brand），mono 深色模式白字、浅色模式黑字，
+// accent 跟随当前主题色；实际渲染由 tokens.css 中的 --brand-fg 按 <html data-brand-color> 决定。
+const BRAND_COLOR_VALUES = ['brand', 'mono', 'accent'];
+
+function normalizeBrandColor(value) {
+    return BRAND_COLOR_VALUES.includes(value) ? value : 'brand';
+}
+
+// 只挂属性，颜色本身交给 CSS 解析：这样切换明暗主题或主题色时无需重复应用
+function applyBrandColor() {
+    document.documentElement.dataset.brandColor = normalizeBrandColor(State.brandColor);
+}
+
+function syncBrandColorSelect() {
+    const select = document.getElementById('setting-brand-color');
+    if (select) select.value = normalizeBrandColor(State.brandColor);
+}
+
+function setBrandColor(value) {
+    State.brandColor = normalizeBrandColor(value);
+    applyBrandColor();
+    syncBrandColorSelect();
+    saveConfig();
+}
+
+function initBrandColor() {
+    const select = document.getElementById('setting-brand-color');
+    if (select) select.onchange = (e) => setBrandColor(e.target.value);
+    applyBrandColor();
+    syncBrandColorSelect();
+}
+
 function initTheme() {
     applyTheme();
     if (window.matchMedia) {

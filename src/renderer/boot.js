@@ -33,11 +33,14 @@ try {
     let theme = 'system';
     let fonts = null;
     let accentColor = '';
+    // 应用名文字颜色：直接挂在 <html> 上，颜色本身由 tokens.css 的 --brand-fg 解析
+    let brandColor = 'brand';
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config && config.theme) theme = config.theme;
         if (config && config.fonts && typeof config.fonts === 'object') fonts = config.fonts;
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
+        if (config && ['brand', 'mono', 'accent'].includes(config.brandColor)) brandColor = config.brandColor;
 
         // 侧边栏收起状态也在这里落定：首屏直接按收起态绘制，
         // 否则会先画出一整个展开的侧边栏，再补播一次收起动效。
@@ -49,6 +52,7 @@ try {
     if (isLight) {
         document.documentElement.classList.add('light');
     }
+    document.documentElement.dataset.brandColor = brandColor;
 
     // 字体：与主题同样在首屏渲染前注入 CSS 变量，避免字体切换时的跳变闪烁
     const quoteFamily = (name) => {

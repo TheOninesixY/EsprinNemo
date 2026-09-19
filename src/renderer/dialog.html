@@ -28,6 +28,12 @@
                 rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
                 rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
             }
+
+            // 应用名文字颜色模式：由主进程传入（用户在设置页的选择），同样在首屏渲染前应用
+            const brandPrefix = '--esprin-nemo-dialog-brand=';
+            const brandMatched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(brandPrefix));
+            const brandColor = brandMatched ? brandMatched.slice(brandPrefix.length).trim() : '';
+            document.documentElement.dataset.brandColor = (brandColor === 'mono' || brandColor === 'accent') ? brandColor : 'brand';
         } catch (e) {}
     </script>
     <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
@@ -58,6 +64,8 @@
             --danger: #f85149;
             --warning: #d29922;
             --brand: #E6E8F3;
+            /* 应用名实际显示色：默认取品牌色，随设置页的「应用名颜色」切换 */
+            --brand-fg: var(--brand);
 
             --item-hover: rgba(255, 255, 255, 0.04);
             --item-active: rgba(255, 255, 255, 0.08);
@@ -85,6 +93,18 @@
 
             --item-hover: rgba(0, 0, 0, 0.04);
             --item-active: rgba(0, 0, 0, 0.08);
+        }
+
+        /* 应用名文字颜色模式（与主窗口 tokens.css 保持一致）：
+           mono 深色白字 / 浅色黑字，accent 跟随当前主题色 */
+        :root[data-brand-color="mono"] {
+            --brand-fg: #ffffff;
+        }
+        :root.light[data-brand-color="mono"] {
+            --brand-fg: #000000;
+        }
+        :root[data-brand-color="accent"] {
+            --brand-fg: var(--accent);
         }
 
         * {
@@ -180,7 +200,7 @@
             font-family: 'Mohave', var(--font-sans);
             font-size: 15px;
             font-weight: 600;
-            color: var(--brand);
+            color: var(--brand-fg);
             letter-spacing: 0.4px;
             flex-shrink: 0;
         }

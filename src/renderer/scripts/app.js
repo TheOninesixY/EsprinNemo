@@ -7,6 +7,7 @@ window.onload = () => {
     State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
     State.theme = saved.theme || 'system';
     State.accentColor = normalizeAccentColor(saved.accentColor);
+    State.brandColor = normalizeBrandColor(saved.brandColor);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
@@ -39,6 +40,7 @@ window.onload = () => {
 
     initTheme();
     initAccentColor();
+    initBrandColor();
     applySpellcheck();
     initFonts();
     applySidebarCollapsed();
