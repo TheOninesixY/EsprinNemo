@@ -204,9 +204,6 @@
 .markdown-body hr { border: none; border-top: 1px solid var(--border-color); margin: 16px 0; }
 .markdown-body a { color: var(--accent); text-decoration: none; }
 .markdown-body a:hover { text-decoration: underline; }
-.markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-.markdown-body th, .markdown-body td { border: 1px solid var(--border-color); padding: 6px 10px; font-size: 12.5px; }
-.markdown-body th { background: var(--item-hover); font-weight: 600; }
 
 /* Footer status */
 .editor-footer {

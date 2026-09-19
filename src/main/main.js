@@ -236,18 +236,6 @@ ipcMain.handle('data:open-dir', async () => {
 function createWindow() {
   Menu.setApplicationMenu(null);
 
-  // Clean sync file swap on start if main.html has duplicate appended content
-  const targetPath = path.join(APP_ROOT, 'src', 'renderer', 'main.html');
-  const cleanPath = path.join(APP_ROOT, 'src', 'renderer', 'main.html.new');
-  if (fs.existsSync(cleanPath)) {
-    try {
-      fs.writeFileSync(targetPath, fs.readFileSync(cleanPath, 'utf8'), 'utf8');
-      fs.unlinkSync(cleanPath);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
   // 数据目录在渲染进程启动前就绪（安装版为 %APPDATA%/esprin_nemo/data）
   const currentDataDir = resolveDataDir();
 

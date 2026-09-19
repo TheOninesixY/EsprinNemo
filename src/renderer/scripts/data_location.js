@@ -1,7 +1,7 @@
 /* 数据存放位置：展示当前目录，并支持更改 / 恢复默认 / 在文件管理器中打开 */
 
 // 数据位置信息（由主进程提供：当前目录、默认目录、是否为自定义位置）
-let dataDirInfo = { dataDir: DATA_DIR, defaultDir: '', isCustom: false, isDefault: true };
+let dataDirInfo = { dataDir: DATA_DIR, defaultDir: '', isCustom: false };
 
 function updateDataDirUI() {
     const text = document.getElementById('setting-data-dir-text');
@@ -43,8 +43,7 @@ async function refreshDataDirInfo() {
             dataDirInfo = {
                 dataDir: info.dataDir,
                 defaultDir: typeof info.defaultDir === 'string' ? info.defaultDir : '',
-                isCustom: !!info.isCustom,
-                isDefault: !!info.isDefault
+                isCustom: !!info.isCustom
             };
             // 兜底：渲染进程使用的目录始终与主进程保持一致
             if (path.resolve(info.dataDir) !== path.resolve(DATA_DIR)) {

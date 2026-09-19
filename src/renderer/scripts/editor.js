@@ -4,6 +4,10 @@
 // 只有静默满 1 秒才真正重新解析 Markdown 并刷新预览
 const PREVIEW_REFRESH_DELAY = 1000;
 
+// 已渲染内容指纹：笔记与正文都没变时跳过整篇解析与 DOM 重建
+let lastPreviewNoteId = null;
+let lastPreviewContent = null;
+
 function scheduleRenderMarkdown() {
     clearTimeout(State.previewTimer);
     State.previewTimer = setTimeout(() => {
@@ -16,20 +20,34 @@ function scheduleRenderMarkdown() {
 function flushRenderMarkdown() {
     clearTimeout(State.previewTimer);
     State.previewTimer = null;
-    renderMarkdown();
+    renderMarkdown(true);
 }
 
-function renderMarkdown() {
+// force 为 true 时强制重解析；否则内容与上次一致就直接返回
+function renderMarkdown(force = false) {
     const note = getActiveNote();
-    if (!note) return;
+    const noteId = note ? note.id : null;
+    const content = note ? (note.content || '') : '';
+
+    if (!force && noteId === lastPreviewNoteId && content === lastPreviewContent) return;
+    lastPreviewNoteId = noteId;
+    lastPreviewContent = content;
+
     const container = document.getElementById('preview-content');
-    container.innerHTML = marked.parse(note.content || '*空内容*');
+    if (!note) {
+        container.innerHTML = '';
+        return;
+    }
+    container.innerHTML = marked.parse(content || '*空内容*');
 
     container.querySelectorAll('input[type="checkbox"]').forEach((cb, idx) => {
         cb.removeAttribute('disabled');
         cb.onchange = () => {
+            // 重新取回当前笔记，避免闭包引用已被替换的旧对象
+            const active = getActiveNote();
+            if (!active || isReadOnlyNote(active)) return;
             let curIdx = 0;
-            note.content = note.content.replace(/(- \[ ]|- \[x])/gi, (match) => {
+            active.content = (active.content || '').replace(/(- \[ ]|- \[x])/gi, (match) => {
                 if (curIdx === idx) {
                     curIdx++;
                     return cb.checked ? '- [x]' : '- [ ]';
@@ -37,18 +55,30 @@ function renderMarkdown() {
                 curIdx++;
                 return match;
             });
-            document.getElementById('textarea-note-content').value = note.content;
+            document.getElementById('textarea-note-content').value = active.content;
             autoSaveNote();
         };
     });
 }
 
+// 统计信息同样按内容指纹去重：长文档的截词统计开销不低
+let lastStatsNoteId = null;
+let lastStatsContent = null;
+let lastStatsUpdatedAt = null;
+
 function updateStats() {
     const note = getActiveNote();
     if (!note) return;
-    const text = note.content || '';
-    document.getElementById('stat-char-count').textContent = `字符: ${text.length}`;
-    document.getElementById('stat-word-count').textContent = `字数: ${text.trim() ? text.trim().split(/\s+/).length : 0}`;
+
+    const content = note.content || '';
+    if (note.id === lastStatsNoteId && content === lastStatsContent && note.updatedAt === lastStatsUpdatedAt) return;
+    lastStatsNoteId = note.id;
+    lastStatsContent = content;
+    lastStatsUpdatedAt = note.updatedAt;
+
+    document.getElementById('stat-char-count').textContent = `字符: ${content.length}`;
+    const trimmed = content.trim();
+    document.getElementById('stat-word-count').textContent = `字数: ${trimmed ? trimmed.split(/\s+/).length : 0}`;
     document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(note.updatedAt)}`;
 }
 

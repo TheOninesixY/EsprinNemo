@@ -52,4 +52,4 @@ function registerUiDefaults() {
   BrowserWindow.getAllWindows().forEach((win) => applyUiDefaults(win.webContents));
 }
 
-module.exports = { registerUiDefaults, GLOBAL_CSS, GLOBAL_JS };
+module.exports = { registerUiDefaults };

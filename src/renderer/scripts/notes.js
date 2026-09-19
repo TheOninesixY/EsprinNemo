@@ -175,17 +175,6 @@ async function purgeNote(noteId) {
     permanentlyDelete(noteId);
 }
 
-function deleteNoteFile(noteId) {
-    try {
-        const notePath = path.join(NOTES_DIR, `${noteId}.md`);
-        if (fs.existsSync(notePath)) {
-            fs.unlinkSync(notePath);
-        }
-    } catch (err) {
-        console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
-    }
-}
-
 function permanentlyDelete(noteId) {
     deleteNoteFile(noteId);
     State.notes = State.notes.filter(n => n.id !== noteId);
@@ -257,35 +246,42 @@ function syncTrashRetentionSelect() {
 
 // Filtering
 function getFilteredNotes() {
-    return State.notes.filter(note => {
-        if (State.currentFilter === 'trash') {
-            if (!note.isTrashed) return false;
+    // 过滤条件在遍历前解析一次，避免对每篇笔记重复做字符串判断与切片
+    const filter = State.currentFilter;
+    const isTrashView = filter === 'trash';
+    const isPinnedView = filter === 'pinned';
+    const folderFilter = filter.startsWith('folder:') ? filter.slice(7) : null;
+    const tagFilter = filter.startsWith('tag:') ? filter.slice(4) : null;
+    const query = State.searchQuery.trim().toLowerCase();
+    const sortBy = State.sortBy;
+
+    const list = [];
+    State.notes.forEach(note => {
+        if (note.isTrashed) {
+            if (!isTrashView) return;
         } else {
-            if (note.isTrashed) return false;
-            if (State.currentFilter === 'pinned' && !note.isPinned) return false;
-            if (State.currentFilter.startsWith('folder:')) {
-                const folder = State.currentFilter.replace('folder:', '');
-                if (note.folder !== folder) return false;
-            }
-            if (State.currentFilter.startsWith('tag:')) {
-                const tag = State.currentFilter.replace('tag:', '');
-                if (!note.tags || !note.tags.includes(tag)) return false;
-            }
+            if (isTrashView) return;
+            if (isPinnedView && !note.isPinned) return;
+            if (folderFilter !== null && note.folder !== folderFilter) return;
+            if (tagFilter !== null && (!note.tags || !note.tags.includes(tagFilter))) return;
         }
 
-        if (State.searchQuery.trim()) {
-            const q = State.searchQuery.toLowerCase();
-            return (note.title || '').toLowerCase().includes(q) || (note.content || '').toLowerCase().includes(q);
+        if (query) {
+            const inTitle = (note.title || '').toLowerCase().includes(query);
+            if (!inTitle && !(note.content || '').toLowerCase().includes(query)) return;
         }
-        return true;
-    }).sort((a, b) => {
-        if (State.currentFilter !== 'trash') {
+
+        list.push(note);
+    });
+
+    return list.sort((a, b) => {
+        if (!isTrashView) {
             if (a.isPinned && !b.isPinned) return -1;
             if (!a.isPinned && b.isPinned) return 1;
         }
-        if (State.sortBy === 'updated-desc') return b.updatedAt - a.updatedAt;
-        if (State.sortBy === 'created-desc') return b.createdAt - a.createdAt;
-        if (State.sortBy === 'title-asc') return (a.title || '未命名').localeCompare(b.title || '未命名', 'zh-CN');
+        if (sortBy === 'updated-desc') return b.updatedAt - a.updatedAt;
+        if (sortBy === 'created-desc') return b.createdAt - a.createdAt;
+        if (sortBy === 'title-asc') return (a.title || '未命名').localeCompare(b.title || '未命名', 'zh-CN');
         return 0;
     });
 }

@@ -32,11 +32,6 @@ ipcRenderer.on('window:fullscreen-changed', (event, isFullscreen) => {
     updateFullscreenState(isFullscreen);
 });
 
-document.addEventListener('fullscreenchange', () => {
-    const isFullscreen = !!document.fullscreenElement;
-    updateFullscreenState(isFullscreen);
-});
-
 document.getElementById('app-titlebar').ondblclick = (e) => {
     if (document.body.classList.contains('is-fullscreen')) return;
     if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;

@@ -147,11 +147,7 @@ function ensureDataDir(baseDir = __dirname, appLike = null) {
 
 module.exports = {
   DATA_DIR_ARG,
-  getDataDir,
-  getDataDirFromArgv,
   getDefaultDataDir,
-  getLocationFile,
-  readStoredDataDir,
   writeStoredDataDir,
   ensureDataDir
 };

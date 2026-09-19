@@ -9,11 +9,12 @@ function formatDate(timestamp) {
     return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
+// 转义表提到函数外，避免每次调用都重新创建字面量对象
+const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+
 function escapeHTML(str) {
     if (!str) return '';
-    return str.replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-    }[m]));
+    return String(str).replace(/[&<>"']/g, m => HTML_ESCAPE_MAP[m]);
 }
 
 function showToast(msg) {
@@ -30,22 +31,7 @@ function showToast(msg) {
 }
 
 // 所有消息弹窗都由主进程创建独立窗口（自绘标题栏，非窗口内假窗口）
-// 三个入口与浏览器原生 alert/confirm/prompt 的用法保持一致，便于替换
-async function showAlert(message, options = {}) {
-    try {
-        await ipcRenderer.invoke('dialog:message', {
-            type: options.type || 'info',
-            icon: options.icon,
-            title: options.title || '提示',
-            message,
-            detail: options.detail || '',
-            buttons: [{ id: 'ok', label: options.confirmLabel || '确定', variant: 'primary' }]
-        });
-    } catch (err) {
-        console.error('打开消息窗口失败:', err);
-    }
-}
-
+// 入口与浏览器原生 confirm/prompt 的用法保持一致，便于替换
 async function showConfirm(message, options = {}) {
     try {
         const result = await ipcRenderer.invoke('dialog:message', {

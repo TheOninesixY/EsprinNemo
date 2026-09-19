@@ -6,12 +6,26 @@ let NOTES_DIR = path.join(DATA_DIR, 'notes');
 let CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 let INDEX_FILE = path.join(DATA_DIR, 'index.json');
 
+// 写入缓存：待写入内容与上次落盘完全一致时直接跳过，避免自动保存产生重复 I/O
+const savedNoteContent = new Map(); // noteId -> 已写入磁盘的正文
+let savedConfigJSON = null;
+let savedIndexJSON = null;
+
+function resetWriteCache() {
+    savedNoteContent.clear();
+    savedConfigJSON = null;
+    savedIndexJSON = null;
+}
+
 // 应用新的数据目录（主进程已完成校验/迁移/记录，这里只负责切换本进程使用的路径）
 function setDataPaths(dir) {
     DATA_DIR = dir;
     NOTES_DIR = path.join(dir, 'notes');
     CONFIG_FILE = path.join(dir, 'config.json');
     INDEX_FILE = path.join(dir, 'index.json');
+    // 换目录后旧缓存全部失效，否则会把新位置的首次写入误判为“无需写入”
+    resetWriteCache();
+    storageDirsReady = false;
 }
 
 // 生成10位的大小写英语+数字的随机ID
@@ -24,14 +38,15 @@ function generateNoteId() {
     return result;
 }
 
+// 目录只需确保一次：自动保存频繁调用，避免每次写入都做一轮同步 stat
+let storageDirsReady = false;
+
 function ensureStorageDirs() {
+    if (storageDirsReady) return;
     try {
-        if (!fs.existsSync(DATA_DIR)) {
-            fs.mkdirSync(DATA_DIR, { recursive: true });
-        }
-        if (!fs.existsSync(NOTES_DIR)) {
-            fs.mkdirSync(NOTES_DIR, { recursive: true });
-        }
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+        fs.mkdirSync(NOTES_DIR, { recursive: true });
+        storageDirsReady = true;
     } catch (err) {
         console.error('创建数据目录失败:', err);
     }
@@ -154,6 +169,10 @@ function loadData() {
         notes.push(note);
     });
 
+    // 磁盘内容已全部读入内存，让写入缓存与之一致，避免紧接着的保存重复写盘
+    resetWriteCache();
+    notes.forEach(note => savedNoteContent.set(note.id, note.content));
+
     return {
         theme: config.theme || 'system',
         spellcheck: !!config.spellcheck,
@@ -180,7 +199,10 @@ function saveConfig() {
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
             fonts: normalizeFonts(State.fonts)
         };
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+        const json = JSON.stringify(config, null, 2);
+        if (json === savedConfigJSON) return;
+        fs.writeFileSync(CONFIG_FILE, json, 'utf8');
+        savedConfigJSON = json;
     } catch (err) {
         console.error('保存 config.json 失败:', err);
     }
@@ -189,12 +211,26 @@ function saveConfig() {
 // 保存单个笔记的正文到 data/notes/{id}.md
 function saveNoteContent(note) {
     if (!note || !note.id) return;
+    const content = note.content || '';
+    if (savedNoteContent.get(note.id) === content) return;
     ensureStorageDirs();
     try {
         const notePath = path.join(NOTES_DIR, `${note.id}.md`);
-        fs.writeFileSync(notePath, note.content || '', 'utf8');
+        fs.writeFileSync(notePath, content, 'utf8');
+        savedNoteContent.set(note.id, content);
     } catch (err) {
         console.error(`保存笔记 ${note.id} 内容失败:`, err);
+    }
+}
+
+// 删除笔记正文文件，并同步丢弃对应的写入缓存
+function deleteNoteFile(noteId) {
+    savedNoteContent.delete(noteId);
+    try {
+        const notePath = path.join(NOTES_DIR, `${noteId}.md`);
+        if (fs.existsSync(notePath)) fs.unlinkSync(notePath);
+    } catch (err) {
+        console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
     }
 }
 
@@ -219,7 +255,10 @@ function saveIndex() {
             folders: customFolders,
             notes: notesMetadata
         };
-        fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2), 'utf8');
+        const json = JSON.stringify(indexData, null, 2);
+        if (json === savedIndexJSON) return;
+        fs.writeFileSync(INDEX_FILE, json, 'utf8');
+        savedIndexJSON = json;
     } catch (err) {
         console.error('保存 index.json 失败:', err);
     }

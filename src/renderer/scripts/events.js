@@ -179,12 +179,16 @@ function setupEvents() {
 
     const searchInput = document.getElementById('input-search');
     const clearSearchBtn = document.getElementById('btn-search-clear');
+    // 输入防抖：连续敲键时只在停顿后重新过滤一次列表
+    let searchTimer = null;
     searchInput.oninput = (e) => {
         State.searchQuery = e.target.value;
         clearSearchBtn.classList.toggle('hidden', !State.searchQuery);
-        renderNotesList();
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(renderNotesList, 120);
     };
     clearSearchBtn.onclick = () => {
+        clearTimeout(searchTimer);
         searchInput.value = '';
         State.searchQuery = '';
         clearSearchBtn.classList.add('hidden');

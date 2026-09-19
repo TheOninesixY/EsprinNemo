@@ -10,12 +10,8 @@
   },
   "private": true,
   "devDependencies": {
-    "@types/bun": "latest",
     "electron": "^44.4.3",
     "electron-builder": "^24.6.0"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
   },
   "build": {
     "appId": "io.github.theoninesixy.esprin_nemo",
@@ -28,6 +24,9 @@
       "target": [
         "AppImage"
       ]
+    },
+    "win": {
+      "icon": "assets/icon.ico"
     },
     "directories": {
       "buildResources": "assets"

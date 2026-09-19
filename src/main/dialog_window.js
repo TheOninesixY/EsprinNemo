@@ -287,7 +287,6 @@ function registerDialogIpc() {
 }
 
 module.exports = {
-  DIALOG_THEME_ARG,
   configureDialogWindows,
   registerDialogIpc,
   showDialogWindow

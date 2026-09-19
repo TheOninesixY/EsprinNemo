@@ -1,5 +1,11 @@
 /* 界面渲染：侧边栏、标签页、笔记列表与工作区 */
 
+// 各区域的渲染签名：与上一次一致时跳过 DOM 重建，避免无意义的整树重排
+const renderSignatures = { folders: null, tags: null, tabs: null, notes: null };
+
+// 侧边栏顶部的筛选条目（静态节点，只需查询一次）
+const sidebarNavItems = document.querySelectorAll('.sidebar .nav-item');
+
 // UI Rendering
 function renderApp() {
     renderCounts();
@@ -11,13 +17,25 @@ function renderApp() {
 }
 
 function renderCounts() {
-    const activeNotes = State.notes.filter(n => !n.isTrashed);
-    document.getElementById('count-all').textContent = activeNotes.length;
-    document.getElementById('count-pinned').textContent = activeNotes.filter(n => n.isPinned).length;
-    document.getElementById('count-trash').textContent = State.notes.filter(n => n.isTrashed).length;
-    document.getElementById('sidebar-stat').textContent = `共 ${activeNotes.length} 篇笔记`;
+    // 一次遍历同时统计全部 / 已置顶 / 废纸篓，避免对笔记数组反复过滤
+    let activeCount = 0;
+    let pinnedCount = 0;
+    let trashedCount = 0;
+    State.notes.forEach(note => {
+        if (note.isTrashed) {
+            trashedCount++;
+        } else {
+            activeCount++;
+            if (note.isPinned) pinnedCount++;
+        }
+    });
 
-    document.querySelectorAll('.sidebar .nav-item').forEach(el => {
+    document.getElementById('count-all').textContent = activeCount;
+    document.getElementById('count-pinned').textContent = pinnedCount;
+    document.getElementById('count-trash').textContent = trashedCount;
+    document.getElementById('sidebar-stat').textContent = `共 ${activeCount} 篇笔记`;
+
+    sidebarNavItems.forEach(el => {
         const f = el.getAttribute('data-filter');
         if (f === State.currentFilter) el.classList.add('active');
         else el.classList.remove('active');
@@ -37,6 +55,10 @@ function renderCounts() {
 }
 
 function renderFolders() {
+    const signature = `${State.currentFilter}\u0001${State.folders.join('\u0001')}`;
+    if (renderSignatures.folders === signature) return;
+    renderSignatures.folders = signature;
+
     const container = document.getElementById('sidebar-folder-list');
     container.innerHTML = '';
 
@@ -99,13 +121,18 @@ function getAllTags() {
 }
 
 function renderTags() {
+    const tagSet = new Set();
+    State.notes.forEach(n => {
+        if (n.isTrashed) return;
+        if (Array.isArray(n.tags)) n.tags.forEach(t => { if (t) tagSet.add(t); });
+    });
+
+    const signature = `${State.currentFilter}\u0001${Array.from(tagSet).join('\u0001')}`;
+    if (renderSignatures.tags === signature) return;
+    renderSignatures.tags = signature;
+
     const container = document.getElementById('sidebar-tag-list');
     container.innerHTML = '';
-
-    const tagSet = new Set();
-    State.notes.filter(n => !n.isTrashed).forEach(n => {
-        if (n.tags) n.tags.forEach(t => tagSet.add(t));
-    });
 
     if (tagSet.size === 0) {
         container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); padding: 4px;">无标签</span>`;
@@ -128,16 +155,28 @@ function renderTags() {
 // Titlebar Tabs (Extends up to the new note button, mouse wheel over container scrolls horizontally)
 function renderTabs() {
     const tabsContainer = document.getElementById('titlebar-tabs');
-    tabsContainer.innerHTML = '';
 
+    // 滚轮横向滚动：只需绑定一次，不必每次渲染都重建闭包
+    if (!tabsContainer.onwheel) {
+        tabsContainer.onwheel = (e) => {
+            if (tabsContainer.scrollWidth > tabsContainer.clientWidth) {
+                e.preventDefault();
+                tabsContainer.scrollLeft += e.deltaY !== 0 ? e.deltaY : e.deltaX;
+            }
+        };
+    }
+
+    // 丢弃指向已不存在笔记的标签，避免留下打不开的幽灵标签
     State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || State.notes.some(n => n.id === id));
 
-    tabsContainer.onwheel = (e) => {
-        if (tabsContainer.scrollWidth > tabsContainer.clientWidth) {
-            e.preventDefault();
-            tabsContainer.scrollLeft += e.deltaY !== 0 ? e.deltaY : e.deltaX;
-        }
-    };
+    const signature = `${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
+        const note = id === 'settings' ? null : State.notes.find(n => n.id === id);
+        return `${id}\u0002${note ? (note.title || '') : ''}`;
+    }).join('\u0001')}`;
+    if (renderSignatures.tabs === signature) return;
+    renderSignatures.tabs = signature;
+
+    tabsContainer.innerHTML = '';
 
     State.openNoteIds.forEach(id => {
         const isActive = id === State.activeNoteId;
@@ -192,10 +231,28 @@ function renderTabs() {
     });
 }
 
+// 列表卡片只展示首行摘要，先截断再转义，避免长文档每次都做整篇转义
+const PREVIEW_MAX_LENGTH = 120;
+
+function notePreviewText(note) {
+    const content = String(note.content || '').trim();
+    if (!content) return '暂无内容';
+    const firstLine = content.split('\n', 1)[0];
+    return firstLine.length > PREVIEW_MAX_LENGTH ? firstLine.slice(0, PREVIEW_MAX_LENGTH) : firstLine;
+}
+
 function renderNotesList() {
     const container = document.getElementById('notes-list-box');
-    container.innerHTML = '';
     const list = getFilteredNotes();
+
+    // 签名里用列表实际展示的时间（分钟精度）：顺序变化会体现为条目顺序变化，
+    // 而“编辑内容但展示时间未变”这类提交不会触发整列表重建
+    const signature = `${State.currentFilter}\u0001${State.searchQuery}\u0002${State.sortBy}\u0003${State.activeNoteId}\u0004`
+        + list.map(note => `${note.id}\u0005${note.title || ''}\u0005${formatDate(note.updatedAt)}\u0005${note.folder}\u0005${note.isPinned ? 1 : 0}\u0005${notePreviewText(note)}`).join('\u0006');
+    if (renderSignatures.notes === signature) return;
+    renderSignatures.notes = signature;
+
+    container.innerHTML = '';
 
     if (list.length === 0) {
         container.innerHTML = `
@@ -206,6 +263,9 @@ function renderNotesList() {
         return;
     }
 
+    // 先插入到文档碎片，一次性挂载，避免逐个卡片触发样式计算与重排
+    const fragment = document.createDocumentFragment();
+
     list.forEach(note => {
         const card = document.createElement('div');
         const isActive = note.id === State.activeNoteId;
@@ -215,7 +275,7 @@ function renderNotesList() {
                 <span>${escapeHTML(note.title || '未命名笔记')}</span>
                 ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
             </div>
-            <div class="note-card-preview">${escapeHTML(note.content || '暂无内容')}</div>
+            <div class="note-card-preview">${escapeHTML(notePreviewText(note))}</div>
             <div class="note-card-footer">
                 <span>${formatDate(note.updatedAt)}</span>
                 <span class="note-card-folder">${escapeHTML(note.folder)}</span>
@@ -232,8 +292,10 @@ function renderNotesList() {
             showContextMenu(e.clientX, e.clientY, note.id);
         });
 
-        container.appendChild(card);
+        fragment.appendChild(card);
     });
+
+    container.appendChild(fragment);
 }
 
 function renderWorkspace() {
@@ -306,20 +368,27 @@ function renderWorkspace() {
     }
 
     const folderSelect = document.getElementById('editor-folder-select');
-    folderSelect.innerHTML = '';
-    State.folders.forEach(f => {
-        const opt = document.createElement('option');
-        opt.value = f;
-        opt.textContent = f;
-        if (f === note.folder) opt.selected = true;
-        folderSelect.appendChild(opt);
-    });
+    const foldersSignature = `${note.folder}\u0001${State.folders.join('\u0001')}`;
+    if (folderSelect.dataset.signature !== foldersSignature) {
+        folderSelect.dataset.signature = foldersSignature;
+        folderSelect.innerHTML = '';
+        State.folders.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            if (f === note.folder) opt.selected = true;
+            folderSelect.appendChild(opt);
+        });
+    }
 
     const tagsContainer = document.getElementById('editor-tags-container');
     const readOnly = isReadOnlyNote(note);
-    tagsContainer.innerHTML = '';
-    if (note.tags) {
-        note.tags.forEach(tag => {
+    const tags = Array.isArray(note.tags) ? note.tags : [];
+    const tagsSignature = `${readOnly ? 1 : 0}\u0001${tags.join('\u0001')}`;
+    if (tagsContainer.dataset.signature !== tagsSignature) {
+        tagsContainer.dataset.signature = tagsSignature;
+        tagsContainer.innerHTML = '';
+        tags.forEach(tag => {
             const chip = document.createElement('span');
             chip.className = 'editor-tag-chip';
             chip.innerHTML = `<span>#${escapeHTML(tag)}</span>`;
@@ -328,8 +397,11 @@ function renderWorkspace() {
                 const removeBtn = document.createElement('button');
                 removeBtn.title = '移除标签';
                 removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
+                // 每次点击都重新取回当前笔记，避免闭包引用已被替换的旧对象
                 removeBtn.onclick = () => {
-                    note.tags = note.tags.filter(t => t !== tag);
+                    const active = getActiveNote();
+                    if (!active || !Array.isArray(active.tags)) return;
+                    active.tags = active.tags.filter(t => t !== tag);
                     saveIndex();
                     renderApp();
                 };
@@ -349,7 +421,7 @@ function renderWorkspace() {
     }
 
     applyEditorReadOnly(note);
-    flushRenderMarkdown();
+    renderMarkdown();
     updateStats();
     updateViewModeUI();
 }

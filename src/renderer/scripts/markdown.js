@@ -72,7 +72,6 @@ const marked = {
         text = text.replace(/^\d+\. (.*)$/gm, '<li class="ordered">$1</li>');
 
         // 将连续的 <li> 包裹在 <ul> 或 <ol> 中
-        text = text.replace(/(<li class="ordered">[\s\S]*?<\/li>)(?=(?:\s*<li class="ordered">)|\b)/g, '$1');
         text = text.replace(/(?:<li class="ordered">.*?<\/li>\s*)+/g, '<ol>$&</ol>');
         text = text.replace(/(?:<li>.*?<\/li>\s*|<li class="task-item">.*?<\/li>\s*)+/g, '<ul>$&</ul>');
 
