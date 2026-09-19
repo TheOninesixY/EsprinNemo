@@ -18,7 +18,8 @@
     "productName": "Esprin Nemo",
     "icon": "assets/icon.png",
     "files": [
-      "**/*"
+      "src/",
+      "assets/"
     ],
     "linux": {
       "target": [
