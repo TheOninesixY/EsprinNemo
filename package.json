@@ -1,0 +1,29 @@
+{
+  "name": "esprin_nemo",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "electron": "^44.4.3",
+    "electron-builder": "^24.6.0"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  },
+  "build": {
+    "appId": "io.github.theoninesixy.esprinnemo",
+    "productName": "Esprin Nemo",
+    "files": [
+      "**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
+    }
+  }
+
