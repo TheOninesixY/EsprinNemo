@@ -21,7 +21,7 @@ const State = {
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
     fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
     // AI 助手接口配置（随 config.json 一起落盘，密钥仅存本机）
-    ai: { enabled: true, baseUrl: '', apiKey: '', model: '', scope: 'current', maxNotes: 10, systemPrompt: '' },
+    ai: { enabled: true, agentMode: false, baseUrl: '', apiKey: '', model: '', scope: 'current', maxNotes: 10, systemPrompt: '' },
     // AI 助手面板：是否展开，以及多对话（对话记录随数据目录保存到 ai_chats.json）
     aiPanelOpen: false,
     aiConversations: [],
@@ -30,6 +30,8 @@ const State = {
     aiStreaming: false,
     aiRequestId: null,
     aiStreamingChatId: null,
+    // 已选好、还没发出去的附件（图片已落盘到 ai_files/）
+    aiPendingAttachments: [],
     // 本次会话提问时附带的笔记范围：默认取配置中的设置
     aiScope: 'current',
     autoSaveTimer: null,

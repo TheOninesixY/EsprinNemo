@@ -1,11 +1,12 @@
 /* AI 助手对话面板：把笔记作为上下文提问，回答以流式方式逐步显示。
-   面板内可同时保留多份对话记录（见 ai_chats.js），对话内容随数据目录落到 ai_chats.json。 */
+   面板内可同时保留多份对话记录（见 ai_chats.js），对话内容随数据目录落到 ai_chats.json。
+   打开 Agent 模式后（见 ai_agent.js），模型可以调用工具直接读写笔记。 */
 
 // 上下文字符预算：单篇与总量都设上限，避免一次提问塞进过多内容把请求撑爆
 const AI_SINGLE_NOTE_CHAR_LIMIT = 6000;
 const AI_TOTAL_CONTEXT_CHAR_LIMIT = 40000;
-// 随请求携带的历史消息条数上限（不含系统消息），保证请求体不会随对话无限增长
-const AI_HISTORY_MESSAGE_LIMIT = 12;
+// 随请求携带的历史轮数上限（一轮 = 一次用户提问及其之后的工具步骤与回答）
+const AI_HISTORY_TURN_LIMIT = 8;
 // 流式输出期间的刷新间隔：太频繁会拖慢长回答的渲染
 const AI_STREAM_RENDER_INTERVAL_MS = 80;
 
@@ -13,6 +14,8 @@ const AI_DEFAULT_SYSTEM_PROMPT = '你是 EsprinNemo 笔记应用内置的 AI 助
     + '回答尽量使用 Markdown；当笔记中没有相关信息时请明确说明，不要编造内容。';
 
 let aiStreamTimer = null;
+// 用户点过「停止」但当前正处在工具执行阶段（没有在飞的请求）时的标记，由对话循环在下一步退出
+let aiTurnCancelRequested = false;
 
 // ---------- 上下文组装 ----------
 
@@ -80,29 +83,118 @@ function buildAiContextMessage() {
     };
 }
 
-// 组装本次请求的消息列表：系统提示 → 笔记上下文 → 近期对话 → 本次提问
-function buildAiRequestMessages(question) {
+// 用户消息折算为接口形态：正文 + 文本附件内联 + 图片附件
+// includeImages 为 true 时才真正带上图片，更早的轮次只留一行占位，避免每轮都重复上传
+function buildAiUserMessage(msg, includeImages) {
+    const attachments = Array.isArray(msg.attachments) ? msg.attachments : [];
+    const parts = [];
+    if (msg.content) parts.push(msg.content);
+
+    attachments.forEach((file) => {
+        if (file.kind === 'text') parts.push(`【附件：${file.name}】\n${file.content}`);
+    });
+
+    const images = attachments.filter(file => file.kind === 'image');
+    if (images.length) {
+        parts.push(images.map(file => `【图片：${file.name}】`).join('\n'));
+    }
+
+    const message = { role: 'user', content: parts.join('\n\n') };
+    if (includeImages && images.length) {
+        message.images = images.map(file => ({
+            path: resolveAiAttachmentPath(file.file),
+            mime: file.mime,
+            name: file.name
+        }));
+    }
+    return message;
+}
+
+// 取最近若干轮对话，并折算成接口要求的消息形态
+function collectAiHistoryMessages(chat) {
+    const includeSteps = isAiAgentMode();
+    const all = chat.messages.filter(msg => !msg.pending);
+
+    // 从倒数第 N 个用户提问开始切：这样 assistant 的 tool_calls 与 tool 结果不会被截断成残缺的一对
+    let start = 0;
+    let turns = 0;
+    for (let i = all.length - 1; i >= 0; i--) {
+        if (all[i].role !== 'user') continue;
+        turns++;
+        if (turns >= AI_HISTORY_TURN_LIMIT) {
+            start = i;
+            break;
+        }
+    }
+
+    const slice = all.slice(start);
+    // 只有最后一次提问带原图：更早的轮次若也带上，每轮请求都要重传一遍图片
+    let lastUserIndex = -1;
+    slice.forEach((msg, index) => {
+        if (msg.role === 'user') lastUserIndex = index;
+    });
+
+    const messages = [];
+    slice.forEach((msg, index) => {
+        if (msg.role === 'user') {
+            messages.push(buildAiUserMessage(msg, index === lastUserIndex));
+            return;
+        }
+
+        // 关掉 Agent 模式时不下发工具步骤，避免接口因配对信息校验报错
+        if (msg.role === 'tool') {
+            if (!includeSteps) return;
+            messages.push({ role: 'tool', tool_call_id: msg.toolCallId, content: msg.content || '{}' });
+            return;
+        }
+
+        if (msg.role === 'assistant' && Array.isArray(msg.toolCalls) && msg.toolCalls.length) {
+            if (!includeSteps) return;
+            messages.push({
+                role: 'assistant',
+                content: msg.content || '',
+                tool_calls: msg.toolCalls.map(call => ({
+                    id: call.id,
+                    type: 'function',
+                    function: { name: call.name, arguments: call.arguments || '{}' }
+                }))
+            });
+            return;
+        }
+
+        if (msg.role === 'assistant' && msg.content) {
+            messages.push({ role: 'assistant', content: msg.content });
+        }
+    });
+
+    return messages;
+}
+
+// 组装请求的消息列表：系统提示 → 笔记上下文 → 近期对话（含工具步骤与最新一次提问）
+// 历史里已经包含当前提问（发送前先入队），因此这里不再单独拼提问，附件也就不会漏掉
+function buildAiRequestMessages(chat) {
     const messages = [];
     const systemPrompt = (State.ai.systemPrompt || '').trim() || AI_DEFAULT_SYSTEM_PROMPT;
     messages.push({ role: 'system', content: systemPrompt });
 
+    if (isAiAgentMode()) {
+        messages.push({
+            role: 'system',
+            content: '当前已开启 Agent 模式：你可以调用工具直接新建或修改用户的笔记。'
+                + '请先查清楚要改的笔记与现有内容，再做最小必要的改动；改完后用一两句话说明做了什么。'
+                + '不要向用户展示工具参数或原始 JSON。'
+        });
+    }
+
     const context = buildAiContextMessage();
     if (context) messages.push({ role: 'system', content: context.content });
-
-    activeAiMessages()
-        .slice(-AI_HISTORY_MESSAGE_LIMIT)
-        .forEach((msg) => {
-            if ((msg.role === 'user' || msg.role === 'assistant') && msg.content) {
-                messages.push({ role: msg.role, content: msg.content });
-            }
-        });
 
     if (!context && State.aiScope !== 'none') {
         // 范围是当前笔记但当前没有打开笔记：明确告诉模型缺少上下文，避免它凭空作答
         messages.push({ role: 'system', content: '本次提问没有附带任何笔记内容，请按通用知识回答，并提醒用户当前没有可参考的笔记。' });
     }
 
-    messages.push({ role: 'user', content: question });
+    collectAiHistoryMessages(chat).forEach(msg => messages.push(msg));
     return { messages, context };
 }
 
@@ -146,7 +238,80 @@ function createAiMessageActions(msg) {
     return bar;
 }
 
-function createAiMessageElement(msg, index) {
+// Agent 操作卡片：把一轮工具调用与它们的执行结果列出来，写操作附「撤销」
+function createAiAgentStepElement(msg, toolResults) {
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-msg ai-msg-agent';
+
+    const role = document.createElement('div');
+    role.className = 'ai-msg-role';
+    role.innerHTML = '<span class="ms-icon xs">smart_toy</span><span>AI 操作</span>';
+    wrap.appendChild(role);
+
+    const body = document.createElement('div');
+    body.className = 'ai-msg-body ai-agent-steps';
+
+    // 模型在调用工具前可能先说一句（例如“我先看一下这篇笔记”），一并展示
+    if (msg.content) {
+        const text = document.createElement('div');
+        text.className = 'ai-msg-content markdown-body';
+        text.innerHTML = marked.parse(msg.content);
+        body.appendChild(text);
+    }
+
+    msg.toolCalls.forEach((call) => {
+        const result = toolResults.get(call.id) || null;
+        const failed = !!result && result.ok === false;
+
+        const step = document.createElement('div');
+        step.className = `ai-step${failed ? ' failed' : ''}${result ? '' : ' running'}`;
+
+        const icon = document.createElement('span');
+        icon.className = 'ms-icon xs';
+        icon.textContent = !result ? 'progress_activity' : (failed ? 'error' : 'check_circle');
+        step.appendChild(icon);
+
+        const info = document.createElement('div');
+        info.className = 'ai-step-info';
+
+        const label = document.createElement('div');
+        label.className = 'ai-step-label';
+        label.textContent = (result && result.summary) || `正在调用 ${call.name}…`;
+        info.appendChild(label);
+
+        if (result && result.detail) {
+            const detail = document.createElement('div');
+            detail.className = 'ai-step-detail';
+            detail.textContent = result.detail;
+            info.appendChild(detail);
+        }
+        step.appendChild(info);
+
+        if (result && result.stepId && canUndoAiAgentStep(result.stepId)) {
+            const undoBtn = document.createElement('button');
+            undoBtn.type = 'button';
+            undoBtn.className = 'ai-msg-action';
+            undoBtn.innerHTML = '<span class="ms-icon xs">undo</span><span>撤销</span>';
+            undoBtn.onclick = () => {
+                undoAiAgentStep(result.stepId);
+                renderAiMessages();
+            };
+            step.appendChild(undoBtn);
+        }
+
+        body.appendChild(step);
+    });
+
+    wrap.appendChild(body);
+    return wrap;
+}
+
+function createAiMessageElement(msg, index, toolResults) {
+    // 带工具调用的助手消息整轮渲染成操作卡片
+    if (msg.role === 'assistant' && Array.isArray(msg.toolCalls) && msg.toolCalls.length) {
+        return createAiAgentStepElement(msg, toolResults);
+    }
+
     const wrap = document.createElement('div');
     const stateClass = msg.error ? (msg.canceled ? ' ai-msg-canceled' : ' ai-msg-failed') : '';
     wrap.className = `ai-msg ai-msg-${msg.role}${stateClass}`;
@@ -182,6 +347,12 @@ function createAiMessageElement(msg, index) {
     }
 
     body.appendChild(content);
+
+    // 用户提问：正文下方展示带进来的附件
+    if (msg.role === 'user' && Array.isArray(msg.attachments) && msg.attachments.length) {
+        body.appendChild(createAiAttachmentList(msg.attachments));
+    }
+
     wrap.appendChild(body);
 
     if (msg.role === 'assistant' && !msg.error && msg.content) {
@@ -198,8 +369,17 @@ function renderAiMessages() {
     const empty = document.getElementById('ai-empty');
     if (empty) empty.classList.toggle('hidden', messages.length > 0);
 
+    // 工具结果不单独成条，而是并入对应那一步的操作卡片
+    const toolResults = new Map();
+    messages.forEach((msg) => {
+        if (msg.role === 'tool' && msg.toolCallId) toolResults.set(msg.toolCallId, msg);
+    });
+
     container.querySelectorAll('.ai-msg').forEach(el => el.remove());
-    messages.forEach((msg, index) => container.appendChild(createAiMessageElement(msg, index)));
+    messages.forEach((msg, index) => {
+        if (msg.role === 'tool') return;
+        container.appendChild(createAiMessageElement(msg, index, toolResults));
+    });
     scrollAiToBottom();
 }
 
@@ -256,9 +436,17 @@ function updateAiComposerState() {
     const input = document.getElementById('ai-input');
     const sendBtn = document.getElementById('btn-ai-send');
     const stopBtn = document.getElementById('btn-ai-stop');
+    const attachBtn = document.getElementById('btn-ai-attach');
+    const hasContent = !!input && (input.value.trim().length > 0 || State.aiPendingAttachments.length > 0);
 
-    if (sendBtn) sendBtn.disabled = State.aiStreaming || !input || !input.value.trim();
+    // 回复期间直接收起发送按钮，只留「停止」——避免出现一个按不动、看着像坏了的按钮
+    if (sendBtn) {
+        sendBtn.classList.toggle('hidden', State.aiStreaming);
+        sendBtn.disabled = !hasContent;
+    }
     if (stopBtn) stopBtn.classList.toggle('hidden', !State.aiStreaming);
+    // 附件可在生成过程中先选好，不做限制
+    if (attachBtn) attachBtn.disabled = !isAiEnabled();
 }
 
 // ---------- 面板开关 ----------
@@ -335,6 +523,8 @@ async function clearAiConversation() {
     });
     if (!confirmed) return;
 
+    // 消息一起清掉，之前带进来的图片附件也顺手从 ai_files/ 删除
+    releaseAiAttachments(chat.messages);
     chat.messages = [];
     chat.title = '';
     touchAiConversation(chat);
@@ -345,7 +535,11 @@ async function clearAiConversation() {
 }
 
 function stopAiGeneration() {
-    if (!State.aiStreaming || !State.aiRequestId) return;
+    if (!State.aiStreaming) return;
+    // 工具执行阶段没有在飞的请求：只标记取消，由对话循环在下一步退出
+    aiTurnCancelRequested = true;
+    if (!State.aiRequestId) return;
+
     const requestId = State.aiRequestId;
     ipcRenderer.invoke('ai:abort', { requestId }).catch((err) => {
         console.error('停止生成失败:', err);
@@ -365,7 +559,9 @@ async function sendAiQuestion() {
 
     const input = document.getElementById('ai-input');
     const question = input ? input.value.trim() : '';
-    if (!question) return;
+    const pending = State.aiPendingAttachments.slice();
+    // 允许只发附件不发文字
+    if (!question && !pending.length) return;
 
     if (!isAiConfigured()) {
         showToast('请先配置 API 站点与模型');
@@ -384,52 +580,77 @@ async function sendAiQuestion() {
         chat.messages = chat.messages.slice(-AI_CHAT_MESSAGE_LIMIT);
     }
 
-    const { messages, context } = buildAiRequestMessages(question);
-    const contextLabel = State.aiScope === 'none'
+    // 先把提问（含附件）入队，再组装请求：这样附件与顺序都由历史统一决定
+    const userMessage = {
+        role: 'user',
+        content: question,
+        attachments: pending.length ? pending : undefined,
+        createdAt: Date.now()
+    };
+    chat.messages.push(userMessage);
+    touchAiConversation(chat);
+
+    const { messages, context } = buildAiRequestMessages(chat);
+    userMessage.contextLabel = State.aiScope === 'none'
         ? '不附带笔记'
         : (context ? `附带 ${context.count} 篇笔记` : '没有可附带的笔记');
 
-    chat.messages.push({ role: 'user', content: question, contextLabel, createdAt: Date.now() });
-    chat.messages.push({ role: 'assistant', content: '', pending: true, createdAt: Date.now() });
-    const answerIndex = chat.messages.length - 1;
-    touchAiConversation(chat);
-
     if (input) input.value = '';
-    State.aiStreaming = true;
-    State.aiStreamingChatId = chat.id;
-    State.aiRequestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const requestId = State.aiRequestId;
-
+    clearAiPendingAttachments();
     renderAiMessages();
     renderAiChatList(); // 新对话的第一条提问会决定它的显示标题与排序
+    updateAiComposerState();
+    // 提问先落盘：即使随后请求失败或应用被关掉，也不会丢掉用户刚输入的内容
+    saveAiChats();
+
+    await runAiTurn(chat, messages);
+}
+
+// 发起一次请求：流式增量写进占位的助手消息，返回本轮的工具调用（没有则为空）
+async function requestAiAnswer(chat, messages) {
+    const requestId = `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    State.aiRequestId = requestId;
+    // 整个回合期间都指向发起它的对话（工具执行阶段也不例外）
+    State.aiStreamingChatId = chat.id;
+
+    const answer = { role: 'assistant', content: '', pending: true, createdAt: Date.now() };
+    chat.messages.push(answer);
+    const answerIndex = chat.messages.length - 1;
+
+    renderAiMessages();
     updateAiComposerState();
 
     let result = null;
     try {
-        result = await ipcRenderer.invoke('ai:chat', { requestId, messages });
+        result = await ipcRenderer.invoke('ai:chat', {
+            requestId,
+            messages,
+            tools: buildAiAgentToolPayload()
+        });
     } catch (err) {
         console.error('AI 请求失败:', err);
         result = { ok: false, error: '请求失败：无法与主进程通信' };
     }
 
     // 仅当这次请求仍是当前请求时才收尾，避免"停止后又收到上一轮结果"的错乱
-    if (State.aiRequestId !== requestId) return;
-    State.aiStreaming = false;
+    if (State.aiRequestId !== requestId) return null;
     State.aiRequestId = null;
-    State.aiStreamingChatId = null;
+
+    const toolCalls = (result && result.ok && Array.isArray(result.toolCalls)) ? result.toolCalls : [];
 
     // 对话可能在生成期间被删除，这里按 id 回查，找不到就当此次回答作废
     const target = findAiConversation(chat.id);
-    const answer = target ? target.messages[answerIndex] : null;
-    if (answer && answer.role === 'assistant') {
-        answer.pending = false;
+    const live = target ? target.messages[answerIndex] : null;
+    if (live && live.role === 'assistant') {
+        live.pending = false;
         if (result && result.ok) {
-            answer.content = result.content;
+            live.content = result.content || '';
+            if (toolCalls.length) live.toolCalls = toolCalls;
         } else {
-            answer.content = '';
-            answer.error = (result && result.error) || '请求失败';
+            live.content = '';
+            live.error = (result && result.error) || '请求失败';
             // 用户主动停止不算错误，用弱化的样式展示
-            answer.canceled = !!(result && result.canceled);
+            live.canceled = !!(result && result.canceled);
         }
         touchAiConversation(target);
     }
@@ -440,6 +661,95 @@ async function sendAiQuestion() {
     renderAiChatList();
     updateAiComposerState();
     updateAiContextHint();
+
+    if (!result || !result.ok || !target) return null;
+    return { toolCalls };
+}
+
+// 一次提问的完整流程：模型要调工具就执行、把结果回传后继续，直到给出最终回答
+async function runAiTurn(chat, initialMessages) {
+    let messages = initialMessages;
+    let steps = 0;
+
+    // 整个回合（含工具执行阶段）都算"正在生成"，否则中途可以再发一条造成两条流程交叠
+    State.aiStreaming = true;
+    State.aiStreamingChatId = chat.id;
+    aiTurnCancelRequested = false;
+    updateAiComposerState();
+
+    try {
+        while (true) {
+            const round = await requestAiAnswer(chat, messages);
+            if (!round) return;
+            if (!round.toolCalls.length) return;
+
+            // 依次执行本轮的工具调用，并把结果按接口要求记进对话
+            for (const call of round.toolCalls) {
+                if (aiTurnCancelRequested) break;
+
+                const outcome = await executeAiAgentTool(call.name, call.arguments);
+                const stepId = outcome.undo ? `step${generateNoteId()}` : '';
+                if (outcome.undo) registerAiAgentUndo(stepId, outcome.undo);
+
+                const target = findAiConversation(chat.id);
+                if (!target) return; // 执行期间对话被删除
+
+                target.messages.push({
+                    role: 'tool',
+                    toolCallId: call.id,
+                    name: call.name,
+                    content: outcome.content,
+                    summary: outcome.summary,
+                    detail: outcome.detail,
+                    ok: outcome.ok !== false,
+                    stepId,
+                    createdAt: Date.now()
+                });
+            }
+
+            touchAiConversation(chat);
+            saveAiChats();
+            renderAiMessages();
+            renderAiChatList();
+
+            if (aiTurnCancelRequested) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: '',
+                    error: '已停止生成',
+                    canceled: true,
+                    createdAt: Date.now()
+                });
+                saveAiChats();
+                renderAiMessages();
+                renderAiChatList();
+                return;
+            }
+
+            steps++;
+            if (steps >= AI_AGENT_MAX_STEPS) {
+                chat.messages.push({
+                    role: 'assistant',
+                    content: `（本次提问已达到 ${AI_AGENT_MAX_STEPS} 步工具调用上限，先停在这里。需要继续的话再发一条消息。）`,
+                    createdAt: Date.now()
+                });
+                saveAiChats();
+                renderAiMessages();
+                renderAiChatList();
+                return;
+            }
+
+            // 带上刚才的调用与结果继续对话，由模型决定下一步还是给出回答
+            messages = buildAiRequestMessages(chat).messages;
+        }
+    } finally {
+        State.aiStreaming = false;
+        State.aiRequestId = null;
+        State.aiStreamingChatId = null;
+        aiTurnCancelRequested = false;
+        updateAiComposerState();
+        renderAiChatList();
+    }
 }
 
 // ---------- 回答的落地方式 ----------

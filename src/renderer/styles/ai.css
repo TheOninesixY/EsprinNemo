@@ -205,7 +205,7 @@
     color: var(--text-primary);
 }
 
-/* 2. 对话记录 */
+/* 3. 对话记录（消息气泡） */
 .ai-messages {
     flex: 1;
     min-height: 0;
@@ -354,7 +354,7 @@
     color: var(--text-primary);
 }
 
-/* 3. 输入区 */
+/* 4. 输入区 */
 .ai-composer {
     flex-shrink: 0;
     display: flex;
@@ -433,7 +433,214 @@
     color: var(--text-primary);
 }
 
-/* 4. 设置页：AI 分类里的输入控件 */
+/* 5. 附件：待发送条、缩略图与消息里的附件卡片 */
+.ai-attach-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 132px;
+    overflow-y: auto;
+}
+.ai-attach-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.ai-attach-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-body);
+    color: var(--text-secondary);
+}
+/* 待发送的附件在深色底上更明显一点 */
+.ai-attach-strip .ai-attach-chip {
+    background: var(--item-hover);
+}
+.ai-attach-chip.image {
+    padding-left: 4px;
+}
+.ai-attach-thumb {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--item-active);
+}
+.ai-attach-info {
+    min-width: 0;
+}
+.ai-attach-name {
+    font-size: 11.5px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 190px;
+}
+.ai-attach-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+.ai-attach-remove {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: color 0.15s, background-color 0.15s;
+}
+.ai-attach-remove:hover {
+    background: var(--item-active);
+    color: var(--danger);
+}
+/* 把文件拖到面板上时的投放提示 */
+.ai-panel.drop-active {
+    outline: 2px dashed var(--accent);
+    outline-offset: -6px;
+}
+.ai-panel.drop-active .ai-input {
+    border-color: var(--accent);
+}
+
+/* 6. Agent 模式开关与附件按钮：同一行的左右两端（附件按钮贴在发送按钮下方） */
+.ai-composer-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.ai-composer-tools .ai-agent-row {
+    min-width: 0;
+}
+.ai-composer-tools .ai-agent-hint {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ai-composer-tools .btn-action-icon {
+    flex-shrink: 0;
+    /* 与发送按钮同高，视觉上贴在它下方 */
+    width: 28px;
+    height: 28px;
+}
+.ai-agent-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+.ai-agent-switch {
+    position: relative;
+    display: inline-block;
+    width: 30px;
+    height: 17px;
+    flex-shrink: 0;
+}
+.ai-agent-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.ai-agent-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    border-radius: 999px;
+    transition: background-color 0.2s;
+}
+.ai-agent-slider:before {
+    content: "";
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.ai-agent-switch input:checked + .ai-agent-slider {
+    background-color: var(--accent);
+}
+.ai-agent-switch input:checked + .ai-agent-slider:before {
+    transform: translateX(13px);
+}
+.ai-agent-label {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    transition: color 0.15s;
+}
+.ai-agent-hint {
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+/* 开启后整行点亮，避免"忘了自己开着 Agent 模式" */
+.ai-agent-row:has(input:checked) .ai-agent-label {
+    color: var(--accent);
+}
+.ai-agent-hint[data-on='1'] {
+    color: var(--accent);
+}
+
+/* Agent 操作卡片：一轮工具调用与它们的执行结果 */
+.ai-msg-agent .ai-msg-body {
+    border-style: dashed;
+}
+.ai-msg-agent .ai-agent-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.ai-agent-steps .ai-msg-content + .ai-step {
+    margin-top: 8px;
+}
+.ai-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+.ai-step > .ms-icon {
+    margin-top: 2px;
+    color: var(--accent);
+}
+.ai-step.running > .ms-icon {
+    color: var(--text-muted);
+    animation: aiStepSpin 1s linear infinite;
+}
+.ai-step.failed > .ms-icon {
+    color: var(--danger);
+}
+@keyframes aiStepSpin {
+    to { transform: rotate(360deg); }
+}
+.ai-step-info {
+    flex: 1;
+    min-width: 0;
+}
+.ai-step-label {
+    font-size: 12px;
+    color: var(--text-primary);
+}
+.ai-step-detail {
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--text-muted);
+    word-break: break-word;
+}
+
+/* 7. 设置页：AI 分类里的输入控件 */
 .settings-input {
     flex-shrink: 0;
     width: 260px;

@@ -91,6 +91,8 @@ function syncAiSettingsUI() {
 
     setAiStatus(describeAiConfigState());
     applyAiEnabledState();
+    // Agent 模式开关在对话面板里，但状态同样来自配置：切换数据目录等情况要跟着刷新
+    syncAiAgentToggle();
 }
 
 // 总开关状态落到界面上：入口按钮、对话面板与设置项一起显隐

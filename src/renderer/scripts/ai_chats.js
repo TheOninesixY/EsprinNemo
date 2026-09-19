@@ -183,6 +183,9 @@ async function deleteAiConversation(id) {
     if (State.aiStreaming && State.aiStreamingChatId === id) stopAiGeneration();
 
     State.aiConversations = State.aiConversations.filter(item => item.id !== id);
+    // 对话里的图片附件同步从 ai_files/ 删除，不留孤儿文件
+    releaseAiAttachments(chat.messages);
+
     if (State.aiActiveConversationId === id) {
         State.aiActiveConversationId = State.aiConversations.length ? State.aiConversations[0].id : '';
     }

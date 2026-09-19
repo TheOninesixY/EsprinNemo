@@ -286,12 +286,14 @@
                             <button class="ai-example-chip" data-prompt="根据我的笔记，列出还没有完成的待办事项">找出未完成待办</button>
                             <button class="ai-example-chip" data-prompt="我的笔记里主要在关注哪些主题？请归类整理">笔记主题归类</button>
                         </div>
-                        <p class="ai-empty-hint">回答可以复制、插入当前笔记，或直接存为新笔记。</p>
+                        <p class="ai-empty-hint">回答可以复制、插入当前笔记，或直接存为新笔记；图片与文本文件可拖进来一起发。</p>
                     </div>
                 </div>
 
                 <div class="ai-composer">
-                    <textarea class="ai-input" id="ai-input" spellcheck="false" placeholder="问点关于笔记的问题…"></textarea>
+                    <!-- 已选好、待发送的附件（图片缩略图 / 文件卡片） -->
+                    <div class="ai-attach-strip hidden" id="ai-attachment-strip"></div>
+                    <textarea class="ai-input" id="ai-input" spellcheck="false" placeholder="问点关于笔记的问题…（可拖入或粘贴图片 / 文本文件）"></textarea>
                     <div class="ai-composer-bar">
                         <div class="ai-composer-meta">
                             <span class="ai-context-hint" id="ai-context-hint">附带：当前笔记</span>
@@ -305,6 +307,21 @@
                             <button class="ai-send-btn hidden" id="btn-ai-stop">停止</button>
                             <button class="ai-send-btn" id="btn-ai-send">发送</button>
                         </div>
+                    </div>
+                    <!-- 底部：左侧 Agent 模式开关，右侧附件按钮（贴在发送按钮正下方） -->
+                    <div class="ai-composer-tools">
+                        <!-- Agent 模式：打开后 AI 可以调用工具新建 / 修改笔记（每步都可在对话里撤销） -->
+                        <label class="ai-agent-row" title="开启后 AI 可以新建与修改笔记：正文、标题、文件夹、标签、置顶与废纸篓">
+                            <span class="ai-agent-switch">
+                                <input type="checkbox" id="ai-agent-mode">
+                                <span class="ai-agent-slider"></span>
+                            </span>
+                            <span class="ai-agent-label">Agent 模式</span>
+                            <span class="ai-agent-hint" id="ai-agent-hint">仅回答问题</span>
+                        </label>
+                        <button class="btn-action-icon" id="btn-ai-attach" title="添加图片或文本文件（也可直接拖入、粘贴）">
+                            <span class="ms-icon sm">attach_file</span>
+                        </button>
                     </div>
                 </div>
             </aside>
@@ -571,6 +588,8 @@
     <script src="./scripts/fonts.js"></script>
     <script src="./scripts/ai_settings.js"></script>
     <script src="./scripts/ai_chats.js"></script>
+    <script src="./scripts/ai_files.js"></script>
+    <script src="./scripts/ai_agent.js"></script>
     <script src="./scripts/ai.js"></script>
     <script src="./scripts/notes.js"></script>
     <script src="./scripts/scratchpad.js"></script>

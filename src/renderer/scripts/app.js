@@ -45,6 +45,8 @@ window.onload = () => {
     initSettingsNav();
     initAiSettings();
     initAiChats();
+    initAiAgent();
+    initAiFiles();
     initAiPanel();
     setupEvents();
     syncTrashRetentionSelect();

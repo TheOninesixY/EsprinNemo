@@ -62,23 +62,93 @@ const AI_CHAT_MESSAGE_LIMIT = 120;
 const AI_CHAT_LIMIT = 50;
 
 // 单条消息规范化：既没有正文也没有错误提示的空消息没有保存价值
+function normalizeAiToolCall(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+    if (!name) return null;
+    return {
+        id: typeof raw.id === 'string' && raw.id ? raw.id : `call_${name}`,
+        name,
+        arguments: typeof raw.arguments === 'string' ? raw.arguments : ''
+    };
+}
+
+// 消息附件的规范化：文本附件带内联内容，图片附件只带 ai_files/ 下的文件名
+function normalizeAiAttachments(raw) {
+    if (!Array.isArray(raw)) return [];
+    const attachments = [];
+    raw.forEach((item) => {
+        if (!item || typeof item !== 'object') return;
+        const kind = item.kind === 'image' ? 'image' : (item.kind === 'text' ? 'text' : '');
+        if (!kind) return;
+
+        const file = typeof item.file === 'string' ? item.file.trim() : '';
+        const content = typeof item.content === 'string' ? item.content : '';
+        // 图片必须有文件名、文本必须有内容，否则这条附件已经不可用
+        if (kind === 'image' && !/^[A-Za-z0-9_.-]{1,80}$/.test(file)) return;
+        if (kind === 'text' && !content) return;
+
+        const attachment = {
+            id: typeof item.id === 'string' && item.id ? item.id : `att${attachments.length}`,
+            kind,
+            name: typeof item.name === 'string' ? item.name : '',
+            size: Number.isFinite(item.size) ? item.size : 0
+        };
+        if (kind === 'image') {
+            attachment.file = file;
+            attachment.mime = typeof item.mime === 'string' ? item.mime : '';
+        } else {
+            attachment.content = content;
+        }
+        attachments.push(attachment);
+    });
+    return attachments;
+}
+
 function normalizeAiChatMessage(raw) {
     if (!raw || typeof raw !== 'object') return null;
+    const createdAt = Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
+
+    // 工具执行结果：与 assistant 的 toolCalls 成对出现，必须保住 toolCallId
+    if (raw.role === 'tool') {
+        const toolCallId = typeof raw.toolCallId === 'string' ? raw.toolCallId.trim() : '';
+        if (!toolCallId) return null;
+        const message = {
+            role: 'tool',
+            toolCallId,
+            name: typeof raw.name === 'string' ? raw.name : '',
+            content: typeof raw.content === 'string' ? raw.content : '',
+            ok: raw.ok !== false,
+            createdAt
+        };
+        if (typeof raw.summary === 'string' && raw.summary) message.summary = raw.summary;
+        if (typeof raw.detail === 'string' && raw.detail) message.detail = raw.detail;
+        // stepId 仅用于在本次运行内找到撤销快照
+        if (typeof raw.stepId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(raw.stepId)) message.stepId = raw.stepId;
+        return message;
+    }
+
     const role = raw.role === 'assistant' ? 'assistant' : (raw.role === 'user' ? 'user' : '');
     if (!role) return null;
 
     const content = typeof raw.content === 'string' ? raw.content : '';
     const error = typeof raw.error === 'string' ? raw.error.trim() : '';
-    if (!content && !error) return null;
+    const toolCalls = Array.isArray(raw.toolCalls)
+        ? raw.toolCalls.map(normalizeAiToolCall).filter(Boolean)
+        : [];
+    const attachments = normalizeAiAttachments(raw.attachments);
+    // 只带附件不带文字的消息也算有效内容
+    if (!content && !error && !toolCalls.length && !attachments.length) return null;
 
-    const message = { role, content };
+    const message = { role, content, createdAt };
+    if (toolCalls.length) message.toolCalls = toolCalls;
     if (error) {
         message.content = '';
         message.error = error;
         if (raw.canceled) message.canceled = true;
     }
     if (typeof raw.contextLabel === 'string' && raw.contextLabel) message.contextLabel = raw.contextLabel;
-    message.createdAt = Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
+    if (attachments.length) message.attachments = attachments;
     return message;
 }
 
@@ -175,6 +245,8 @@ function normalizeAiConfig(raw) {
     return {
         // 总开关：旧配置里还没有该字段时视为开启，保证升级前后的行为一致
         enabled: source.enabled === undefined ? true : !!source.enabled,
+        // Agent 模式：允许模型调用工具改写笔记，默认关闭
+        agentMode: !!source.agentMode,
         baseUrl: pick('baseUrl'),
         // 密钥不 trim 之外的任何改写：原样保存，避免用户粘贴的内容被破坏
         apiKey: typeof source.apiKey === 'string' ? source.apiKey.trim() : '',
