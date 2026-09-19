@@ -968,61 +968,6 @@
             color: var(--text-secondary);
         }
 
-        /* Dialogs / Modals */
-        .modal-mask {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(2px);
-            z-index: 200;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-card {
-            width: 320px;
-            background: var(--bg-list);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-lg);
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
-        .modal-card h3 {
-            font-size: 14px;
-            font-weight: 600;
-        }
-        .modal-card input {
-            background: var(--item-hover);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            padding: 8px 10px;
-            font-size: 13px;
-            user-select: text;
-        }
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-        }
-        .modal-btn {
-            padding: 6px 12px;
-            border-radius: var(--radius-sm);
-            font-size: 12px;
-        }
-        .modal-btn.primary {
-            background: var(--accent);
-            color: #ffffff;
-        }
-        .modal-btn.cancel {
-            color: var(--text-secondary);
-        }
-        .modal-btn.cancel:hover {
-            background: var(--item-hover);
-        }
-
         /* Context Menu */
         .context-menu {
             position: fixed;
@@ -1304,6 +1249,21 @@
         }
         input:checked + .slider:before {
             transform: translateX(20px);
+        }
+
+        /* 只读状态（废纸篓中的笔记）：被禁用的控件与只读输入框的视觉反馈 */
+        .btn-action-icon:disabled,
+        .select-folder:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .btn-action-icon:disabled:hover {
+            background-color: transparent;
+            color: var(--text-secondary);
+        }
+        .editor-title-input[readonly],
+        .editor-textarea[readonly] {
+            cursor: default;
         }
 
         .hidden { display: none !important; }
@@ -1608,46 +1568,8 @@
         </div>
     </div>
 
-    <!-- Modals -->
-    <!-- New Tag Modal -->
-    <div class="modal-mask hidden" id="modal-tag">
-        <div class="modal-card">
-            <h3>添加标签</h3>
-            <input type="text" id="input-tag-name" placeholder="标签名称..." spellcheck="false">
-            <div class="modal-actions">
-                <button class="modal-btn cancel" id="btn-tag-cancel">取消</button>
-                <button class="modal-btn primary" id="btn-tag-confirm">添加</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- New Folder Modal -->
-    <div class="modal-mask hidden" id="modal-folder">
-        <div class="modal-card">
-            <h3>新建文件夹</h3>
-            <input type="text" id="input-folder-name" placeholder="文件夹名称..." spellcheck="false">
-            <div class="modal-actions">
-                <button class="modal-btn cancel" id="btn-folder-cancel">取消</button>
-                <button class="modal-btn primary" id="btn-folder-confirm">创建</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Note Context Menu -->
-    <div class="context-menu hidden" id="note-context-menu">
-        <div class="context-menu-item" data-action="open">
-            <span class="ms-icon sm">open_in_new</span>
-            <span>在标签页打开</span>
-        </div>
-        <div class="context-menu-item" data-action="pin" id="context-menu-pin">
-            <span class="ms-icon sm" id="context-menu-pin-icon">push_pin</span>
-            <span id="context-menu-pin-text">置顶笔记</span>
-        </div>
-        <div class="context-menu-item danger" data-action="delete">
-            <span class="ms-icon sm">delete</span>
-            <span>移入废纸篓</span>
-        </div>
-    </div>
+    <!-- Note Context Menu（菜单项按笔记状态动态生成） -->
+    <div class="context-menu hidden" id="note-context-menu"></div>
 
     <!-- Toast Container -->
     <div class="toast-box" id="toast-container"></div>
@@ -1699,10 +1621,15 @@
             parse(value = '') {
                 if (!value) return '';
 
+                // 占位符不能包含 * _ ~ ` [ ] 等 Markdown 语义字符，
+                // 否则会被后续的加粗/斜体等正则改写，导致无法还原
+                const CODE_BLOCK_TOKEN = (i) => `@@ESPRINCODEBLOCK${i}@@`;
+                const INLINE_CODE_TOKEN = (i) => `@@ESPRININLINECODE${i}@@`;
+
                 // 1. 暂存代码块，避免代码块内容被其他正则破坏
                 const codeBlocks = [];
                 let text = String(value).replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
-                    const id = `__CODE_BLOCK_${codeBlocks.length}__`;
+                    const id = CODE_BLOCK_TOKEN(codeBlocks.length);
                     const escapedCode = code
                         .replace(/&/g, '&amp;')
                         .replace(/</g, '&lt;')
@@ -1716,7 +1643,7 @@
                 // 2. 暂存行内代码
                 const inlineCodes = [];
                 text = text.replace(/`([^`\n]+)`/g, (match, code) => {
-                    const id = `__INLINE_CODE_${inlineCodes.length}__`;
+                    const id = INLINE_CODE_TOKEN(inlineCodes.length);
                     const escapedCode = code
                         .replace(/&/g, '&amp;')
                         .replace(/</g, '&lt;')
@@ -1777,10 +1704,16 @@
                     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
                 // 9. 段落与换行处理
+                // 让代码块占位符独占段落，保证还原后不与其他文本挤在同一个 <p> 内
+                text = text.replace(/[ \t]*@@ESPRINCODEBLOCK(\d+)@@[ \t]*/g, (match, idx) => `\n\n@@ESPRINCODEBLOCK${idx}@@\n\n`);
                 const paragraphs = text.split(/(?:\r?\n){2,}/);
                 text = paragraphs.map(p => {
                     p = p.trim();
                     if (!p) return '';
+                    // 代码块占位符独占一段时保持原样，避免被 <p> 包裹后产生非法嵌套
+                    if (/^(?:@@ESPRINCODEBLOCK\d+@@\s*)+$/.test(p)) {
+                        return p;
+                    }
                     // 如果块级元素开头，则不额外包 <p>
                     if (/^<(?:h[1-6]|ul|ol|blockquote|hr|pre|div|table)/i.test(p)) {
                         return p;
@@ -1789,11 +1722,12 @@
                 }).filter(Boolean).join('\n');
 
                 // 10. 恢复行内代码与代码块
+                // 使用函数式替换，避免代码内容中的 $& $1 等被当作替换模式解析
                 inlineCodes.forEach((code, idx) => {
-                    text = text.replace(`__INLINE_CODE_${idx}__`, code);
+                    text = text.replace(INLINE_CODE_TOKEN(idx), () => code);
                 });
                 codeBlocks.forEach((block, idx) => {
-                    text = text.replace(`__CODE_BLOCK_${idx}__`, block);
+                    text = text.replace(CODE_BLOCK_TOKEN(idx), () => block);
                 });
 
                 return text;
@@ -1857,7 +1791,9 @@
             spellcheck: false,
             // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
             fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
-            autoSaveTimer: null
+            autoSaveTimer: null,
+            // MD 预览刷新的延时器：静默 1 秒后才刷新一次
+            previewTimer: null
         };
 
         // Local Storage File Handlers (data/config.json, data/index.json, data/notes/{id}.md)
@@ -2589,12 +2525,17 @@
             return State.notes.find(n => n.id === State.activeNoteId) || null;
         }
 
+        // 废纸篓中的笔记为只读：可查看与导出，但不能修改内容与元数据
+        function isReadOnlyNote(note) {
+            return !!(note && note.isTrashed);
+        }
+
         // 待保存的编辑内容：记录目标笔记，避免切换标签页后把草稿写进别的笔记
         let pendingSave = null;
 
         function autoSaveNote() {
             const note = getActiveNote();
-            if (!note) return;
+            if (!note || isReadOnlyNote(note)) return;
 
             pendingSave = {
                 noteId: note.id,
@@ -2648,7 +2589,7 @@
 
         function togglePin(noteId) {
             const note = State.notes.find(n => n.id === noteId);
-            if (!note) return;
+            if (!note || note.isTrashed) return;
             note.isPinned = !note.isPinned;
             saveIndex();
             renderApp();
@@ -2657,14 +2598,37 @@
 
         function moveToTrash(noteId) {
             const note = State.notes.find(n => n.id === noteId);
-            if (!note) return;
-            note.isTrashed = !note.isTrashed;
-            if (note.isTrashed) {
-                closeTab(noteId);
-            }
+            if (!note || note.isTrashed) return;
+            note.isTrashed = true;
+            closeTab(noteId);
             saveIndex();
             renderApp();
-            showToast(note.isTrashed ? '已移入废纸篓' : '已恢复');
+            showToast('已移入废纸篓');
+        }
+
+        function restoreFromTrash(noteId) {
+            const note = State.notes.find(n => n.id === noteId);
+            if (!note || !note.isTrashed) return;
+            note.isTrashed = false;
+            saveIndex();
+            renderApp();
+            showToast('已恢复');
+        }
+
+        // 彻底删除需要二次确认（不可撤销）
+        async function purgeNote(noteId) {
+            const note = State.notes.find(n => n.id === noteId);
+            if (!note) return;
+            const confirmed = await showConfirm(`彻底删除“${note.title || '未命名笔记'}”？`, {
+                title: '彻底删除笔记',
+                detail: '该笔记将从磁盘上永久移除，此操作无法撤销。',
+                type: 'warning',
+                icon: 'delete_forever',
+                confirmLabel: '彻底删除',
+                danger: true
+            });
+            if (!confirmed) return;
+            permanentlyDelete(noteId);
         }
 
         function deleteNoteFile(noteId) {
@@ -2687,14 +2651,21 @@
             showToast('已彻底删除');
         }
 
-        function clearTrash() {
-            if (confirm('确认清空废纸篓吗？此操作无法撤销。')) {
-                State.notes.filter(n => n.isTrashed).forEach(n => deleteNoteFile(n.id));
-                State.notes = State.notes.filter(n => !n.isTrashed);
-                saveIndex();
-                renderApp();
-                showToast('已清空废纸篓');
-            }
+        async function clearTrash() {
+            const confirmed = await showConfirm('确认清空废纸篓吗？', {
+                title: '清空废纸篓',
+                detail: '废纸篓中的所有笔记将被永久删除，此操作无法撤销。',
+                type: 'warning',
+                icon: 'delete_forever',
+                confirmLabel: '清空',
+                danger: true
+            });
+            if (!confirmed) return;
+            State.notes.filter(n => n.isTrashed).forEach(n => deleteNoteFile(n.id));
+            State.notes = State.notes.filter(n => !n.isTrashed);
+            saveIndex();
+            renderApp();
+            showToast('已清空废纸篓');
         }
 
         // Filtering
@@ -2796,22 +2767,38 @@
 
                 const delBtn = item.querySelector('.btn-del-folder');
                 if (delBtn) {
-                    delBtn.addEventListener('click', (e) => {
+                    delBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        if (confirm(`删除文件夹 "${folder}"？其中的笔记将移入"默认"`)) {
-                            State.folders = State.folders.filter(f => f !== folder);
-                            State.notes.forEach(n => {
-                                if (n.folder === folder) n.folder = '默认';
-                            });
-                            if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
-                            saveData();
-                            renderApp();
-                        }
+                        const confirmed = await showConfirm(`删除文件夹“${folder}”？`, {
+                            title: '删除文件夹',
+                            detail: '该文件夹中的笔记将移入“默认”文件夹，笔记本身不会被删除。',
+                            type: 'warning',
+                            icon: 'delete',
+                            confirmLabel: '删除',
+                            danger: true
+                        });
+                        if (!confirmed) return;
+                        State.folders = State.folders.filter(f => f !== folder);
+                        State.notes.forEach(n => {
+                            if (n.folder === folder) n.folder = '默认';
+                        });
+                        if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
+                        saveData();
+                        renderApp();
                     });
                 }
 
                 container.appendChild(item);
             });
+        }
+
+        // 应用中已有的标签（仅统计未删除的笔记），排序后供弹窗里的候选项列表使用
+        function getAllTags() {
+            const tags = new Set();
+            State.notes.filter(n => !n.isTrashed).forEach(n => {
+                if (Array.isArray(n.tags)) n.tags.forEach(t => { if (t) tags.add(t); });
+            });
+            return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'));
         }
 
         function renderTags() {
@@ -3019,20 +3006,25 @@
             });
 
             const tagsContainer = document.getElementById('editor-tags-container');
+            const readOnly = isReadOnlyNote(note);
             tagsContainer.innerHTML = '';
             if (note.tags) {
                 note.tags.forEach(tag => {
                     const chip = document.createElement('span');
                     chip.className = 'editor-tag-chip';
-                    chip.innerHTML = `
-                        <span>#${escapeHTML(tag)}</span>
-                        <button title="移除标签"><span class="ms-icon xs">close</span></button>
-                    `;
-                    chip.querySelector('button').onclick = () => {
-                        note.tags = note.tags.filter(t => t !== tag);
-                        saveIndex();
-                        renderApp();
-                    };
+                    chip.innerHTML = `<span>#${escapeHTML(tag)}</span>`;
+                    // 只读时不提供“移除标签”入口
+                    if (!readOnly) {
+                        const removeBtn = document.createElement('button');
+                        removeBtn.title = '移除标签';
+                        removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
+                        removeBtn.onclick = () => {
+                            note.tags = note.tags.filter(t => t !== tag);
+                            saveIndex();
+                            renderApp();
+                        };
+                        chip.appendChild(removeBtn);
+                    }
                     tagsContainer.appendChild(chip);
                 });
             }
@@ -3046,9 +3038,29 @@
                 pinBtn.style.color = 'var(--text-secondary)';
             }
 
-            renderMarkdown();
+            applyEditorReadOnly(note);
+            flushRenderMarkdown();
             updateStats();
             updateViewModeUI();
+        }
+
+        // MD 预览刷新节流：连续输入时每次字符变动都重置计时，
+        // 只有静默满 1 秒才真正重新解析 Markdown 并刷新预览
+        const PREVIEW_REFRESH_DELAY = 1000;
+
+        function scheduleRenderMarkdown() {
+            clearTimeout(State.previewTimer);
+            State.previewTimer = setTimeout(() => {
+                State.previewTimer = null;
+                renderMarkdown();
+            }, PREVIEW_REFRESH_DELAY);
+        }
+
+        // 立即刷新，并取消等待中的延时刷新（切换笔记/视图等场景要即时看到结果）
+        function flushRenderMarkdown() {
+            clearTimeout(State.previewTimer);
+            State.previewTimer = null;
+            renderMarkdown();
         }
 
         function renderMarkdown() {
@@ -3084,6 +3096,42 @@
             document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(note.updatedAt)}`;
         }
 
+        // 只读模式：废纸篓中的笔记只能查看与导出，所有编辑入口统一在这里关闭
+        const READONLY_STATUS_TEXT = '只读 · 位于废纸篓';
+
+        function applyEditorReadOnly(note) {
+            const readOnly = isReadOnlyNote(note);
+
+            const titleInput = document.getElementById('input-note-title');
+            const contentInput = document.getElementById('textarea-note-content');
+            const toolbar = document.getElementById('editor-toolbar');
+            const folderSelect = document.getElementById('editor-folder-select');
+            const addTagBtn = document.getElementById('btn-add-tag');
+            const pinBtn = document.getElementById('btn-note-pin');
+            const trashBtn = document.getElementById('btn-note-trash');
+
+            titleInput.readOnly = readOnly;
+            contentInput.readOnly = readOnly;
+            folderSelect.disabled = readOnly;
+            addTagBtn.disabled = readOnly;
+            pinBtn.disabled = readOnly;
+
+            // 只读时排版工具栏没有意义，直接隐藏（上方已确保非只读时恢复显示）
+            toolbar.classList.toggle('hidden', readOnly);
+
+            // 同一个按钮承担两种语义：普通笔记=移入废纸篓，废纸篓中=恢复
+            const trashIcon = trashBtn.querySelector('.ms-icon');
+            if (trashIcon) trashIcon.textContent = readOnly ? 'restore_from_trash' : 'delete';
+            trashBtn.title = readOnly ? '恢复笔记' : '放入废纸篓';
+
+            const saveStatus = document.getElementById('save-status');
+            if (readOnly) {
+                saveStatus.textContent = READONLY_STATUS_TEXT;
+            } else if (saveStatus.textContent === READONLY_STATUS_TEXT) {
+                saveStatus.textContent = '就绪';
+            }
+        }
+
         function updateViewModeUI() {
             const editPane = document.getElementById('editor-pane');
             const previewPane = document.getElementById('preview-pane');
@@ -3104,27 +3152,59 @@
             }
         }
 
-        // Note Context Menu
+        // Note Context Menu（菜单项按笔记状态动态生成：普通笔记 / 废纸篓中的笔记）
         let contextNoteId = null;
-        function showContextMenu(x, y, noteId) {
-            contextNoteId = noteId;
-            const note = State.notes.find(n => n.id === noteId);
-            const menu = document.getElementById('note-context-menu');
-            
-            // 动态更新置顶选项文案与图标
-            const pinText = document.getElementById('context-menu-pin-text');
-            const pinIcon = document.getElementById('context-menu-pin-icon');
-            if (note && note.isPinned) {
-                pinText.textContent = '取消置顶';
-                pinIcon.textContent = 'keep_off';
-            } else {
-                pinText.textContent = '置顶笔记';
-                pinIcon.textContent = 'push_pin';
+
+        function contextMenuItems(note) {
+            if (note.isTrashed) {
+                return [
+                    { action: 'open', icon: 'open_in_new', label: '在标签页打开' },
+                    { action: 'restore', icon: 'restore_from_trash', label: '恢复笔记' },
+                    { action: 'purge', icon: 'delete_forever', label: '彻底删除', danger: true }
+                ];
             }
+            return [
+                { action: 'open', icon: 'open_in_new', label: '在标签页打开' },
+                {
+                    action: 'pin',
+                    icon: note.isPinned ? 'keep_off' : 'push_pin',
+                    label: note.isPinned ? '取消置顶' : '置顶笔记'
+                },
+                { action: 'delete', icon: 'delete', label: '移入废纸篓', danger: true }
+            ];
+        }
+
+        function showContextMenu(x, y, noteId) {
+            const note = State.notes.find(n => n.id === noteId);
+            if (!note) return;
+            contextNoteId = noteId;
+
+            const menu = document.getElementById('note-context-menu');
+            menu.innerHTML = '';
+            contextMenuItems(note).forEach(item => {
+                const el = document.createElement('div');
+                el.className = `context-menu-item${item.danger ? ' danger' : ''}`;
+                el.dataset.action = item.action;
+
+                const icon = document.createElement('span');
+                icon.className = 'ms-icon sm';
+                icon.textContent = item.icon;
+
+                const label = document.createElement('span');
+                label.textContent = item.label;
+
+                el.append(icon, label);
+                menu.appendChild(el);
+            });
 
             menu.style.left = `${x}px`;
             menu.style.top = `${y}px`;
             menu.classList.remove('hidden');
+
+            // 菜单项数量随笔记状态变化，显示后再校正一次位置，避免溢出窗口
+            const rect = menu.getBoundingClientRect();
+            menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - rect.width - 4))}px`;
+            menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - rect.height - 4))}px`;
         }
 
         function hideContextMenu() {
@@ -3142,6 +3222,10 @@
                 togglePin(contextNoteId);
             } else if (action === 'delete') {
                 moveToTrash(contextNoteId);
+            } else if (action === 'restore') {
+                restoreFromTrash(contextNoteId);
+            } else if (action === 'purge') {
+                purgeNote(contextNoteId);
             }
             hideContextMenu();
         };
@@ -3153,6 +3237,7 @@
         // Markdown Formatter Shortcuts
         function formatMarkdown(type) {
             const textarea = document.getElementById('textarea-note-content');
+            if (textarea.readOnly) return;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
             const sel = textarea.value.substring(start, end);
@@ -3175,7 +3260,77 @@
             textarea.value = textarea.value.substring(0, start) + ins + textarea.value.substring(end);
             textarea.focus();
             autoSaveNote();
-            renderMarkdown();
+            flushRenderMarkdown();
+        }
+
+        // 编辑器内 Tab 缩进：按 Tab 不再切换焦点，而是插入缩进
+        // - 光标处：插入一个缩进单位
+        // - 选中多行：整块缩进
+        // - Shift+Tab：减少缩进
+        const INDENT_UNIT = '    ';
+
+        function handleContentTab(e) {
+            const textarea = document.getElementById('textarea-note-content');
+            if (!textarea || textarea.readOnly) return;
+            e.preventDefault();
+
+            const value = textarea.value;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+
+            if (e.shiftKey) {
+                // 反缩进：去掉选中行（或光标所在行）行首的一个缩进单位
+                const singleLine = start === end;
+                let lineEnd = value.indexOf('\n', singleLine ? start : end);
+                if (lineEnd === -1) lineEnd = value.length;
+
+                const lines = value.slice(lineStart, lineEnd).split('\n');
+                let removedFirst = 0;
+                const newLines = lines.map((line, idx) => {
+                    const m = line.match(/^(?:\t| {1,4})/);
+                    if (!m) return line;
+                    if (idx === 0) removedFirst = m[0].length;
+                    return line.slice(m[0].length);
+                });
+                const newBlock = newLines.join('\n');
+                textarea.value = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+
+                if (singleLine) {
+                    const caret = Math.max(lineStart, start - removedFirst);
+                    textarea.setSelectionRange(caret, caret);
+                } else {
+                    textarea.setSelectionRange(
+                        Math.max(lineStart, start - removedFirst),
+                        lineStart + newBlock.length
+                    );
+                }
+            } else if (start === end) {
+                // 光标处直接插入缩进（空行也会插入，方便续写缩进内容）
+                textarea.value = value.slice(0, start) + INDENT_UNIT + value.slice(end);
+                const caret = start + INDENT_UNIT.length;
+                textarea.setSelectionRange(caret, caret);
+            } else {
+                // 选中内容跨行时整体缩进（行内选中同样按整行处理）
+                let lineEnd = value.indexOf('\n', end);
+                if (lineEnd === -1) lineEnd = value.length;
+
+                let inserted = 0;
+                const newBlock = value.slice(lineStart, lineEnd).split('\n').map(line => {
+                    if (!line.length) return line; // 空行不缩进，避免产生行尾空白
+                    inserted++;
+                    return INDENT_UNIT + line;
+                }).join('\n');
+                textarea.value = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+                textarea.setSelectionRange(
+                    start + INDENT_UNIT.length,
+                    end + INDENT_UNIT.length * inserted
+                );
+            }
+
+            textarea.focus();
+            autoSaveNote();
+            scheduleRenderMarkdown();
         }
 
         function formatDate(timestamp) {
@@ -3207,20 +3362,114 @@
             }, 1800);
         }
 
+        // 所有消息弹窗都由主进程创建独立窗口（自绘标题栏，非窗口内假窗口）
+        // 三个入口与浏览器原生 alert/confirm/prompt 的用法保持一致，便于替换
+        async function showAlert(message, options = {}) {
+            try {
+                await ipcRenderer.invoke('dialog:message', {
+                    type: options.type || 'info',
+                    icon: options.icon,
+                    title: options.title || '提示',
+                    message,
+                    detail: options.detail || '',
+                    buttons: [{ id: 'ok', label: options.confirmLabel || '确定', variant: 'primary' }]
+                });
+            } catch (err) {
+                console.error('打开消息窗口失败:', err);
+            }
+        }
+
+        async function showConfirm(message, options = {}) {
+            try {
+                const result = await ipcRenderer.invoke('dialog:message', {
+                    type: options.type || 'question',
+                    icon: options.icon,
+                    title: options.title || '确认操作',
+                    message,
+                    detail: options.detail || '',
+                    buttons: [
+                        { id: 'cancel', label: options.cancelLabel || '取消', cancel: true },
+                        { id: 'confirm', label: options.confirmLabel || '确定', variant: options.danger ? 'danger' : 'primary' }
+                    ]
+                });
+                return !!result && result.id === 'confirm';
+            } catch (err) {
+                console.error('打开确认窗口失败:', err);
+                return false;
+            }
+        }
+
+        // 输入类弹窗的共用调用，inputConfig 为输入框配置（可含候选项列表）
+        async function runInputDialog(message, options, inputConfig, defaultTitle) {
+            try {
+                return await ipcRenderer.invoke('dialog:message', {
+                    type: options.type || 'question',
+                    icon: options.icon,
+                    title: options.title || defaultTitle,
+                    message,
+                    detail: options.detail || '',
+                    width: options.width,
+                    input: inputConfig,
+                    buttons: [
+                        { id: 'cancel', label: options.cancelLabel || '取消', cancel: true },
+                        { id: 'confirm', label: options.confirmLabel || '确定', variant: 'primary' }
+                    ]
+                });
+            } catch (err) {
+                console.error('打开输入窗口失败:', err);
+                return null;
+            }
+        }
+
+        // 单值输入：返回去除首尾空格后的内容，取消返回 null
+        async function showPrompt(message, options = {}) {
+            const result = await runInputDialog(message, options, {
+                value: options.value || '',
+                placeholder: options.placeholder || '',
+                label: options.label || ''
+            }, '输入');
+            if (!result || result.id !== 'confirm') return null;
+            return typeof result.value === 'string' ? result.value.trim() : '';
+        }
+
+        // 输入 + 已有候选项多选：返回 { value, selected }，取消返回 null
+        async function showPromptWithChoices(message, options = {}) {
+            const result = await runInputDialog(message, options, {
+                value: options.value || '',
+                placeholder: options.placeholder || '',
+                label: options.label || '',
+                choices: Array.isArray(options.choices) ? options.choices : [],
+                selected: Array.isArray(options.selected) ? options.selected : [],
+                multiple: options.multiple !== false
+            }, '选择');
+            if (!result || result.id !== 'confirm') return null;
+            return {
+                value: typeof result.value === 'string' ? result.value.trim() : '',
+                selected: Array.isArray(result.selected) ? result.selected : []
+            };
+        }
+
         // Global Event Setup
         function setupEvents() {
             document.getElementById('btn-new-note').onclick = createNewNote;
             document.getElementById('btn-empty-new').onclick = createNewNote;
 
             document.getElementById('input-note-title').oninput = autoSaveNote;
-            document.getElementById('textarea-note-content').oninput = () => {
+            const contentTextarea = document.getElementById('textarea-note-content');
+            contentTextarea.oninput = () => {
                 autoSaveNote();
-                renderMarkdown();
+                scheduleRenderMarkdown();
+            };
+            // Tab / Shift+Tab 用于缩进，避免浏览器默认行为把焦点移出编辑器
+            contentTextarea.onkeydown = (e) => {
+                if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    handleContentTab(e);
+                }
             };
 
             document.getElementById('editor-folder-select').onchange = (e) => {
                 const note = getActiveNote();
-                if (note) {
+                if (note && !isReadOnlyNote(note)) {
                     note.folder = e.target.value;
                     saveIndex();
                     renderApp();
@@ -3231,13 +3480,16 @@
                 if (State.activeNoteId) togglePin(State.activeNoteId);
             };
             document.getElementById('btn-note-trash').onclick = () => {
-                if (State.activeNoteId) moveToTrash(State.activeNoteId);
+                if (!State.activeNoteId) return;
+                // 废纸篓中的笔记：同一个按钮变成“恢复笔记”
+                if (isReadOnlyNote(getActiveNote())) restoreFromTrash(State.activeNoteId);
+                else moveToTrash(State.activeNoteId);
             };
             document.getElementById('btn-empty-trash').onclick = clearTrash;
 
             document.getElementById('btn-mode-edit').onclick = () => { State.viewMode = 'edit'; updateViewModeUI(); };
-            document.getElementById('btn-mode-split').onclick = () => { State.viewMode = 'split'; updateViewModeUI(); };
-            document.getElementById('btn-mode-preview').onclick = () => { State.viewMode = 'preview'; updateViewModeUI(); };
+            document.getElementById('btn-mode-split').onclick = () => { State.viewMode = 'split'; flushRenderMarkdown(); updateViewModeUI(); };
+            document.getElementById('btn-mode-preview').onclick = () => { State.viewMode = 'preview'; flushRenderMarkdown(); updateViewModeUI(); };
 
             document.getElementById('btn-open-settings').onclick = () => {
                 openSettingsTab();
@@ -3368,44 +3620,51 @@
                 btn.onclick = () => formatMarkdown(btn.getAttribute('data-fmt'));
             });
 
-            const modalFolder = document.getElementById('modal-folder');
-            const inputFolder = document.getElementById('input-folder-name');
-            document.getElementById('btn-add-folder').onclick = () => {
-                inputFolder.value = '';
-                modalFolder.classList.remove('hidden');
-                inputFolder.focus();
-            };
-            document.getElementById('btn-folder-cancel').onclick = () => modalFolder.classList.add('hidden');
-            document.getElementById('btn-folder-confirm').onclick = () => {
-                const name = inputFolder.value.trim();
-                if (name && !State.folders.includes(name)) {
-                    State.folders.push(name);
-                    saveIndex();
-                    renderApp();
+            // 新建文件夹 / 添加标签：输入框由主进程的独立弹窗窗口承载
+            document.getElementById('btn-add-folder').onclick = async () => {
+                const name = await showPrompt('请输入新文件夹的名称', {
+                    title: '新建文件夹',
+                    placeholder: '文件夹名称...',
+                    confirmLabel: '创建'
+                });
+                if (!name) return;
+                if (State.folders.includes(name)) {
+                    showToast('已存在同名文件夹');
+                    return;
                 }
-                modalFolder.classList.add('hidden');
+                State.folders.push(name);
+                saveIndex();
+                renderApp();
             };
 
-            const modalTag = document.getElementById('modal-tag');
-            const inputTag = document.getElementById('input-tag-name');
-            document.getElementById('btn-add-tag').onclick = () => {
-                inputTag.value = '';
-                modalTag.classList.remove('hidden');
-                inputTag.focus();
-            };
-            document.getElementById('btn-tag-cancel').onclick = () => modalTag.classList.add('hidden');
-            document.getElementById('btn-tag-confirm').onclick = () => {
-                const tag = inputTag.value.trim();
+            document.getElementById('btn-add-tag').onclick = async () => {
                 const note = getActiveNote();
-                if (tag && note) {
-                    if (!note.tags) note.tags = [];
-                    if (!note.tags.includes(tag)) {
-                        note.tags.push(tag);
-                        saveIndex();
-                        renderApp();
-                    }
-                }
-                modalTag.classList.add('hidden');
+                if (!note || isReadOnlyNote(note)) return;
+                // 候选项：应用中已有的标签，当前笔记已添加的不再重复列出
+                const added = Array.isArray(note.tags) ? note.tags : [];
+                const choices = getAllTags().filter(tag => !added.includes(tag));
+                const picked = await showPromptWithChoices('请输入要添加的标签名称', {
+                    title: '添加标签',
+                    detail: choices.length
+                        ? '可直接输入新标签名，或点选下方已有标签（可多选）。'
+                        : '可直接输入新标签名。',
+                    placeholder: '标签名称...',
+                    confirmLabel: '添加',
+                    choices,
+                    multiple: true
+                });
+                if (!picked) return;
+
+                const pending = [...picked.selected];
+                if (picked.value) pending.push(picked.value);
+                const newTags = pending.filter(tag => !added.includes(tag));
+                if (!newTags.length) return;
+
+                if (!note.tags) note.tags = [];
+                newTags.forEach(tag => note.tags.push(tag));
+                saveIndex();
+                renderApp();
+                showToast(newTags.length > 1 ? `已添加 ${newTags.length} 个标签` : '已添加标签');
             };
 
             window.onkeydown = (e) => {
@@ -3419,6 +3678,11 @@
                 }
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
                     e.preventDefault();
+                    // 废纸篓中的笔记为只读，不写盘也不提示“已保存”
+                    if (isReadOnlyNote(getActiveNote())) {
+                        showToast('废纸篓中的笔记为只读');
+                        return;
+                    }
                     autoSaveNote();
                     showToast('已保存');
                 }

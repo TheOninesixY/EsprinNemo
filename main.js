@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -8,6 +8,8 @@ const {
   writeStoredDataDir
 } = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
+const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
+const { registerUiDefaults } = require('./ui_defaults.js');
 
 // 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/；
 // 用户在设置中自定义位置后，以应用配置目录中的 data-location.json 为准。
@@ -18,6 +20,28 @@ function resolveDataDir() {
   }
   return dataDir;
 }
+
+// 读取用户配置的主题偏好并折算为实际生效的明暗色，供主窗口背景与弹窗窗口主题复用
+function resolveEffectiveTheme() {
+  let theme = 'system';
+  try {
+    const configFile = path.join(resolveDataDir(), 'config.json');
+    if (fs.existsSync(configFile)) {
+      const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+      if (config && config.theme) theme = config.theme;
+    }
+  } catch (error) {
+    console.error('[Esprin Nemo] 读取主题配置失败:', error);
+  }
+  const isLight = theme === 'light' || (theme === 'system' && !nativeTheme.shouldUseDarkColors);
+  return isLight ? 'light' : 'dark';
+}
+
+// 所有消息弹窗都在自绘标题栏的独立窗口中呈现，主题与当前界面保持一致
+configureDialogWindows({
+  getTheme: resolveEffectiveTheme,
+  icon: path.join(__dirname, 'icon.png')
+});
 
 function normalizePathForCompare(target) {
   const resolved = path.resolve(target);
@@ -68,28 +92,31 @@ async function applyDataDirChange(targetPath, win, { persist = true, confirmExis
   let migrate = false;
 
   if (existing && confirmExisting) {
-    const { response } = await dialog.showMessageBox(win, {
+    const choice = await showDialogWindow(win, {
       type: 'question',
-      buttons: ['使用该位置的现有数据', '取消'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true,
+      title: '数据存放位置',
       message: `${targetLabel}已存在 EsprinNemo 数据`,
-      detail: '继续后应用会直接使用该位置中的笔记与配置，不会覆盖或删除任何文件。\n' + `位置：${target}`
+      detail: '继续后应用会直接使用该位置中的笔记与配置，不会覆盖或删除任何文件。\n' + `位置：${target}`,
+      buttons: [
+        { id: 'use-existing', label: '使用该位置的现有数据', variant: 'primary' },
+        { id: 'cancel', label: '取消', cancel: true }
+      ]
     });
-    if (response !== 0) return { canceled: true };
+    if (choice.id !== 'use-existing') return { canceled: true };
   } else if (!existing) {
-    const { response } = await dialog.showMessageBox(win, {
+    const choice = await showDialogWindow(win, {
       type: 'question',
-      buttons: ['迁移现有数据', '不迁移', '取消'],
-      defaultId: 0,
-      cancelId: 2,
-      noLink: true,
+      title: '数据存放位置',
       message: `是否把现有数据迁移到${targetLabel}？`,
-      detail: '“迁移现有数据”会把当前数据目录完整复制到该位置；选择“不迁移”则该位置从空白开始（原位置的数据会原样保留）。\n' + `位置：${target}`
+      detail: '“迁移现有数据”会把当前数据目录完整复制到该位置；选择“不迁移”则该位置从空白开始（原位置的数据会原样保留）。\n' + `位置：${target}`,
+      buttons: [
+        { id: 'migrate', label: '迁移现有数据', variant: 'primary' },
+        { id: 'keep', label: '不迁移' },
+        { id: 'cancel', label: '取消', cancel: true }
+      ]
     });
-    if (response === 2) return { canceled: true };
-    migrate = response === 0;
+    if (choice.id === 'cancel') return { canceled: true };
+    migrate = choice.id === 'migrate';
   }
 
   if (migrate) {
@@ -220,23 +247,8 @@ function createWindow() {
   // 数据目录在渲染进程启动前就绪（安装版为 %APPDATA%/esprin_nemo/data）
   const currentDataDir = resolveDataDir();
 
-  // Preload theme before showing window to prevent flashing
-  let initialBg = '#0d1117';
-  try {
-    const configFile = path.join(currentDataDir, 'config.json');
-    let theme = 'system';
-    if (fs.existsSync(configFile)) {
-      const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-      if (config.theme) theme = config.theme;
-    }
-    const { nativeTheme } = require('electron');
-    const isLight = theme === 'light' || (theme === 'system' && !nativeTheme.shouldUseDarkColors);
-    if (isLight) {
-      initialBg = '#ffffff';
-    }
-  } catch (e) {
-    console.error(e);
-  }
+  // 显示窗口前先定好主题背景色，避免出现闪光弹式闪烁
+  const initialBg = resolveEffectiveTheme() === 'light' ? '#ffffff' : '#0d1117';
 
   const win = new BrowserWindow({
     width: 1200,
@@ -276,6 +288,12 @@ app.whenReady().then(() => {
   } catch (error) {
     console.error('[Esprin Nemo] 注册字体权限处理器失败:', error);
   }
+
+  // 窗口式消息弹窗的 IPC 通道
+  registerDialogIpc();
+
+  // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
+  registerUiDefaults();
 
   createWindow();
 });

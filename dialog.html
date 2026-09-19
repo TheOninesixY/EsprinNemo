@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esprin Nemo</title>
+    <script>
+        // 主题由主进程在创建窗口时通过命令行参数传入，首屏渲染前应用，避免闪烁
+        try {
+            const argPrefix = '--esprin-nemo-dialog-theme=';
+            const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(argPrefix));
+            const theme = matched ? matched.slice(argPrefix.length).trim() : '';
+            if (theme === 'light') document.documentElement.classList.add('light');
+        } catch (e) {}
+    </script>
+    <link rel="stylesheet" href="./node_modules/material-symbols/rounded.css">
+    <style>
+        /* 品牌字体：与主窗口标题栏一致，仅用于窗口标题 */
+        @font-face {
+            font-family: 'Mohave';
+            src: url('./fonts/Mohave/Mohave-VariableFont_wght.ttf') format('truetype-variations'),
+                 url('./fonts/Mohave/Mohave-VariableFont_wght.ttf') format('truetype');
+            font-weight: 300 700;
+            font-style: normal;
+            font-display: swap;
+        }
+
+        :root {
+            --bg-body: #0d1117;
+            --bg-titlebar: #161b22;
+            --bg-list: #161b22;
+            --border-color: #30363d;
+
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+
+            --accent: #58a6ff;
+            --accent-bg: rgba(56, 139, 253, 0.15);
+            --danger: #f85149;
+            --warning: #d29922;
+            --brand: #E6E8F3;
+
+            --item-hover: rgba(255, 255, 255, 0.04);
+            --item-active: rgba(255, 255, 255, 0.08);
+
+            --radius-sm: 6px;
+
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial,
+                         "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+        }
+
+        :root.light {
+            --bg-body: #ffffff;
+            --bg-titlebar: #f6f8fa;
+            --bg-list: #ffffff;
+            --border-color: #d0d7de;
+
+            --text-primary: #1f2328;
+            --text-secondary: #656d76;
+
+            --accent: #0969da;
+            --accent-bg: rgba(9, 105, 218, 0.1);
+            --danger: #cf222e;
+            --warning: #bf8700;
+            --brand: #280C7D;
+
+            --item-hover: rgba(0, 0, 0, 0.04);
+            --item-active: rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        html, body {
+            width: 100vw;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            color: var(--text-primary);
+            background-color: var(--bg-body);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .ms-icon {
+            font-family: 'Material Symbols Rounded';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 18px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            -webkit-font-smoothing: antialiased;
+            font-feature-settings: 'liga';
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+        }
+        .ms-icon.xs { font-size: 14px; }
+
+        button {
+            border: none;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+        }
+
+        input {
+            font-family: inherit;
+            color: inherit;
+            border: none;
+            outline: none;
+            background: transparent;
+        }
+
+        /* 滚动条：与主窗口保持一致的极细样式 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: var(--text-secondary);
+        }
+
+        .dialog-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            background-color: var(--bg-body);
+        }
+
+        /* 自绘标题栏：与主窗口保持一致的 40px 高度、拖动区域与交互样式 */
+        .titlebar {
+            height: 40px;
+            background-color: var(--bg-titlebar);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-left: 14px;
+            -webkit-app-region: drag;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        .titlebar-brand {
+            font-family: 'Mohave', var(--font-sans);
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--brand);
+            letter-spacing: 0.4px;
+            flex-shrink: 0;
+        }
+        .titlebar-title {
+            flex: 1;
+            min-width: 0;
+            margin-left: 10px;
+            padding-left: 10px;
+            border-left: 1px solid var(--border-color);
+            font-size: 12px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .window-controls {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            flex-shrink: 0;
+            -webkit-app-region: no-drag;
+        }
+        .win-btn {
+            width: 44px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: background 0.15s, color 0.15s;
+        }
+        .win-btn:hover {
+            background-color: var(--item-active);
+            color: var(--text-primary);
+        }
+        .win-btn.close:hover {
+            background-color: var(--danger);
+            color: #ffffff;
+        }
+
+        /* 弹窗内容 */
+        .dialog-body {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 20px 20px 18px;
+            background-color: var(--bg-body);
+        }
+        .dialog-head {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        .dialog-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+            margin-top: 1px;
+            color: var(--accent);
+        }
+        .dialog-icon.warning { color: var(--warning); }
+        .dialog-icon.error { color: var(--danger); }
+        .dialog-text {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .dialog-message {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.5;
+            word-break: break-word;
+            user-select: text;
+        }
+        .dialog-detail {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            user-select: text;
+        }
+
+        .dialog-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .dialog-field-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .dialog-input {
+            width: 100%;
+            background: var(--item-hover);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 10px;
+            font-size: 13px;
+            color: var(--text-primary);
+            user-select: text;
+        }
+        .dialog-input:focus {
+            border-color: var(--accent);
+        }
+        .dialog-input::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
+        /* 候选项：输入框下方的可点选气泡（multiple 时支持多选） */
+        .dialog-choices {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            max-height: 140px;
+            overflow-y: auto;
+            padding-top: 2px;
+        }
+        .dialog-choice {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 3px 9px;
+            border-radius: 12px;
+            background-color: var(--item-hover);
+            color: var(--text-secondary);
+            font-size: 11.5px;
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .dialog-choice .ms-icon {
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .dialog-choice:hover {
+            background-color: var(--item-active);
+            color: var(--text-primary);
+        }
+        .dialog-choice.selected {
+            background-color: var(--accent-bg);
+            color: var(--accent);
+            font-weight: 500;
+        }
+        .dialog-choice.selected .ms-icon {
+            opacity: 1;
+        }
+
+        .dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .dialog-btn {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            border: 1px solid transparent;
+            transition: background 0.15s, opacity 0.15s, color 0.15s;
+        }
+        .dialog-btn.default {
+            color: var(--text-secondary);
+        }
+        .dialog-btn.default:hover {
+            background: var(--item-hover);
+            color: var(--text-primary);
+        }
+        .dialog-btn.primary {
+            background: var(--accent);
+            color: #ffffff;
+        }
+        .dialog-btn.danger {
+            background: var(--danger);
+            color: #ffffff;
+        }
+        .dialog-btn.primary:hover,
+        .dialog-btn.danger:hover {
+            opacity: 0.9;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="dialog-container">
+        <header class="titlebar" id="dialog-titlebar">
+            <div class="titlebar-brand">EsprinNemo</div>
+            <div class="titlebar-title" id="dialog-title"></div>
+            <div class="window-controls">
+                <button class="win-btn close" id="dialog-close" title="关闭">
+                    <span class="ms-icon xs">close</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="dialog-body">
+            <div class="dialog-head">
+                <span class="ms-icon dialog-icon" id="dialog-icon">info</span>
+                <div class="dialog-text">
+                    <div class="dialog-message" id="dialog-message"></div>
+                    <div class="dialog-detail hidden" id="dialog-detail"></div>
+                </div>
+            </div>
+
+            <div class="dialog-field hidden" id="dialog-field">
+                <span class="dialog-field-label hidden" id="dialog-field-label"></span>
+                <input type="text" class="dialog-input" id="dialog-input" spellcheck="false">
+                <div class="dialog-choices hidden" id="dialog-choices"></div>
+            </div>
+
+            <div class="dialog-actions" id="dialog-actions"></div>
+        </main>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        const titleEl = document.getElementById('dialog-title');
+        const iconEl = document.getElementById('dialog-icon');
+        const messageEl = document.getElementById('dialog-message');
+        const detailEl = document.getElementById('dialog-detail');
+        const fieldEl = document.getElementById('dialog-field');
+        const fieldLabelEl = document.getElementById('dialog-field-label');
+        const inputEl = document.getElementById('dialog-input');
+        const choicesEl = document.getElementById('dialog-choices');
+        const actionsEl = document.getElementById('dialog-actions');
+
+        let options = null;
+        let buttonEls = [];
+        let choiceEls = [];
+        let selectedChoices = new Set();
+        let responded = false;
+
+        // 用纯文本填充，避免消息内容被当作 HTML 解析
+        function setText(el, text) {
+            el.textContent = text;
+        }
+
+        function renderButtons() {
+            actionsEl.innerHTML = '';
+            buttonEls = options.buttons.map((button, index) => {
+                const el = document.createElement('button');
+                el.type = 'button';
+                el.className = `dialog-btn ${button.variant}`;
+                setText(el, button.label);
+                el.addEventListener('click', () => respond(index, false));
+                actionsEl.appendChild(el);
+                return el;
+            });
+        }
+
+        // 候选项气泡：点击切换选中状态；单选模式（multiple === false）下互斥
+        function syncChoices() {
+            choiceEls.forEach((el) => {
+                el.classList.toggle('selected', selectedChoices.has(el.dataset.value));
+            });
+        }
+
+        function renderChoices(data) {
+            const choices = Array.isArray(data.choices) ? data.choices : [];
+            choiceEls = [];
+            selectedChoices = new Set(Array.isArray(data.selected) ? data.selected : []);
+            if (!choices.length) return;
+
+            choicesEl.classList.remove('hidden');
+            choices.forEach((value) => {
+                const el = document.createElement('button');
+                el.type = 'button';
+                el.className = 'dialog-choice';
+                el.dataset.value = value;
+
+                const icon = document.createElement('span');
+                icon.className = 'ms-icon';
+                icon.textContent = 'check';
+
+                const label = document.createElement('span');
+                label.textContent = value;
+
+                el.append(icon, label);
+                el.addEventListener('click', () => {
+                    if (selectedChoices.has(value)) {
+                        selectedChoices.delete(value);
+                    } else {
+                        if (data.multiple === false) selectedChoices.clear();
+                        selectedChoices.add(value);
+                    }
+                    syncChoices();
+                });
+
+                choicesEl.appendChild(el);
+                choiceEls.push(el);
+            });
+            syncChoices();
+        }
+
+        function render(data) {
+            setText(titleEl, data.title || '提示');
+            setText(messageEl, data.message);
+            messageEl.classList.toggle('hidden', !data.message);
+
+            if (data.detail) {
+                setText(detailEl, data.detail);
+                detailEl.classList.remove('hidden');
+            }
+
+            setText(iconEl, data.icon || 'info');
+            iconEl.classList.remove('warning', 'error');
+            if (data.type === 'warning') iconEl.classList.add('warning');
+            if (data.type === 'error') iconEl.classList.add('error');
+
+            if (data.input) {
+                fieldEl.classList.remove('hidden');
+                inputEl.value = data.input.value || '';
+                inputEl.placeholder = data.input.placeholder || '';
+                if (data.input.label) {
+                    setText(fieldLabelEl, data.input.label);
+                    fieldLabelEl.classList.remove('hidden');
+                }
+                renderChoices(data.input);
+            }
+
+            renderButtons();
+        }
+
+        function respond(index, dismissed) {
+            if (responded || !options) return;
+            responded = true;
+            const button = options.buttons[index] || options.buttons[options.cancelIndex] || options.buttons[0];
+            ipcRenderer.send('dialog:respond', {
+                id: button ? button.id : null,
+                value: inputEl ? inputEl.value : '',
+                selected: Array.from(selectedChoices),
+                dismissed: !!dismissed
+            });
+        }
+
+        // 渲染进程无法直接改窗口大小，量好内容高度后交给主进程调整
+        // 内容超过窗口高度上限时改为滚动，避免文字被裁掉
+        function requestResize() {
+            if (responded) return;
+            const height = Math.ceil(document.body.getBoundingClientRect().height);
+            document.documentElement.style.overflowY = height > 720 ? 'auto' : 'hidden';
+            ipcRenderer.send('dialog:resize', { height });
+        }
+
+        function focusTarget() {
+            if (responded) return;
+            if (options && options.input) {
+                inputEl.focus();
+                inputEl.select();
+                return;
+            }
+            const target = buttonEls[options ? options.defaultIndex : 0];
+            if (target) target.focus();
+        }
+
+        document.getElementById('dialog-close').addEventListener('click', () => {
+            respond(options ? options.cancelIndex : 0, true);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (!options) return;
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                respond(options.cancelIndex, true);
+                return;
+            }
+            if (event.key === 'Enter' && !event.shiftKey) {
+                // 焦点落在按钮/候选项上时交给它们自身的默认行为，避免与预期不一致
+                if (document.activeElement && document.activeElement.closest('.dialog-btn, .dialog-choice')) return;
+                event.preventDefault();
+                respond(options.defaultIndex, false);
+            }
+        });
+
+        // 输入框里的回车同样触发默认按钮（不依赖表单默认行为）
+        inputEl.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') event.preventDefault();
+        });
+
+        window.addEventListener('focus', () => focusTarget());
+
+        (async () => {
+            try {
+                options = await ipcRenderer.invoke('dialog:get-options');
+            } catch (err) {
+                options = null;
+            }
+            if (!options) {
+                options = {
+                    title: '', message: '无法加载弹窗内容', detail: '', type: 'error', icon: 'error',
+                    buttons: [{ id: 'ok', label: '确定', variant: 'primary' }], defaultIndex: 0, cancelIndex: 0, input: null
+                };
+            }
+            render(options);
+            requestResize();
+            // 图标字体加载完成后高度可能变化，再量一次
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => requestResize()).catch(() => {});
+            }
+            setTimeout(() => {
+                requestResize();
+                focusTarget();
+            }, 60);
+        })();
+    </script>
+</body>
+</html>
