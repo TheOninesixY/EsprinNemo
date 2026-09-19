@@ -1345,7 +1345,7 @@
                 <div class="notes-panel-header">
                     <div class="search-box">
                         <span class="ms-icon sm" style="color: var(--text-muted);">search</span>
-                        <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+Shift+F)">
+                        <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+Shift+F)" spellcheck="false">
                         <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
                     </div>
                     <div class="notes-panel-info">
@@ -1461,7 +1461,7 @@
                     <div class="settings-row">
                         <div class="settings-row-info">
                             <span class="settings-row-label">错词红波浪线检查</span>
-                            <span class="settings-row-desc">在编辑笔记正文时对拼写错误标出红色波浪下划线（默认关闭）</span>
+                            <span class="settings-row-desc">在编辑笔记标题与正文时对拼写错误标出红色波浪下划线</span>
                         </div>
                         <label class="switch">
                             <input type="checkbox" id="setting-spellcheck">
@@ -1520,7 +1520,7 @@
     <div class="modal-mask hidden" id="modal-tag">
         <div class="modal-card">
             <h3>添加标签</h3>
-            <input type="text" id="input-tag-name" placeholder="标签名称...">
+            <input type="text" id="input-tag-name" placeholder="标签名称..." spellcheck="false">
             <div class="modal-actions">
                 <button class="modal-btn cancel" id="btn-tag-cancel">取消</button>
                 <button class="modal-btn primary" id="btn-tag-confirm">添加</button>
@@ -1532,7 +1532,7 @@
     <div class="modal-mask hidden" id="modal-folder">
         <div class="modal-card">
             <h3>新建文件夹</h3>
-            <input type="text" id="input-folder-name" placeholder="文件夹名称...">
+            <input type="text" id="input-folder-name" placeholder="文件夹名称..." spellcheck="false">
             <div class="modal-actions">
                 <button class="modal-btn cancel" id="btn-folder-cancel">取消</button>
                 <button class="modal-btn primary" id="btn-folder-confirm">创建</button>
@@ -1979,12 +1979,46 @@
             }
         }
 
+        // 受"错词红波浪线检查"开关控制的可编辑区域（笔记标题 + 正文）
+        const SPELLCHECK_TARGET_IDS = ['input-note-title', 'textarea-note-content'];
+
+        // 清除已绘制的波浪线：Blink 在 spellcheck 属性变更时不会主动丢弃既有拼写标记，
+        // 只有文本内容发生一次真实变更才会失效，因此这里先清空再写回原文。
+        function clearSpellcheckMarkers(el) {
+            const wasFocused = document.activeElement === el;
+            const selStart = el.selectionStart;
+            const selEnd = el.selectionEnd;
+            const scrollTop = el.scrollTop;
+            const value = el.value;
+
+            el.value = '';
+            el.value = value;
+
+            el.scrollTop = scrollTop;
+            if (wasFocused) {
+                el.focus();
+                try {
+                    el.setSelectionRange(selStart, selEnd);
+                } catch (err) {
+                    // 个别输入类型不支持选区，忽略即可
+                }
+            }
+        }
+
         function applySpellcheck() {
-            const textarea = document.getElementById('textarea-note-content');
-            const toggle = document.getElementById('setting-spellcheck');
             const enabled = !!State.spellcheck;
-            if (textarea) textarea.spellcheck = enabled;
+            const toggle = document.getElementById('setting-spellcheck');
             if (toggle) toggle.checked = enabled;
+
+            SPELLCHECK_TARGET_IDS.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                // 属性已与设置一致时跳过，避免每次渲染都重置内容与撤销历史
+                if (el.spellcheck === enabled) return;
+                el.spellcheck = enabled;
+                // 仅在关闭时清理，开启时的标记会由浏览器在聚焦/输入时自然生成
+                if (!enabled) clearSpellcheckMarkers(el);
+            });
         }
 
         /* ---------------- 字体设置 ---------------- */
