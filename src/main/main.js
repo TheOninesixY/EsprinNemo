@@ -259,6 +259,11 @@ ipcMain.handle('data:open-dir', async () => {
   }
 });
 
+// 主窗口最小尺寸（内容尺寸）：收起侧边栏 48 + 笔记列表 270 后仍要留给编辑器一栏可用的宽度，
+// 高度则保证标题栏 + 工具栏 + 编辑区 + 状态栏都能完整显示，避免拖到极限后布局被压成一团。
+const WINDOW_MIN_WIDTH = 860;
+const WINDOW_MIN_HEIGHT = 600;
+
 function createWindow() {
   Menu.setApplicationMenu(null);
 
@@ -271,6 +276,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: WINDOW_MIN_WIDTH,
+    minHeight: WINDOW_MIN_HEIGHT,
     frame: false,
     show: false,
     autoHideMenuBar: true,
