@@ -24,7 +24,7 @@ const State = {
     fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
     // AI 助手接口配置（随 config.json 一起落盘，密钥仅存本机）
     ai: { enabled: true, agentMode: false, baseUrl: '', apiKey: '', model: '', scope: 'current', maxNotes: 10, systemPrompt: '' },
-    // AI 助手面板：是否展开，以及多对话（对话记录随数据目录保存到 ai_chats.json）
+    // AI 助手面板：是否展开，以及多对话（一份对话一个文件，落在数据目录的 ai_chats/ 下）
     aiPanelOpen: false,
     aiConversations: [],
     aiActiveConversationId: '',

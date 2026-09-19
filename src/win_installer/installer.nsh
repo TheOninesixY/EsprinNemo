@@ -99,7 +99,7 @@
     ${NSD_CreateDirRequest} 0 50u 100% 12u "$1"
     Pop $EsprinDataDirPathEdit
 
-    ${NSD_CreateLabel} 0 68u 100% 24u "数据目录保存 index.json、config.json 与 notes 目录下的 Markdown 原文，请勿选择安装目录本身或其子目录。"
+    ${NSD_CreateLabel} 0 68u 100% 24u "数据目录保存 config.json、notes 目录下的 Markdown 笔记与 ai_chats 目录下的 AI 对话，请勿选择安装目录本身或其子目录。"
     Pop $0
 
     nsDialogs::Show
@@ -138,7 +138,7 @@
     ${EndIf}
 
     StrCpy $5 "0"
-    ${If} ${FileExists} "$EsprinDataDirPath/index.json"
+    ${If} ${FileExists} "$EsprinDataDirPath/config.json"
       StrCpy $5 "1"
     ${ElseIf} ${FileExists} "$EsprinDataDirPath/notes/*.*"
       StrCpy $5 "1"

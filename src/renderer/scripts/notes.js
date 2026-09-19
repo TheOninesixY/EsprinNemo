@@ -8,10 +8,10 @@ function newNoteDefaults() {
     };
 }
 
-// 生成10位大小写英文+数字随机ID，查重保证唯一性
+// 生成10位大小写英文+数字随机ID，查重保证唯一性（内存与磁盘上的笔记文件都要避开）
 function generateUniqueNoteId() {
     let id = generateNoteId();
-    while (State.notes.some(n => n.id === id)) {
+    while (State.notes.some(n => n.id === id) || fs.existsSync(path.join(NOTES_DIR, `${id}.md`))) {
         id = generateNoteId();
     }
     return id;
@@ -32,12 +32,11 @@ function createNewNote() {
         updatedAt: Date.now()
     };
 
-    // 创建对应 data/notes/{id}.md 文件
-    saveNoteContent(newNote);
+    // 创建对应 data/notes/{id}.md 文件（元数据注释与正文一并写入）
+    saveNote(newNote);
 
     State.notes.unshift(newNote);
     openTab(newNote.id);
-    saveIndex();
     renderApp();
 
     setTimeout(() => {
@@ -121,9 +120,8 @@ function commitPendingSave() {
     note.content = pending.content;
     note.updatedAt = Date.now();
 
-    // 保存正文到 .md 文件，元数据到 index.json
-    saveNoteContent(note);
-    saveIndex();
+    // 标题、时间戳等元数据与正文同处一份 .md 文件，一次写入即可
+    saveNote(note);
     return true;
 }
 
@@ -142,7 +140,7 @@ function togglePin(noteId) {
     const note = State.notes.find(n => n.id === noteId);
     if (!note || note.isTrashed) return;
     note.isPinned = !note.isPinned;
-    saveIndex();
+    saveNote(note);
     renderApp();
     showToast(note.isPinned ? '已置顶' : '已取消置顶');
 }
@@ -152,7 +150,7 @@ function moveToTrash(noteId) {
     if (!note || note.isTrashed) return;
     note.isTrashed = true;
     closeTab(noteId);
-    saveIndex();
+    saveNote(note);
     renderApp();
     showToast('已移入废纸篓');
 }
@@ -161,7 +159,7 @@ function restoreFromTrash(noteId) {
     const note = State.notes.find(n => n.id === noteId);
     if (!note || !note.isTrashed) return;
     note.isTrashed = false;
-    saveIndex();
+    saveNote(note);
     renderApp();
     showToast('已恢复');
 }
@@ -183,10 +181,10 @@ async function purgeNote(noteId) {
 }
 
 function permanentlyDelete(noteId) {
+    // 元数据与正文同在一份文件，删掉文件即彻底移除
     deleteNoteFile(noteId);
     State.notes = State.notes.filter(n => n.id !== noteId);
     closeTab(noteId);
-    saveIndex();
     renderApp();
     showToast('已彻底删除');
 }
@@ -203,7 +201,6 @@ async function clearTrash() {
     if (!confirmed) return;
     State.notes.filter(n => n.isTrashed).forEach(n => deleteNoteFile(n.id));
     State.notes = State.notes.filter(n => !n.isTrashed);
-    saveIndex();
     renderApp();
     showToast('已清空废纸篓');
 }
@@ -231,7 +228,6 @@ function purgeExpiredTrashNotes() {
         State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
     }
 
-    saveIndex();
     return expired.length;
 }
 

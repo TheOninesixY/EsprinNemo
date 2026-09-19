@@ -1,4 +1,5 @@
-/* 应用启动：载入数据、清理索引与过期废纸篓笔记，初始化各模块并首次渲染 */
+/* 应用启动：载入数据、迁移旧版单文件记录（index.json / ai_chats.json）与清理过期废纸篓笔记，
+   初始化各模块并首次渲染 */
 
 // App Boot
 window.onload = () => {
@@ -14,24 +15,26 @@ window.onload = () => {
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
     State.aiScope = State.ai.scope;
-    // 多对话记录（ai_chats.json）：载入后保证至少有一份可用对话
+    // 多对话记录（ai_chats/ 下的一份份文件）：载入后保证至少有一份可用对话
     adoptAiChats(saved.aiChats);
 
-    // 启动时自动清理无效索引：仅在确实检测到变更时才写回 index.json，避免每次启动都产生磁盘写入
-    const cleanup = saved.indexCleanup;
-    if (cleanup && (cleanup.removedNotes > 0 || cleanup.repairedNotes > 0 || cleanup.foldersChanged || cleanup.indexCorrupted)) {
-        saveIndex();
-        if (cleanup.removedNotes > 0) {
-            console.warn(`索引清理：已移除 ${cleanup.removedNotes} 条无效笔记记录`);
+    // 笔记文件与对话文件的格式修正已在 loadData 内就地完成，这里只需把文件夹列表的变化写回配置
+    const cleanup = saved.dataCleanup;
+    if (cleanup) {
+        if (cleanup.foldersChanged) saveConfig();
+        if (cleanup.legacyIndex && cleanup.legacyIndex.found) {
+            console.warn(`索引迁移：已把 index.json 中的元数据并入 ${cleanup.legacyIndex.merged} 篇笔记文件`
+                + (cleanup.legacyIndex.archived ? '，原文件保留为 index.json.bak' : '，原文件归档失败'));
+        }
+        if (cleanup.legacyAiChats && cleanup.legacyAiChats.found) {
+            console.warn(`对话迁移：已把 ai_chats.json 中的 ${cleanup.legacyAiChats.merged} 份对话拆分为 ai_chats/{id}.json`
+                + (cleanup.legacyAiChats.archived ? '，原文件保留为 ai_chats.json.bak' : '，原文件归档失败'));
         }
         if (cleanup.repairedNotes > 0) {
-            console.warn(`索引清理：已修正 ${cleanup.repairedNotes} 条笔记记录的字段`);
+            console.warn(`笔记格式：已为 ${cleanup.repairedNotes} 篇笔记写回内嵌元数据`);
         }
-        if (cleanup.foldersChanged) {
-            console.warn('索引清理：已规范化文件夹列表');
-        }
-        if (cleanup.indexCorrupted) {
-            console.warn('索引清理：index.json 解析失败，已按清理结果重建');
+        if (cleanup.skippedFiles > 0) {
+            console.warn(`笔记目录：已忽略 ${cleanup.skippedFiles} 个非笔记文件`);
         }
     }
 
@@ -63,8 +66,15 @@ window.onload = () => {
     if (purgedTrashNotes > 0) {
         showToast(`已自动清理 ${purgedTrashNotes} 篇超过 ${State.trashRetentionDays} 天的废纸篓笔记`);
     }
-    if (cleanup && cleanup.removedNotes > 0) {
-        showToast(`已清理 ${cleanup.removedNotes} 条无效笔记记录`);
+    if (cleanup && cleanup.legacyIndex && cleanup.legacyIndex.found) {
+        showToast(cleanup.legacyIndex.archived
+            ? '笔记元数据已并入各笔记文件（原 index.json 保留为 index.json.bak）'
+            : '笔记元数据已并入各笔记文件');
+    }
+    if (cleanup && cleanup.legacyAiChats && cleanup.legacyAiChats.found) {
+        showToast(cleanup.legacyAiChats.archived
+            ? 'AI 对话已拆分为 ai_chats 下的一份份文件（原 ai_chats.json 保留为 ai_chats.json.bak）'
+            : 'AI 对话已拆分为 ai_chats 下的一份份文件');
     }
 
     // 应用长时间驻留时也按策略复查；没有过期笔记时不会产生任何刷新或磁盘写入

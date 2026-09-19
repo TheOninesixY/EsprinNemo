@@ -52,9 +52,8 @@ function createNoteFromScratchpad(title, content) {
         updatedAt: now
     };
 
-    saveNoteContent(note);
+    saveNote(note);
     State.notes.unshift(note);
-    saveIndex();
     renderCounts();
     renderNotesList();
     showToast(`小本本已新建笔记：${note.title || '未命名笔记'}`);
@@ -74,8 +73,7 @@ function updateNoteFromScratchpad(noteId, title, content) {
     note.title = typeof title === 'string' ? title : note.title;
     note.content = typeof content === 'string' ? content : '';
     note.updatedAt = Date.now();
-    saveNoteContent(note);
-    saveIndex();
+    saveNote(note);
 
     // 正在看这篇笔记时连编辑区一起刷新；否则只更新列表与标签页标题，尽量不打扰主窗口
     if (isActive) renderApp();

@@ -164,11 +164,14 @@ function renderFolders() {
                 });
                 if (!confirmed) return;
                 State.folders = State.folders.filter(f => f !== folder);
+                // 文件夹下的笔记移回“默认”，需要连同元数据一起写回各自文件
                 State.notes.forEach(n => {
-                    if (n.folder === folder) n.folder = '默认';
+                    if (n.folder !== folder) return;
+                    n.folder = '默认';
+                    saveNote(n);
                 });
                 if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
-                saveData();
+                saveConfig();
                 renderApp();
             });
         }
@@ -473,7 +476,7 @@ function renderWorkspace() {
                     const active = getActiveNote();
                     if (!active || !Array.isArray(active.tags)) return;
                     active.tags = active.tags.filter(t => t !== tag);
-                    saveIndex();
+                    saveNote(active);
                     renderApp();
                 };
                 chip.appendChild(removeBtn);

@@ -1,32 +1,35 @@
-/* 数据持久化：数据目录，以及 config.json / index.json / notes/{id}.md / ai_chats.json 的读写 */
+/* 数据持久化：数据目录，以及 config.json / notes/{id}.md / ai_chats/{id}.json 的读写。
+   笔记的标题、文件夹、标签、置顶与废纸篓状态、创建/修改时间都以内嵌注释（EsprinData）写在
+   各自 .md 文件开头；AI 对话同样一份对话一个文件。两者都不再有独立的索引文件。 */
 
 // 数据目录可在设置页中更改，因此路径均为可变变量（切换位置后就地生效，无需重启）
 let DATA_DIR = resolveDataDir();
 let NOTES_DIR = path.join(DATA_DIR, 'notes');
+let AI_CHATS_DIR = path.join(DATA_DIR, 'ai_chats');
 let CONFIG_FILE = path.join(DATA_DIR, 'config.json');
-let INDEX_FILE = path.join(DATA_DIR, 'index.json');
-let AI_CHATS_FILE = path.join(DATA_DIR, 'ai_chats.json');
+// 旧版单文件记录：仅在启动时读一次用于迁移，完成后归档为同名 .bak
+let LEGACY_INDEX_FILE = path.join(DATA_DIR, 'index.json');
+let LEGACY_AI_CHATS_FILE = path.join(DATA_DIR, 'ai_chats.json');
 
 // 写入缓存：待写入内容与上次落盘完全一致时直接跳过，避免自动保存产生重复 I/O
-const savedNoteContent = new Map(); // noteId -> 已写入磁盘的正文
+const savedNoteFiles = new Map(); // noteId -> 已写入磁盘的完整文件内容（注释 + 正文）
+const savedAiChatFiles = new Map(); // chatId -> 已写入磁盘的对话 JSON
 let savedConfigJSON = null;
-let savedIndexJSON = null;
-let savedAiChatsJSON = null;
 
 function resetWriteCache() {
-    savedNoteContent.clear();
+    savedNoteFiles.clear();
+    savedAiChatFiles.clear();
     savedConfigJSON = null;
-    savedIndexJSON = null;
-    savedAiChatsJSON = null;
 }
 
 // 应用新的数据目录（主进程已完成校验/迁移/记录，这里只负责切换本进程使用的路径）
 function setDataPaths(dir) {
     DATA_DIR = dir;
     NOTES_DIR = path.join(dir, 'notes');
+    AI_CHATS_DIR = path.join(dir, 'ai_chats');
     CONFIG_FILE = path.join(dir, 'config.json');
-    INDEX_FILE = path.join(dir, 'index.json');
-    AI_CHATS_FILE = path.join(dir, 'ai_chats.json');
+    LEGACY_INDEX_FILE = path.join(dir, 'index.json');
+    LEGACY_AI_CHATS_FILE = path.join(dir, 'ai_chats.json');
     // 换目录后旧缓存全部失效，否则会把新位置的首次写入误判为“无需写入”
     resetWriteCache();
     storageDirsReady = false;
@@ -50,9 +53,271 @@ function ensureStorageDirs() {
     try {
         fs.mkdirSync(DATA_DIR, { recursive: true });
         fs.mkdirSync(NOTES_DIR, { recursive: true });
+        fs.mkdirSync(AI_CHATS_DIR, { recursive: true });
         storageDirsReady = true;
     } catch (err) {
         console.error('创建数据目录失败:', err);
+    }
+}
+
+/* ---------------- 笔记文件：内嵌元数据注释 + Markdown 正文 ----------------
+   文件形如：
+   <!--EsprinData
+       title: "课堂记录"
+       folder:
+       tags: []
+       isPinned: false
+       isTrashed: false
+       createdAt: 1789837475335
+       updatedAt: 1789840300633
+   -->
+
+   正文…（这里的空行分隔注释与正文） */
+
+const NOTE_META_HEADER = 'EsprinData';
+// 元数据注释必须位于文件开头；--> 需独占行尾，避免正文里出现的 --> 被误当成注释结束
+const NOTE_META_BLOCK_PATTERN = /^<!--[ \t]*EsprinData[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?[ \t]*-->[ \t]*(?=\r?\n|$)/;
+// 文件名即笔记 id（随机 10 位大小写字母+数字）
+const NOTE_FILE_PATTERN = /^([A-Za-z0-9_-]{1,64})\.md$/i;
+// 没有标题时用正文首个非空行兜底的长度上限
+const NOTE_TITLE_MAX_LENGTH = 60;
+
+// 解析 .md 文件：返回 { meta, content }；
+// 没有注释（例如手工放进 notes/ 的 Markdown）时 meta 为 null，整份文件都算正文
+function parseNoteFile(raw) {
+    const text = String(raw == null ? '' : raw).replace(/^\uFEFF/, '');
+    const matched = text.match(NOTE_META_BLOCK_PATTERN);
+    if (!matched) return { meta: null, content: text };
+
+    const meta = {};
+    matched[1].split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        const separator = trimmed.indexOf(':');
+        if (separator <= 0) return;
+        meta[trimmed.slice(0, separator).trim()] = trimmed.slice(separator + 1).trim();
+    });
+
+    // 注释与正文之间空一行：最多吃掉两个换行，正文自身的首行空行仍然保留
+    let content = text.slice(matched[0].length);
+    const gap = content.match(/^(?:\r?\n){1,2}/);
+    if (gap) content = content.slice(gap[0].length);
+    // 正文全为空白时统一存为空字符串，避免来回写入时凭空多出空行
+    if (!content.trim()) content = '';
+    return { meta, content };
+}
+
+// 元数据写入规则：空字符串写成空值（如 folder:），其余字符串加双引号转义，数组按 JSON 写
+function formatNoteMetaValue(value) {
+    if (Array.isArray(value)) return JSON.stringify(value);
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    const text = typeof value === 'string' ? value : '';
+    return text ? JSON.stringify(text) : '';
+}
+
+// 一行元数据：键后紧跟冒号，有值时以单个空格分隔（与空值形式 folder: 保持一致）
+function formatNoteMetaLine(key, value) {
+    const text = formatNoteMetaValue(value);
+    return text ? `    ${key}: ${text}` : `    ${key}:`;
+}
+
+// 生成笔记文件内容：元数据注释 + 空行 + 正文（正文为空时只留注释）
+function serializeNoteFile(note) {
+    const folder = note.folder && note.folder !== '默认' ? note.folder : '';
+    const header = [
+        `<!--${NOTE_META_HEADER}`,
+        formatNoteMetaLine('title', note.title || ''),
+        formatNoteMetaLine('folder', folder),
+        formatNoteMetaLine('tags', Array.isArray(note.tags) ? note.tags : []),
+        formatNoteMetaLine('isPinned', !!note.isPinned),
+        formatNoteMetaLine('isTrashed', !!note.isTrashed),
+        formatNoteMetaLine('createdAt', Number(note.createdAt) || Date.now()),
+        formatNoteMetaLine('updatedAt', Number(note.updatedAt) || Date.now()),
+        '-->'
+    ].join('\n');
+    const content = String(note.content || '');
+    return content ? `${header}\n\n${content}` : `${header}\n`;
+}
+
+// 注释里的字符串：优先按 JSON 字符串解析（写入时即为该格式），其次按原文，空值返回空字符串
+function readNoteMetaString(raw) {
+    const value = typeof raw === 'string' ? raw.trim() : '';
+    if (!value) return '';
+    if (value.startsWith('"')) {
+        try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'string' ? parsed : '';
+        } catch (err) {
+            // 引号不成对时按去掉首尾引号的原文处理
+            return value.replace(/^"+|"+$/g, '');
+        }
+    }
+    return value;
+}
+
+// 注释里的数字：非法值一律回退到 fallback
+function readNoteMetaNumber(raw, fallback) {
+    if (raw === undefined || raw === null || raw === '') return fallback;
+    const value = Number(typeof raw === 'string' ? raw.trim() : raw);
+    return Number.isFinite(value) ? Math.round(value) : fallback;
+}
+
+// 注释里的布尔值：只有明确的真值才算真，其余回退到 fallback
+function readNoteMetaBoolean(raw, fallback) {
+    if (raw === undefined || raw === null || raw === '') return !!fallback;
+    const value = String(raw).trim().toLowerCase();
+    if (value === 'true' || value === '1' || value === 'yes') return true;
+    if (value === 'false' || value === '0' || value === 'no') return false;
+    return !!fallback;
+}
+
+// 标签去空白、去 # 前缀、去重
+function normalizeNoteTags(raw) {
+    const tags = [];
+    (Array.isArray(raw) ? raw : []).forEach((item) => {
+        const tag = typeof item === 'string' ? item.trim().replace(/^#+/, '').trim() : '';
+        if (tag && !tags.includes(tag)) tags.push(tag);
+    });
+    return tags;
+}
+
+// 注释里的标签：写入时为 JSON 数组（旧索引里已是数组），同时兼容 "a, b"、"a b" 这类手写形式
+function readNoteMetaTags(raw) {
+    if (Array.isArray(raw)) return normalizeNoteTags(raw);
+    const value = typeof raw === 'string' ? raw.trim() : '';
+    if (!value) return [];
+    if (value.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) return normalizeNoteTags(parsed);
+        } catch (err) {
+            // 落到下面的分隔符形式
+        }
+    }
+    return normalizeNoteTags(value.split(/[,，\s]+/));
+}
+
+// 没有标题时用正文首个非空行兜底：去掉 Markdown 前缀，过长则截断
+function deriveNoteTitle(content) {
+    const line = String(content || '').split('\n').map(item => item.trim()).find(item => item.length) || '';
+    const cleaned = line.replace(/^#{1,6}\s*/, '').replace(/^[-*+>]\s+/, '').trim();
+    return cleaned.length > NOTE_TITLE_MAX_LENGTH ? cleaned.slice(0, NOTE_TITLE_MAX_LENGTH) : cleaned;
+}
+
+// 自定义文件夹列表规范化：去空白、去重、剔除空名与“默认”
+function normalizeCustomFolders(raw) {
+    const folders = [];
+    (Array.isArray(raw) ? raw : []).forEach((item) => {
+        const name = typeof item === 'string' ? item.trim() : '';
+        if (!name || name === '默认' || folders.includes(name)) return;
+        folders.push(name);
+    });
+    return folders;
+}
+
+// 扫描 notes/ 目录，逐篇读出原始文本并解析内嵌元数据；返回 { files, skipped }
+function readNoteFiles() {
+    const files = [];
+    let skipped = 0;
+    let entries = [];
+    try {
+        entries = fs.readdirSync(NOTES_DIR, { withFileTypes: true });
+    } catch (err) {
+        console.error('读取笔记目录失败:', err);
+        return { files, skipped };
+    }
+
+    entries.forEach((entry) => {
+        if (!entry.isFile()) return;
+        const matched = entry.name.match(NOTE_FILE_PATTERN);
+        if (!matched) {
+            console.warn(`笔记目录中已忽略非笔记文件：${entry.name}`);
+            skipped++;
+            return;
+        }
+        try {
+            const filePath = path.join(NOTES_DIR, entry.name);
+            const stat = fs.statSync(filePath);
+            const raw = fs.readFileSync(filePath, 'utf8');
+            const parsed = parseNoteFile(raw);
+            files.push({
+                id: matched[1],
+                raw,
+                stat,
+                hasMeta: !!parsed.meta,
+                meta: parsed.meta || {},
+                content: parsed.content
+            });
+        } catch (err) {
+            console.error(`读取笔记文件 ${entry.name} 失败:`, err);
+            skipped++;
+        }
+    });
+
+    return { files, skipped };
+}
+
+// 以文件内容为主、旧索引记录为辅，拼出一篇完整的笔记
+function buildNoteFromFile(file, legacy) {
+    const meta = file.meta || {};
+    const fallback = legacy || {};
+    const statTime = file.stat && Number.isFinite(file.stat.mtimeMs) ? Math.round(file.stat.mtimeMs) : Date.now();
+    // 取值优先级：文件注释 > 旧索引记录 > 兜底；注释里写了但为空即按空处理，不回头找旧索引
+    const pick = (key) => (meta[key] !== undefined ? meta[key] : fallback[key]);
+
+    const createdAt = readNoteMetaNumber(meta.createdAt, readNoteMetaNumber(fallback.createdAt, statTime));
+
+    return {
+        id: file.id,
+        // 完全没有注释的文件（例如手工放进 notes/ 的 Markdown）用正文首个非空行当标题
+        title: readNoteMetaString(pick('title')) || (file.hasMeta ? '' : deriveNoteTitle(file.content)),
+        folder: readNoteMetaString(pick('folder')),
+        tags: readNoteMetaTags(pick('tags')),
+        isPinned: readNoteMetaBoolean(pick('isPinned'), false),
+        isTrashed: readNoteMetaBoolean(pick('isTrashed'), false),
+        createdAt,
+        updatedAt: readNoteMetaNumber(meta.updatedAt, readNoteMetaNumber(fallback.updatedAt, Math.max(createdAt, statTime))),
+        content: file.content
+    };
+}
+
+// 读取旧版索引 index.json：只用于把元数据并入各笔记文件，读完即归档
+function readLegacyIndex() {
+    const result = { found: false, folders: [], notes: [] };
+    try {
+        if (!fs.existsSync(LEGACY_INDEX_FILE)) return result;
+        result.found = true;
+        const raw = fs.readFileSync(LEGACY_INDEX_FILE, 'utf8').trim();
+        if (!raw) return result;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return result;
+        result.folders = Array.isArray(parsed.folders) ? parsed.folders : [];
+
+        const seenIds = new Set();
+        (Array.isArray(parsed.notes) ? parsed.notes : []).forEach((entry) => {
+            if (!entry || typeof entry !== 'object') return;
+            const id = typeof entry.id === 'string' ? entry.id.trim() : '';
+            if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || seenIds.has(id)) return;
+            seenIds.add(id);
+            result.notes.push(entry);
+        });
+    } catch (err) {
+        console.error('读取旧索引 index.json 失败:', err);
+    }
+    return result;
+}
+
+// 旧格式文件在迁移完成后改名保留（不直接删除，便于万一回退）
+function archiveLegacyFile(file, note) {
+    try {
+        const backup = `${file}.bak`;
+        if (fs.existsSync(backup)) fs.unlinkSync(backup);
+        fs.renameSync(file, backup);
+        console.warn(`${note}，原文件保留为 ${path.basename(backup)}`);
+        return true;
+    } catch (err) {
+        console.error(`归档 ${path.basename(file)} 失败:`, err);
+        return false;
     }
 }
 
@@ -189,40 +454,157 @@ function normalizeAiChats(raw) {
     return { conversations, activeId };
 }
 
-function loadAiChats() {
+// 文件名即对话 id（新建时为随机 10 位；兼容旧版带 chat 前缀的 id）
+const AI_CHAT_FILE_PATTERN = /^([A-Za-z0-9_-]{1,64})\.json$/;
+
+// 读取 ai_chats/ 下的全部对话文件；返回 { conversations, raws }，raws 用于判断文件是否需要写回
+function readAiChatFiles() {
+    const conversations = [];
+    const raws = new Map();
+    const seenIds = new Set();
+    let entries = [];
     try {
-        if (!fs.existsSync(AI_CHATS_FILE)) return normalizeAiChats(null);
-        const raw = fs.readFileSync(AI_CHATS_FILE, 'utf8').trim();
-        if (!raw) return normalizeAiChats(null);
-        return normalizeAiChats(JSON.parse(raw));
+        if (fs.existsSync(AI_CHATS_DIR)) entries = fs.readdirSync(AI_CHATS_DIR, { withFileTypes: true });
     } catch (err) {
-        console.error('读取 ai_chats.json 失败:', err);
-        return normalizeAiChats(null);
+        console.error('读取 ai_chats 目录失败:', err);
+        return { conversations, raws };
+    }
+
+    entries.forEach((entry) => {
+        if (!entry.isFile()) return;
+        const matched = entry.name.match(AI_CHAT_FILE_PATTERN);
+        if (!matched) {
+            console.warn(`ai_chats 目录中已忽略非对话文件：${entry.name}`);
+            return;
+        }
+        const filePath = path.join(AI_CHATS_DIR, entry.name);
+        try {
+            const raw = fs.readFileSync(filePath, 'utf8');
+            // 文件名即 id：文件被改名后以文件名为准
+            const chat = normalizeAiConversation({ ...JSON.parse(raw.trim() || '{}'), id: matched[1] }, seenIds);
+            if (!chat) return;
+            conversations.push(chat);
+            raws.set(chat.id, raw);
+        } catch (err) {
+            console.error(`读取对话文件 ${entry.name} 失败:`, err);
+        }
+    });
+
+    return { conversations, raws };
+}
+
+// 对话文件内容：对话本体（id 与文件名一致，消息保留最近的一批）
+function serializeAiChat(chat) {
+    return `${JSON.stringify({
+        id: chat.id,
+        title: chat.title || '',
+        createdAt: chat.createdAt || Date.now(),
+        updatedAt: chat.updatedAt || Date.now(),
+        messages: Array.isArray(chat.messages) ? chat.messages.slice(-AI_CHAT_MESSAGE_LIMIT) : []
+    }, null, 2)}\n`;
+}
+
+// 保存单份对话到 data/ai_chats/{id}.json（内容未变时直接跳过写入）
+function saveAiChat(chat) {
+    if (!chat || !chat.id) return;
+    // 生成期间被删掉的对话不再写回磁盘，否则会凭空多出一份
+    if (Array.isArray(State.aiConversations) && !State.aiConversations.includes(chat)) return;
+    ensureStorageDirs();
+    try {
+        const json = serializeAiChat(chat);
+        if (savedAiChatFiles.get(chat.id) === json) return;
+        fs.writeFileSync(path.join(AI_CHATS_DIR, `${chat.id}.json`), json, 'utf8');
+        savedAiChatFiles.set(chat.id, json);
+    } catch (err) {
+        console.error(`保存对话 ${chat.id} 失败:`, err);
     }
 }
 
-// 保存对话记录到 data/ai_chats.json（内容未变时直接跳过写入）
-function saveAiChats() {
-    ensureStorageDirs();
+// 删除对话文件，并同步丢弃写入缓存
+function deleteAiChatFile(chatId) {
+    savedAiChatFiles.delete(chatId);
     try {
-        const chats = Array.isArray(State.aiConversations) ? State.aiConversations : [];
-        const payload = {
-            activeId: State.aiActiveConversationId || '',
-            conversations: chats.map(chat => ({
-                id: chat.id,
-                title: chat.title || '',
-                createdAt: chat.createdAt || Date.now(),
-                updatedAt: chat.updatedAt || Date.now(),
-                messages: Array.isArray(chat.messages) ? chat.messages.slice(-AI_CHAT_MESSAGE_LIMIT) : []
-            }))
-        };
-        const json = JSON.stringify(payload, null, 2);
-        if (json === savedAiChatsJSON) return;
-        fs.writeFileSync(AI_CHATS_FILE, json, 'utf8');
-        savedAiChatsJSON = json;
+        const filePath = path.join(AI_CHATS_DIR, `${chatId}.json`);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     } catch (err) {
-        console.error('保存 ai_chats.json 失败:', err);
+        console.error(`删除对话文件 ${chatId}.json 失败:`, err);
     }
+}
+
+// 读取旧版单文件记录（ai_chats.json）：仅在拆分到 ai_chats/ 时用一次
+function readLegacyAiChats() {
+    const result = { found: false, conversations: [], activeId: '' };
+    try {
+        if (!fs.existsSync(LEGACY_AI_CHATS_FILE)) return result;
+        result.found = true;
+        const raw = fs.readFileSync(LEGACY_AI_CHATS_FILE, 'utf8').trim();
+        if (!raw) return result;
+        const parsed = normalizeAiChats(JSON.parse(raw));
+        result.conversations = parsed.conversations;
+        result.activeId = parsed.activeId;
+    } catch (err) {
+        console.error('读取旧版 ai_chats.json 失败:', err);
+    }
+    return result;
+}
+
+// 载入全部对话：先读 ai_chats/，再把旧版单文件里的记录拆成一份份文件
+// activeIdFromConfig 来自 config.json（当前选中的对话），旧文件里的记录作为兼容兑底
+function loadAiChats(activeIdFromConfig) {
+    const legacy = readLegacyAiChats();
+    const scanned = readAiChatFiles();
+    const conversations = scanned.conversations;
+    const raws = scanned.raws;
+
+    // 旧记录已有对应文件的以文件为准，其余补进内存并写成独立文件
+    const existingIds = new Set(conversations.map(chat => chat.id));
+    let merged = 0;
+    legacy.conversations.forEach((chat) => {
+        if (existingIds.has(chat.id)) return;
+        existingIds.add(chat.id);
+        conversations.push(chat);
+        merged++;
+    });
+    conversations.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    // 超出上限时丢弃最久未使用的对话（与旧版一致的策略），磁盘上的文件一并删除
+    const dropped = conversations.splice(AI_CHAT_LIMIT);
+    dropped.forEach((chat) => {
+        console.warn(`对话记录超出 ${AI_CHAT_LIMIT} 份上限，已清理《${chat.title || '未命名对话'}》`);
+        deleteAiChatFile(chat.id);
+    });
+
+    // 与磁盘原文比对后写回：新并入的、格式过时的对话在这里落盘
+    let rewriteFailed = 0;
+    conversations.forEach((chat) => {
+        const json = serializeAiChat(chat);
+        savedAiChatFiles.set(chat.id, json);
+        if (raws.get(chat.id) === json) return;
+        try {
+            fs.writeFileSync(path.join(AI_CHATS_DIR, `${chat.id}.json`), json, 'utf8');
+        } catch (err) {
+            console.error(`写入对话 ${chat.id} 失败:`, err);
+            rewriteFailed++;
+        }
+    });
+
+    // 对话都已落到各自的文件，旧单文件即可归档
+    const legacyArchived = (legacy.found && !rewriteFailed) ? archiveLegacyFile(LEGACY_AI_CHATS_FILE, '对话迁移：已把 ai_chats.json 中的对话拆分为 ai_chats/ 下的一份份文件') : false;
+
+    const candidates = [activeIdFromConfig, legacy.activeId];
+    const activeId = candidates.find(id => conversations.some(chat => chat.id === id))
+        || (conversations[0] ? conversations[0].id : '');
+
+    return {
+        conversations,
+        activeId,
+        cleanup: {
+            found: legacy.found,
+            archived: legacyArchived,
+            merged,
+            dropped: dropped.length
+        }
+    };
 }
 
 // 字体配置规范化：容忍缺失/脏数据，统一为四个字符串字段
@@ -259,11 +641,9 @@ function normalizeAiConfig(raw) {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: '', brandColor: 'brand', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, fonts: {}, ai: {} };
-    let indexData = { folders: [], notes: [] };
-    let indexCorrupted = false; // index.json 解析失败时标记，启动后会用清理后的索引覆盖
+    let config = { theme: 'system', accentColor: '', brandColor: 'brand', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
-    // 1. 读取应用配置 config.json
+    // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
         if (fs.existsSync(CONFIG_FILE)) {
             const rawConfig = fs.readFileSync(CONFIG_FILE, 'utf8');
@@ -275,96 +655,69 @@ function loadData() {
         console.error('读取 config.json 失败:', err);
     }
 
-    // 2. 读取文档信息索引 index.json
-    try {
-        if (fs.existsSync(INDEX_FILE)) {
-            const rawIndex = fs.readFileSync(INDEX_FILE, 'utf8').trim();
-            const parsedIndex = rawIndex ? JSON.parse(rawIndex) : null;
-            if (parsedIndex && typeof parsedIndex === 'object' && !Array.isArray(parsedIndex)) {
-                indexData = { ...indexData, ...parsedIndex };
-            } else {
-                // 空文件或结构异常（非对象），视为无效索引，启动后按清理结果重建
-                indexCorrupted = true;
-            }
-        } else {
-            fs.writeFileSync(INDEX_FILE, JSON.stringify(indexData, null, 2), 'utf8');
-        }
-    } catch (err) {
-        console.error('读取 index.json 失败:', err);
-        indexCorrupted = true;
-    }
+    // 2. 旧版数据兼容：index.json 中的元数据只作为兜底来源，稍后并入各笔记文件并归档
+    const legacyIndex = readLegacyIndex();
 
-    // 3. 规范化自定义文件夹列表（去空白、去重、剔除空名与"默认"），运行时保证包含"默认"
-    const rawFolders = Array.isArray(indexData.folders) ? indexData.folders : [];
+    // 3. 扫描 notes/，逐篇解析文件内嵌的元数据（文件缺失的旧索引记录等于已删除，自然消失）
+    const scanned = readNoteFiles();
+    const legacyEntries = new Map(legacyIndex.notes.map(entry => [entry.id, entry]));
+    const notes = scanned.files.map((file) => {
+        const legacy = legacyEntries.get(file.id) || null;
+        if (legacy) legacyEntries.delete(file.id);
+        return buildNoteFromFile(file, legacy);
+    });
+    // 旧索引里仍有记录、但文件已不在：说明该笔记早已被删除，不再保留任何痕迹
+    const vanishedLegacyNotes = legacyEntries.size;
+
+    // 4. 文件夹列表 = config.json 中记录的 + 各笔记实际用到的 + 旧索引里出现过的
     const customFolders = [];
-    rawFolders.forEach(folder => {
-        if (typeof folder !== 'string') return;
-        const name = folder.trim();
-        if (!name || name === '默认' || customFolders.includes(name)) return;
-        customFolders.push(name);
-    });
-    const foldersChanged = JSON.stringify(rawFolders) !== JSON.stringify(customFolders);
-    const folders = ['默认', ...customFolders];
+    const addFolder = (name) => {
+        const trimmed = typeof name === 'string' ? name.trim() : '';
+        if (!trimmed || trimmed === '默认' || customFolders.includes(trimmed)) return;
+        customFolders.push(trimmed);
+    };
+    normalizeCustomFolders(config.folders).forEach(addFolder);
+    normalizeCustomFolders(legacyIndex.folders).forEach(addFolder);
+    notes.forEach(note => addFolder(note.folder));
 
-    // 4. 载入正文并校验索引项：剔除 ID 非法、ID 重复、缺少 data/notes/{id}.md 正文文件的无效条目
-    const rawNotes = Array.isArray(indexData.notes) ? indexData.notes : [];
-    const notes = [];
-    const seenIds = new Set();
-    let removedNotes = 0;
+    // 5. 文件夹落到实际存在的名字上（与旧行为一致：已不存在的文件夹回退到“默认”）
+    notes.forEach((note) => {
+        if (!note.folder || !customFolders.includes(note.folder)) note.folder = '默认';
+    });
+
+    // 6. 与磁盘原文逐字节比对：缺少注释、格式过时或字段脏的笔记就地写回，磁盘因此始终与内存一致
+    const fileById = new Map(scanned.files.map(file => [file.id, file]));
+    const serialized = new Map();
     let repairedNotes = 0;
-
-    rawNotes.forEach(entry => {
-        // ID 必须是安全的文件名字符串（现有生成规则为 10 位大小写字母+数字）
-        const id = entry && typeof entry.id === 'string' ? entry.id.trim() : '';
-        if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || seenIds.has(id)) {
-            removedNotes++;
-            return;
-        }
-
-        const notePath = path.join(NOTES_DIR, `${id}.md`);
-        if (!fs.existsSync(notePath)) {
-            // 正文文件缺失，索引项无效，直接清理
-            removedNotes++;
-            return;
-        }
-
-        let content = '';
+    let rewriteFailed = 0;
+    notes.forEach((note) => {
+        const text = serializeNoteFile(note);
+        serialized.set(note.id, text);
+        const file = fileById.get(note.id);
+        if (file && file.raw === text) return;
         try {
-            content = fs.readFileSync(notePath, 'utf8');
+            fs.writeFileSync(path.join(NOTES_DIR, `${note.id}.md`), text, 'utf8');
+            repairedNotes++;
         } catch (err) {
-            console.error(`读取笔记内容失败 ${id}:`, err);
-            removedNotes++;
-            return;
+            console.error(`写入笔记 ${note.id} 失败:`, err);
+            rewriteFailed++;
         }
-
-        seenIds.add(id);
-
-        const rawFolder = typeof entry.folder === 'string' ? entry.folder.trim() : '';
-        const note = {
-            id,
-            title: typeof entry.title === 'string' ? entry.title : '',
-            folder: (rawFolder && rawFolder !== '默认' && folders.includes(rawFolder)) ? rawFolder : '默认',
-            tags: Array.isArray(entry.tags)
-                ? [...new Set(entry.tags.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim()))]
-                : [],
-            isPinned: !!entry.isPinned,
-            isTrashed: !!entry.isTrashed,
-            createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now(),
-            updatedAt: Number.isFinite(entry.updatedAt) ? entry.updatedAt : Date.now(),
-            content
-        };
-
-        // 与 index.json 的存储形式逐字段比对（"默认"文件夹存储为空字符串），判断是否发生了修正
-        const before = [entry.title, rawFolder, entry.tags, !!entry.isPinned, !!entry.isTrashed, entry.createdAt, entry.updatedAt];
-        const after = [note.title, note.folder === '默认' ? '' : note.folder, note.tags, note.isPinned, note.isTrashed, note.createdAt, note.updatedAt];
-        if (JSON.stringify(before) !== JSON.stringify(after)) repairedNotes++;
-
-        notes.push(note);
     });
 
-    // 磁盘内容已全部读入内存，让写入缓存与之一致，避免紧接着的保存重复写盘
+    // 7. 元数据都已落到各自的笔记文件，旧索引即可归档（保留 .bak 以便万一回退）
+    const legacyArchived = (legacyIndex.found && !rewriteFailed)
+        ? archiveLegacyFile(LEGACY_INDEX_FILE, '索引迁移：元数据已写入各笔记文件')
+        : false;
+
+    // 写入缓存与磁盘内容对齐，避免紧接着的首次保存重复写盘
     resetWriteCache();
-    notes.forEach(note => savedNoteContent.set(note.id, note.content));
+    notes.forEach(note => savedNoteFiles.set(note.id, serialized.get(note.id)));
+
+    // 最近修改的排在前面，与列表默认排序一致
+    notes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    // 8. 载入 AI 对话记录：一份对话一个文件，当前选中的对话记在 config.json 里
+    const aiChats = loadAiChats(config.aiActiveChat);
 
     return {
         theme: config.theme || 'system',
@@ -375,19 +728,26 @@ function loadData() {
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
-        aiChats: loadAiChats(),
-        folders,
+        aiChats: { conversations: aiChats.conversations, activeId: aiChats.activeId },
+        folders: ['默认', ...customFolders],
         notes,
-        indexCleanup: {
-            removedNotes,
+        dataCleanup: {
             repairedNotes,
-            foldersChanged,
-            indexCorrupted
+            skippedFiles: scanned.skipped,
+            // 自定义文件夹列表需要写回 config.json 时标记
+            foldersChanged: JSON.stringify(normalizeCustomFolders(config.folders)) !== JSON.stringify(customFolders),
+            legacyIndex: {
+                found: legacyIndex.found,
+                archived: legacyArchived,
+                merged: legacyIndex.notes.length - vanishedLegacyNotes,
+                vanished: vanishedLegacyNotes
+            },
+            legacyAiChats: aiChats.cleanup
         }
     };
 }
 
-// 保存配置到 config.json
+// 保存配置到 config.json（自定义文件夹列表与当前选中的 AI 对话也随配置一起保存）
 function saveConfig() {
     ensureStorageDirs();
     try {
@@ -398,6 +758,9 @@ function saveConfig() {
             spellcheck: State.spellcheck,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
+            // 当前选中的 AI 对话：对话本体在 ai_chats/ 下，这里只记一个 id
+            aiActiveChat: typeof State.aiActiveConversationId === 'string' ? State.aiActiveConversationId : '',
+            folders: normalizeCustomFolders(State.folders),
             fonts: normalizeFonts(State.fonts),
             ai: normalizeAiConfig(State.ai)
         };
@@ -410,63 +773,27 @@ function saveConfig() {
     }
 }
 
-// 保存单个笔记的正文到 data/notes/{id}.md
-function saveNoteContent(note) {
+// 保存单篇笔记：元数据注释与正文一起写回 data/notes/{id}.md（内容未变时跳过写入）
+function saveNote(note) {
     if (!note || !note.id) return;
-    const content = note.content || '';
-    if (savedNoteContent.get(note.id) === content) return;
     ensureStorageDirs();
     try {
-        const notePath = path.join(NOTES_DIR, `${note.id}.md`);
-        fs.writeFileSync(notePath, content, 'utf8');
-        savedNoteContent.set(note.id, content);
+        const text = serializeNoteFile(note);
+        if (savedNoteFiles.get(note.id) === text) return;
+        fs.writeFileSync(path.join(NOTES_DIR, `${note.id}.md`), text, 'utf8');
+        savedNoteFiles.set(note.id, text);
     } catch (err) {
-        console.error(`保存笔记 ${note.id} 内容失败:`, err);
+        console.error(`保存笔记 ${note.id} 失败:`, err);
     }
 }
 
-// 删除笔记正文文件，并同步丢弃对应的写入缓存
+// 删除笔记文件（元数据与正文同在一份文件，删掉即彻底移除），并同步丢弃写入缓存
 function deleteNoteFile(noteId) {
-    savedNoteContent.delete(noteId);
+    savedNoteFiles.delete(noteId);
     try {
         const notePath = path.join(NOTES_DIR, `${noteId}.md`);
         if (fs.existsSync(notePath)) fs.unlinkSync(notePath);
     } catch (err) {
         console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
     }
-}
-
-// 保存索引元数据到 index.json（文档信息不包含正文大文本，保证轻量快速；folders只记录自定义文件夹）
-function saveIndex() {
-    ensureStorageDirs();
-    try {
-        const notesMetadata = State.notes.map(n => ({
-            id: n.id,
-            title: n.title || '',
-            folder: (n.folder === '默认' || !n.folder) ? '' : n.folder,
-            tags: Array.isArray(n.tags) ? n.tags : [],
-            isPinned: !!n.isPinned,
-            isTrashed: !!n.isTrashed,
-            createdAt: n.createdAt || Date.now(),
-            updatedAt: n.updatedAt || Date.now()
-        }));
-
-        const customFolders = State.folders.filter(f => f && f !== '默认');
-
-        const indexData = {
-            folders: customFolders,
-            notes: notesMetadata
-        };
-        const json = JSON.stringify(indexData, null, 2);
-        if (json === savedIndexJSON) return;
-        fs.writeFileSync(INDEX_FILE, json, 'utf8');
-        savedIndexJSON = json;
-    } catch (err) {
-        console.error('保存 index.json 失败:', err);
-    }
-}
-
-function saveData() {
-    saveIndex();
-    saveConfig();
 }

@@ -1,5 +1,5 @@
 /* AI 助手对话面板：把笔记作为上下文提问，回答以流式方式逐步显示。
-   面板内可同时保留多份对话记录（见 ai_chats.js），对话内容随数据目录落到 ai_chats.json。
+   面板内可同时保留多份对话记录（见 ai_chats.js），一份对话一个文件落在数据目录的 ai_chats/ 下。
    打开 Agent 模式后（见 ai_agent.js），模型可以调用工具直接读写笔记。 */
 
 // 上下文字符预算：单篇与总量都设上限，避免一次提问塞进过多内容把请求撑爆
@@ -517,7 +517,7 @@ async function clearAiConversation() {
 
     const confirmed = await showConfirm('清空当前对话？', {
         title: '清空对话',
-        detail: `${chat.messages.length} 条消息将从本机 ai_chats.json 中移除，此操作无法撤销。`,
+        detail: `${chat.messages.length} 条消息将从本机对话文件中移除，此操作无法撤销。`,
         icon: 'delete_sweep',
         confirmLabel: '清空'
     });
@@ -528,7 +528,7 @@ async function clearAiConversation() {
     chat.messages = [];
     chat.title = '';
     touchAiConversation(chat);
-    saveAiChats();
+    saveAiChat(chat);
     renderAiMessages();
     renderAiChatList();
     showToast('已清空对话');
@@ -601,7 +601,7 @@ async function sendAiQuestion() {
     renderAiChatList(); // 新对话的第一条提问会决定它的显示标题与排序
     updateAiComposerState();
     // 提问先落盘：即使随后请求失败或应用被关掉，也不会丢掉用户刚输入的内容
-    saveAiChats();
+    saveAiChat(chat);
 
     await runAiTurn(chat, messages);
 }
@@ -655,7 +655,7 @@ async function requestAiAnswer(chat, messages) {
         touchAiConversation(target);
     }
     // 回答完整落盘（生成过程中的增量不写盘，避免频繁 I/O）
-    saveAiChats();
+    saveAiChat(target);
 
     renderAiMessages();
     renderAiChatList();
@@ -708,7 +708,7 @@ async function runAiTurn(chat, initialMessages) {
             }
 
             touchAiConversation(chat);
-            saveAiChats();
+            saveAiChat(chat);
             renderAiMessages();
             renderAiChatList();
 
@@ -720,7 +720,7 @@ async function runAiTurn(chat, initialMessages) {
                     canceled: true,
                     createdAt: Date.now()
                 });
-                saveAiChats();
+                saveAiChat(chat);
                 renderAiMessages();
                 renderAiChatList();
                 return;
@@ -733,7 +733,7 @@ async function runAiTurn(chat, initialMessages) {
                     content: `（本次提问已达到 ${AI_AGENT_MAX_STEPS} 步工具调用上限，先停在这里。需要继续的话再发一条消息。）`,
                     createdAt: Date.now()
                 });
-                saveAiChats();
+                saveAiChat(chat);
                 renderAiMessages();
                 renderAiChatList();
                 return;
@@ -793,10 +793,9 @@ function saveAiAnswerAsNote(content) {
         updatedAt: now
     };
 
-    saveNoteContent(note);
+    saveNote(note);
     State.notes.unshift(note);
     openTab(note.id);
-    saveIndex();
     renderApp();
     showToast('已存为新笔记');
 }

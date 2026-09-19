@@ -32,7 +32,7 @@ function setupEvents() {
         const note = getActiveNote();
         if (note && !isReadOnlyNote(note)) {
             note.folder = e.target.value;
-            saveIndex();
+            saveNote(note);
             renderApp();
         }
     };
@@ -162,12 +162,15 @@ function setupEvents() {
                 try {
                     const parsed = JSON.parse(evt.target.result);
                     if (parsed && Array.isArray(parsed.notes)) {
-                        State.notes = parsed.notes;
+                        State.notes = parsed.notes.filter(note => note && typeof note === 'object');
                         const customFolders = Array.isArray(parsed.folders) ? parsed.folders.filter(f => f && f !== '默认') : [];
                         State.folders = ['默认', ...customFolders];
-                        // 将导入的笔记写入各自的 .md 文件与 index.json
-                        State.notes.forEach(note => saveNoteContent(note));
-                        saveIndex();
+                        // 每篇笔记写入自己的 notes/{id}.md（元数据与正文同处一份文件）
+                        State.notes.forEach(note => {
+                            if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(note.id || ''))) note.id = generateUniqueNoteId();
+                            saveNote(note);
+                        });
+                        saveConfig();
                         renderApp();
                         showToast('备份导入成功');
                     }
@@ -227,7 +230,8 @@ function setupEvents() {
             return;
         }
         State.folders.push(name);
-        saveIndex();
+        // 文件夹列表属于偏好配置，随 config.json 保存
+        saveConfig();
         renderApp();
     };
 
@@ -256,7 +260,7 @@ function setupEvents() {
 
         if (!note.tags) note.tags = [];
         newTags.forEach(tag => note.tags.push(tag));
-        saveIndex();
+        saveNote(note);
         renderApp();
         showToast(newTags.length > 1 ? `已添加 ${newTags.length} 个标签` : '已添加标签');
     };

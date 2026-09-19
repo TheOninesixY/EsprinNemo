@@ -1,6 +1,6 @@
 /* AI Agent 模式：让模型调用工具直接读写笔记（正文、标题、文件夹、标签、置顶、废纸篓）。
    所有写操作都在渲染进程内完成，与手动操作走同一套 State + 落盘逻辑，
-   因此列表、标签栏、编辑器与 index.json 都能即时保持一致；每次写操作都登记一份撤销快照。 */
+   因此列表、标签栏、编辑器与磁盘上的笔记文件都能即时保持一致；每次写操作都登记一份撤销快照。 */
 
 // 一次提问内最多允许执行的工具步数，避免模型陷入循环
 const AI_AGENT_MAX_STEPS = 6;
@@ -235,9 +235,9 @@ function prepareNoteWrite() {
     flushPendingSave();
 }
 
-// 写操作完成后刷新界面与索引
-function commitNoteWrite() {
-    saveIndex();
+// 写操作完成后把该笔记写回文件（无笔记改动时传空）并刷新界面
+function commitNoteWrite(note) {
+    if (note) saveNote(note);
     renderApp();
 }
 
@@ -331,9 +331,8 @@ function runCreateNote(args) {
         updatedAt: now
     };
 
-    saveNoteContent(note);
     State.notes.unshift(note);
-    commitNoteWrite();
+    commitNoteWrite(note);
 
     return {
         ...toolOk(`新建笔记《${note.title || '未命名笔记'}》`, `文件夹：${folder}${note.tags.length ? ` · 标签：${note.tags.map(t => `#${t}`).join(' ')}` : ''}`, {
@@ -368,8 +367,7 @@ function runUpdateNoteContent(args) {
     note.content = mode === 'append' && base ? `${base}\n\n${nextContent}` : nextContent;
     note.updatedAt = Date.now();
 
-    saveNoteContent(note);
-    commitNoteWrite();
+    commitNoteWrite(note);
 
     const detail = mode === 'append'
         ? `追加 ${nextContent.length} 字（共 ${note.content.length} 字）`
@@ -389,8 +387,7 @@ function runUpdateNoteContent(args) {
                 if (!target) return;
                 target.content = previousContent;
                 target.updatedAt = Date.now();
-                saveNoteContent(target);
-                commitNoteWrite();
+                commitNoteWrite(target);
             }
         }
     };
@@ -450,7 +447,7 @@ function runUpdateNoteMeta(args) {
     if (!changes.length) return toolFail('没有指定要修改的字段');
 
     note.updatedAt = Date.now();
-    commitNoteWrite();
+    commitNoteWrite(note);
 
     return {
         ...toolOk(`更新《${before.title || '未命名笔记'}》`, changes.join(' · '), {
@@ -467,7 +464,7 @@ function runUpdateNoteMeta(args) {
                 target.tags = [...before.tags];
                 target.isPinned = before.isPinned;
                 target.updatedAt = Date.now();
-                commitNoteWrite();
+                commitNoteWrite(target);
             }
         }
     };
@@ -481,7 +478,9 @@ function runCreateFolder(args) {
     }
 
     State.folders.push(name);
-    commitNoteWrite();
+    // 文件夹列表属于偏好配置，随 config.json 保存
+    saveConfig();
+    renderApp();
 
     return {
         ...toolOk(`新建文件夹「${name}」`, `共 ${State.folders.length} 个文件夹`, { ok: true, name, existed: false }),
@@ -489,7 +488,8 @@ function runCreateFolder(args) {
             label: `新建文件夹「${name}」`,
             apply() {
                 State.folders = State.folders.filter(folder => folder !== name);
-                commitNoteWrite();
+                saveConfig();
+                renderApp();
             }
         }
     };

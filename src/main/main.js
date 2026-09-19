@@ -120,7 +120,8 @@ function isDirWritable(dir) {
 }
 
 function dirHasData(dir) {
-  return fs.existsSync(path.join(dir, 'index.json')) || fs.existsSync(path.join(dir, 'notes'));
+  // 笔记与元数据同在 notes/ 下的 .md 文件里，config.json 则记录偏好设置与文件夹列表
+  return fs.existsSync(path.join(dir, 'notes')) || fs.existsSync(path.join(dir, 'config.json'));
 }
 
 // 切换数据位置：按需迁移数据、写记录文件，并让当前缓存与后续窗口都使用新目录。

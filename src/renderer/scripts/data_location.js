@@ -126,11 +126,10 @@ function adoptDataDir(dir, options = {}) {
     State.notes = saved.notes;
     State.folders = saved.folders;
 
-    // 新位置同样执行一次索引清理（与启动流程一致）
-    const cleanup = saved.indexCleanup;
-    if (cleanup && (cleanup.removedNotes > 0 || cleanup.repairedNotes > 0 || cleanup.foldersChanged || cleanup.indexCorrupted)) {
-        saveIndex();
-    }
+    // 新位置同样执行一次数据清理（与启动流程一致）：
+    // 笔记与对话文件的格式修正已在 loadData 内完成，文件夹列表有变化时写回配置
+    const cleanup = saved.dataCleanup;
+    if (cleanup && cleanup.foldersChanged) saveConfig();
 
     // 丢弃在新位置不存在的标签页，避免指向幽灵笔记
     State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || State.notes.some(n => n.id === id));
@@ -195,6 +194,7 @@ async function changeDataDir() {
     setDataDirButtonsDisabled(true);
     try {
         flushPendingSave(); // 先落盘，保证迁移/切换的是最新内容
+        flushActiveAiChatSave(); // 当前对话的切换也要先写进旧位置的 config.json
         const result = await ipcRenderer.invoke('data:choose-dir');
         await handleDataDirResult(result, '数据存放位置已切换');
         await refreshDataDirInfo();
@@ -215,6 +215,7 @@ async function resetDataDir() {
     setDataDirButtonsDisabled(true);
     try {
         flushPendingSave();
+        flushActiveAiChatSave();
         const result = await ipcRenderer.invoke('data:reset-dir');
         await handleDataDirResult(result, '已恢复默认数据存放位置');
         await refreshDataDirInfo();

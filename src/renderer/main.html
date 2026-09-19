@@ -273,10 +273,10 @@
                         </button>
                     </div>
                     <div class="ai-chat-list" id="ai-chat-list"></div>
-                    <div class="ai-drawer-footer">对话记录保存在数据目录的 ai_chats.json 中</div>
+                    <div class="ai-drawer-footer">一份对话一个文件，保存在数据目录的 ai_chats 中</div>
                 </div>
 
-                <!-- 当前对话的消息区（内容随数据目录保存在 ai_chats.json） -->
+                <!-- 当前对话的消息区（对话保存在数据目录的 ai_chats/{id}.json） -->
                 <div class="ai-messages" id="ai-messages">
                     <div class="ai-empty" id="ai-empty">
                         <span class="ms-icon">forum</span>
@@ -565,7 +565,7 @@
                             <div class="settings-row" id="setting-data-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">数据存放位置</span>
-                                    <span class="settings-row-desc">笔记正文（notes/）、索引（index.json）与偏好配置（config.json）都保存在该目录中</span>
+                                    <span class="settings-row-desc">笔记（notes/ 下的 Markdown 文件，元数据内嵌在文件开头）与偏好配置（config.json）都保存在该目录中</span>
                                     <span class="settings-path">
                                         <span id="setting-data-dir-text">读取中…</span>
                                         <span class="settings-path-tag" id="setting-data-dir-tag">默认位置</span>

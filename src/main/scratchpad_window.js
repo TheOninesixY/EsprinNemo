@@ -256,7 +256,7 @@ function unbindNote(title, content) {
   return { ok: true };
 }
 
-// 保存到关联的笔记：由主窗口渲染进程更新笔记正文与索引
+// 保存到关联的笔记：由主窗口渲染进程更新笔记正文与元数据
 async function saveBoundNote(noteId, title, content) {
   const reply = await askMainWindow('scratchpad:save-note', { noteId, title, content });
   // 写回笔记失败时也把内容缓存下来，重开窗口不至于丢内容
