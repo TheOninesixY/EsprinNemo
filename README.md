@@ -35,6 +35,7 @@
 
 ### 数据与隐私
 - **完全离线**：不联网、不上传、无遥测
+- **安装即可选位置**：Windows 安装向导可选择安装位置与数据存放位置（默认位置或任意目录）
 - **数据目录可迁移**：在设置中更改数据存放位置，自动迁移现有笔记并即时生效，无需重启
 - **安装版与开发版隔离**：安装版使用应用配置目录，开发版使用项目内 `data/`
 
@@ -70,7 +71,14 @@ bun run start
 bun run build
 ```
 
-Windows 下由 electron-builder 生成安装包，产物位于 `dist/`。
+Windows 下由 electron-builder 生成安装包，产物位于 `dist/`。安装包为向导式（非一键安装）：
+
+- **可选择安装位置**（`nsis.allowToChangeInstallationDirectory`）
+- **可选择数据存放位置**（`src/win_installer/installer.nsh` 提供的自定义向导页），
+  选择结果写入 `%APPDATA%\esprin_nemo\data_path.json`；该记录已存在时向导不再询问，
+  位置改在应用内“设置 → 数据存放位置”中调整
+
+实现细节见 [`src/win_installer/README.md`](src/win_installer/README.md)。
 
 ## 数据存储
 
@@ -83,7 +91,22 @@ data/
     └── ...
 ```
 
-索引只保存元数据、不保存正文，因此笔记数量增长时列表加载依然轻快。自定义数据目录的位置记录在应用配置目录下的 `data-location.json` 中（位于数据目录之外，迁移后仍能找回）。
+索引只保存元数据、不保存正文，因此笔记数量增长时列表加载依然轻快。数据位置记录在 `%APPDATA%\esprin_nemo\data_path.json`（位于数据目录之外，迁移后仍能找回）：
+
+```json
+{
+  "dataDir": "D:/Notes"
+}
+```
+
+安装向导与应用内“设置 → 数据存放位置”读写的是同一个文件、同一个字段，因此不存在优先级冲突。应用启动时按下面的顺序解析数据目录：
+
+```
+data_path.json 中的位置（安装时选择或应用内更改）
+  → %APPDATA%\esprin_nemo\data（开发版为项目内 data/）
+```
+
+因此“恢复默认”会删掉记录并回到 `%APPDATA%\esprin_nemo\data`；记录文件里统一使用正斜杠（安装向导的 NSIS 脚本不擅长转义反斜杠），应用读取时会换算成当前平台的写法。
 
 > 提示：整个数据目录就是一份可备份的数据。复制它即可完成迁移，用 Git 初始化它即可获得完整的历史版本。
 
@@ -100,6 +123,9 @@ data/
 │   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入）
 │   │   ├── font_list.js    # 跨平台本机字体枚举（解析字体文件 name 表）
 │   │   └── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
+│   ├── win_installer/      # Windows 安装器：NSIS 自定义向导页（数据存放位置）
+│   │   ├── installer.nsh   # electron-builder nsis.include
+│   │   └── README.md       # 安装器说明
 │   └── renderer/           # 渲染进程
 │       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本
 │       ├── dialog.html     # 弹窗窗口页面

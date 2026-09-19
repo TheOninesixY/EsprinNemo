@@ -4,10 +4,10 @@ const path = require('node:path');
 // 主进程通过 webPreferences.additionalArguments 把解析好的数据目录传给渲染进程
 const DATA_DIR_ARG = '--esprin-nemo-data-dir=';
 
-// 用户自定义数据位置的记录文件：必须放在数据目录之外（否则切换后就找不到记录了），
-// 因此固定存于应用配置目录（userData）下。
-const LOCATION_FILE_NAME = 'data-location.json';
+// 数据位置记录：%APPDATA%/esprin_nemo/data_path.json。必须放在数据目录之外（否则切换后
+// 就找不到记录了），同时也是安装向导（见 src/win_installer/installer.nsh）读写的同一个文件。
 const DEFAULT_APP_DIR_NAME = 'esprin_nemo';
+const DATA_PATH_FILE_NAME = 'data_path.json';
 
 function getApp(appLike = null) {
   if (appLike) return appLike;
@@ -28,15 +28,10 @@ function getDataDirFromArgv(argv = process.argv) {
   return dir || null;
 }
 
-// 应用配置目录：优先 userData，回退到 %APPDATA%/esprin_nemo
+// 配置目录：固定为 %APPDATA%/esprin_nemo，与安装向导写记录文件的位置保持一致
 function getConfigDir(appLike = null) {
   const app = getApp(appLike);
   if (!app || typeof app.getPath !== 'function') return null;
-  try {
-    return app.getPath('userData');
-  } catch (error) {
-    // 继续尝试 appData 回退
-  }
   try {
     return path.join(app.getPath('appData'), DEFAULT_APP_DIR_NAME);
   } catch (error) {
@@ -46,24 +41,55 @@ function getConfigDir(appLike = null) {
 
 function getLocationFile(appLike = null) {
   const configDir = getConfigDir(appLike);
-  return configDir ? path.join(configDir, LOCATION_FILE_NAME) : null;
+  return configDir ? path.join(configDir, DATA_PATH_FILE_NAME) : null;
 }
 
-// 读取用户自定义的数据目录；未设置或文件损坏时返回 null
+// 记录里的路径统一以正斜杠保存：安装向导（NSIS）不擅长转义反斜杠，这样两边都能安全读写
+function normalizeRecordedDir(value) {
+  if (typeof value !== 'string') return null;
+  const dir = value.trim().replace(/\\/g, '/');
+  return dir || null;
+}
+
+// 解析记录文件：应用写的是标准 JSON；安装向导写出的路径可能未转义反斜杠，
+// 因此 JSON 解析失败、或结果里混进了制表符之类的转义字符时，退回按字段名提取
+function parseDataDirRecord(text) {
+  const matched = text.match(/"dataDir"\s*:\s*"([^"]*)"/);
+  try {
+    const parsed = JSON.parse(text);
+    const dir = normalizeRecordedDir(parsed && parsed.dataDir);
+    if (dir && !/[\u0000-\u001f]/.test(dir)) return dir;
+  } catch (error) {
+    // 继续走下面的宽松解析
+  }
+  return matched ? normalizeRecordedDir(matched[1]) : null;
+}
+
+// 读取记录的数据位置；未设置、损坏或无法可靠解码时返回 null
 function readStoredDataDir(appLike = null) {
   const file = getLocationFile(appLike);
   if (!file || !fs.existsSync(file)) return null;
   try {
-    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const dir = parsed && typeof parsed.dataDir === 'string' ? parsed.dataDir.trim() : '';
-    return dir || null;
+    const text = decodeTextFile(fs.readFileSync(file)).replace(/\uFEFF/g, '');
+    const dir = parseDataDirRecord(text);
+    if (!dir) {
+      console.warn('[Esprin Nemo] 数据位置记录无法解析:', file);
+      return null;
+    }
+    // 解码失败时会出现替换字符（例如路径被以 ANSI 写入），此时宁可回退到默认位置
+    if (dir.includes('\uFFFD')) {
+      console.warn('[Esprin Nemo] 数据位置记录无法解码，已回退到默认位置:', file);
+      return null;
+    }
+    // 记录里是正斜杠形式，这里换算成当前平台的写法
+    return path.resolve(dir);
   } catch (error) {
     console.warn('[Esprin Nemo] 读取数据位置记录失败:', error);
     return null;
   }
 }
 
-// 写入自定义数据目录；dir 为空表示清除记录（恢复默认位置）
+// 写入数据位置记录；dir 为空表示删除记录（回到默认位置）
 function writeStoredDataDir(dir, appLike = null) {
   const file = getLocationFile(appLike);
   if (!file) return false;
@@ -73,7 +99,8 @@ function writeStoredDataDir(dir, appLike = null) {
       return true;
     }
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, `${JSON.stringify({ dataDir: dir }, null, 2)}\n`, 'utf8');
+    const record = { dataDir: path.resolve(dir).replace(/\\/g, '/') };
+    fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
     return true;
   } catch (error) {
     console.error('[Esprin Nemo] 保存数据位置失败:', error);
@@ -93,6 +120,15 @@ function ensureDirUsable(dir) {
   }
 }
 
+// 兼容安装器可能写出的 UTF-16LE（带/不带 BOM）与 UTF-8 文本
+function decodeTextFile(buffer) {
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return buffer.toString('utf16le', 2);
+  }
+  if (buffer.includes(0)) return buffer.toString('utf16le');
+  return buffer.toString('utf8');
+}
+
 // 默认数据目录：安装版 %APPDATA%/esprin_nemo/data，开发版项目内 data/
 function getDefaultDataDir(baseDir = __dirname, appLike = null) {
   const app = getApp(appLike);
@@ -107,11 +143,11 @@ function getDataDir(baseDir = __dirname, appLike = null) {
   const argDir = getDataDirFromArgv();
   if (argDir) return argDir;
 
-  // 2. 用户在设置中自定义的位置优先；不可用时回退到默认位置，避免应用无法启动
+  // 2. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退，避免应用无法启动
   const stored = readStoredDataDir(appLike);
   if (stored) {
-    if (path.isAbsolute(stored) && ensureDirUsable(stored)) return stored;
-    console.warn('[Esprin Nemo] 自定义数据位置不可用，已回退到默认位置:', stored);
+    if (ensureDirUsable(stored)) return stored;
+    console.warn('[Esprin Nemo] 记录的数据位置不可用，已回退到默认位置:', stored);
   }
 
   // 3. 默认位置

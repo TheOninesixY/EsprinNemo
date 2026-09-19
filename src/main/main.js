@@ -16,7 +16,8 @@ const { registerUiDefaults } = require('./ui_defaults.js');
 const APP_ROOT = app.getAppPath();
 
 // 安装版使用 %APPDATA%/esprin_nemo/data，开发版使用项目内 data/；
-// 用户在设置中自定义位置后，以应用配置目录中的 data-location.json 为准。
+// 安装向导与“设置 → 数据存放位置”都把选择写进 %APPDATA%/esprin_nemo/data_path.json，
+// 该记录优先于默认位置，记录不存在时使用默认位置。
 let dataDir = null;
 function resolveDataDir() {
   if (!dataDir) {

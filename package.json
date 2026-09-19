@@ -26,7 +26,21 @@
       ]
     },
     "win": {
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "EsprinNemo.${version}.portable.${ext}"
+    },
+    "nsis": {
+      "include": "src/win_installer/installer.nsh",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "uninstallDisplayName": "Esprin Nemo"
     },
     "directories": {
       "buildResources": "assets"
