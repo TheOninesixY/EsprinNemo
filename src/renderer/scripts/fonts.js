@@ -208,6 +208,8 @@ function initFonts() {
             State.fonts[config.key] = e.target.value || '';
             applyFonts();
             saveConfig();
+            // 小本本窗口用的是同一套字体，改完立即同步过去（函数来自 appearance.js）
+            if (typeof syncScratchpadAppearance === 'function') syncScratchpadAppearance();
         };
     });
 

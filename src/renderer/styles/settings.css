@@ -156,7 +156,7 @@
 .accent-color-input::-webkit-color-swatch-wrapper { padding: 2px; }
 .accent-color-input::-webkit-color-swatch {
     border: none;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
 }
 .accent-hex-input {
     width: 110px;
@@ -244,7 +244,7 @@
     display: inline-block;
     margin-left: 6px;
     padding: 0 5px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     font-family: var(--font-sans);
     font-size: 10.5px;
     color: var(--text-muted);
@@ -318,6 +318,117 @@
     background: var(--bg-list);
     color: var(--text-primary);
 }
+
+/* 圆角尺度滑块（四档）：轨道左侧已选部分用主题色填充，档位文字可点选。
+   进度条与滑块都是自绘元素（原生 range 透明叠在上面只负责交互），
+   因此落档时滑块会滑到新位置、进度条同步长过去；拖动时取消补间保持跟手，
+   档位文字在此期间保持不变，松手吸附到最近档位后才更新高亮。 */
+.radius-slider {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 220px;
+    /* --radius-pos：滑块位置比例 0~1；--radius-fill：已选进度比例，均由 syncCornerRadiusControl 写入 */
+    --radius-pos: 0;
+    --radius-fill: 0%;
+}
+.radius-track {
+    position: relative;
+    height: 18px;
+}
+/* 轨道底线：居中 4px 圆头 */
+.radius-track::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 4px;
+    transform: translateY(-50%);
+    border-radius: var(--radius-pill);
+    background: var(--border-color);
+}
+.radius-fill {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 4px;
+    width: var(--radius-fill);
+    transform: translateY(-50%);
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    transition: width .22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.radius-thumb {
+    position: absolute;
+    top: 50%;
+    /* 位置用比例算：两端正好留出滑块半径，与原生 range 的行程一致 */
+    left: calc(var(--radius-pos) * (100% - 14px));
+    width: 14px;
+    height: 14px;
+    margin-top: -7px;
+    /* 直角档位下滑块也跟着变方（见 styles/radius.css） */
+    border-radius: var(--radius-knob);
+    background: var(--accent);
+    border: 1px solid var(--bg-list);
+    box-shadow: 0 0 0 1px var(--border-color);
+    /* 拖动交给叠在上面的原生 range */
+    pointer-events: none;
+    transition: left .22s cubic-bezier(0.22, 0.61, 0.36, 1), transform .12s;
+}
+.radius-track:hover .radius-thumb {
+    transform: scale(1.12);
+}
+/* 正在拖动：取消补间，滑块跟手而不滞后 */
+.radius-slider.is-dragging .radius-thumb,
+.radius-slider.is-dragging .radius-fill {
+    transition: none;
+}
+/* 原生 range：整体透明叠在轨道上，只提供拖动 / 点击 / 键盘操作 */
+.radius-range {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+.radius-range::-webkit-slider-runnable-track {
+    height: 100%;
+    background: transparent;
+}
+.radius-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+.radius-ticks {
+    display: flex;
+    justify-content: space-between;
+}
+.radius-tick {
+    padding: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 11.5px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: color .15s;
+}
+.radius-tick:hover { color: var(--text-primary); }
+.radius-tick.active {
+    color: var(--accent);
+    font-weight: 600;
+}
 .font-preview {
     font-family: var(--font-doc);
     padding: 14px 16px;
@@ -360,7 +471,7 @@
     bottom: 0;
     background-color: var(--border-color);
     transition: .2s;
-    border-radius: 24px;
+    border-radius: var(--radius-pill);
 }
 .slider:before {
     position: absolute;
@@ -371,7 +482,7 @@
     bottom: 3px;
     background-color: white;
     transition: .2s;
-    border-radius: 50%;
+    border-radius: var(--radius-knob);
 }
 input:checked + .slider {
     background-color: var(--accent);
@@ -398,14 +509,14 @@ input:checked + .slider:before {
 }
 .update-progress-track {
     height: 6px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--item-active);
     overflow: hidden;
 }
 .update-progress-bar {
     height: 100%;
     width: 0;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--accent);
     transition: width 0.2s linear;
 }

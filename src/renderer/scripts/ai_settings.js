@@ -264,7 +264,7 @@ async function fetchAiModels() {
                 .map(model => `<option value="${escapeHTML(model)}"></option>`)
                 .join('');
         }
-        setAiStatus(`已获取 ${result.models.length} 个模型，可在模型输入框中下拉选择`, 'ok');
+        setAiStatus(`已获取 ${result.models.length} 个模型，在模型输入框中输入或按 ↓ 即可选择`, 'ok');
         showToast(`已获取 ${result.models.length} 个模型`);
     } catch (err) {
         console.error('获取模型列表失败:', err);

@@ -97,7 +97,9 @@ document.getElementById('note-context-menu').onclick = (e) => {
     hideContextMenu();
 };
 
-/* 新建菜单：侧边栏顶部的「新建」与空状态按钮共用，用于选择新建笔记还是待办 */
+/* 新建菜单：侧边栏顶部的「新建」与空状态按钮共用，用于选择新建笔记还是待办。
+   外观直接复用下拉菜单（styles/dropdown.css 的 .dropdown-menu / .dropdown-option），
+   这里只负责建条目与定位，不再另写一套菜单样式 */
 
 // 菜单条目：与快捷键 Ctrl+N / Ctrl+Shift+N 一一对应
 const NEW_ITEM_ACTIONS = [
@@ -111,8 +113,10 @@ function showNewItemMenu(anchor) {
     menu.innerHTML = '';
 
     NEW_ITEM_ACTIONS.forEach(entry => {
-        const el = document.createElement('div');
-        el.className = 'context-menu-item';
+        // 条目与下拉菜单里的选项同构：图标 + 文字
+        const el = document.createElement('button');
+        el.type = 'button';
+        el.className = 'dropdown-option';
         el.dataset.action = entry.action;
 
         const icon = document.createElement('span');
@@ -120,6 +124,7 @@ function showNewItemMenu(anchor) {
         icon.textContent = entry.icon;
 
         const label = document.createElement('span');
+        label.className = 'dropdown-option-text';
         label.textContent = entry.label;
 
         el.append(icon, label);

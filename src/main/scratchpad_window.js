@@ -9,10 +9,7 @@ const { BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./data_path.js');
-
-// 主题 / 主题色在创建窗口时经命令行参数传入，首屏渲染前应用，避免闪烁
-const NOTE_THEME_ARG = '--esprin-nemo-note-theme=';
-const NOTE_ACCENT_ARG = '--esprin-nemo-note-accent=';
+const { buildWindowAppearance, safeResolve } = require('./window_appearance.js');
 
 const NOTE_HTML = path.join(__dirname, '..', 'renderer', 'scratchpad.html');
 // 小本本状态 { noteId, title, content }：与笔记共用数据目录，随「数据存放位置」一起迁移
@@ -28,13 +25,16 @@ const NOTE_MARGIN = 18;
 const NOTE_MIN_WIDTH = 220;
 const NOTE_MIN_HEIGHT = 180;
 
-const THEME_BG = { dark: '#0d1117', light: '#ffffff' };
 // 主窗口渲染进程回应的超时：超时按失败处理，界面不会一直悬在等待中
 const BRIDGE_TIMEOUT = 5000;
 
 let noteWin = null;
 let resolveTheme = () => 'dark';
+let resolveStyle = () => 'default';
 let resolveAccent = () => '';
+let resolveRadius = () => 'default';
+// 字体：与主窗口一样的 { uiLatin, uiCjk, docLatin, docCjk }
+let resolveFonts = () => ({});
 let resolveDataDir = () => '';
 let getOwnerWindow = () => null;
 let iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
@@ -44,14 +44,29 @@ let ipcRegistered = false;
 // 标题把手拖动窗口时的起点（窗口坐标），松手后清空
 let dragOrigin = null;
 
-// 由 main.js 注入主题、主题色、数据目录、归属窗口、图标与关闭回调
-function configureScratchpadWindow({ getTheme, getAccent, getDataDir, getOwner, icon, onClosed } = {}) {
+// 由 main.js 注入主题、主题风格、主题色、圆角尺度、字体、数据目录、归属窗口、图标与关闭回调
+function configureScratchpadWindow({ getTheme, getStyle, getAccent, getRadius, getFonts, getDataDir, getOwner, icon, onClosed } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
+  if (typeof getStyle === 'function') resolveStyle = getStyle;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
+  if (typeof getRadius === 'function') resolveRadius = getRadius;
+  if (typeof getFonts === 'function') resolveFonts = getFonts;
   if (typeof getDataDir === 'function') resolveDataDir = getDataDir;
   if (typeof getOwner === 'function') getOwnerWindow = getOwner;
   if (typeof icon === 'string' && icon) iconPath = icon;
   if (typeof onClosed === 'function') handleWindowClosed = onClosed;
+}
+
+// 当前外观：取值交给注入的读取函数，换算与参数拼装交给 window_appearance.js，
+// 与弹窗窗口、三个窗口的渲染端用的是同一套逻辑
+function currentAppearance() {
+  return buildWindowAppearance({
+    theme: safeResolve(resolveTheme, 'dark', '主题'),
+    style: safeResolve(resolveStyle, 'default', '主题风格'),
+    accent: safeResolve(resolveAccent, '', '主题色'),
+    radius: safeResolve(resolveRadius, 'default', '圆角尺度'),
+    fonts: safeResolve(resolveFonts, {}, '字体')
+  });
 }
 
 function stateFilePath() {
@@ -159,14 +174,9 @@ function dockBounds() {
 }
 
 function createScratchpadWindow() {
-  const theme = resolveTheme() === 'light' ? 'light' : 'dark';
-  let accent = '';
-  try {
-    const resolved = resolveAccent();
-    if (typeof resolved === 'string') accent = resolved.trim();
-  } catch (error) {
-    console.error('[Esprin Nemo] 读取主题色失败:', error);
-  }
+  // 外观（主题 / 风格 / 主题色 / 圆角尺度 / 字体）一次算完：
+  // 一组用于窗口底色兜底，另一组经命令行参数注入页面，首屏渲染前就能应用
+  const appearance = currentAppearance();
 
   const win = new BrowserWindow({
     ...dockBounds(),
@@ -182,12 +192,12 @@ function createScratchpadWindow() {
     title: '小本本',
     // 便利贴的价值在于「一直看得见」，因此新窗口即为置顶窗口
     alwaysOnTop: true,
-    backgroundColor: THEME_BG[theme],
+    backgroundColor: appearance.backgroundColor,
     icon: iconPath,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      additionalArguments: [NOTE_THEME_ARG + theme, NOTE_ACCENT_ARG + accent]
+      additionalArguments: appearance.args
     }
   });
 
@@ -271,20 +281,26 @@ async function saveBoundNote(noteId, title, content) {
   return reply.ok ? { ok: true } : { ok: false, reason: reply.reason || 'failed' };
 }
 
-// 主题 / 主题色在主窗口内变更后同步到便利贴，避免两个窗口观感不一致
+// 主窗口内变更主题 / 主题风格 / 主题色 / 圆角尺度 / 字体后同步到便利贴，避免两个窗口观感不一致。
+// 渲染端收到后用与小本本首屏完全相同的那套逻辑重新应用（见 renderer/window_appearance.js）
 function updateScratchpadAppearance(payload) {
   if (!noteWin || noteWin.isDestroyed()) return;
-  const data = payload && typeof payload === 'object' ? payload : {};
-  const theme = data.theme === 'light' ? 'light' : 'dark';
-  const accent = typeof data.accent === 'string' ? data.accent.trim() : '';
+  const appearance = buildWindowAppearance(payload);
 
   try {
-    noteWin.setBackgroundColor(THEME_BG[theme]);
+    // 窗口底色只是兜底，失败不影响窗口内容
+    noteWin.setBackgroundColor(appearance.backgroundColor);
   } catch (error) {
-    // 背景色只是兜底，失败不影响窗口内容
+    // 忽略：窗口可能刚好在这一刻被关掉
   }
   if (!noteWin.webContents.isDestroyed()) {
-    noteWin.webContents.send('scratchpad:appearance', { theme, accent });
+    noteWin.webContents.send('scratchpad:appearance', {
+      theme: appearance.theme,
+      style: appearance.style,
+      radius: appearance.radius,
+      accent: appearance.accent,
+      fonts: appearance.fonts
+    });
   }
 }
 

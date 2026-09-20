@@ -15,10 +15,14 @@ const State = {
     sortBy: 'updated-desc',
     viewMode: 'edit',
     theme: 'system',
+    // 主题风格（皮肤）：default 为内置的 GitHub 风格，alom 为 Alom 风格
+    themeStyle: 'default',
     // 主题色（强调色）：#RRGGBB，空字符串表示跟随主题使用内置默认色
     accentColor: '',
     // 左上角应用名文字颜色：brand（品牌色）/ mono（跟随明暗用黑白）/ accent（跟随主题色）
     brandColor: 'brand',
+    // 圆角尺度：square（方）/ slight（微圆角）/ default（默认）/ large（大）
+    cornerRadius: 'default',
     spellcheck: false,
     // 侧边栏是否收起：收起后只保留一条窄条，筛选入口仅显示图标
     sidebarCollapsed: false,

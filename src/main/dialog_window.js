@@ -3,10 +3,8 @@
 // 不再使用系统原生消息框，也不使用渲染进程内叠加的"假弹窗"。
 const { BrowserWindow, ipcMain, nativeTheme } = require('electron');
 const path = require('path');
+const { buildWindowAppearance, safeResolve } = require('./window_appearance.js');
 
-const DIALOG_THEME_ARG = '--esprin-nemo-dialog-theme=';
-const DIALOG_ACCENT_ARG = '--esprin-nemo-dialog-accent=';
-const DIALOG_BRAND_ARG = '--esprin-nemo-dialog-brand=';
 // 弹窗页面与主窗口同属渲染进程资源，位于 ../renderer/
 const DIALOG_HTML = path.join(__dirname, '..', 'renderer', 'dialog.html');
 
@@ -27,15 +25,37 @@ let resolveTheme = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 let resolveAccent = () => '';
 // 应用名文字颜色模式：brand / mono / accent，非法值回退为品牌色
 let resolveBrandColor = () => 'brand';
+// 圆角尺度：square / slight / default / large，非法值回退为默认
+let resolveRadius = () => 'default';
+// 主题风格（皮肤）：alom 为 Alom 风格，弹窗与主窗口用同一套配色
+let resolveStyle = () => 'default';
+// 字体：与主窗口一样的 { uiLatin, uiCjk, docLatin, docCjk }
+let resolveFonts = () => ({});
 let iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
 let ipcRegistered = false;
 
 // 由 main.js 注入主题解析与图标路径（主题需要读取用户数据目录中的 config.json）
-function configureDialogWindows({ getTheme, getAccent, getBrandColor, icon } = {}) {
+function configureDialogWindows({ getTheme, getStyle, getAccent, getBrandColor, getRadius, getFonts, icon } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
+  if (typeof getStyle === 'function') resolveStyle = getStyle;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
   if (typeof getBrandColor === 'function') resolveBrandColor = getBrandColor;
+  if (typeof getRadius === 'function') resolveRadius = getRadius;
+  if (typeof getFonts === 'function') resolveFonts = getFonts;
   if (typeof icon === 'string' && icon) iconPath = icon;
+}
+
+// 当前外观：取值交给注入的读取函数，换算与参数拼装交给 window_appearance.js，
+// 与小本本窗口、三个窗口的渲染端用的是同一套逻辑（选 Alom 风格后弹窗不再是另一副长相）
+function currentAppearance() {
+  return buildWindowAppearance({
+    theme: safeResolve(resolveTheme, 'dark', '主题'),
+    style: safeResolve(resolveStyle, 'default', '主题风格'),
+    accent: safeResolve(resolveAccent, '', '主题色'),
+    brandColor: safeResolve(resolveBrandColor, 'brand', '应用名颜色'),
+    radius: safeResolve(resolveRadius, 'default', '圆角尺度'),
+    fonts: safeResolve(resolveFonts, {}, '字体')
+  });
 }
 
 function clamp(value, min, max) {
@@ -198,21 +218,8 @@ function finishDialog(entry, result) {
 function showDialogWindow(owner, rawOptions) {
   const options = normalizeOptions(rawOptions);
   const parentWin = owner && !owner.isDestroyed() ? owner : null;
-  const theme = resolveTheme() === 'light' ? 'light' : 'dark';
-  let accent = '';
-  try {
-    const resolved = resolveAccent();
-    if (typeof resolved === 'string') accent = resolved.trim();
-  } catch (error) {
-    console.error('[Esprin Nemo] 读取主题色失败:', error);
-  }
-  let brandColor = 'brand';
-  try {
-    const resolved = resolveBrandColor();
-    if (resolved === 'mono' || resolved === 'accent') brandColor = resolved;
-  } catch (error) {
-    console.error('[Esprin Nemo] 读取应用名颜色失败:', error);
-  }
+  // 外观一次算完：一组用于窗口底色兜底，另一组经命令行参数注入页面，首屏渲染前就能应用
+  const appearance = currentAppearance();
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
@@ -229,12 +236,12 @@ function showDialogWindow(owner, rawOptions) {
       skipTaskbar: true,
       show: false,
       autoHideMenuBar: true,
-      backgroundColor: theme === 'light' ? '#ffffff' : '#0d1117',
+      backgroundColor: appearance.backgroundColor,
       icon: iconPath,
       webPreferences: {
         nodeIntegration: true,
         contextIsolation: false,
-        additionalArguments: [DIALOG_THEME_ARG + theme, DIALOG_ACCENT_ARG + accent, DIALOG_BRAND_ARG + brandColor]
+        additionalArguments: appearance.args
       }
     });
 

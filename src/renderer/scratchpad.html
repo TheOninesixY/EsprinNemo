@@ -4,151 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小本本</title>
-    <script>
-        // 明暗主题 / 主题色由主进程在创建窗口时经命令行参数传入，首屏渲染前应用，避免闪烁
-        function applyNoteTheme(theme) {
-            document.documentElement.classList.toggle('light', theme === 'light');
-        }
-
-        // 主题色派生变量：强调色及其浅底、底上文字色，规则与主窗口、弹窗窗口一致
-        function applyNoteAccent(value) {
-            const rootStyle = document.documentElement.style;
-            const matched = String(value == null ? '' : value).trim().match(/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
-            if (!matched) {
-                rootStyle.removeProperty('--accent');
-                rootStyle.removeProperty('--accent-bg');
-                rootStyle.removeProperty('--accent-fg');
-                return;
-            }
-            const hex = matched[1].length === 3
-                ? matched[1].split('').map((c) => c + c).join('')
-                : matched[1];
-            const r = parseInt(hex.slice(0, 2), 16);
-            const g = parseInt(hex.slice(2, 4), 16);
-            const b = parseInt(hex.slice(4, 6), 16);
-            const alpha = document.documentElement.classList.contains('light') ? 0.1 : 0.15;
-            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-            rootStyle.setProperty('--accent', '#' + hex.toUpperCase());
-            rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
-            rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
-        }
-
-        function applyNoteAppearance(theme, accent) {
-            applyNoteTheme(theme === 'light' ? 'light' : 'dark');
-            applyNoteAccent(accent);
-        }
-
-        try {
-            const argValue = (prefix) => {
-                const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(prefix));
-                return matched ? matched.slice(prefix.length).trim() : '';
-            };
-            applyNoteAppearance(argValue('--esprin-nemo-note-theme='), argValue('--esprin-nemo-note-accent='));
-        } catch (e) {}
-    </script>
+    <!-- 外观引导：明暗主题 / 主题风格 / 圆角尺度 / 主题色 / 字体由主进程经命令行参数注入，
+         与主窗口、弹窗共用同一套应用逻辑（window_appearance.js），首屏渲染前落定，避免闪烁 -->
+    <script src="./window_appearance.js"></script>
+    <script>window.applyWindowAppearance(window.readWindowAppearanceFromArgs());</script>
     <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
+    <!-- 三个窗口共用同一套外观样式：tokens（颜色 / 字体）→ window_shell（窗口骨架与标题栏）
+         → alom（Alom 风格覆盖）→ radius（圆角尺度换算，按约定排在风格之后） -->
+    <link rel="stylesheet" href="./styles/tokens.css">
+    <link rel="stylesheet" href="./styles/window_shell.css">
+    <link rel="stylesheet" href="./styles/alom.css">
+    <link rel="stylesheet" href="./styles/radius.css">
     <style>
         :root {
-            --bg-body: #0d1117;
-            --bg-titlebar: #161b22;
-            --border-color: #30363d;
-
-            --text-primary: #f0f6fc;
-            --text-secondary: #8b949e;
-            --text-muted: #6e7681;
-
-            --accent: #58a6ff;
-            --accent-bg: rgba(56, 139, 253, 0.15);
-            /* 强调色底面上的文字色：主进程会按自定义主题色的亮度覆盖该变量 */
-            --accent-fg: #ffffff;
-            --danger: #f85149;
-
-            --item-hover: rgba(255, 255, 255, 0.04);
-            --item-active: rgba(255, 255, 255, 0.08);
-
-            --radius-sm: 6px;
-        }
-
-        :root.light {
-            --bg-body: #ffffff;
-            --bg-titlebar: #f6f8fa;
-            --border-color: #d0d7de;
-
-            --text-primary: #1f2328;
-            --text-secondary: #656d76;
-            --text-muted: #8c959f;
-
-            --accent: #0969da;
-            --accent-bg: rgba(9, 105, 218, 0.1);
-            --danger: #cf222e;
-
-            --item-hover: rgba(0, 0, 0, 0.04);
-            --item-active: rgba(0, 0, 0, 0.08);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        html, body {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial,
-                         "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-            font-size: 13px;
-            color: var(--text-primary);
-            background-color: var(--bg-body);
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .ms-icon {
-            font-family: 'Material Symbols Rounded';
-            font-weight: normal;
-            font-style: normal;
-            font-size: 18px;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-            font-feature-settings: 'liga';
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-        }
-        .ms-icon.xs { font-size: 14px; }
-        /* 实心图标：用于置顶等强调状态 */
-        .ms-icon.fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
-
-        .hidden { display: none !important; }
-
-        button {
-            border: none;
-            background: transparent;
-            color: inherit;
-            cursor: pointer;
-            outline: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-family: inherit;
-        }
-
-        /* 滚动条：与主窗口一致 */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background-color: var(--border-color);
-            border-radius: 999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background-color: var(--text-secondary);
+            /* 小本本窗口较窄：窗口按钮比主窗口收窄一点，给标题输入留出空间 */
+            --win-btn-width: 36px;
         }
 
         .note-container {
@@ -158,23 +28,10 @@
             background-color: var(--bg-body);
         }
 
-        /* 自绘标题栏：与主窗口同高，左侧图标 + 标题输入，右侧为窗口按钮 */
-        .titlebar {
-            height: 40px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding-left: 12px;
-            background-color: var(--bg-titlebar);
-            border-bottom: 1px solid var(--border-color);
-            -webkit-app-region: drag;
-            user-select: none;
-        }
+        /* 标题栏骨架（高度、内边距、拖动区域、背景与材质）见 styles/window_shell.css，
+           这里只补小本本特有的部分：用图标代替应用名 */
         .titlebar-icon {
             font-size: 16px;
-            color: var(--accent);
-            flex-shrink: 0;
         }
         /* 窗口名不再重复占位：原来显示“小本本”的位置就是标题输入框 */
         #note-title {
@@ -200,31 +57,6 @@
             font-weight: 400;
         }
 
-        .window-controls {
-            display: flex;
-            align-items: center;
-            height: 100%;
-            flex-shrink: 0;
-            -webkit-app-region: no-drag;
-        }
-        .win-btn {
-            width: 36px;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            transition: background 0.15s, color 0.15s;
-        }
-        .win-btn:hover {
-            background-color: var(--item-active);
-            color: var(--text-primary);
-        }
-        .win-btn.close:hover {
-            background-color: var(--danger);
-            color: #ffffff;
-        }
-
         .note-body {
             flex: 1;
             min-height: 0;
@@ -245,7 +77,8 @@
             resize: none;
             background-color: transparent;
             color: var(--text-primary);
-            font-family: inherit;
+            /* 与小本本同步的是笔记正文：字体用文档字体，和主窗口编辑器保持一致 */
+            font-family: var(--font-doc);
             font-size: 13px;
             line-height: 1.75;
             user-select: text;
@@ -254,17 +87,18 @@
             color: var(--text-muted);
         }
 
-        /* 状态栏：显示保存进度与关联状态；整条兼作拖动区域，方便搬动小窗口 */
+        /* 状态栏：显示保存进度与关联状态；整条兼作拖动区域，方便搬动小窗口。
+           高度、分隔线与底色跟随主窗口编辑器底部的状态栏，两个窗口同一套观感 */
         .note-status {
-            height: 24px;
+            height: 28px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
-            padding: 0 14px;
-            border-top: 1px solid var(--border-color);
-            background-color: var(--bg-titlebar);
+            padding: 0 16px;
+            border-top: 1px solid var(--border-light);
+            background-color: var(--bg-editor);
             font-size: 11px;
             color: var(--text-muted);
             -webkit-app-region: drag;
@@ -900,10 +734,9 @@
         document.getElementById('note-min').onclick = () => ipcRenderer.invoke('window:minimize');
         document.getElementById('note-close').onclick = () => ipcRenderer.invoke('window:close');
 
-        // 主窗口内切换主题 / 主题色时同步过来，两个窗口观感保持一致
+        // 主窗口内切换主题 / 主题风格 / 主题色 / 圆角尺度 / 字体时同步过来，两个窗口观感保持一致
         ipcRenderer.on('scratchpad:appearance', (event, data) => {
-            const payload = data && typeof data === 'object' ? data : {};
-            applyNoteAppearance(payload.theme, payload.accent);
+            window.applyWindowAppearance(data);
         });
 
         // 载入上次的内容（关联的笔记优先取最新正文），光标默认落在正文末尾

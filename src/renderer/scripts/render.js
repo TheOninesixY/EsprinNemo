@@ -357,9 +357,9 @@ function notePreviewText(item) {
 
 // 搜索框提示随当前视图变化：笔记 / 待办两个入口各说各的，其余视图为两类混合
 function searchPlaceholderText(filter) {
-    if (filter === 'all') return '搜索笔记... (Ctrl+Shift+F)';
-    if (filter === 'todos') return '搜索待办... (Ctrl+Shift+F)';
-    return '搜索笔记与待办... (Ctrl+Shift+F)';
+    if (filter === 'all') return '搜索笔记... (Ctrl+K)';
+    if (filter === 'todos') return '搜索待办... (Ctrl+K)';
+    return '搜索笔记与待办... (Ctrl+K)';
 }
 
 // 中栏列表：笔记与待办混排在同一个列表里，待办卡片多一个完成勾选框
@@ -513,9 +513,12 @@ function renderWorkspace() {
             const opt = document.createElement('option');
             opt.value = f;
             opt.textContent = f;
-            if (f === item.folder) opt.selected = true;
             folderSelect.appendChild(opt);
         });
+        // 统一用 value 选中当前文件夹：自绘下拉包装了 value 的 setter，能同步刷新显示
+        folderSelect.value = item.folder;
+        // 兜底：文件夹不在选项里时（正常流程下不会发生）退回第一项，避免下拉空着
+        if (folderSelect.selectedIndex < 0 && folderSelect.options.length) folderSelect.selectedIndex = 0;
     }
 
     const tagsContainer = document.getElementById('editor-tags-container');

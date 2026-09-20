@@ -790,7 +790,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: '', brandColor: 'brand', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -901,8 +901,10 @@ function loadData() {
 
     return {
         theme: config.theme || 'system',
+        themeStyle: normalizeThemeStyle(config.themeStyle),
         accentColor: normalizeAccentColor(config.accentColor),
         brandColor: normalizeBrandColor(config.brandColor),
+        cornerRadius: normalizeCornerRadius(config.cornerRadius),
         spellcheck: !!config.spellcheck,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
@@ -943,8 +945,10 @@ function saveConfig() {
     try {
         const config = {
             theme: State.theme,
+            themeStyle: normalizeThemeStyle(State.themeStyle),
             accentColor: normalizeAccentColor(State.accentColor),
             brandColor: normalizeBrandColor(State.brandColor),
+            cornerRadius: normalizeCornerRadius(State.cornerRadius),
             spellcheck: State.spellcheck,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),

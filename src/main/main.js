@@ -14,6 +14,7 @@ const {
 const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
 const { configureScratchpadWindow, isScratchpadWindowOpen, openScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
+const { buildWindowAppearance } = require('./window_appearance.js');
 const { configureTray, isTrayEnabled, registerTrayIpc } = require('./tray.js');
 const { configureAutoLaunch, registerAutoLaunchIpc } = require('./auto_launch.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
@@ -106,18 +107,43 @@ function resolveBrandColor() {
   return raw === 'mono' || raw === 'accent' ? raw : 'brand';
 }
 
-// 所有消息弹窗都在自绘标题栏的独立窗口中呈现，主题与当前界面保持一致
+// 主题风格（皮肤）：alom 为 Alom 风格；小本本据此切换配色（见 styles/alom.css）
+function resolveThemeStyle() {
+  return readUserConfig().themeStyle === 'alom' ? 'alom' : 'default';
+}
+
+// 圆角尺度：square（方）/ slight（微圆角）/ default（默认）/ large（大）；
+// 非法值一律按默认处理（小本本与弹窗窗口据此换算各自的圆角，见 renderer/styles/radius.css）
+function resolveCornerRadius() {
+  const raw = readUserConfig().cornerRadius;
+  return raw === 'square' || raw === 'slight' || raw === 'large' ? raw : 'default';
+}
+
+// 字体：主窗口写入 CSS 变量的那四个字体名，同样注入小本本与弹窗，
+// 否则只有主窗口换了字体，另两个窗口看上去就是另一副长相（字段与校验见 main/window_appearance.js）
+function resolveWindowFonts() {
+  const raw = readUserConfig().fonts;
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
+// 所有消息弹窗都在自绘标题栏的独立窗口中呈现，主题、风格、圆角与字体都与当前界面保持一致
 configureDialogWindows({
   getTheme: resolveEffectiveTheme,
+  getStyle: resolveThemeStyle,
   getAccent: resolveAccentColor,
   getBrandColor: resolveBrandColor,
+  getRadius: resolveCornerRadius,
+  getFonts: resolveWindowFonts,
   icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
 
 // 小本本（便利贴窗口）：右下角置顶小窗，内容随数据目录一起走
 configureScratchpadWindow({
   getTheme: resolveEffectiveTheme,
+  getStyle: resolveThemeStyle,
   getAccent: resolveAccentColor,
+  getRadius: resolveCornerRadius,
+  getFonts: resolveWindowFonts,
   getDataDir: resolveDataDir,
   // 便利贴停靠在哪块屏幕右下角，取决于主窗口当前所在的显示器
   getOwner: () => mainWindow,
@@ -453,8 +479,13 @@ function createWindow() {
   // 数据目录在渲染进程启动前就绪（安装版为 %APPDATA%/esprin_nemo/data）
   const currentDataDir = resolveDataDir();
 
-  // 显示窗口前先定好主题背景色，避免出现闪光弹式闪烁
-  const initialBg = resolveEffectiveTheme() === 'light' ? '#ffffff' : '#0d1117';
+  // 显示窗口前先定好主题背景色，避免出现闪光弹式闪烁。
+  // 底色同样按「主题风格 + 明暗」取：选 Alom 风格时主窗口的兜底色也跟着换
+  // （与两个辅助窗口用同一份换算，见 main/window_appearance.js）
+  const initialBg = buildWindowAppearance({
+    theme: resolveEffectiveTheme(),
+    style: resolveThemeStyle()
+  }).backgroundColor;
 
   const win = new BrowserWindow({
     width: 1200,

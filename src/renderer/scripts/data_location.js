@@ -105,7 +105,9 @@ async function refreshDataDirInfo() {
 function adoptDataDir(dir, options = {}) {
     const prefs = {
         theme: State.theme,
+        themeStyle: State.themeStyle,
         accentColor: State.accentColor,
+        cornerRadius: State.cornerRadius,
         spellcheck: State.spellcheck,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
@@ -124,7 +126,9 @@ function adoptDataDir(dir, options = {}) {
 
     if (hasConfig) {
         State.theme = saved.theme;
+        State.themeStyle = saved.themeStyle;
         State.accentColor = saved.accentColor;
+        State.cornerRadius = saved.cornerRadius;
         State.spellcheck = saved.spellcheck;
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
@@ -136,8 +140,10 @@ function adoptDataDir(dir, options = {}) {
         State.ai = saved.ai;
         State.aiScope = State.ai.scope;
     } else {
+        State.themeStyle = prefs.themeStyle;
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
+        State.cornerRadius = prefs.cornerRadius;
         State.spellcheck = prefs.spellcheck;
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
@@ -180,11 +186,15 @@ function adoptDataDir(dir, options = {}) {
     }
 
     applyTheme();
+    applyThemeStyle();
+    applyCornerRadius();
     applySpellcheck();
     applyFonts();
     applySidebarCollapsed();
     syncFontSelects();
     syncAccentControls();
+    syncThemeStyleSelect();
+    syncCornerRadiusControl();
     syncTrashRetentionSelect();
     syncAiSettingsUI();
     // 自动更新开关随配置走：新位置若关掉了自动更新，主进程的定时检查也要跟着停

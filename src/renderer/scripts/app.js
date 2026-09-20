@@ -13,8 +13,10 @@ window.onload = () => {
     markItemKinds(State.notes, State.todos);
     State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
     State.theme = saved.theme || 'system';
+    State.themeStyle = normalizeThemeStyle(saved.themeStyle);
     State.accentColor = normalizeAccentColor(saved.accentColor);
     State.brandColor = normalizeBrandColor(saved.brandColor);
+    State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
@@ -59,9 +61,13 @@ window.onload = () => {
     // 按保留策略清理过期的废纸篓条目：放在首次渲染之前，避免闪现即将被删除的内容
     const purgedTrashItems = purgeExpiredTrashItems();
 
+    // 原生下拉菜单统一换成自绘（select 与 datalist）：放在其余初始化之前，后续对 select.value 的赋值都能同步显示
+    initCustomDropdowns();
     initTheme();
+    initThemeStyle();
     initAccentColor();
     initBrandColor();
+    initCornerRadius();
     applySpellcheck();
     initFonts();
     applySidebarCollapsed();

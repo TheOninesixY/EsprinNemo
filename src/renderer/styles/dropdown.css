@@ -1,0 +1,136 @@
+/* 自绘下拉菜单：触发器 + 自绘弹出列表，替代 Chromium 原生 <select> 的下拉列表。
+   结构见 scripts/dropdown.js：.dropdown > (.dropdown-trigger + 原生 select.dropdown-source)，
+   弹出菜单 .dropdown-menu 挂在 <body> 下，用 fixed 定位（坐标由脚本按触发器位置计算），
+   因此不会被可滚动的设置面板裁切。 */
+
+.dropdown {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+    max-width: 100%;
+}
+
+/* 原生 select：留在原地充当数据源与事件源（选项、value、change 事件都照旧），
+   但不再绘制、不再参与布局，也不再抢焦点 */
+.dropdown-source {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* 触发器沿用原生 select 的类名（如 .settings-select / .select-folder），
+   边框、内边距、圆角等既有样式自动生效，这里只补齐按钮与下拉的差异部分 */
+.dropdown-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+    cursor: pointer;
+}
+.dropdown-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.dropdown-arrow {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform .15s;
+}
+.dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+.dropdown-trigger:disabled,
+.dropdown-trigger.disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+/* 弹出列表：视觉沿用条目右键菜单（浮层）的一套 */
+.dropdown-menu {
+    position: fixed;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 4px;
+    background: var(--bg-list);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+    animation: dropdownIn .12s ease-out;
+}
+.dropdown-menu[hidden] {
+    display: none;
+}
+@keyframes dropdownIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+
+/* 侧边栏顶部与空状态按钮的「新建」菜单：直接复用上面这套下拉菜单样式（结构见 scripts/context_menu.js），
+   不再单独维护一份菜单外观；条目少、文字短，因此只要一个固定宽度，不必跟着触发器宽度走 */
+.new-item-menu {
+    min-width: 148px;
+}
+
+.dropdown-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 12.5px;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+}
+.dropdown-option:hover,
+.dropdown-option.highlight {
+    background: var(--item-active);
+}
+.dropdown-option.active {
+    color: var(--accent);
+}
+.dropdown-option:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+.dropdown-option-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* 选中标记：贴行尾；未选中时隐藏但仍占位，各行右边界保持一致 */
+.dropdown-check {
+    flex-shrink: 0;
+    color: var(--accent);
+    visibility: hidden;
+}
+.dropdown-option.active .dropdown-check {
+    visibility: visible;
+}
+
+/* optgroup 渲染为分组标题（字体列表用它把常用字体 / 中日韩字体分开） */
+.dropdown-group-label {
+    padding: 6px 10px 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: .4px;
+}

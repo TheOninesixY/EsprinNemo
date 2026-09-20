@@ -34,20 +34,26 @@ function resolveDataDir() {
     }
 }
 
-// 渲染前极速同步读取配置并应用主题，彻底杜绝闪光弹/白屏/黑屏闪烁
+// 渲染前极速同步读取配置并应用主题，彻底杜绝闪光弹/白屏/黑屏闪烁。
+// 「明暗主题 / 主题风格 / 圆角尺度 / 主题色 / 应用名颜色 / 字体」这一整套换算由
+// window_appearance.js 统一实现，小本本与弹窗窗口用的是同一份逻辑（它们从命令行参数取值），
+// 这里只负责把 config.json 里的值取出来交给它。
 try {
     const configPath = path.join(resolveDataDir(), 'config.json');
     let theme = 'system';
     let fonts = null;
     let accentColor = '';
-    // 应用名文字颜色：直接挂在 <html> 上，颜色本身由 tokens.css 的 --brand-fg 解析
+    let themeStyle = 'default';
     let brandColor = 'brand';
+    let cornerRadius = 'default';
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config && config.theme) theme = config.theme;
+        if (config && typeof config.themeStyle === 'string') themeStyle = config.themeStyle;
         if (config && config.fonts && typeof config.fonts === 'object') fonts = config.fonts;
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
-        if (config && ['brand', 'mono', 'accent'].includes(config.brandColor)) brandColor = config.brandColor;
+        if (config && typeof config.brandColor === 'string') brandColor = config.brandColor;
+        if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
 
         // 侧边栏收起状态也在这里落定：首屏直接按收起态绘制，
         // 否则会先画出一整个展开的侧边栏，再补播一次收起动效。
@@ -55,44 +61,15 @@ try {
             document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
         }
     }
+
+    // 'system' 由这里折算成实际明暗色：样式表只认 light / dark
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
-    if (isLight) {
-        document.documentElement.classList.add('light');
-    }
-    document.documentElement.dataset.brandColor = brandColor;
-
-    // 字体：与主题同样在首屏渲染前注入 CSS 变量，避免字体切换时的跳变闪烁
-    const quoteFamily = (name) => {
-        if (typeof name !== 'string') return '';
-        const safe = name.trim().replace(/["\\;{}]/g, '');
-        return safe ? '"' + safe + '"' : '';
-    };
-    const fontVars = {
-        '--font-ui-latin': quoteFamily(fonts && fonts.uiLatin),
-        '--font-ui-cjk': quoteFamily(fonts && fonts.uiCjk),
-        '--font-doc-latin': quoteFamily(fonts && fonts.docLatin),
-        '--font-doc-cjk': quoteFamily(fonts && fonts.docCjk)
-    };
-    Object.keys(fontVars).forEach((key) => {
-        if (fontVars[key]) document.documentElement.style.setProperty(key, fontVars[key]);
+    applyWindowAppearance({
+        theme: isLight ? 'light' : 'dark',
+        style: themeStyle,
+        radius: cornerRadius,
+        accent: accentColor,
+        brandColor,
+        fonts
     });
-
-    // 主题色（强调色）：同样在首屏渲染前写入 CSS 变量，避免默认蓝一闪而过。
-    // 这里与 scripts/theme_color.js 的 applyAccentColor 逻辑一致，但本文件在头部同步执行，
-    // 此时其余脚本尚未加载，因此内联实现一份最小版本。
-    const matchedAccent = accentColor.trim().match(/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
-    if (matchedAccent) {
-        let hex = matchedAccent[1];
-        if (hex.length === 3) hex = hex.split('').map((char) => char + char).join('');
-        hex = '#' + hex.toUpperCase();
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        const alpha = isLight ? 0.1 : 0.15;
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        const rootStyle = document.documentElement.style;
-        rootStyle.setProperty('--accent', hex);
-        rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
-        rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
-    }
 } catch (e) {}

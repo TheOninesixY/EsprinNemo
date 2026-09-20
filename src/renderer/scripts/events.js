@@ -305,7 +305,8 @@ function setupEvents() {
             else createNewNote();
             return;
         }
-        if (e.shiftKey && key === 'f') {
+        // Ctrl+K 聚焦搜索框
+        if (key === 'k') {
             e.preventDefault();
             searchInput.focus();
             return;

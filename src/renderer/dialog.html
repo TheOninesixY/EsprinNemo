@@ -4,178 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esprin Nemo</title>
-    <script>
-        // 主题由主进程在创建窗口时通过命令行参数传入，首屏渲染前应用，避免闪烁
-        try {
-            const argPrefix = '--esprin-nemo-dialog-theme=';
-            const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(argPrefix));
-            const theme = matched ? matched.slice(argPrefix.length).trim() : '';
-            if (theme === 'light') document.documentElement.classList.add('light');
-
-            // 主题色同样由主进程传入（用户在设置页自定义的强调色），在首屏渲染前应用
-            const accentPrefix = '--esprin-nemo-dialog-accent=';
-            const accentMatched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(accentPrefix));
-            const accentHex = accentMatched ? accentMatched.slice(accentPrefix.length).trim().replace(/^#/, '') : '';
-            if (/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(accentHex)) {
-                const full = accentHex.length === 3 ? accentHex.split('').map((c) => c + c).join('') : accentHex;
-                const r = parseInt(full.slice(0, 2), 16);
-                const g = parseInt(full.slice(2, 4), 16);
-                const b = parseInt(full.slice(4, 6), 16);
-                const alpha = document.documentElement.classList.contains('light') ? 0.1 : 0.15;
-                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                const rootStyle = document.documentElement.style;
-                rootStyle.setProperty('--accent', '#' + full.toUpperCase());
-                rootStyle.setProperty('--accent-bg', 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')');
-                rootStyle.setProperty('--accent-fg', luminance > 0.6 ? '#1f2328' : '#ffffff');
-            }
-
-            // 应用名文字颜色模式：由主进程传入（用户在设置页的选择），同样在首屏渲染前应用
-            const brandPrefix = '--esprin-nemo-dialog-brand=';
-            const brandMatched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(brandPrefix));
-            const brandColor = brandMatched ? brandMatched.slice(brandPrefix.length).trim() : '';
-            document.documentElement.dataset.brandColor = (brandColor === 'mono' || brandColor === 'accent') ? brandColor : 'brand';
-        } catch (e) {}
-    </script>
+    <!-- 外观引导：明暗主题 / 主题风格 / 圆角尺度 / 主题色 / 应用名颜色 / 字体由主进程经命令行
+         参数注入，与主窗口、小本本共用同一套应用逻辑（window_appearance.js），首屏渲染前落定 -->
+    <script src="./window_appearance.js"></script>
+    <script>window.applyWindowAppearance(window.readWindowAppearanceFromArgs());</script>
     <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
+    <!-- 三个窗口共用同一套外观样式：tokens（颜色 / 字体 / 品牌字）→ window_shell（窗口骨架与标题栏）
+         → alom（Alom 风格覆盖）→ radius（圆角尺度换算，按约定排在风格之后） -->
+    <link rel="stylesheet" href="./styles/tokens.css">
+    <link rel="stylesheet" href="./styles/window_shell.css">
+    <link rel="stylesheet" href="./styles/alom.css">
+    <link rel="stylesheet" href="./styles/radius.css">
     <style>
-        /* 品牌字体：与主窗口标题栏一致，仅用于窗口标题 */
-        @font-face {
-            font-family: 'Mohave';
-            src: url('./fonts/Mohave/Mohave-VariableFont_wght.ttf') format('truetype-variations'),
-                 url('./fonts/Mohave/Mohave-VariableFont_wght.ttf') format('truetype');
-            font-weight: 300 700;
-            font-style: normal;
-            font-display: swap;
-        }
-
-        :root {
-            --bg-body: #0d1117;
-            --bg-titlebar: #161b22;
-            --bg-list: #161b22;
-            --border-color: #30363d;
-
-            --text-primary: #f0f6fc;
-            --text-secondary: #8b949e;
-
-            --accent: #58a6ff;
-            --accent-bg: rgba(56, 139, 253, 0.15);
-            /* 强调色底面上的文字色：主进程会按自定义主题色的亮度覆盖该变量 */
-            --accent-fg: #ffffff;
-            --danger: #f85149;
-            --warning: #d29922;
-            --brand: #E6E8F3;
-            /* 应用名实际显示色：默认取品牌色，随设置页的「应用名颜色」切换 */
-            --brand-fg: var(--brand);
-
-            --item-hover: rgba(255, 255, 255, 0.04);
-            --item-active: rgba(255, 255, 255, 0.08);
-
-            --radius-sm: 6px;
-
-            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial,
-                         "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-        }
-
-        :root.light {
-            --bg-body: #ffffff;
-            --bg-titlebar: #f6f8fa;
-            --bg-list: #ffffff;
-            --border-color: #d0d7de;
-
-            --text-primary: #1f2328;
-            --text-secondary: #656d76;
-
-            --accent: #0969da;
-            --accent-bg: rgba(9, 105, 218, 0.1);
-            --danger: #cf222e;
-            --warning: #bf8700;
-            --brand: #280C7D;
-
-            --item-hover: rgba(0, 0, 0, 0.04);
-            --item-active: rgba(0, 0, 0, 0.08);
-        }
-
-        /* 应用名文字颜色模式（与主窗口 tokens.css 保持一致）：
-           mono 深色白字 / 浅色黑字，accent 跟随当前主题色 */
-        :root[data-brand-color="mono"] {
-            --brand-fg: #ffffff;
-        }
-        :root.light[data-brand-color="mono"] {
-            --brand-fg: #000000;
-        }
-        :root[data-brand-color="accent"] {
-            --brand-fg: var(--accent);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }
-
-        html, body {
-            width: 100vw;
-            font-family: var(--font-sans);
-            font-size: 13px;
-            color: var(--text-primary);
-            background-color: var(--bg-body);
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .ms-icon {
-            font-family: 'Material Symbols Rounded';
-            font-weight: normal;
-            font-style: normal;
-            font-size: 18px;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-            -webkit-font-smoothing: antialiased;
-            font-feature-settings: 'liga';
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-        }
-        .ms-icon.xs { font-size: 14px; }
-
-        button {
-            border: none;
-            background: transparent;
-            color: inherit;
-            cursor: pointer;
-            outline: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-family: inherit;
-        }
-
-        input {
-            font-family: inherit;
-            color: inherit;
-            border: none;
-            outline: none;
-            background: transparent;
-        }
-
-        /* 滚动条：与主窗口保持一致的极细样式 */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background-color: var(--border-color);
-            border-radius: 999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background-color: var(--text-secondary);
-        }
-
         .dialog-container {
             display: flex;
             flex-direction: column;
@@ -183,31 +23,12 @@
             background-color: var(--bg-body);
         }
 
-        /* 自绘标题栏：与主窗口保持一致的 40px 高度、拖动区域与交互样式 */
-        .titlebar {
-            height: 40px;
-            background-color: var(--bg-titlebar);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding-left: 14px;
-            -webkit-app-region: drag;
-            user-select: none;
-            flex-shrink: 0;
-        }
-        .titlebar-brand {
-            font-family: 'Mohave', var(--font-sans);
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--brand-fg);
-            letter-spacing: 0.4px;
-            flex-shrink: 0;
-        }
+        /* 标题栏骨架（高度、拖动区域、背景与材质、应用名与窗口按钮）见 styles/window_shell.css，
+           这里只补弹窗特有的标题文字 */
         .titlebar-title {
             flex: 1;
             min-width: 0;
-            margin-left: 10px;
+            margin-left: 6px;
             padding-left: 10px;
             border-left: 1px solid var(--border-color);
             font-size: 12px;
@@ -215,30 +36,6 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-        }
-        .window-controls {
-            display: flex;
-            align-items: center;
-            height: 100%;
-            flex-shrink: 0;
-            -webkit-app-region: no-drag;
-        }
-        .win-btn {
-            width: 44px;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            transition: background 0.15s, color 0.15s;
-        }
-        .win-btn:hover {
-            background-color: var(--item-active);
-            color: var(--text-primary);
-        }
-        .win-btn.close:hover {
-            background-color: var(--danger);
-            color: #ffffff;
         }
 
         /* 弹窗内容 */
@@ -326,7 +123,7 @@
             align-items: center;
             gap: 3px;
             padding: 3px 9px;
-            border-radius: 12px;
+            border-radius: var(--radius-pill);
             background-color: var(--item-hover);
             color: var(--text-secondary);
             font-size: 11.5px;
@@ -406,6 +203,7 @@
             opacity: 0.9;
         }
 
+        /* 显隐切换：与主窗口、小本本使用同一个约定 */
         .hidden { display: none !important; }
     </style>
 </head>

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esprin Nemo</title>
+    <!-- 外观引导：三个窗口共用同一套外观换算逻辑（boot.js 读取配置后调用它） -->
+    <script src="./window_appearance.js"></script>
     <script src="./boot.js"></script>
     <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
     <link rel="stylesheet" href="./styles/tokens.css">
@@ -11,8 +13,14 @@
     <link rel="stylesheet" href="./styles/sidebar.css">
     <link rel="stylesheet" href="./styles/editor.css">
     <link rel="stylesheet" href="./styles/overlays.css">
+    <!-- 自绘下拉菜单：替代 Chromium 原生 select 的弹出列表 -->
+    <link rel="stylesheet" href="./styles/dropdown.css">
     <link rel="stylesheet" href="./styles/settings.css">
     <link rel="stylesheet" href="./styles/ai.css">
+    <!-- Alom 风格：仅当 <html data-theme-style="alom"> 时生效 -->
+    <link rel="stylesheet" href="./styles/alom.css">
+    <!-- 圆角尺度：按设置中的选择把 --radius-* 令牌换算成最终圆角，需排在其它风格之后 -->
+    <link rel="stylesheet" href="./styles/radius.css">
 </head>
 <body>
     <div class="app-container">
@@ -142,7 +150,7 @@
                 <div class="notes-panel-header">
                     <div class="search-box">
                         <span class="ms-icon sm" style="color: var(--text-muted);">search</span>
-                        <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+Shift+F)" spellcheck="false">
+                        <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+K)" spellcheck="false">
                         <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
                     </div>
                     <div class="notes-panel-info">
@@ -385,6 +393,47 @@
 
                     <!-- 分类：外观与主题色 -->
                     <div class="settings-panel hidden" data-settings-panel="appearance">
+                        <div class="settings-section">
+                            <div class="settings-section-title">主题风格</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">界面风格</span>
+                                    <span class="settings-row-desc">默认风格沿用当前配色</span>
+                                </div>
+                                <select class="settings-select" id="setting-theme-style">
+                                    <option value="default">默认风格</option>
+                                    <option value="alom">Alom</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">圆角</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">圆角尺度</span>
+                                    <span class="settings-row-desc">卡片、按钮、输入框、标签与开关的圆角大小</span>
+                                </div>
+                                <!-- 四档滑块：拖动时连续跟手、松手后自动吸附到最近的档位，也可直接点档位文字。
+                                     轨道、进度与滑块都是自绘元素，落档时会滑到新位置；
+                                     原生 range 透明叠在上面，只负责拖动、点击与键盘操作 -->
+                                <div class="radius-slider" id="radius-slider">
+                                    <div class="radius-track">
+                                        <div class="radius-fill" aria-hidden="true"></div>
+                                        <div class="radius-thumb" aria-hidden="true"></div>
+                                        <input type="range" class="radius-range" id="setting-radius" min="0" max="3" step="1"
+                                               value="2" aria-label="圆角尺度" aria-describedby="radius-ticks">
+                                    </div>
+                                    <div class="radius-ticks" id="radius-ticks">
+                                        <button type="button" class="radius-tick" data-radius="square">纯方</button>
+                                        <button type="button" class="radius-tick" data-radius="slight">微圆角</button>
+                                        <button type="button" class="radius-tick" data-radius="default">默认</button>
+                                        <button type="button" class="radius-tick" data-radius="large">大圆</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="settings-section">
                             <div class="settings-section-title">主题色</div>
 
@@ -701,8 +750,9 @@
     <!-- Item Context Menu（菜单项按条目类型与状态动态生成） -->
     <div class="context-menu hidden" id="note-context-menu"></div>
 
-    <!-- New Item Menu（点侧边栏顶部「新建」或空状态按钮后展开：新建笔记 / 新建待办） -->
-    <div class="context-menu hidden" id="new-item-menu"></div>
+    <!-- New Item Menu（点侧边栏顶部「新建」或空状态按钮后展开：新建笔记 / 新建待办）
+         外观直接复用下拉菜单的一套（见 styles/dropdown.css），位置由 scripts/context_menu.js 计算 -->
+    <div class="dropdown-menu new-item-menu hidden" id="new-item-menu"></div>
 
     <!-- Toast Container -->
     <div class="toast-box" id="toast-container"></div>
@@ -711,6 +761,7 @@
     <script src="./scripts/storage.js"></script>
     <script src="./scripts/markdown.js"></script>
     <script src="./scripts/ui.js"></script>
+    <script src="./scripts/dropdown.js"></script>
     <script src="./scripts/window_controls.js"></script>
     <script src="./scripts/appearance.js"></script>
     <script src="./scripts/theme_color.js"></script>

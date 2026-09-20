@@ -100,7 +100,7 @@
 .nav-badge {
     font-size: 11px;
     padding: 1px 6px;
-    border-radius: 10px;
+    border-radius: var(--radius-pill);
     background-color: var(--item-hover);
     color: var(--text-muted);
     font-family: var(--font-mono);
@@ -142,7 +142,7 @@
     display: inline-flex;
     align-items: center;
     padding: 2px 7px;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     background-color: var(--item-hover);
     color: var(--text-secondary);
     font-size: 11px;
@@ -328,7 +328,8 @@ html.sidebar-collapsed .sidebar #btn-open-settings {
     color: var(--text-muted);
     padding: 0 2px;
 }
-.notes-panel-info select {
+.notes-panel-info select,
+.notes-panel-info .dropdown-trigger {
     color: var(--text-muted);
     cursor: pointer;
 }
@@ -395,7 +396,7 @@ html.sidebar-collapsed .sidebar #btn-open-settings {
 }
 .note-card-folder {
     padding: 1px 4px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     background: var(--item-hover);
 }
 
