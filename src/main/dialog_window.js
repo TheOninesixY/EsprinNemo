@@ -13,7 +13,9 @@ const TYPE_ICONS = { info: 'info', question: 'help', warning: 'warning', error: 
 
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 640;
-const MIN_HEIGHT = 132;
+// 最小高度至少要放得下标题栏 + 内容内边距 + 一行消息 + 按钮行
+const MIN_HEIGHT = 150;
+// 高度上限，与 dialog.html 里的 MAX_CONTENT_HEIGHT 保持一致
 const MAX_HEIGHT = 720;
 // 显示前等待渲染进程回传内容高度的时间，避免出现"先小后大"的尺寸跳动
 const REVEAL_DELAY = 90;
@@ -151,20 +153,43 @@ function normalizeOptions(raw) {
   };
 }
 
-// 根据文字量粗略估算初始高度，显示前会由渲染进程量得的真实高度覆盖
+// 根据文字量粗略估算初始高度，显示前会由渲染进程量得的真实高度覆盖。
+// 各行高度、内边距与行间距都按 dialog.html 里的实际取值来算：估算偏小会让首屏出现
+// 「底部被裁、按钮贴着窗口下沿」的观感，所以宁可略高一点。
 function estimateHeight(options) {
-  const messageLines = Math.max(1, Math.ceil(options.message.length / 24));
-  const detailLines = options.detail
-    ? options.detail.split('\n').reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 34)), 0)
-    : 0;
+  const TITLEBAR = 40;      // .titlebar
+  const BODY_PADDING = 38;  // .dialog-body 上下内边距（20 + 18）
+  const ROW_GAP = 16;       // .dialog-body 的行间距
+  const MESSAGE_LINE = 20;  // 消息：13px 字号 × 1.5 行高
+  const DETAIL_LINE = 18;   // 详情：12px 字号 × 1.6 行高，与消息之间还有 6px
+  const INPUT_FIELD = 35;   // 输入框：8px 内边距 ×2 + 13px 文字 + 上下边框
+  const ACTION_ROW = 30;    // 按钮行：6px 内边距 ×2 + 12px 文字
 
-  let height = 40 + 20 + messageLines * 20 + 54; // 标题栏 + 内边距 + 消息 + 按钮行
-  if (detailLines) height += 10 + clamp(detailLines, 1, 8) * 18;
-  if (options.checkbox) height += 8 + Math.max(1, Math.ceil(options.checkbox.label.length / 34)) * 18;
-  if (options.input) height += 46;
-  if (options.input && options.input.choices.length) {
-    height += 8 + Math.ceil(options.input.choices.length / 4) * 26; // 候选项气泡大致占用的行数
+  const messageLines = Math.max(1, Math.ceil(options.message.length / 24));
+  let headHeight = Math.max(22, messageLines * MESSAGE_LINE); // 图标与文字取较高者
+  if (options.detail) {
+    const detailLines = options.detail
+      .split('\n')
+      .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 34)), 0);
+    headHeight += 6 + clamp(detailLines, 1, 8) * DETAIL_LINE;
   }
+
+  const rows = [headHeight];
+  if (options.input) {
+    let fieldHeight = INPUT_FIELD;
+    if (options.input.choices.length) {
+      fieldHeight += 8 + Math.ceil(options.input.choices.length / 4) * 26; // 候选项气泡大致占用的行数
+    }
+    rows.push(fieldHeight);
+  }
+  if (options.checkbox) {
+    rows.push(Math.max(1, Math.ceil(options.checkbox.label.length / 34)) * 19 + 4);
+  }
+  rows.push(ACTION_ROW);
+
+  const height = TITLEBAR + BODY_PADDING
+    + rows.reduce((total, row) => total + row, 0)
+    + ROW_GAP * (rows.length - 1);
   return clamp(height, MIN_HEIGHT, MAX_HEIGHT);
 }
 

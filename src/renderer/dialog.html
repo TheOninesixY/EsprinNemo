@@ -16,6 +16,15 @@
     <link rel="stylesheet" href="./styles/alom.css">
     <link rel="stylesheet" href="./styles/radius.css">
     <style>
+        /* 高度必须由内容决定：window_shell.css 里 html/body 默认撑满窗口，
+           那样量到的高度恒等于当前窗口高度，窗口永远缩不回内容大小，
+           底部内边距会被裁掉、按钮就贴在窗口最下沿 */
+        html, body {
+            height: auto;
+            overflow-x: hidden;
+            overflow-y: hidden;
+        }
+
         .dialog-container {
             display: flex;
             flex-direction: column;
@@ -259,6 +268,9 @@
         const checkboxLabelEl = document.getElementById('dialog-checkbox-label');
         const actionsEl = document.getElementById('dialog-actions');
 
+        // 与主进程 dialog_window.js 的 MAX_HEIGHT 保持一致
+        const MAX_CONTENT_HEIGHT = 720;
+
         let options = null;
         let buttonEls = [];
         let choiceEls = [];
@@ -377,10 +389,11 @@
 
         // 渲染进程无法直接改窗口大小，量好内容高度后交给主进程调整
         // 内容超过窗口高度上限时改为滚动，避免文字被裁掉
+        // 取整时向上进位，避免亚像素高度把最后一行（按钮行）的底部裁掉
         function requestResize() {
             if (responded) return;
             const height = Math.ceil(document.body.getBoundingClientRect().height);
-            document.documentElement.style.overflowY = height > 720 ? 'auto' : 'hidden';
+            document.documentElement.style.overflowY = height > MAX_CONTENT_HEIGHT ? 'auto' : 'hidden';
             ipcRenderer.send('dialog:resize', { height });
         }
 
