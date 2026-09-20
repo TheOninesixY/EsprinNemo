@@ -3,6 +3,15 @@
 // 各区域的渲染签名：与上一次一致时跳过 DOM 重建，避免无意义的整树重排
 const renderSignatures = { folders: null, tags: null, tabs: null, list: null };
 
+/* 中栏列表分批挂载：卡片是一次性全量建出来的（每张都要建节点、解析一次 innerHTML、
+   挂上点击与右键两个监听器），几千条时会连着好几帧占住主线程，
+   期间拖动窗口、点按钮都像卡住了一样。这里改成第一批立即挂上、其余按帧续挂：
+   视觉上依旧是整列一起出现，主线程却始终留出空隙响应输入；
+   列表不长时一批就挂完，与原来的行为完全一致。 */
+const LIST_RENDER_CHUNK = 80;
+// 列表渲染代号：每轮渲染自增，用来作废上一轮还没挂完的分批任务
+let listRenderToken = 0;
+
 // 侧边栏顶部的筛选条目（静态节点，只需查询一次）
 const sidebarNavItems = document.querySelectorAll('.sidebar .nav-item');
 
@@ -381,8 +390,7 @@ function isPreviewWhitespace(code) {
 
 // 列表卡片摘要：取正文首个非空行（笔记与待办的卡片共用同一个函数）。
 // 这里只扫到第一行为止，不对整篇正文做 trim / split —— 几百 KB 的笔记下差别很明显。
-function notePreviewText(item) {
-    const raw = typeof item.content === 'string' ? item.content : '';
+function buildNotePreviewText(raw) {
     const length = raw.length;
 
     // 跳过开头的空白与空行
@@ -397,6 +405,23 @@ function notePreviewText(item) {
 
     const firstLine = raw.slice(start, end);
     return firstLine.length > PREVIEW_MAX_LENGTH ? firstLine.slice(0, PREVIEW_MAX_LENGTH) : firstLine;
+}
+
+/* 摘要缓存：同一条目在同一份正文上只会被算一次。
+   中栏列表每次界面刷新都要算一遍摘要（渲染签名里一次、建卡片时再一次），
+   而自动保存每隔 300ms 就会刷新一次列表，未改动的条目因此会被反复重算。
+   缓存挂在条目对象上（WeakMap），条目被删除后随之回收；
+   正文没变（同一个字符串引用）就直接复用，改过正文则自动重算。 */
+const PREVIEW_TEXT_CACHE = new WeakMap();
+
+function notePreviewText(item) {
+    const raw = typeof item.content === 'string' ? item.content : '';
+    const cached = PREVIEW_TEXT_CACHE.get(item);
+    if (cached && cached.source === raw) return cached.text;
+
+    const text = buildNotePreviewText(raw);
+    PREVIEW_TEXT_CACHE.set(item, { source: raw, text });
+    return text;
 }
 
 // 搜索框提示随当前视图变化：笔记 / 待办两个入口各说各的，其余视图为两类混合
@@ -423,6 +448,8 @@ function renderListPanel() {
     if (renderSignatures.list === signature) return;
     renderSignatures.list = signature;
 
+    // 新一轮渲染开始：作废上一轮尚未挂完的分批任务
+    const token = ++listRenderToken;
     container.innerHTML = '';
 
     if (list.length === 0) {
@@ -434,12 +461,28 @@ function renderListPanel() {
         return;
     }
 
-    // 先插入到文档碎片，一次性挂载，避免逐个卡片触发样式计算与重排
-    const fragment = document.createDocumentFragment();
-    list.forEach(item => {
-        fragment.appendChild(isTodoItem(item) ? createTodoCard(item, { isTrashView }) : createNoteCard(item));
-    });
-    container.appendChild(fragment);
+    // 先挂上第一批，其余按帧续挂（见上面的 LIST_RENDER_CHUNK 说明）
+    let next = 0;
+    const appendChunk = () => {
+        // 期间又渲染过一次（切了筛选、改了搜索词）：这批作废，
+        // 否则旧列表会被续接到新列表下面
+        if (token !== listRenderToken) return;
+
+        const end = Math.min(next + LIST_RENDER_CHUNK, list.length);
+        // 一帧内的若干卡片仍走文档碎片，避免逐个卡片触发样式计算与重排
+        const fragment = document.createDocumentFragment();
+        for (; next < end; next++) {
+            const item = list[next];
+            fragment.appendChild(isTodoItem(item) ? createTodoCard(item, { isTrashView }) : createNoteCard(item));
+        }
+        container.appendChild(fragment);
+
+        if (next >= list.length) return;
+        // 窗口不可见时 rAF 不触发（在后台启动会停在半截列表上），此时退回定时器续挂
+        if (document.hidden) setTimeout(appendChunk, 0);
+        else requestAnimationFrame(appendChunk);
+    };
+    appendChunk();
 }
 
 // 单张笔记卡片

@@ -20,6 +20,21 @@ function buildDateTexts(time) {
     };
 }
 
+/* 「今天」的判定基准：列表里每张卡片都要拿它比一次。
+   原先是每次调用都 new Date().toDateString()，一张卡片就多一次日期对象与一次字符串拼接；
+   这里按分钟缓存一次，跨零点后自动换新值（与上面的分钟缓存同一步调）。 */
+let todayKeyMinute = -1;
+let todayKeyValue = '';
+
+function currentDayKey() {
+    const minute = Math.floor(Date.now() / 60000);
+    if (minute !== todayKeyMinute) {
+        todayKeyMinute = minute;
+        todayKeyValue = new Date().toDateString();
+    }
+    return todayKeyValue;
+}
+
 function formatDate(timestamp) {
     const time = Number(timestamp);
     if (!Number.isFinite(time)) return '';
@@ -32,7 +47,7 @@ function formatDate(timestamp) {
         DATE_TEXT_CACHE.set(minuteKey, entry);
     }
     // 以「当天」为界，跨零点时不会取到过期结果
-    return entry.day === new Date().toDateString() ? entry.time : entry.date;
+    return entry.day === currentDayKey() ? entry.time : entry.date;
 }
 
 // 转义表提到函数外，避免每次调用都重新创建字面量对象

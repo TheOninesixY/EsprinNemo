@@ -367,6 +367,29 @@ function normalizeImportedItems(rawList, kind, usedIds = new Set()) {
 
 /* ---------------- 中栏列表过滤 ---------------- */
 
+/* 检索用的正文：搜索框每敲一个字都要把全部条目拿出来做一次 includes，
+   而小写化会重建整篇正文——几千字的笔记上，这一步比匹配本身贵得多。
+   这里按条目缓存上一次的小写结果，标题与正文都没变时直接复用；
+   缓存挂在条目对象上（WeakMap），条目被删除后随之回收。
+
+   代价是每条被搜过的条目会多留一份与正文等长的小写副本
+   （条目正文本来就在内存里，因此相当于正文部分的内存翻倍）；
+   换来的是连续输入时不再重复扫描全部正文，列表规模大时手感差别明显。 */
+const SEARCH_TEXT_CACHE = new WeakMap();
+
+function itemSearchText(item) {
+    const title = typeof item.title === 'string' ? item.title : '';
+    const content = typeof item.content === 'string' ? item.content : '';
+    const cached = SEARCH_TEXT_CACHE.get(item);
+    if (cached && cached.title === title && cached.content === content) return cached.text;
+
+    // 标题与正文合成一段再匹配，省掉两次独立的判断；
+    // 中间用换行分隔，而搜索框里敲不出换行，因此不会出现跨标题与正文的误命中
+    const text = `${title}\n${content}`.toLowerCase();
+    SEARCH_TEXT_CACHE.set(item, { title, content, text });
+    return text;
+}
+
 // 当前筛选下的条目：「笔记」与「待办」两个入口各只列一类，
 // 已置顶、废纸篓与文件夹、标签视图里两类混排（同为置顶优先，再按所选方式排序）
 function getFilteredItems() {
@@ -397,10 +420,7 @@ function getFilteredItems() {
             if (tagFilter !== null && (!item.tags || !item.tags.includes(tagFilter))) return;
         }
 
-        if (query) {
-            const inTitle = (item.title || '').toLowerCase().includes(query);
-            if (!inTitle && !(item.content || '').toLowerCase().includes(query)) return;
-        }
+        if (query && !itemSearchText(item).includes(query)) return;
 
         list.push(item);
     };

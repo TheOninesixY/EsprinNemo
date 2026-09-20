@@ -212,6 +212,22 @@ function focusAiInput() {
     if (input) input.focus();
 }
 
+/* 回答正文已解析好的 HTML 缓存：一次提问里有工具调用时，
+   每执行完一步都会整份重建消息列表（renderAiMessages），几十条回答因此会被反复送进 marked.parse，
+   长回答下这一步相当贵。缓存挂在消息对象上（WeakMap），消息随对话删除后随之回收；
+   流式生成期间正文逐字变化，缓存自然失效，只有当正文真正没变时才复用。 */
+const AI_MARKDOWN_CACHE = new WeakMap();
+
+function renderAiMarkdown(msg) {
+    const source = msg.content || '';
+    const cached = AI_MARKDOWN_CACHE.get(msg);
+    if (cached && cached.source === source) return cached.html;
+
+    const html = source ? marked.parse(source) : '';
+    AI_MARKDOWN_CACHE.set(msg, { source, html });
+    return html;
+}
+
 function createAiActionButton(label, icon, handler) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -256,7 +272,7 @@ function createAiAgentStepElement(msg, toolResults) {
     if (msg.content) {
         const text = document.createElement('div');
         text.className = 'ai-msg-content markdown-body';
-        text.innerHTML = marked.parse(msg.content);
+        text.innerHTML = renderAiMarkdown(msg);
         body.appendChild(text);
     }
 
@@ -341,7 +357,7 @@ function createAiMessageElement(msg, index, toolResults) {
         content.textContent = msg.error;
     } else if (msg.role === 'assistant') {
         content.classList.add('markdown-body');
-        content.innerHTML = msg.content ? marked.parse(msg.content) : '';
+        content.innerHTML = renderAiMarkdown(msg);
         if (!msg.content) content.innerHTML = '<span class="ai-typing">正在生成…</span>';
     } else {
         content.textContent = msg.content;
@@ -429,7 +445,12 @@ function updateAiContextHint() {
         hint.textContent = item ? `附带：${itemDisplayTitle(item)}` : '当前没有打开的内容';
         return;
     }
-    const count = collectAiContextNotes().length;
+    // 只为了这一句提示，不必真的组装一次上下文：
+    // collectAiContextNotes 会先给整个笔记库排序再截断，而最终条数就是「未删除笔记数与上限取小」，
+    // 直接数一遍即可。updateAiContextHint 在每次界面刷新时都会走到这里。
+    const maxNotes = Math.max(1, Number(State.ai && State.ai.maxNotes) || 10);
+    const available = State.notes.reduce((total, note) => total + (note.isTrashed ? 0 : 1), 0);
+    const count = Math.min(maxNotes, available);
     hint.textContent = count ? `附带 ${count} 篇笔记` : '没有可附带的笔记';
 }
 

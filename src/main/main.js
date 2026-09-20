@@ -81,18 +81,53 @@ function resolveDataDir() {
   return dataDir;
 }
 
-// 读取用户配置（config.json）：主进程只关心主题与主题色两项，供主窗口背景与弹窗窗口复用
+/* 读取用户配置（config.json）：主进程只关心主题、主题风格、主题色、圆角与字体等外观项，
+   供主窗口背景、弹窗窗口、小本本与托盘复用。
+
+   这些值都是「一问一项」的：建一扇弹窗要分别问主题 / 风格 / 主题色 / 应用名颜色 / 圆角 / 字体
+   六次，若每次都真去同步读盘、解析 JSON，一次弹窗就是六回 I/O。
+   因此按「配置文件路径 + 修改时间 + 大小」缓存解析结果：渲染进程写完配置后 mtime 必然变化，
+   缓存随即失效，读到的仍是最新内容；数据目录切换后路径变化同样会命中新的缓存。
+
+   返回值是缓存对象本身，调用方一律只读（updater.js 与 tray.js 都只取字段，不修改）。 */
+let configCacheKey = '';
+let configCacheValue = {};
+
 function readUserConfig() {
   try {
     const configFile = path.join(resolveDataDir(), 'config.json');
-    if (fs.existsSync(configFile)) {
-      const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-      if (config && typeof config === 'object') return config;
+
+    let stat = null;
+    try {
+      // 优先取纳秒级时间戳：配置可能在极短间隔内被改写两次（内容长度还可能一样），
+      // 毫秒精度下这种改写有碰撞出同一个缓存键的机会，纳秒精度下不会
+      stat = fs.statSync(configFile, { bigint: true });
+    } catch (error) {
+      stat = null;
     }
+    if (!stat) {
+      try {
+        stat = fs.statSync(configFile);
+      } catch (error) {
+        // 配置文件还不存在（首次启动）：按空配置处理，并清掉上一份缓存
+        configCacheKey = '';
+        configCacheValue = {};
+        return configCacheValue;
+      }
+    }
+
+    const stamp = stat.mtimeNs === undefined ? stat.mtimeMs : stat.mtimeNs;
+    const key = `${configFile}\u0000${stamp}\u0000${stat.size}`;
+    if (configCacheKey === key) return configCacheValue;
+
+    const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    configCacheKey = key;
+    configCacheValue = (config && typeof config === 'object' && !Array.isArray(config)) ? config : {};
+    return configCacheValue;
   } catch (error) {
     console.error('[Esprin Nemo] 读取用户配置失败:', error);
+    return {};
   }
-  return {};
 }
 
 /* 合并写入用户配置（config.json）：目前只有更新弹窗里的「永不提醒」会由主进程改配置

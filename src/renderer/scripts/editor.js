@@ -24,8 +24,20 @@ function flushRenderMarkdown() {
     renderMarkdown(true);
 }
 
+// 是否处于「必须解析预览」的场景：编辑视图下预览区整块隐藏，
+// 解析出来的 HTML 没有任何人看（见 updateViewModeUI）
+function isPreviewVisible() {
+    return State.viewMode !== 'edit';
+}
+
 // force 为 true 时强制重解析；否则内容与上次一致就直接返回
 function renderMarkdown(force = false) {
+    // 预览区不可见（默认的编辑视图）时整个跳过：既不解析 Markdown，也不给隐藏的容器写 innerHTML。
+    // 切换视图模式的按钮会先把 viewMode 改成分屏 / 预览再调用 flushRenderMarkdown，
+    // 因此真正要看预览时这里一定放行；编辑过程中的延时刷新与切换条目则一路省掉。
+    // 跳过后指纹不更新，等预览可见时自然会完整解析一次，看到的始终是最新内容。
+    if (!isPreviewVisible()) return;
+
     const item = getActiveItem();
     const itemId = item ? item.id : null;
     const content = item ? (item.content || '') : '';
@@ -67,17 +79,27 @@ let lastStatsNoteId = null;
 let lastStatsContent = null;
 let lastStatsUpdatedAt = null;
 
-// 中英混排的字数统计：CJK / 谚文按「字」计，其余按空白分词计。
-// 旧实现一律按空白分词，一整段中文会被算成 1 个字，与「字数」的直觉完全不符。
+/* 中英混排的字数统计：CJK / 谚文按「字」计，其余按空白分词计。
+   旧实现一律按空白分词，一整段中文会被算成 1 个字，与「字数」的直觉完全不符。
+
+   这里用一次 split 同时得到两件事：分隔符的出现次数就是 CJK 字数，
+   切出来的各段则正好是需要按空白分词的西文部分。
+   相比「match 出全部 CJK 字符 + 把整篇正文 replace 成一个去掉汉字的新字符串」，
+   少了一次与正文等长的字符串分配——自动保存每 300ms 就会走一遍这里，
+   长篇中文文档下这一步省下的内存与时间都很可观。 */
 const CJK_CHAR_PATTERN = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\u{20000}-\u{3ffff}]/gu;
 
 function countWords(text) {
     if (!text) return 0;
-    const cjk = text.match(CJK_CHAR_PATTERN);
-    const cjkCount = cjk ? cjk.length : 0;
-    // 去掉 CJK 字符后再按空白分词，避免标点与英文单词被并入中文字数
-    const rest = text.replace(CJK_CHAR_PATTERN, ' ').trim();
-    return cjkCount + (rest ? rest.split(/\s+/).length : 0);
+    const segments = text.split(CJK_CHAR_PATTERN);
+    // split 的分段数比分隔符数多 1，因此 CJK 字数就是 segments.length - 1
+    let words = 0;
+    for (let i = 0; i < segments.length; i++) {
+        const segment = segments[i].trim();
+        // 去掉 CJK 字符后按空白分词，标点与英文单词因此不会被并入中文字数
+        if (segment) words += segment.split(/\s+/).length;
+    }
+    return (segments.length - 1) + words;
 }
 
 function updateStats() {
