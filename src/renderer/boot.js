@@ -6,6 +6,9 @@ const path = require('path');
 // 侧边栏收起状态类：挂在 <html> 上。styles/sidebar.css 依赖该类名，scripts/render.js 复用此常量。
 const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
+// 极简模式状态类：同样挂在 <html> 上。styles/mode.css 依赖该类名，scripts/mode.js 复用此常量。
+const MINIMAL_MODE_CLASS = 'minimal-mode';
+
 // 便携版运行标记：主进程判断后通过 --esprin-nemo-portable 告知（见 src/main/updater.js），
 // 环境变量作为兜底。便携版每次启动都会解压到临时目录，没有稳定的可升级目标，
 // 因此更新功能与相关设置整体移除（见 scripts/settings.js 与 scripts/update.js）。
@@ -59,6 +62,11 @@ try {
         // 否则会先画出一整个展开的侧边栏，再补播一次收起动效。
         if (config && config.sidebarCollapsed) {
             document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
+        }
+
+        // 极简模式同理：先落定类名，首屏就不会闪出随后要隐藏的那些入口
+        if (config && config.uiMode === 'minimal') {
+            document.documentElement.classList.add(MINIMAL_MODE_CLASS);
         }
     }
 

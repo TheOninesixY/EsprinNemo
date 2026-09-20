@@ -2,14 +2,20 @@
 
 // Global Event Setup
 function setupEvents() {
-    // 点击左上角应用名：先落盘未保存的编辑，再退出到首页。
+    // 点击标题栏左上角的应用名（标准模式）：先落盘未保存的编辑，再退出到首页。
     // 注意这里只取消激活标签，不关闭标签页——已打开的标签仍然保留在标签栏中可随时切回。
-    document.getElementById('app-brand').onclick = () => {
+    // 极简模式下的应用名只是展示，不再承担这个入口（改为编辑器顶栏的「返回」）。
+    const leaveActiveItem = () => {
         if (!State.activeNoteId) return;
         flushPendingSave();
         State.activeNoteId = null;
         renderApp();
     };
+    document.getElementById('app-brand').onclick = leaveActiveItem;
+
+    // 极简模式没有标签栏，编辑器顶栏的「返回」负责退出当前编辑（标准模式下该按钮不显示）
+    const editorBack = document.getElementById('btn-editor-back');
+    if (editorBack) editorBack.onclick = leaveActiveItem;
 
     // 两个「新建」入口都展开同一个菜单：新建笔记 / 新建待办
     document.getElementById('btn-new-note').onclick = (e) => toggleNewItemMenu(e.currentTarget);
@@ -60,6 +66,17 @@ function setupEvents() {
     document.getElementById('btn-open-settings').onclick = () => {
         openSettingsTab();
     };
+
+    // 极简模式没有标签栏，设置页头部的「返回」按钮负责回到笔记列表（标准模式下该按钮不显示）
+    const btnSettingsBack = document.getElementById('btn-settings-back');
+    if (btnSettingsBack) {
+        btnSettingsBack.onclick = () => {
+            if (State.activeNoteId !== 'settings') return;
+            flushPendingSave();
+            closeTab('settings');
+            renderApp();
+        };
+    }
 
     const settingSpellcheck = document.getElementById('setting-spellcheck');
     if (settingSpellcheck) {

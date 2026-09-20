@@ -1,0 +1,161 @@
+/* 使用模式：极简模式（<html class="minimal-mode">）只保留笔记与待办，
+   其余功能入口在这里统一藏起来。模式切换与相关状态收尾见 scripts/mode.js，
+   首屏的类名由 boot.js 提前写入，因此不会先闪出完整界面再收起。 */
+
+/* ---------------- 标题栏与标签栏 ----------------
+   极简模式把标题栏与标签栏整体移除：内容一路顶到窗口上沿，窗口操作键脱离布局、悬浮在右上角。
+   .titlebar 于是只剩「窗口按钮的定位容器」这一个身份——不再占高度，也不再整条作为拖动区域
+   （整条拖动区会吞掉它下面搜索框、工具栏的鼠标事件），空白处 pointer-events: none 直接透传。 */
+html.minimal-mode .titlebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    padding: 0;
+    /* 品牌名、标签栏与右侧按钮组都藏起来后，窗口按钮是这一条里唯一的子元素：
+       必须显式靠右，否则会顺着 space-between 落到最左边 */
+    justify-content: flex-end;
+    background-color: transparent;
+    border-bottom: none;
+    -webkit-app-region: no-drag;
+    pointer-events: none;
+}
+html.minimal-mode .titlebar-brand,
+html.minimal-mode .titlebar-tabs,
+html.minimal-mode .titlebar-actions {
+    display: none !important;
+}
+/* 右上角的窗口按钮照常接收点击（其余空白处全部透传给下面的内容） */
+html.minimal-mode .titlebar .window-controls {
+    pointer-events: auto;
+}
+
+/* 拖动窗口改由几处留白承担：编辑器顶栏里文件夹 / 标签之后的空余段（.editor-meta 容器本身）、
+   笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、设置页的标题区与分类侧边栏（留白部分）、
+   空状态的工作区，以及侧边栏「新建」按钮周围的留白。
+   这些区域里的控件单独标回 no-drag，点击行为不受影响。 */
+html.minimal-mode .editor-meta,
+html.minimal-mode .notes-panel-header,
+html.minimal-mode .settings-header,
+html.minimal-mode .settings-sidebar,
+html.minimal-mode .empty-placeholder,
+html.minimal-mode .sidebar-action-wrap {
+    -webkit-app-region: drag;
+}
+/* no-drag 是「抠洞」语义：把这些控件从上面的拖动区里挖出来，它们照常接收点击 */
+html.minimal-mode .editor-meta > *,
+html.minimal-mode .notes-panel-header .search-box,
+html.minimal-mode .notes-panel-header .dropdown,
+html.minimal-mode .settings-sidebar .settings-back,
+html.minimal-mode .settings-sidebar .settings-nav-item,
+html.minimal-mode .sidebar-action-wrap .btn-sidebar-new,
+html.minimal-mode .empty-placeholder button {
+    -webkit-app-region: no-drag;
+}
+
+/* 悬浮的窗口按钮占住右上角 132px 宽、40px 高的一条：编辑器顶栏与设置内容各让出右侧 140px，
+   免得那排「编辑 / 分屏 / 预览」与置顶 / 导出 / 删除被压在下面点不到 */
+html.minimal-mode .editor-topbar {
+    padding-right: 140px;
+}
+html.minimal-mode .settings-view .settings-content {
+    /* 上内边距挪到标题区（见下）：标题区本身就是拖动区，
+       这样从窗口顶部开始就能拖，而不是只有下面那一条文字带 */
+    padding-top: 0;
+    padding-right: 140px;
+}
+html.minimal-mode .settings-view .settings-header {
+    /* 接过内容区原本的 32px 上内边距：视觉效果不变，但这块空白现在归标题区，可以拖动窗口 */
+    padding-top: 32px;
+}
+/* 全屏时窗口按钮不显示（见 base.css），这条走廊也就不必留 */
+html.minimal-mode body.is-fullscreen .editor-topbar {
+    padding-right: 16px;
+}
+html.minimal-mode body.is-fullscreen .settings-view .settings-content {
+    padding-right: 48px;
+}
+
+/* AI 对话面板：入口（标题栏按钮）整体没了，面板本身也不必留在布局里 */
+html.minimal-mode #ai-panel,
+/* 侧边栏：这两栏是「按文件夹 / 标签浏览」的导航入口，极简模式只用「笔记 / 待办 / 已置顶 / 废纸篓」。
+   注意只藏导航：编辑器顶栏的文件夹选择与标签（笔记自身的属性）仍然保留，
+   它们所在的 .editor-meta 同时兼作弹性占位与拖动区。 */
+html.minimal-mode .sidebar .nav-section-folders,
+html.minimal-mode .sidebar .nav-section-tags {
+    display: none !important;
+}
+
+/* ---------------- 应用名 ----------------
+   标题栏没了，应用名移到侧边栏「新建」按钮上方（标准模式下仍留在标题栏，这里不显示）。
+   字号、字重与颜色跟标题栏里的那份保持一致，颜色同样由设置页的「应用名颜色」决定。
+   极简模式里它只是展示、不可点击（退出编辑改由编辑器顶栏的「返回」承担），
+   因此没有悬停 / 按下反馈；它所在的整块侧边栏顶部留白都可用于拖动窗口。 */
+.sidebar-brand {
+    display: none;
+    font-family: 'Mohave', var(--font-sans);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--brand-fg);
+    padding: 4px 6px;
+    margin-bottom: 6px;
+}
+html.minimal-mode .sidebar-brand {
+    display: block;
+}
+/* 收起态侧边栏只剩一条窄条：应用名跟着一起隐藏（收起态下「新建」按钮只留加号图标） */
+html.sidebar-collapsed .sidebar .sidebar-brand {
+    display: none;
+}
+
+/* ---------------- 设置页的返回入口 ----------------
+   标准模式靠标签栏离开设置页；极简模式没有标签栏，因此在设置页左侧的分类侧边栏顶部
+   补一个返回按钮（与分类条目同一套视觉语言，放在「设置」标题栏下方第一条的位置） */
+.settings-back {
+    display: none;
+}
+html.minimal-mode .settings-back {
+    display: flex;
+    align-items: center;
+    /* 基础 button 样式是居中排布，这里要显式靠左（与分类条目同一套对齐方式） */
+    justify-content: flex-start;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    transition: background-color 0.15s, color 0.15s;
+}
+html.minimal-mode .settings-back:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+
+/* ---------------- 编辑器顶栏的返回 ----------------
+   极简模式没有标签栏，退出当前编辑靠编辑器顶栏左侧（文件夹选择之前）的返回按钮。
+   只把按钮本身左移 8px（连同悬停高亮一起），让它与侧边栏 8px 的缩进对齐，
+   后面的文件夹选择与标签仍留在顶栏原本的 16px 位置，不受影响。 */
+.editor-back {
+    display: none;
+}
+html.minimal-mode .editor-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+    margin-left: -8px;
+    padding: 0 8px 0 6px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    transition: background-color 0.15s, color 0.15s;
+}
+html.minimal-mode .editor-back:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+

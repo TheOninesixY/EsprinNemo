@@ -109,6 +109,8 @@ function adoptDataDir(dir, options = {}) {
         accentColor: State.accentColor,
         cornerRadius: State.cornerRadius,
         spellcheck: State.spellcheck,
+        // 使用模式同样属于偏好：新位置没有配置时沿用当前位置的模式
+        uiMode: State.uiMode,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
@@ -130,6 +132,7 @@ function adoptDataDir(dir, options = {}) {
         State.accentColor = saved.accentColor;
         State.cornerRadius = saved.cornerRadius;
         State.spellcheck = saved.spellcheck;
+        State.uiMode = saved.uiMode;
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.autoUpdate = saved.autoUpdate !== false;
@@ -145,6 +148,7 @@ function adoptDataDir(dir, options = {}) {
         State.accentColor = prefs.accentColor;
         State.cornerRadius = prefs.cornerRadius;
         State.spellcheck = prefs.spellcheck;
+        State.uiMode = prefs.uiMode;
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
@@ -191,12 +195,15 @@ function adoptDataDir(dir, options = {}) {
     applySpellcheck();
     applyFonts();
     applySidebarCollapsed();
+    // 使用模式也随新位置的配置走：极简模式需要的状态收尾（AI 面板、筛选、设置分类）都在这里
+    applyUiMode();
     syncFontSelects();
     syncAccentControls();
     syncThemeStyleSelect();
     syncCornerRadiusControl();
     syncTrashRetentionSelect();
     syncAiSettingsUI();
+    syncUiModeUI();
     // 自动更新开关随配置走：新位置若关掉了自动更新，主进程的定时检查也要跟着停
     syncUpdateSettingsUI();
     ipcRenderer.invoke('update:set-auto', { enabled: State.autoUpdate !== false }).catch((err) => {
@@ -204,6 +211,8 @@ function adoptDataDir(dir, options = {}) {
     });
     // 托盘开关同样随配置走：新位置若关掉了托盘图标，图标要跟着消失
     syncTraySetting();
+    // 使用模式随新位置的配置走：托盘菜单条目与小本本窗口由主进程按新模式收尾
+    applyModeInMainProcess();
     // 开机自启也随配置走：登记在系统里的启动项要与新位置的设置保持一致
     syncAutoLaunchSetting();
     renderAiMessages();

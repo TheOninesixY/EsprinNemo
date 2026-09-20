@@ -461,6 +461,7 @@ function renderWorkspace() {
         syncFontSelects();
         syncAccentControls();
         syncAiSettingsUI();
+        syncUiModeUI();
         syncUpdateSettingsUI();
         applyAiPanelVisibility();
         return;

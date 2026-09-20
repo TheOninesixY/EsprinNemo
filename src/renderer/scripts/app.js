@@ -18,6 +18,8 @@ window.onload = () => {
     State.brandColor = normalizeBrandColor(saved.brandColor);
     State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
+    // 使用模式（标准 / 极简）：极简模式只保留笔记与待办
+    State.uiMode = normalizeUiMode(saved.uiMode);
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;
@@ -72,6 +74,7 @@ window.onload = () => {
     initFonts();
     applySidebarCollapsed();
     initSettingsNav();
+    initUiMode();
     initAiSettings();
     initAiChats();
     initAiAgent();

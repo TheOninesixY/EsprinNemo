@@ -24,6 +24,8 @@ const State = {
     // 圆角尺度：square（方）/ slight（微圆角）/ default（默认）/ large（大）
     cornerRadius: 'default',
     spellcheck: false,
+    // 使用模式：standard（全部功能）/ minimal（极简：只保留笔记与待办，见 scripts/mode.js）
+    uiMode: 'standard',
     // 侧边栏是否收起：收起后只保留一条窄条，筛选入口仅显示图标
     sidebarCollapsed: false,
     // 废纸篓自动清理：保留天数，0 表示永不自动清理
@@ -58,6 +60,18 @@ const State = {
     // MD 预览刷新的延时器：静默 1 秒后才刷新一次
     previewTimer: null
 };
+
+// 使用模式（config.json 中的 uiMode 只接受这两个值）
+const UI_MODE_VALUES = ['standard', 'minimal'];
+
+function normalizeUiMode(value) {
+    return UI_MODE_VALUES.includes(value) ? value : 'standard';
+}
+
+// 极简模式：界面只保留笔记与待办，其余入口由 styles/mode.css 按 <html> 上的类名隐藏
+function isMinimalMode() {
+    return State.uiMode === 'minimal';
+}
 
 // AI 提问时附带的笔记范围（config.json 中的 ai.scope 只接受这几个值）
 const AI_SCOPE_VALUES = ['current', 'all', 'none'];

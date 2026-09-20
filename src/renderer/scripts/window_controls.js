@@ -10,7 +10,9 @@ const winControls = {
 
 // 小本本（便利贴窗口）：窗口本身由主进程创建与管理，这里只负责请求打开，
 // 已存在时主进程会恢复并前置，因此重复点击是安全的。
+// 极简模式不提供小本本（入口已由 styles/mode.css 隐藏），这里再兜一层底。
 async function openScratchpadWindow() {
+    if (isMinimalMode()) return false;
     try {
         return await ipcRenderer.invoke('scratchpad:toggle');
     } catch (err) {

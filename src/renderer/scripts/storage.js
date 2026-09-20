@@ -790,7 +790,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, uiMode: 'standard', sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -906,6 +906,8 @@ function loadData() {
         brandColor: normalizeBrandColor(config.brandColor),
         cornerRadius: normalizeCornerRadius(config.cornerRadius),
         spellcheck: !!config.spellcheck,
+        // 使用模式：旧配置里没有该字段时即为标准模式
+        uiMode: normalizeUiMode(config.uiMode),
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         // 自动更新默认开启：只有显式写成 false 才视为关闭
@@ -950,6 +952,8 @@ function saveConfig() {
             brandColor: normalizeBrandColor(State.brandColor),
             cornerRadius: normalizeCornerRadius(State.cornerRadius),
             spellcheck: State.spellcheck,
+            // 使用模式（默认标准）：只接受 standard / minimal，脏数据回退为标准模式
+            uiMode: normalizeUiMode(State.uiMode),
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
             // 自动更新（默认开启）：主进程读取这一项决定是否在启动后自动检查

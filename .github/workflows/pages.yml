@@ -11,13 +11,11 @@ on:
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
-# GITHUB_TOKEN 需要的最小权限
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 同一时间只保留一次部署，新的推送取消排队中的旧任务
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -38,9 +36,6 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: 组装站点
-        # 页面里引用截图与字体的路径是相对仓库根写的（../../readme/…），
-        # 这样在本地直接打开 .github/pages/index.html 也能看到图。
-        # 发布时只把用到的资源一并放进产物，并把路径改写为站点根目录下的相对路径。
         run: |
           mkdir -p _site
           cp -r .github/pages/. _site/

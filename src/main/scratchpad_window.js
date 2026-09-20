@@ -237,6 +237,14 @@ function isScratchpadWindowOpen() {
   return !!(noteWin && !noteWin.isDestroyed());
 }
 
+// 关闭小本本：极简模式不再提供该功能，切换模式时已开着的窗口就地关掉。
+// 窗口自身的 closed 事件会通知 main.js 判断此刻是否还有可见窗口（见 handleScratchpadClosed）。
+function closeScratchpadWindow() {
+  if (!noteWin || noteWin.isDestroyed()) return false;
+  noteWin.close();
+  return true;
+}
+
 // 把便利贴内容新建为一篇笔记：交给主窗口渲染进程落地，
 // 成功后小本本直接关联到这篇新笔记，继续在原地编辑（主窗口保持后台，不抢焦点）。
 async function createNoteFromScratchpad(title, content) {
@@ -406,6 +414,8 @@ function registerScratchpadIpc() {
 
 module.exports = {
   configureScratchpadWindow,
+  // 切换使用模式时由 main.js 调用：极简模式下关掉已开着的小本本
+  closeScratchpadWindow,
   isScratchpadWindowOpen,
   openScratchpadWindow,
   registerScratchpadIpc

@@ -35,6 +35,15 @@
 - **废纸篓**：笔记与待办共用一个废纸篓，删除先进废纸篓，支持一键彻底清空，并可设置自动清理的保留天数（永不清理 / 10 / 30 / 60 / 365 天）
 - **导出**：任意笔记或待办一键导出为 `.md` 文件
 
+### 使用模式（标准 / 极简）
+
+「设置 → 使用模式」提供两档界面模式，切换即时生效并写入 `config.json` 的 `uiMode`（`standard` / `minimal`）：
+
+- **标准模式**（默认）：全部功能都在
+- **极简模式**：只保留笔记与待办——新建、编辑、搜索、排序、置顶、废纸篓、导出与设置入口。标题栏与标签栏整体移除，内容一路顶到窗口边缘、不再空出一条顶栏：窗口操作键脱离布局，悬浮在窗口右上角（编辑器顶栏与设置内容因此各让出右侧 140px 的走廊，免得那排编辑 / 置顶 / 导出 / 删除按钮被压在下面），应用名移到侧边栏「新建」按钮上方（侧边栏收起时隐藏，且仅作展示、不可点击；退出编辑改由编辑器顶栏左侧、文件夹选择之前的「返回」），设置页的分类侧边栏顶部因此多出一个「返回」按钮（左对齐，与分类条目同一套排版）。拖动窗口改由几处留白承担：编辑器顶栏（文件夹 / 标签之外的空余段）、笔记列表顶部的搜索栏那一行、设置页的标题区与分类侧边栏、空状态的工作区，以及侧边栏「新建」周围的留白（全屏时窗口按钮不显示，那条走廊也不保留）。AI 助手（含设置里的「AI 助手」分类与托盘菜单里的「小本本」）、小本本按钮，以及侧边栏里的文件夹与标签过滤两栏也都会隐藏——这两栏只是「按文件夹 / 标签浏览」的导航，编辑笔记时仍可在顶栏改文件夹、加标签
+
+数据完全不受影响：笔记与待办的文件夹、标签归属原样写在各自的 `.md` 文件里，切回标准模式即恢复显示；首屏的隐藏靠 `boot.js` 在渲染前写好 `<html>` 上的类名，因此不会先闪出完整界面再收起。
+
 ### 编辑体验
 
 - **三种视图模式**：编辑 / 分屏 / 预览
@@ -409,7 +418,7 @@ API Key **不随数据目录保存**，也不写入 [data/config.json](data/conf
 │   │   ├── data_path.js    # 数据目录解析：安装版 / 便携版 / 开发版的位置与自定义位置记录
 │   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入 / 勾选）
 │   │   ├── scratchpad_window.js # 小本本：右下角置顶便利贴小窗口与内容读写
-│   │   ├── tray.js         # 系统托盘：托盘图标、右键菜单（小本本 / 新建笔记 / 新建待办 / 设置 / 退出）
+│   │   ├── tray.js         # 系统托盘：托盘图标、右键菜单（小本本 / 新建笔记 / 新建待办 / 设置 / 退出，极简模式下不列小本本）
 │   │   ├── updater.js      # 应用更新：检查 GitHub Releases、下载安装包、静默升级
 │   │   ├── font_list.js    # 跨平台本机字体枚举（解析字体文件 name 表）
 │   │   ├── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
@@ -421,10 +430,10 @@ API Key **不随数据目录保存**，也不写入 [data/config.json](data/conf
 │       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本
 │       ├── dialog.html     # 弹窗窗口页面
 │       ├── scratchpad.html # 小本本窗口页面（标题 + 正文、选择笔记、Ctrl+S 保存）
-│       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题风格 / 主题色 / 圆角尺度 / 字体预注入（无闪屏）
+│       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题风格 / 主题色 / 圆角尺度 / 字体 / 使用模式预注入（无闪屏）
 │       ├── fonts/          # 随应用分发的品牌字体（Mohave）
-│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / alom（Alom 风格）/ radius（圆角尺度）
-│       └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / notes / scratchpad / tray / auto_launch / editor / ai / ai_chats / ai_files / ai_agent / update / render …
+│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / alom（Alom 风格）/ radius（圆角尺度）/ mode（使用模式）
+│       └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / mode / notes / scratchpad / tray / auto_launch / editor / ai / ai_chats / ai_files / ai_agent / update / render …
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
 └── readme/                 # 文档配图

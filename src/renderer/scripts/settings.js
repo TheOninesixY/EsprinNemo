@@ -3,6 +3,7 @@
 // 设置分类：侧边栏条目与内容面板（data-settings-panel）按 id 一一对应。
 // 便携版没有更新功能，因此「更新与版本」一项不列出（面板由 scripts/update.js 移除）。
 const SETTINGS_CATEGORIES = [
+    { id: 'mode', label: '使用模式', icon: 'tune' },
     { id: 'editor', label: '编辑器与文本', icon: 'edit_note' },
     { id: 'appearance', label: '外观与主题色', icon: 'palette' },
     { id: 'fonts', label: '字体', icon: 'text_format' },
@@ -12,11 +13,18 @@ const SETTINGS_CATEGORIES = [
     { id: 'update', label: '更新与版本', icon: 'system_update' }
 ].filter((category) => !(IS_PORTABLE_RUN && category.id === 'update'));
 
+// 当前模式下可见的分类：极简模式里 AI 助手整体不提供，对应的设置分类也一并不列
+function visibleSettingsCategories() {
+    return SETTINGS_CATEGORIES.filter((category) => !(isMinimalMode() && category.id === 'ai'));
+}
+
 // 记录当前分类，退出设置再进入时仍停留在原来的一类
 let activeSettingsCategory = SETTINGS_CATEGORIES[0].id;
 
 function switchSettingsCategory(id) {
-    const category = SETTINGS_CATEGORIES.find(c => c.id === id) || SETTINGS_CATEGORIES[0];
+    const categories = visibleSettingsCategories();
+    // 分类可能因切换使用模式而消失（例如极简模式下的 AI），此时退到第一个可见分类
+    const category = categories.find(c => c.id === id) || categories[0];
     activeSettingsCategory = category.id;
 
     document.querySelectorAll('#settings-nav .settings-nav-item').forEach((item) => {
@@ -43,7 +51,7 @@ function initSettingsNav() {
     if (!nav) return;
     nav.innerHTML = '';
 
-    SETTINGS_CATEGORIES.forEach((category) => {
+    visibleSettingsCategories().forEach((category) => {
         const item = document.createElement('button');
         item.type = 'button';
         item.className = 'nav-item settings-nav-item';
