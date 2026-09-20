@@ -280,7 +280,7 @@ html.sidebar-collapsed .sidebar #btn-open-settings {
 .nav-badge,
 .nav-section-folders,
 .nav-section-tags,
-/* 无Tab模式的应用名同样属于侧边栏文字，展开时与它们一起淡入（见 styles/mode.css） */
+/* 现代布局的应用名同样属于侧边栏文字，展开时与它们一起淡入（见 styles/mode.css） */
 .sidebar-brand {
     transition: opacity 0.16s ease;
 }

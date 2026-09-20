@@ -18,8 +18,10 @@ window.onload = () => {
     State.brandColor = normalizeBrandColor(saved.brandColor);
     State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
-    // 使用模式（标准 / 无Tab）：无Tab模式不显示标题栏里的标签页
+    // 界面布局（经典 / 现代，默认现代）：现代布局不排标题栏，标签页移到工作区顶部
     State.uiMode = normalizeUiMode(saved.uiMode);
+    // 现代布局下的「禁用标签页」：只有显式写成 true 才算禁用，默认标签页开启
+    State.tabsDisabled = saved.tabsDisabled === true;
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;

@@ -2,10 +2,10 @@
 
 // Global Event Setup
 function setupEvents() {
-    // 点击标题栏左上角的应用名（标准模式）：先落盘未保存的编辑，再退出到首页。
+    // 点击标题栏左上角的应用名（经典布局）：先落盘未保存的编辑，再退出到首页。
     // 注意这里只取消激活标签，不关闭标签页——已打开的标签仍然保留在标签栏中可随时切回。
-    // 无Tab模式下标题栏整条没了，侧边栏里的那份应用名只是展示，
-    // 不承担这个入口（改由编辑器顶栏的「返回」）。
+    // 现代布局下标题栏整条没了，侧边栏里的那份应用名只是展示，
+    // 不承担这个入口（改由标签栏最左端的「返回」）。
     const leaveActiveItem = () => {
         if (!State.activeNoteId) return;
         flushPendingSave();
@@ -14,9 +14,10 @@ function setupEvents() {
     };
     document.getElementById('app-brand').onclick = leaveActiveItem;
 
-    // 无Tab模式没有标签栏，编辑器顶栏的「返回」负责退出当前编辑（标准模式下该按钮不显示）
-    const editorBack = document.getElementById('btn-editor-back');
-    if (editorBack) editorBack.onclick = leaveActiveItem;
+    // 现代布局的「返回」（标签栏最左端那枚纯图标，见 styles/mode.css）把当前编辑退回笔记列表；
+    // 侧边栏收起时也不换地方，经典布局下这枚不显示
+    const tabsBack = document.getElementById('btn-tabs-back');
+    if (tabsBack) tabsBack.onclick = leaveActiveItem;
 
     // 两个「新建」入口都展开同一个菜单：新建笔记 / 新建待办
     document.getElementById('btn-new-note').onclick = (e) => toggleNewItemMenu(e.currentTarget);
@@ -45,18 +46,9 @@ function setupEvents() {
         }
     };
 
-    document.getElementById('btn-note-pin').onclick = () => {
-        if (State.activeNoteId) togglePin(State.activeNoteId);
-    };
-    // 待办：完成 / 取消完成
+    // 待办：完成 / 取消完成（顶栏右侧只剩这一个按钮，其余动作都在条目右键菜单里）
     document.getElementById('btn-todo-done').onclick = () => {
         if (State.activeNoteId) toggleTodoDone(State.activeNoteId);
-    };
-    document.getElementById('btn-note-trash').onclick = () => {
-        if (!State.activeNoteId) return;
-        // 废纸篓中的条目：同一个按钮变成“恢复”
-        if (isReadOnlyItem(getActiveItem())) restoreFromTrash(State.activeNoteId);
-        else moveToTrash(State.activeNoteId);
     };
     document.getElementById('btn-empty-trash').onclick = clearTrash;
 
@@ -68,7 +60,8 @@ function setupEvents() {
         openSettingsTab();
     };
 
-    // 无Tab模式没有标签栏，设置页头部的「返回」按钮负责回到笔记列表（标准模式下该按钮不显示）
+    // 现代布局下设置页是整屏铺开的（工作区连同它的标签栏在那里不占位），
+    // 由设置页头部的「返回」按钮回到笔记列表（经典布局下该按钮不显示）
     const btnSettingsBack = document.getElementById('btn-settings-back');
     if (btnSettingsBack) {
         btnSettingsBack.onclick = () => {
@@ -141,19 +134,6 @@ function setupEvents() {
     // AI 助手：右侧问答面板（未配置站点与模型时先引导去设置）
     const btnAiAssistant = document.getElementById('btn-ai-assistant');
     if (btnAiAssistant) btnAiAssistant.onclick = toggleAiAssistant;
-
-    document.getElementById('btn-note-export-md').onclick = () => {
-        const note = getActiveNote();
-        if (!note) return;
-        const blob = new Blob([note.content], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${note.title || '无标题'}.md`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('已导出 Markdown');
-    };
 
     const btnBackupExport = document.getElementById('btn-backup-export');
     if (btnBackupExport) {
@@ -327,6 +307,12 @@ function setupEvents() {
         if (key === 'k') {
             e.preventDefault();
             searchInput.focus();
+            return;
+        }
+        // Ctrl+Tab / Ctrl+Shift+Tab 在打开的标签之间循环切换（编辑区里同样生效）
+        if (key === 'tab') {
+            e.preventDefault();
+            switchTabByStep(e.shiftKey ? -1 : 1);
             return;
         }
         if (key === 's') {

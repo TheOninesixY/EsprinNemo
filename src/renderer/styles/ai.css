@@ -45,7 +45,7 @@
     min-width: var(--ai-panel-width);
 }
 
-/* 无Tab模式的窗口拖动区：垫在面板顶栏上方的一条空白（默认不存在，见 styles/mode.css）。
+/* 现代布局的窗口拖动区：垫在面板顶栏上方的一条空白（默认不存在，见 styles/mode.css）。
    高度与悬浮在右上角的按钮组一致，因此同时也把面板顶栏让到按钮下面 */
 .ai-panel-drag-strip {
     display: none;

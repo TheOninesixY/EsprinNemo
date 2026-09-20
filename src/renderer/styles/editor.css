@@ -9,6 +9,12 @@
     position: relative;
 }
 
+/* 现代布局的标签栏：默认不存在，只有该布局下才占用工作区顶部那一行
+   （那一行正好落在笔记列表搜索栏的高度上，见 styles/mode.css） */
+.workspace-tabs {
+    display: none;
+}
+
 /* Topbar in workspace */
 .editor-topbar {
     height: 40px;
@@ -66,7 +72,8 @@
     color: var(--danger);
 }
 
-/* 编辑器顶栏右侧：视图切换与置顶 / 导出 / 删除。无Tab模式下这一行兼作拖动窗口的留白，
+/* 编辑器顶栏右侧：视图切换（以及仅待办可见的完成开关；置顶 / 导出 / 移入废纸篓
+   在条目右键菜单里，不再占顶栏）。现代布局下这一行兼作拖动窗口的留白，
    因此单独成一个类，而不是写成行内样式（见 styles/mode.css） */
 .editor-actions {
     display: flex;
@@ -243,7 +250,7 @@
 }
 
 /* Empty State */
-/* 无Tab模式的窗口拖动区：默认不存在，只有该模式下才填充空状态的空白处（见 styles/mode.css） */
+/* 现代布局的窗口拖动区：默认不存在，只有该布局下才填充空状态的空白处（见 styles/mode.css） */
 .empty-drag-surface {
     display: none;
 }

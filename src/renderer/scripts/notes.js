@@ -1,5 +1,5 @@
 /* 条目通用操作（标签页、当前条目、自动保存：笔记与待办共用同一套标签页与编辑器）
-   与笔记专属操作（新建、置顶、废纸篓、废纸篓自动清理、列表过滤） */
+   与笔记专属操作（新建、导入、置顶、废纸篓、废纸篓自动清理、列表过滤） */
 
 // 新建笔记的默认归属：沿用当前筛选（在文件夹/标签视图下新建时直接落在该分类）
 function newNoteDefaults() {
@@ -42,6 +42,95 @@ function createNewNote() {
     showToast('已创建新笔记');
 }
 
+/* 导入：把本地的 .md / .txt 文件加为笔记（「新建」菜单里的「导入文件」）。
+   带 EsprinData 注释的文件（本应用导出的 Markdown，或从 notes/ 直接拷出来的）沿用其中的
+   标题、文件夹与标签；普通 Markdown / 纯文本用文件名当标题、整份文件当正文。
+   一次可导入多份：单份导入后直接打开，多份只并入列表，不铺开一屏标签页。 */
+const IMPORT_FILE_MAX = 100;
+const IMPORT_FILE_MAX_BYTES = 5 * 1024 * 1024;
+
+// 由文件名取标题：去掉扩展名，作为普通文本 / Markdown 的兜底标题
+function importTitleFromPath(filePath) {
+    return path.basename(filePath).replace(/\.[^.]+$/, '').trim();
+}
+
+// 把一份文件拼成一篇新笔记：注释里缺的部分回落到「新建笔记」的默认归属
+function buildImportedNote(filePath) {
+    const parsed = parseNoteFile(fs.readFileSync(filePath, 'utf8'));
+    const meta = parsed.meta || null;
+    const content = parsed.content;
+    const defaults = newNoteDefaults();
+    const now = Date.now();
+
+    // 注释里记的文件夹：当前确实存在才沿用，否则仍落在默认归属
+    const metaFolder = meta ? readNoteMetaString(meta.folder) : '';
+    const metaTags = meta ? readNoteMetaTags(meta.tags) : [];
+
+    return {
+        id: generateUniqueItemId(),
+        // 标题优先级：文件内注释 > 文件名 > 正文首个非空行
+        title: (meta ? readNoteMetaString(meta.title) : '') || importTitleFromPath(filePath) || deriveNoteTitle(content),
+        content,
+        folder: metaFolder && State.folders.includes(metaFolder) ? metaFolder : defaults.folder,
+        tags: metaTags.length ? metaTags : defaults.tags,
+        // 导入等同新建一篇：不带置顶，也不进废纸篓
+        isPinned: false,
+        isTrashed: false,
+        createdAt: meta ? readNoteMetaNumber(meta.createdAt, now) : now,
+        updatedAt: now
+    };
+}
+
+// 选择文件并逐一导入，结果用一条 Toast 汇总
+async function importNoteFiles() {
+    let picked = null;
+    try {
+        picked = await ipcRenderer.invoke('notes:pick-import');
+    } catch (err) {
+        console.error('打开导入文件选择框失败:', err);
+        showToast('打开文件选择框失败');
+        return;
+    }
+    if (!picked || picked.canceled || !Array.isArray(picked.paths) || !picked.paths.length) return;
+
+    const queued = picked.paths.slice(0, IMPORT_FILE_MAX);
+    const overflow = picked.paths.length - queued.length;
+    const notes = [];
+    let failed = 0;
+    queued.forEach((filePath) => {
+        try {
+            // 超大文件先挡下：整份读进内存并逐字渲染，容易把界面卡住
+            if (fs.statSync(filePath).size > IMPORT_FILE_MAX_BYTES) throw new Error('文件过大');
+            const note = buildImportedNote(filePath);
+            saveNote(note);
+            markItemKind(note, 'note');
+            notes.push(note);
+        } catch (err) {
+            console.error(`导入文件失败: ${filePath}`, err);
+            failed++;
+        }
+    });
+
+    if (!notes.length) {
+        showToast('导入失败：所选文件无法读取');
+        return;
+    }
+
+    // 一次并入列表，保持选择时的先后顺序（第一份排在最前）
+    State.notes.unshift(...notes);
+    // 在「待办」视图下导入时切回「笔记」视图，否则导入结果不会出现在列表里
+    if (State.currentFilter === 'todos') State.currentFilter = 'all';
+    if (notes.length === 1) openTab(notes[0].id);
+    renderApp();
+
+    let summary = notes.length === 1
+        ? `已导入笔记《${itemDisplayTitle(notes[0])}》`
+        : `已导入 ${notes.length} 个文件为笔记`;
+    if (failed) summary += `，另有 ${failed} 个失败`;
+    if (overflow) summary += `，${overflow} 个超出单次上限未导入`;
+    showToast(summary);
+}
+
 function openTab(noteId) {
     if (!noteId) return;
     if (!State.openNoteIds.includes(noteId)) {
@@ -63,6 +152,26 @@ function closeTab(noteId) {
     if (State.activeNoteId === noteId) {
         State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
     }
+}
+
+/* Ctrl+Tab / Ctrl+Shift+Tab：在标签栏里循环切换（顺序就是标签栏里看得见的先后顺序，
+   设置页也是一个标签，同样参与循环）。只剩一个标签时无事可做；
+   当前没有激活标签（例如刚从编辑退回列表）时，往后走取第一个、往前走取最后一个，
+   与浏览器的习惯一致。 */
+function switchTabByStep(step) {
+    const ids = State.openNoteIds;
+    if (ids.length < 2) return;
+
+    const current = ids.indexOf(State.activeNoteId);
+    const next = current === -1
+        ? (step > 0 ? 0 : ids.length - 1)
+        : (current + step + ids.length) % ids.length;
+    if (ids[next] === State.activeNoteId) return;
+
+    // 切换前把当前编辑落盘：与「返回」「进入设置」等离开路径保持一致
+    flushPendingSave();
+    State.activeNoteId = ids[next];
+    renderApp();
 }
 
 /* 笔记与待办共用同一套标签页与编辑器，因此“当前条目”由下面这组取值函数统一提供 */
@@ -226,6 +335,25 @@ function restoreFromTrash(itemId) {
     saveItem(item);
     renderApp();
     showToast('已恢复');
+}
+
+// 导出为 .md：笔记与待办共用一份实现（元数据内嵌在文件里，这里只导出标题与正文，
+// 与编辑器顶栏从前那个导出按钮做的事一致；入口在条目右键菜单里，废纸篓中的条目同样可导出）
+function exportItemMarkdown(itemId) {
+    // 正在编辑的条目可能还有没落盘的输入：先落盘再导出，免得导出的是上一次保存的内容
+    if (State.activeNoteId === itemId) flushPendingSave();
+
+    const item = getItemById(itemId);
+    if (!item) return;
+
+    const blob = new Blob([item.content || ''], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${item.title || `无标题${itemKindLabel(item)}`}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('已导出 Markdown');
 }
 
 // 彻底删除需要二次确认（不可撤销）

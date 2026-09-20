@@ -475,6 +475,25 @@ ipcMain.handle('fonts:list', () => {
   return cachedSystemFonts;
 });
 
+/* 导入文件为笔记：弹出系统文件选择框，只返回路径，
+   读取与建笔记都在渲染进程完成（数据目录、State 都在那边）。 */
+ipcMain.handle('notes:pick-import', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const parent = win && !win.isDestroyed() ? win : null;
+  const options = {
+    title: '选择要导入的 Markdown 或文本文件',
+    buttonLabel: '导入',
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'Markdown 与文本文件', extensions: ['md', 'markdown', 'txt'] },
+      { name: '所有文件', extensions: ['*'] }
+    ]
+  };
+  const result = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options);
+  if (result.canceled) return { canceled: true, paths: [] };
+  return { canceled: false, paths: result.filePaths };
+});
+
 // 数据存放位置：渲染进程启动阶段同步查询（早于页面脚本执行，确保路径一致）
 ipcMain.on('data:get-dir-sync', (event) => {
   event.returnValue = resolveDataDir();

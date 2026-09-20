@@ -128,22 +128,16 @@ function applyEditorReadOnly(item) {
     const toolbar = document.getElementById('editor-toolbar');
     const folderSelect = document.getElementById('editor-folder-select');
     const addTagBtn = document.getElementById('btn-add-tag');
-    const pinBtn = document.getElementById('btn-note-pin');
-    const trashBtn = document.getElementById('btn-note-trash');
+    const doneBtn = document.getElementById('btn-todo-done');
 
     titleInput.readOnly = readOnly;
     contentInput.readOnly = readOnly;
     folderSelect.disabled = readOnly;
     addTagBtn.disabled = readOnly;
-    pinBtn.disabled = readOnly;
+    if (doneBtn) doneBtn.disabled = readOnly;
 
     // 只读时排版工具栏没有意义，直接隐藏（上方已确保非只读时恢复显示）
     toolbar.classList.toggle('hidden', readOnly);
-
-    // 同一个按钮承担两种语义：普通笔记=移入废纸篓，废纸篓中=恢复
-    const trashIcon = trashBtn.querySelector('.ms-icon');
-    if (trashIcon) trashIcon.textContent = readOnly ? 'restore_from_trash' : 'delete';
-    trashBtn.title = readOnly ? `恢复${itemKindLabel(item)}` : '放入废纸篓';
 
     const saveStatus = document.getElementById('save-status');
     if (readOnly) {

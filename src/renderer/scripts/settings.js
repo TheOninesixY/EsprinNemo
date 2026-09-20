@@ -2,7 +2,7 @@
 
 // 设置分类：侧边栏条目与内容面板（data-settings-panel）按 id 一一对应。
 // 便携版没有更新功能，因此「更新与版本」一项不列出（面板由 scripts/update.js 移除）；
-// 「无Tab模式」不是独立分类，作为开关收在「外观与主题色」里，所以这里没有 mode
+// 「界面布局」不是独立分类，作为设置项收在「外观与主题色」里，所以这里没有 mode
 const SETTINGS_CATEGORIES = [
     { id: 'editor', label: '编辑器与文本', icon: 'edit_note' },
     { id: 'appearance', label: '外观与主题色', icon: 'palette' },

@@ -6,8 +6,12 @@ const path = require('path');
 // 侧边栏收起状态类：挂在 <html> 上。styles/sidebar.css 依赖该类名，scripts/render.js 复用此常量。
 const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
-// 无Tab模式状态类：同样挂在 <html> 上。styles/mode.css 依赖该类名，scripts/mode.js 复用此常量。
-const NOTAB_MODE_CLASS = 'notab-mode';
+// 现代布局状态类：同样挂在 <html> 上。styles/mode.css 依赖该类名，scripts/mode.js 复用此常量。
+const MODERN_LAYOUT_CLASS = 'modern-layout';
+
+// 现代布局里「禁用标签页」的状态类：同样挂在 <html> 上，首个渲染帧前就要落定，
+// 免得先画出一整条标签页再收起（见 styles/mode.css 与 scripts/mode.js）。
+const TABS_DISABLED_CLASS = 'tabs-disabled';
 
 // 便携版运行标记：主进程判断后通过 --esprin-nemo-portable 告知（见 src/main/updater.js），
 // 环境变量作为兜底。便携版每次启动都会解压到临时目录，没有稳定的可升级目标，
@@ -64,10 +68,17 @@ try {
             document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
         }
 
-        // 无Tab模式同理：先落定类名，首屏就不会先排出一行标签再收起。
-        // 旧版本的这一档叫 minimal（极简模式），改名后旧值一并认
-        if (config && (config.uiMode === 'notab' || config.uiMode === 'minimal')) {
-            document.documentElement.classList.add(NOTAB_MODE_CLASS);
+        // 现代布局（默认布局）同理：先落定类名，首屏就不会先排出标题栏、标签页再收起。
+        // 只有显式选了经典布局（classic；旧版写作 standard）才落不下这个类名，
+        // 其余情况——包括配置里还没有这一项——一律按现代布局处理。
+        // 这一档旧时叫过 line（Line 模式）、notab（无Tab模式）与 minimal（极简模式），一并认作现代布局
+        if (config && config.uiMode !== 'classic' && config.uiMode !== 'standard') {
+            document.documentElement.classList.add(MODERN_LAYOUT_CLASS);
+            // 「禁用标签页」是现代布局里的子开关：打开时首屏就不排出标签页
+            // （旧配置里这一项叫 lineHideTabs，改名后一并认）
+            if (config.tabsDisabled === true || config.lineHideTabs === true) {
+                document.documentElement.classList.add(TABS_DISABLED_CLASS);
+            }
         }
     }
 

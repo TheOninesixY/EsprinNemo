@@ -790,13 +790,22 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, uiMode: 'standard', sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
         if (fs.existsSync(CONFIG_FILE)) {
             const rawConfig = fs.readFileSync(CONFIG_FILE, 'utf8');
-            if (rawConfig) config = { ...config, ...JSON.parse(rawConfig) };
+            if (rawConfig) {
+                const parsed = JSON.parse(rawConfig);
+                // 旧键迁移：「禁用标签页」这一项原先叫 lineHideTabs（Line 模式专属），
+                // 新键缺席时按旧键取值，免得改名后老用户的偏好丢回默认（标签页开启）
+                if (parsed && typeof parsed === 'object'
+                    && parsed.tabsDisabled === undefined && parsed.lineHideTabs !== undefined) {
+                    parsed.tabsDisabled = parsed.lineHideTabs === true;
+                }
+                config = { ...config, ...parsed };
+            }
         } else {
             writeFileAtomic(CONFIG_FILE, JSON.stringify(config, null, 2));
         }
@@ -906,8 +915,10 @@ function loadData() {
         brandColor: normalizeBrandColor(config.brandColor),
         cornerRadius: normalizeCornerRadius(config.cornerRadius),
         spellcheck: !!config.spellcheck,
-        // 使用模式：旧配置里没有该字段时即为标准模式
+        // 界面布局：旧配置里没有该字段（或存着旧值）时即为现代布局
         uiMode: normalizeUiMode(config.uiMode),
+        // 现代布局下是否禁用标签页：只有显式写成 true 才算禁用，默认标签页开启
+        tabsDisabled: config.tabsDisabled === true,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         // 自动更新默认开启：只有显式写成 false 才视为关闭
@@ -954,8 +965,11 @@ function saveConfig() {
             brandColor: normalizeBrandColor(State.brandColor),
             cornerRadius: normalizeCornerRadius(State.cornerRadius),
             spellcheck: State.spellcheck,
-            // 使用模式（默认标准）：只接受 standard / notab，脏数据回退为标准模式
+            // 界面布局（默认现代）：只接受 classic / modern，脏数据回退为现代布局
+            // （normalizeUiMode 还认旧值 line / notab / minimal 与 standard，见 scripts/state.js）
             uiMode: normalizeUiMode(State.uiMode),
+            // 现代布局下是否禁用标签页（经典布局下无效，但偏好照旧留着）
+            tabsDisabled: State.tabsDisabled === true,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
             // 自动更新（默认开启）：主进程读取这一项决定是否在启动后自动检查

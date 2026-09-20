@@ -74,7 +74,7 @@ function trayIcon() {
 }
 
 // 右键菜单：打开主窗口 / 小本本 / 新建笔记 / 新建待办 / 设置 / 退出。
-// 条目与使用模式无关：无Tab模式只收起标题栏里的标签页，小本本照旧提供
+// 条目与界面布局无关：现代布局只是不排标题栏（标签栏移到工作区顶部），小本本照旧提供
 function buildTrayMenu() {
   const template = [
     { label: '打开 Esprin Nemo', click: () => { onShowMainWindow(); } },

@@ -1,5 +1,6 @@
 /* 条目右键菜单与「新建」菜单：
-   右键菜单按条目类型与状态（普通 / 废纸篓中）动态生成；新建菜单用于选择新建笔记或待办。 */
+   右键菜单按条目类型与状态（普通 / 废纸篓中）动态生成；
+   新建菜单用于选择新建笔记、新建待办，或把本地的 .md / .txt 文件导入为笔记。 */
 
 let contextItemId = null;
 
@@ -10,6 +11,7 @@ function contextMenuItems(item) {
         return [
             { action: 'open', icon: 'open_in_new', label: '在标签页打开' },
             { action: 'restore', icon: 'restore_from_trash', label: `恢复${label}` },
+            { action: 'export', icon: 'file_download', label: '导出 Markdown' },
             { action: 'purge', icon: 'delete_forever', label: '彻底删除', danger: true }
         ];
     }
@@ -33,6 +35,7 @@ function contextMenuItems(item) {
             icon: item.isPinned ? 'keep_off' : 'push_pin',
             label: item.isPinned ? '取消置顶' : `置顶${label}`
         },
+        { action: 'export', icon: 'file_download', label: '导出 Markdown' },
         { action: 'delete', icon: 'delete', label: '移入废纸篓', danger: true }
     );
 
@@ -87,6 +90,8 @@ document.getElementById('note-context-menu').onclick = (e) => {
         toggleTodoDone(contextItemId);
     } else if (action === 'pin') {
         togglePin(contextItemId);
+    } else if (action === 'export') {
+        exportItemMarkdown(contextItemId);
     } else if (action === 'delete') {
         moveToTrash(contextItemId);
     } else if (action === 'restore') {
@@ -97,14 +102,15 @@ document.getElementById('note-context-menu').onclick = (e) => {
     hideContextMenu();
 };
 
-/* 新建菜单：侧边栏顶部的「新建」与空状态按钮共用，用于选择新建笔记还是待办。
+/* 新建菜单：侧边栏顶部的「新建」与空状态按钮共用，用于新建笔记 / 待办，或导入现成的文件。
    外观直接复用下拉菜单（styles/dropdown.css 的 .dropdown-menu / .dropdown-option），
    这里只负责建条目与定位，不再另写一套菜单样式 */
 
-// 菜单条目：与快捷键 Ctrl+N / Ctrl+Shift+N 一一对应
+// 菜单条目：前两项与快捷键 Ctrl+N / Ctrl+Shift+N 一一对应，末项用于导入现成的文件
 const NEW_ITEM_ACTIONS = [
     { action: 'new-note', icon: 'description', label: '新建笔记' },
-    { action: 'new-todo', icon: 'check_box', label: '新建待办' }
+    { action: 'new-todo', icon: 'check_box', label: '新建待办' },
+    { action: 'import-note', icon: 'file_upload', label: '导入文件' }
 ];
 
 // 在触发按钮下方展开菜单（超出窗口时会自动回收到可视区内）
@@ -161,6 +167,7 @@ document.getElementById('new-item-menu').onclick = (e) => {
     hideNewItemMenu();
     if (action === 'new-note') createNewNote();
     else if (action === 'new-todo') createNewTodo();
+    else if (action === 'import-note') importNoteFiles();
 };
 
 // 点击菜单以外的地方收起两个菜单；点触发按钮本身交由按钮的点击处理切换

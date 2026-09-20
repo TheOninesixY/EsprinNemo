@@ -1,16 +1,18 @@
-/* 使用模式：无Tab模式（<html class="notab-mode">）没有标题栏与标签栏。
+/* 界面布局：现代布局（<html class="modern-layout">）没有标题栏。
    标题栏整条移除——内容一路顶到窗口上沿、不再空出一条顶栏：应用名移到侧边栏顶部，
+   标签栏挪到工作区顶部那一行（见下面的「工作区的标签栏」），
    工具按钮（AI 助手 / 小本本 / 主题 / 全屏）与窗口操作键脱离布局、悬浮在窗口右上角，
    原本由标题栏承担的拖动改由几处留白接手（见下面的拖动区）。
    除这一条顶栏之外功能一个不少：AI 助手面板与设置里的分类、小本本、
-   侧边栏的文件夹与标签过滤、托盘菜单都与标准模式一致。
-   模式切换见 scripts/mode.js，首屏的类名由 boot.js 提前写入，因此不会先闪出完整界面再收起。 */
+   侧边栏的文件夹与标签过滤、托盘菜单都与经典布局一致。
+   布局切换见 scripts/mode.js，首屏的类名由 boot.js 提前写入，因此不会先闪出完整界面再收起。 */
 
-/* ---------------- 标题栏与标签栏 ----------------
+/* ---------------- 标题栏 ----------------
    .titlebar 只剩「右上角悬浮按钮组的定位容器」这一个身份——不再占高度，也不再整条作为拖动区域
    （整条拖动区会吞掉它下面搜索框、工具栏的鼠标事件），空白处 pointer-events: none 直接透传。
-   品牌名与标签栏藏起来，留下工具按钮组与窗口操作键，两组一起贴到右上角。 */
-html.notab-mode .titlebar {
+   品牌名与标签栏在这条定位置容器里藏起来（标签栏另有落点，见下面那段），
+   留下工具按钮组与窗口操作键，两组一起贴到右上角。 */
+html.modern-layout .titlebar {
     position: fixed;
     top: 0;
     left: 0;
@@ -25,95 +27,342 @@ html.notab-mode .titlebar {
     -webkit-app-region: no-drag;
     pointer-events: none;
 }
-html.notab-mode .titlebar-brand,
-html.notab-mode .titlebar-tabs {
+html.modern-layout .titlebar-brand,
+html.modern-layout .titlebar-tabs {
     display: none !important;
 }
 /* 悬浮的两组按钮照常接收点击（其余空白处全部透传给下面的内容）。
    注意别把这两个容器本身做成拖动区：它们就压在按钮上，一旦成为拖动区，
    整排按钮的点击会被吞掉（拖动区与按钮重叠是这个模式里最容易踩的坑，见下面拖动区那段注释）。 */
-html.notab-mode .titlebar .titlebar-actions,
-html.notab-mode .titlebar .window-controls {
+html.modern-layout .titlebar .titlebar-actions,
+html.modern-layout .titlebar .window-controls {
     pointer-events: auto;
 }
 
+/* 标签栏那一行的高度：标签栏自己与空状态拖动区（见下面）共用这一个值。
+   「禁用标签页」开关打开时归零：那一行不再占位，空状态拖动区可以重新铺到窗口上沿 */
+html.modern-layout {
+    --modern-tabs-height: 40px;
+    /* 空状态拖动层的上沿。默认与标签栏同高：标签栏那一行自己就是拖动区，
+       让出来才不会把标签的点击一起并进拖动区（见下面 .empty-drag-surface 那段）。
+       「禁用标签页」时 --modern-tabs-height 已经是 0，这里跟着一起归零，不必另写规则 */
+    --modern-drag-top: var(--modern-tabs-height);
+}
+html.modern-layout.tabs-disabled {
+    --modern-tabs-height: 0px;
+}
+/* 一个标签都没有：标签栏整条收起（见下面那条 :empty 规则），那一行也就不再是拖动区。
+   上沿因此归零，由空状态拖动层接手窗口上沿这 40px——否则未打开文档时，工作区上方
+   从窗口上沿到标签栏下沿之间没有一处能拖窗口（只剩侧边栏与笔记列表自己的留白可拖），
+   表现就是「现代模式下没打开文档时从窗口顶部拖不动」。 */
+html.modern-layout:has(#workspace-tabs:empty) {
+    --modern-drag-top: 0px;
+}
+
+/* ---------------- 工作区的标签栏 ----------------
+   标签栏不跟着标题栏一起消失：经典布局里它归标题栏所有（#titlebar-tabs），
+   现代布局改由工作区顶部那一行承担（#workspace-tabs，见 main.html 与 scripts/render.js 的
+   renderTabs——两个容器都在，渲染时只往当前模式的那一个里写）。
+   工作区这一列从窗口上沿开始，所以这条标签栏正好落在笔记列表搜索栏那一行，
+   也就是「工作区左上角、内容顶到窗口上沿」的位置。
+   容器长相与标题栏里那份同源（见 styles/base.css 的 .titlebar-tabs）：透明底、不画分隔线，
+   标签直接浮在工作区底色上；标签自己在 base.css 里标了 no-drag，这一行其余留白照旧用来拖窗口。 */
+html.modern-layout .workspace-tabs {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: var(--modern-tabs-height);
+    gap: 6px;
+    padding: 0 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    /* 拖动区同样不能伸到悬浮按钮下面（这一行正好是按钮那一层），因此让出右侧走廊
+       （见下面「一条硬约束」）；用 margin 而不是 padding：padding 仍在盒子内，
+       拖动区会跟着一起伸过去） */
+    margin-right: 280px;
+    transition: margin-right var(--motion-slow) var(--ease-out),
+                padding-left var(--motion-base) var(--ease-out),
+                /* 两端渐隐的宽度（见下面「标签栏两端的渐隐」）：在 0 与 32px 之间过渡 */
+                --tabs-fade var(--motion-base) var(--ease-out),
+                --tabs-fade-left var(--motion-base) var(--ease-out);
+    /* 空状态占满整个工作区（inset: 0、z-index: 10，见 styles/editor.css），
+       标签栏浮在它上面，否则无笔记打开时这一行会被盖住 */
+    position: relative;
+    z-index: 11;
+    -webkit-app-region: drag;
+}
+html.modern-layout .workspace-tabs::-webkit-scrollbar {
+    display: none;
+}
+/* 没有打开任何标签时这一行不占位：空状态与经典布局里那张「内容一路顶到窗口上沿」的图一致。
+   整条收起后它也不再是拖动区，窗口上沿那 40px 改由空状态拖动层接手（见 --modern-drag-top） */
+html.modern-layout .workspace-tabs:empty {
+    display: none;
+}
+/* 设置里开了「禁用标签页」：整条标签栏不排，那一行的高度也跟着归零（见上面那个变量），
+   编辑器顶栏及以下整列上移；标签本身一份不丢，关掉开关就回来 */
+html.modern-layout.tabs-disabled .workspace-tabs {
+    display: none;
+}
+
+/* ---------------- 标签栏两端的渐隐（左端还要让开「返回」） ----------------
+   标签排不下时这一行可以横向滚动（见上面那条 overflow-x），但滚动条是藏起来的
+   （scrollbar-width: none 与 ::-webkit-scrollbar），被截掉的标签看不出「后面还有」。
+   这里在两端各补一条渐隐，把「还能往哪边滚」提示出来。
+   用 mask 而不是盖一层渐变色的浮层：浮层的底色要跟着工作区底色走，偏移还得自己算一遍——
+   全屏、AI 面板开合时标签栏的两边都在动（见上面那几条 margin-right），算错就成了
+   一条盖在标签上的色带；mask 直接作用在标签栏自己的盒子上，边在哪就淡在哪，
+   也完全不挑主题（mask 只看 alpha，与底色无关）。
+   两端的宽度分别由 --tabs-fade-left / --tabs-fade 驱动：0px 即不淡。脚本只在
+   「那一侧确实还有被截断的标签」时把 .tabs-fade-left / .tabs-fade-right 挂上去
+   （见 scripts/render.js 的 updateTabsFade）——标签没排满、或已经滚到那一端时不该淡，
+   否则最边上的标签会被白白削掉一角。
+   @property 注册这两个长度后它们才能参与过渡，渐隐的出现 / 消失不是硬切 */
+@property --tabs-fade {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+@property --tabs-fade-left {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+/* 一条渐变把两端一起排完：左端起手透明、到 --tabs-fade-left 处收满，中段不透明，
+   右端再渐隐出去。宽度为 0px 时那一端的两个端点并列在同一位，
+   按硬停（如 red 50%, blue 50%）的规则合起来就是「整条不透明」，也就是不淡 */
+html.modern-layout .workspace-tabs {
+    --tabs-fade: 0px;
+    --tabs-fade-left: 0px;
+    -webkit-mask-image: linear-gradient(to right,
+        transparent 0,
+        #000 var(--tabs-fade-left),
+        #000 calc(100% - var(--tabs-fade)),
+        transparent 100%);
+    mask-image: linear-gradient(to right,
+        transparent 0,
+        #000 var(--tabs-fade-left),
+        #000 calc(100% - var(--tabs-fade)),
+        transparent 100%);
+}
+html.modern-layout .workspace-tabs.tabs-fade-left {
+    /* 与右端同一档宽度：两端淡出来的长度一致 */
+    --tabs-fade-left: 32px;
+}
+html.modern-layout .workspace-tabs.tabs-fade-right {
+    /* 与标签高度（28px）相称的一段宽度：看得出是「淡出去」，而不是被硬裁掉 */
+    --tabs-fade: 32px;
+}
+
+/* 「返回」在场时，左端还要多让一格：标签向左滚会滑到那枚按钮底下。
+   按钮平时没有底色（只在悬停时亮一下，见下面那段），标签从图标旁边露出来，
+   看着就像「标签盖住了返回」，悬停时那片底色又被标签压得看不清。
+   因此左端渐隐整体右移到按钮之后：按钮右沿在 --tabs-back-slot - 6px 处
+   （左边距 6px + 宽 28px，见下面那段），那里起手透明，再往右用同样的
+   --tabs-fade-left 收满——它 0px 时两个端点并列在按钮右沿，就是那一刀切。
+   --tabs-back-slot 同时是标签栏为「返回」让出的那一格（padding-left），
+   标签未滚动时就排在它上面，所以这段渐隐只切滚动过来的标签，不会削到第一个标签的左边。
+   这一档只在「返回」在场时叠上去（判定与上面那条 padding-left 同源）：
+   没打开编辑器时左端 8px 起就能排标签，那时用上面那条不带偏移的 */
+html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .workspace-tabs {
+    -webkit-mask-image: linear-gradient(to right,
+        transparent calc(var(--tabs-back-slot) - 6px),
+        #000 calc(var(--tabs-back-slot) - 6px + var(--tabs-fade-left)),
+        #000 calc(100% - var(--tabs-fade)),
+        transparent 100%);
+    mask-image: linear-gradient(to right,
+        transparent calc(var(--tabs-back-slot) - 6px),
+        #000 calc(var(--tabs-back-slot) - 6px + var(--tabs-fade-left)),
+        #000 calc(100% - var(--tabs-fade)),
+        transparent 100%);
+}
+
+/* 设置页是整屏铺开的（侧边栏与笔记列表都让位，工作区连同它的标签栏在那里不占位），
+   那里仍靠分类侧边栏顶部的「返回」离开，见下面那段 */
+
+/* ---------------- 标签栏最左侧的「返回」 ----------------
+   现代布局的「返回」只有这一枚：它不占编辑器顶栏，而是钉在工作区标签栏的最左端，
+   并且只留图标（文字交给 title 提示）：自己一层盖在标签栏左端让出来的那一格上
+   （标签栏的 padding-left 从 8px 涨到 40px），两者共用同一条过渡——
+   编辑器打开时图标从左侧滑入、标签同时向右让位，关掉编辑器时原路滑出。
+   只在编辑器打开时出现（:has 判定编辑器顶栏有没有被收起）；经典布局下不显示。
+   位置与侧边栏收起与否无关——顶栏里不再另备一枚，免得收起侧边栏时「返回」
+   在两处之间跳（那一枚带文字的老长相已随这次改动去掉）。
+   标签栏被「禁用标签页」整条收起时，这一格正好落在编辑器顶栏上，由顶栏让出 40px（见下面那段）。 */
+/* 「返回」占下的那一格：标签栏左端的 padding-left、标签栏左端的遮罩（见上面「标签栏两端的遮罩」）
+   与「禁用标签页」时编辑器顶栏让出的那一格，三处都跟着这一个值走，不再各写一遍 */
+html.modern-layout {
+    --tabs-back-slot: 40px;
+}
+.tabs-back {
+    display: none;
+}
+html.modern-layout .tabs-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    /* 收起态：往左让出一点并淡下去，同时不再接收点击 */
+    opacity: 0;
+    transform: translateX(-6px);
+    pointer-events: none;
+    /* 浮在标签栏与空状态之上（空状态 z-index: 10，见 styles/editor.css），滑出时不会被盖住；
+       它就压在标签栏这个拖动区上，因此自己标回 no-drag */
+    z-index: 12;
+    -webkit-app-region: no-drag;
+    transition: opacity var(--motion-base) var(--ease-out),
+                transform var(--motion-base) var(--ease-out),
+                background-color 0.15s, color 0.15s;
+}
+html.modern-layout .tabs-back:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+/* 编辑器打开：图标滑入，标签栏左端同时让出那一格 */
+html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .tabs-back {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .workspace-tabs {
+    padding-left: var(--tabs-back-slot);
+}
+
+/* ---------------- 笔记列表表头与工作区顶部那一段对齐 ----------------
+   笔记列表的表头（搜索框 + 「全部内容 / 排序」那一行）自带一条底边线；现代布局里工作区
+   顶部是标签栏与编辑器顶栏两行，两条底边线分别落在各自那一行的末尾，于是会在中间那条
+   竖线上错开十几像素，接缝处看着像一个缺口。
+   这里把表头的最小高度定成「标签栏 + 编辑器顶栏」那么高（顶栏 40px，见 styles/editor.css），
+   行内信息再用 space-between 压到表头下沿：两条横线于是落在同一条水平线上，与竖线交成十字。 */
+html.modern-layout .notes-panel-header {
+    min-height: calc(var(--modern-tabs-height) + 40px);
+    justify-content: space-between;
+}
+/* 标签栏收起时，工作区顶部只剩编辑器顶栏一行，表头那两行内容塞不进 40px：
+   这时索性不画表头的底边线，免得又留下一段对不齐的横线 */
+html.modern-layout.tabs-disabled .notes-panel-header {
+    border-bottom-color: transparent;
+}
+
 /* 拖动窗口改由几处留白承担：编辑器顶栏里的空闲段（文件夹 / 标签之后，以及右侧按钮组自身的间距；
-   注意不能把整条 .editor-topbar 做成拖动区——它一直伸到悬浮按钮下面，
-   那样会把右上角那排按钮的点击吃掉）、笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、
+   只由 .editor-meta / .editor-actions 这两块子区域承担，整条 .editor-topbar 不参与）、
+   笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、
+   工作区顶部的标签栏与标签之外的留白（见上面那段）、
    设置页的标题区与分类侧边栏（留白部分）、空状态的工作区（见下面的 .empty-drag-surface）、
    AI 面板顶部那条空白（见下面 .ai-panel-drag-strip）与面板顶栏，以及侧边栏「新建」周围的留白。
    这些区域里的控件单独标回 no-drag，点击行为不受影响。
 
    一条硬约束：拖动区一律不能伸到悬浮按钮下面——两者重叠时按钮的点击会被拖动区吞掉，
-   表现就是「右上角那排按钮点不动」。因此编辑器顶栏与设置内容区各自让出右侧 280px
-   （即悬浮按钮组的宽度），面板顶部那条空白与空状态的拖动层也都在按钮之外截断。 */
-html.notab-mode .editor-meta,
-html.notab-mode .editor-actions,
-html.notab-mode .notes-panel-header,
-html.notab-mode .settings-header,
-html.notab-mode .settings-sidebar,
-html.notab-mode .sidebar-action-wrap {
+   表现就是「右上角那排按钮点不动」。因此与按钮同处一行的标签栏、以及从窗口上沿开始滚动的
+   设置内容区各自让出右侧 280px（即悬浮按钮组的宽度），面板顶部那条空白与空状态的拖动层
+   也都在按钮之外截断。（编辑器顶栏排在标签栏下面一行，与按钮没有重叠，不必让。） */
+html.modern-layout .editor-meta,
+html.modern-layout .editor-actions,
+html.modern-layout .notes-panel-header,
+html.modern-layout .settings-header,
+html.modern-layout .settings-sidebar,
+html.modern-layout .sidebar-action-wrap {
     -webkit-app-region: drag;
 }
-/* no-drag 是「抠洞」语义：把这些控件从上面的拖动区里挖出来，它们照常接收点击 */
-html.notab-mode .editor-meta > *,
-html.notab-mode .editor-view-modes,
-html.notab-mode .notes-panel-header .search-box,
-html.notab-mode .notes-panel-header .dropdown,
-html.notab-mode .settings-sidebar .settings-back,
-html.notab-mode .settings-sidebar .settings-nav-item,
-html.notab-mode .sidebar-action-wrap .btn-sidebar-new {
+/* no-drag 是「抠洞」语义：把这些控件从上面的拖动区里挖出来，它们照常接收点击。
+   标签本身（.tab-item）的 no-drag 与标题栏里那份同源，见 styles/base.css */
+html.modern-layout .editor-meta > *,
+html.modern-layout .editor-view-modes,
+html.modern-layout .notes-panel-header .search-box,
+html.modern-layout .notes-panel-header .dropdown,
+html.modern-layout .settings-sidebar .settings-back,
+html.modern-layout .settings-sidebar .settings-nav-item,
+html.modern-layout .sidebar-action-wrap .btn-sidebar-new {
     -webkit-app-region: no-drag;
 }
 /* 浮层同样要从拖动区里挖出来，而且最容易漏——「新建」菜单、下拉列表与右键菜单都挂在 <body> 下，
    弹出位置跟着触发按钮走，正好会落进拖动区（空状态的工作区、笔记列表顶部的搜索栏那一行）。
    拖动区判定的是一张矩形并集，浮层浮在上面也照样被吞掉点击，表现就是
-   「菜单弹得出来、选项却点不动」，也就是无Tab模式下点「新建」后新建不了笔记或待办。
+   「菜单弹得出来、选项却点不动」，也就是现代布局下点「新建」后新建不了笔记或待办。
    三个浮层的 z-index 都高于各自的拖动区（见 dropdown.css / overlays.css），
    因此这次回扣一定排在并集之后，稳稳生效。 */
-html.notab-mode .dropdown-menu,
-html.notab-mode .context-menu {
+html.modern-layout .dropdown-menu,
+html.modern-layout .context-menu {
     -webkit-app-region: no-drag;
 }
 
 /* 空状态的工作区：拖动区由 #empty-state 里的 .empty-drag-surface 承担（见 main.html）。
    铺在图标 / 文字 / 按钮之下（按钮自己的 no-drag 见 styles/base.css），
    铺不到的「新建」菜单则靠上面那条 .dropdown-menu 规则；整列让开右侧 280px 后，
-   即便此刻没有任何条目打开，右上角的悬浮按钮也不会被拖动区抢走点击。 */
-html.notab-mode .empty-drag-surface {
+   即便此刻没有任何条目打开，右上角的悬浮按钮也不会被拖动区抢走点击。
+   上沿由 --modern-drag-top 决定：标签栏那一行还在时（打开过标签、只是退回了笔记列表）
+   必须让出那一行——拖动区判定的是一张矩形并集，这块空白后出现、又盖到那一行上，
+   就会把标签自己一起并进拖动区，表现就是「在空状态里点标签没反应」，
+   也就是退出当前编辑后再也回不去任何一个标签；
+   而标签栏整条收起时（一个标签都没有）那一行没有标签可抢，上沿归零，
+   拖动层直接顶到窗口上沿，填掉那条本来没人接的 40px */
+html.modern-layout .empty-drag-surface {
     display: block;
     position: absolute;
-    inset: 0 280px 0 0;
+    inset: var(--modern-drag-top) 280px 0 0;
     z-index: -1;
     -webkit-app-region: drag;
 }
 
-/* 悬浮按钮组占住右上角约 270px 宽、40px 高的一条（4 个工具按钮 + 3 个窗口按钮）：
-   编辑器顶栏与设置内容各让出右侧 280px，免得那排「编辑 / 分屏 / 预览」与置顶 / 导出 / 删除
-   被压在下面点不到。
-   这条留白会随 AI 面板开关在 280px / 16px 之间切换（见下面的 :has 规则），
-   过渡一下让顶栏那排按钮跟着面板一起滑，而不是在面板收完之后整排平移过去。
-   只过渡这一个属性——顶栏本身是拖动区，多带属性容易在无Tab模式里出岔子 */
-html.notab-mode .editor-topbar {
-    padding-right: 280px;
-    transition: padding-right var(--motion-slow) cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-html.notab-mode .settings-view .settings-content {
+/* 悬浮按钮组占住右上角约 270px 宽、40px 高的一条（4 个工具按钮 + 3 个窗口按钮）。
+   这一条正好落在工作区顶部的标签栏那一行（见上面那段），所以只有标签栏需要让出右侧走廊；
+   编辑器顶栏已经排到标签栏下面一行，与按钮再无纵向重叠，不必再空出 280px——
+   它只把左右内边距各收到 8px（见下），那排「编辑 / 分屏 / 预览」（以及待办才有的完成开关）
+   因此能一直排到工作区右沿。
+   设置内容区仍要让出走廊：它是从窗口上沿开始滚动的，滚到顶时第一屏就落在按钮下面。 */
+html.modern-layout .settings-view .settings-content {
     /* 上内边距挪到标题区（见下）：标题区本身就是拖动区，
        这样从窗口顶部开始就能拖，而不是只有下面那一条文字带 */
     padding-top: 0;
     padding-right: 280px;
 }
-html.notab-mode .settings-view .settings-header {
+html.modern-layout .settings-view .settings-header {
     /* 接过内容区原本的 32px 上内边距：视觉效果不变，但这块空白现在归标题区，可以拖动窗口 */
     padding-top: 32px;
 }
-/* 全屏时窗口按钮不显示（见 base.css），走廊收窄到工具按钮组那么宽 */
-html.notab-mode body.is-fullscreen .editor-topbar {
+/* 编辑器顶栏的左右内边距都收到 8px：右侧那组控件（视图切换，以及仅待办可见的完成开关）
+   与上面标签栏的内边距对齐（标签栏最右那个标签同样停在右沿 8px 处），
+   左侧的文件夹 / 标签也跟着站到同一条 8px 缩进上（与标签栏、侧边栏、设置页条目同一套节奏）。
+   经典布局里顶栏上面没有这条标签栏，所以这一档只在现代布局下收。 */
+html.modern-layout .editor-topbar {
+    padding: 0 8px;
+}
+/* 但「禁用标签页」打开后，顶栏就顶到了悬浮按钮那一行（它上面那一条已经收起来了）：
+   右侧得重新让出走廊，否则这一行本身就是拖动区，会把右上角那排按钮的点击吞掉——
+   那排「编辑 / 分屏 / 预览」也会被压在按钮下面。
+   AI 面板打开时右侧那段本就归面板所有，走廊随之取消（同下面那条 :has 规则） */
+html.modern-layout.tabs-disabled .editor-topbar {
+    padding-right: 280px;
+    transition: padding-right var(--motion-slow) var(--ease-out),
+                padding-left var(--motion-base) var(--ease-out);
+}
+/* 标签栏收起时，那一格落在编辑器顶栏的左侧（见上面那段），顶栏同样让出 40px；
+   编辑器顶栏显示时「返回」必然也显示，因此这里不必再判一次。
+   侧边栏收起与否也不必再判：现在只有标签栏那一枚「返回」，位置不跟着侧边栏走 */
+html.modern-layout.tabs-disabled .editor-topbar {
+    padding-left: var(--tabs-back-slot);
+}
+html.modern-layout.tabs-disabled body.is-fullscreen .editor-topbar {
     padding-right: 146px;
 }
-html.notab-mode body.is-fullscreen .settings-view .settings-content {
+html.modern-layout.tabs-disabled .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .editor-topbar {
+    padding-right: 16px;
+}
+/* 全屏时窗口按钮不显示（见 base.css），走廊收窄到工具按钮组那么宽；
+   同时像标题栏那样禁用拖动区，免得在无边框全屏里误拖 */
+html.modern-layout body.is-fullscreen .settings-view .settings-content {
     padding-right: 146px;
+}
+html.modern-layout body.is-fullscreen .workspace-tabs {
+    margin-right: 146px;
+    -webkit-app-region: no-drag;
 }
 
 /* AI 面板贴着工作区右侧（360px 宽），悬浮按钮组正好压在它的 40px 顶栏上，
@@ -121,50 +370,51 @@ html.notab-mode body.is-fullscreen .settings-view .settings-content {
    （.ai-panel-drag-strip，见 main.html），把面板顶栏让到按钮下面，这块空白本身也能拖窗口。
    宽度上要停在悬浮按钮组的左沿（面板宽 360 - 按钮组宽 270）：
    这条空白是拖动区，再往右伸就会钻到按钮下面，把那排按钮的点击吞掉。 */
-html.notab-mode .ai-panel-drag-strip {
+html.modern-layout .ai-panel-drag-strip {
     display: block;
     margin-right: 270px;
     -webkit-app-region: drag;
 }
 /* 全屏时窗口按钮不显示（见 base.css），按钮组只剩工具按钮那 138px，空白可以放宽一些 */
-html.notab-mode body.is-fullscreen .ai-panel-drag-strip {
+html.modern-layout body.is-fullscreen .ai-panel-drag-strip {
     margin-right: 138px;
 }
 /* 面板顶栏（40px 高，在悬浮按钮下面一层）整条都能拖，按钮单独标回 no-drag */
-html.notab-mode .ai-panel-header {
+html.modern-layout .ai-panel-header {
     -webkit-app-region: drag;
 }
-html.notab-mode .ai-panel-header .btn-action-icon {
+html.modern-layout .ai-panel-header .btn-action-icon {
     -webkit-app-region: no-drag;
 }
 /* 对话记录抽屉原本从面板顶栏下方展开（top: 40px，见 ai.css）：面板里多出这条 40px 拖动空白后，
    顶栏整体下移，抽屉的起点也要跟着下移，否则会盖住顶栏那排按钮 */
-html.notab-mode .ai-drawer {
+html.modern-layout .ai-drawer {
     top: 80px;
 }
 
 /* 面板打开时，窗口右侧那 360px 已经归面板所有，悬浮按钮组整组落在面板上方，
-   编辑器顶栏与空状态拖动层都不必再让出走廊——否则顶栏右侧那 280px 空白会让
-   文件夹 / 标签之外的拖动区被挤没，表现就是「开了 AI 之后窗口拖不动」。
-   两者都在右侧且面板比按钮组宽，让出走廊反而多余。
+   工作区标签栏与空状态拖动层都不必再让出走廊——否则标签栏右侧那 280px 空白会让
+   标签之外的拖动区被挤没，表现就是「开了 AI 之后窗口拖不动」。
+   两者都在右侧且面板比按钮组宽，让出走廊反而多余。（编辑器顶栏本来就不让，见上面那段。）
 
    判定条件带上 :not(.ai-collapsed)：AI 面板的收起 / 展开是 0.26s 的宽度过渡
    （见 styles/ai.css），过渡期间面板还占着宽度、却比按钮组窄。这段路上若已经
    按「面板已铺开」处理，拖动层就会伸到悬浮按钮下面把那排按钮的点击吞掉；
    等到过渡真走完（.ai-collapsed 被摘掉）再切，既没有这段危险窗口，
-   顶栏留白也能和面板宽度同一拍变化。 */
-html.notab-mode .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .editor-topbar {
-    padding-right: 16px;
+   标签栏留白也能和面板宽度同一拍变化。 */
+html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .workspace-tabs {
+    margin-right: 16px;
 }
-html.notab-mode .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-drag-surface {
-    inset: 0;
+html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-drag-surface {
+    /* 走廊取消，但上沿照旧跟着标签栏走（见 --modern-drag-top） */
+    inset: var(--modern-drag-top) 0 0 0;
 }
 
 /* ---------------- 应用名与「新建」按钮 ----------------
-   标题栏没了，应用名移到侧边栏顶部（标准模式下仍留在标题栏，这里不显示）。
+   标题栏没了，应用名移到侧边栏顶部（经典布局下仍留在标题栏，这里不显示）。
    应用名与「新建」按钮并排一行：名字在左靠边，按钮顶到最右边、收成一个正方形只留加号。
    字号、字重与颜色跟标题栏里的那份保持一致，颜色同样由设置页的「应用名颜色」决定。
-   无Tab模式里应用名只是展示、不可点击（退出编辑改由编辑器顶栏的「返回」承担），
+   现代布局里应用名只是展示、不可点击（退到笔记列表改由标签栏最左端的「返回」承担），
    因此没有悬停 / 按下反馈；这一行里按钮之外的留白都可用于拖动窗口。 */
 .sidebar-brand {
     display: none;
@@ -176,7 +426,7 @@ html.notab-mode .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-
     padding: 4px 6px;
     margin-bottom: 6px;
 }
-html.notab-mode .sidebar-brand {
+html.modern-layout .sidebar-brand {
     display: block;
     /* 与「新建」按钮同处一行，纵向对齐交给 .sidebar-action-wrap，不再往下留白 */
     margin-bottom: 0;
@@ -187,7 +437,7 @@ html.notab-mode .sidebar-brand {
     text-overflow: ellipsis;
 }
 /* 侧边栏顶部这一块改成横向排布：应用名在左，「新建」按钮顶到这一行的最右边 */
-html.notab-mode .sidebar-action-wrap {
+html.modern-layout .sidebar-action-wrap {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -195,7 +445,7 @@ html.notab-mode .sidebar-action-wrap {
     padding: 8px;
 }
 /* 「新建」按钮收成正方形：不再撑满侧边栏宽度，也不跟名字抢空间 */
-html.notab-mode .sidebar-action-wrap .btn-sidebar-new {
+html.modern-layout .sidebar-action-wrap .btn-sidebar-new {
     flex-shrink: 0;
     width: 28px;
     height: 28px;
@@ -203,12 +453,12 @@ html.notab-mode .sidebar-action-wrap .btn-sidebar-new {
     padding: 0;
 }
 /* 方形按钮里只留加号，文字「新建」交给 title 提示 */
-html.notab-mode .sidebar-action-wrap .nav-text {
+html.modern-layout .sidebar-action-wrap .nav-text {
     display: none;
 }
-/* 加号平时是绝对定位在按钮左内侧、透明的（标准模式收起侧边栏时才淡入），
+/* 加号平时是绝对定位在按钮左内侧、透明的（经典布局收起侧边栏时才淡入），
    这里让它回到常规流中：按钮本身就是居中排布，加号自然落在正中间 */
-html.notab-mode .sidebar-action-wrap .btn-new-note-icon {
+html.modern-layout .sidebar-action-wrap .btn-new-note-icon {
     position: static;
     transform: none;
     opacity: 1;
@@ -221,13 +471,24 @@ html.sidebar-collapsed .sidebar .sidebar-action-wrap {
     justify-content: center;
 }
 
-/* ---------------- 设置页的返回入口 ----------------
-   标准模式靠标签栏离开设置页；无Tab模式没有标签栏，因此在设置页左侧的分类侧边栏顶部
+/* ---------------- 设置页里的「禁用标签页」 ----------------
+   这一档只属于现代布局：经典布局的标签栏归标题栏所有，藏不藏由标题栏决定。
+   因此整行随布局显隐，经典布局里不排出来，免得给出一个按下去没反应的开关 */
+.settings-row-modern-only {
+    display: none;
+}
+html.modern-layout .settings-row-modern-only {
+    display: flex;
+}
+
+/* ---------------- 设置页与编辑器顶栏的返回入口 ----------------
+   标题栏没了，标签栏又跟着搬到了工作区顶部，而设置页是整屏铺开的（侧边栏与笔记列表都让位，
+   工作区连同它的标签栏在那里不占位），因此在设置页左侧的分类侧边栏顶部
    补一个返回按钮（与分类条目同一套视觉语言，放在「设置」标题栏下方第一条的位置） */
 .settings-back {
     display: none;
 }
-html.notab-mode .settings-back {
+html.modern-layout .settings-back {
     display: flex;
     align-items: center;
     /* 基础 button 样式是居中排布，这里要显式靠左（与分类条目同一套对齐方式） */
@@ -241,39 +502,26 @@ html.notab-mode .settings-back {
     font-size: 12.5px;
     transition: background-color 0.15s, color 0.15s;
 }
-html.notab-mode .settings-back:hover {
+html.modern-layout .settings-back:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
 }
 
-/* ---------------- 编辑器顶栏的返回 ----------------
-   无Tab模式没有标签栏，「关掉当前标签」这个动作也就不存在了：退出当前编辑改由编辑器顶栏左侧
-   （文件夹选择之前）的返回按钮承担。只把按钮本身左移 8px（连同悬停高亮一起），
-   让它与侧边栏 8px 的缩进对齐，后面的文件夹选择与标签仍留在顶栏原本的 16px 位置，不受影响。 */
-.editor-back {
-    display: none;
-}
-html.notab-mode .editor-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    height: 26px;
-    margin-left: -8px;
-    padding: 0 8px 0 6px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-size: 12.5px;
-    transition: background-color 0.15s, color 0.15s;
-}
-html.notab-mode .editor-back:hover {
-    background-color: var(--item-hover);
-    color: var(--text-primary);
-}
+/* ---------------- 编辑器顶栏不再有「返回」 ----------------
+   经典布局靠标签栏离开当前内容；现代布局的标签栏虽然还在（只是搬到了工作区顶部），
+   但它只管切换内容，退回笔记列表这个动作由「返回」承担。
+   从前侧边栏收起时它会回到顶栏里那一枚（图标 + 文字）、与标签栏最左端那枚纯图标显隐互斥，
+   于是同一个动作有两个入口、收起侧边栏时还要在两处之间跳；
+   现在统一只用标签栏最左端那一枚（见上面那段，标签栏收起时它落在顶栏同一格上），
+   顶栏左侧的文件夹 / 标签因此从 8px 那一条缩进直接起排，老位置不再留空。 */
 
-/* 动效偏好：顶栏留白那条过渡只是为了让按钮跟着 AI 面板一起滑，
-   系统开启「减少动态效果」时去掉——面板本身也会瞬间到位（见 styles/ai.css） */
+/* 动效偏好：几条留白过渡只是为了让标签与按钮跟着 AI 面板一起滑、
+   或让「返回」图标滑进滑出，系统开启「减少动态效果」时去掉——
+   面板本身也会瞬间到位（见 styles/ai.css） */
 @media (prefers-reduced-motion: reduce) {
-    html.notab-mode .editor-topbar {
+    html.modern-layout .workspace-tabs,
+    html.modern-layout .tabs-back,
+    html.modern-layout.tabs-disabled .editor-topbar {
         transition: none !important;
     }
 }

@@ -51,7 +51,7 @@
 
 /* 打开一篇笔记时，顶栏 → 工具栏 → 标题 → 正文 → 状态栏依次淡入（每级差 20~30ms），
    像「这篇笔记被展开」而不是整块瞬移。
-   注意 .editor-topbar 只做透明度：无Tab模式下它本身就是窗口拖动区（见 styles/mode.css），
+   注意 .editor-topbar 只做透明度：现代布局下它本身就是窗口拖动区（见 styles/mode.css），
    带上位移会让拖动区域的判定跟着动画漂。 */
 .editor-topbar {
     animation: fadeIn var(--motion-base) var(--ease-out);
@@ -69,7 +69,7 @@
     animation: fadeIn var(--motion-base) var(--ease-out) 90ms backwards;
 }
 
-/* 空状态：整块淡入（同样只做透明度——无Tab模式下它的拖动层铺满整个工作区），图标单独浮现一下 */
+/* 空状态：整块淡入（同样只做透明度——现代布局下它的拖动层铺满整个工作区），图标单独浮现一下 */
 #empty-state {
     animation: fadeIn var(--motion-slow) var(--ease-out);
 }

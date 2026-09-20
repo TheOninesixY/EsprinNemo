@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="./styles/alom.css">
     <!-- 圆角尺度：按设置中的选择把 --radius-* 令牌换算成最终圆角，需排在其它风格之后 -->
     <link rel="stylesheet" href="./styles/radius.css">
-    <!-- 使用模式：无Tab模式（<html class="notab-mode">）下去掉标题栏与标签栏，入口悬浮到右上角 -->
+    <!-- 界面布局：现代布局（<html class="modern-layout">）下去掉标题栏，标签页移到工作区顶部，入口悬浮到右上角 -->
     <link rel="stylesheet" href="./styles/mode.css">
     <!-- 动效层：进场动画与换肤交叉淡入。需排在所有组件样式之后：它只补动效，
          静默状态的外观仍由上面的各文件决定（令牌见 tokens.css 的 --motion-* / --ease-*） -->
@@ -34,7 +34,8 @@
             <!-- App Name Brand（点击可关闭全部标签页回到首页） -->
             <div class="titlebar-brand" id="app-brand" title="回到首页">EsprinNemo</div>
 
-            <!-- Tabs container stretching to the new note button -->
+            <!-- Tabs container stretching to the new note button；现代布局的标签页在工作区顶部
+                 （#workspace-tabs），这一个只在经典布局下渲染，见 scripts/render.js 的 renderTabs -->
             <div class="titlebar-tabs" id="titlebar-tabs"></div>
 
             <!-- Action buttons in titlebar -->
@@ -74,10 +75,10 @@
             <!-- Left Sidebar Navigation -->
             <aside class="sidebar" id="app-sidebar">
                 <!-- Top New Button in Sidebar：点击后在按钮下方展开「新建笔记 / 新建待办」菜单。
-                     无Tab模式下应用名（.sidebar-brand）与这个按钮并排一行：名字在左、按钮靠最右，
+                     现代布局下应用名（.sidebar-brand）与这个按钮并排一行：名字在左、按钮靠最右，
                      按钮收成只带加号的正方形（见 styles/mode.css）。 -->
                 <div class="sidebar-action-wrap">
-                    <!-- 应用名：仅无Tab模式显示（标题栏在该模式下被移除），纯展示、不可点击，
+                    <!-- 应用名：仅现代布局显示（标题栏在该布局下被移除），纯展示、不可点击，
                          与「新建」按钮同一行；侧边栏收起时连同按钮一起收成加号 -->
                     <div class="sidebar-brand" id="sidebar-brand">EsprinNemo</div>
                     <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记或待办 (Ctrl+N / Ctrl+Shift+N)">
@@ -178,10 +179,23 @@
 
             <!-- Right Workspace / Editor -->
             <main class="workspace" id="workspace-box">
+                <!-- 现代布局的标签页：经典布局里标签页归标题栏所有，这里不显示（见 styles/mode.css）。
+                     工作区这一列从窗口上沿开始，因此这一条标签页正好落在笔记列表搜索栏那一行；
+                     两个容器同时存在，scripts/render.js 只往当前布局的那一个里渲染，
+                     没有打开任何标签时整条收起（:empty） -->
+                <div class="workspace-tabs" id="workspace-tabs"></div>
+
+                <!-- 现代布局的「返回」只有这一枚，挂在标签页最左侧（只留图标，见 styles/mode.css）：
+                     它自己一层盖在标签页左端让出来的一格上，编辑器打开时滑入、关掉时滑出，
+                     与侧边栏收起与否无关（标签栏被「禁用标签页」收起时它落在编辑器顶栏同一格上） -->
+                <button class="tabs-back" id="btn-tabs-back" title="返回笔记列表">
+                    <span class="ms-icon sm">arrow_back</span>
+                </button>
+
                 <!-- Empty Placeholder Screen -->
                 <div class="empty-placeholder" id="empty-state">
-                    <!-- 无Tab模式的窗口拖动区：一块不可见的空白，铺在下面的图标 / 文字 / 按钮之下，
-                         并整列避开右上角的悬浮按钮（只有该模式显示，见 styles/mode.css） -->
+                    <!-- 现代布局的窗口拖动区：一块不可见的空白，铺在下面的图标 / 文字 / 按钮之下，
+                         并整列避开右上角的悬浮按钮（只有该布局显示，见 styles/mode.css） -->
                     <div class="empty-drag-surface" aria-hidden="true"></div>
                     <span class="ms-icon">edit_note</span>
                     <p>选择一篇笔记或一项待办，或新建</p>
@@ -190,12 +204,9 @@
 
                 <!-- Workspace Topbar -->
                 <div class="editor-topbar" id="editor-topbar">
+                    <!-- 顶栏里不再有「返回」：退回笔记列表统一走标签栏最左端那一枚
+                         （#btn-tabs-back，见上），侧边栏收起时也不换地方（见 styles/mode.css） -->
                     <div class="editor-meta">
-                        <!-- 无Tab模式没有标签栏，靠这个按钮退出当前编辑（标准模式下不显示） -->
-                        <button class="editor-back" id="btn-editor-back" title="退出编辑，回到笔记列表">
-                            <span class="ms-icon xs">arrow_back</span>
-                            <span>返回</span>
-                        </button>
                         <select class="select-folder" id="editor-folder-select"></select>
                         <div class="note-tags-container" id="editor-tags-container"></div>
                         <button class="btn-action-icon" id="btn-add-tag" title="添加标签">
@@ -203,8 +214,10 @@
                         </button>
                     </div>
 
-                    <!-- 视图切换与置顶 / 导出 / 删除：无Tab模式下这一行本身就是拖动窗口的留白，
-                         按钮与分段控件单独抠回 no-drag（见 styles/mode.css） -->
+                    <!-- 视图切换与待办完成开关：现代布局下这一行本身就是拖动窗口的留白，
+                         按钮与分段控件单独抠回 no-drag（见 styles/mode.css）。
+                         置顶 / 导出 / 移入废纸篓（废纸篓里的恢复 / 彻底删除）都在条目右键菜单里，
+                         顶栏不再各留一个按钮（见 scripts/context_menu.js） -->
                     <div class="editor-actions">
                         <div class="editor-view-modes">
                             <button class="view-btn active" id="btn-mode-edit">编辑</button>
@@ -212,20 +225,9 @@
                             <button class="view-btn" id="btn-mode-preview">预览</button>
                         </div>
 
-                        <div class="window-controls-divider"></div>
-
                         <!-- 待办：标记完成 / 取消完成（仅待办条目可见） -->
                         <button class="btn-action-icon hidden" id="btn-todo-done" title="标记为已完成">
                             <span class="ms-icon sm">radio_button_unchecked</span>
-                        </button>
-                        <button class="btn-action-icon" id="btn-note-pin" title="固定笔记">
-                            <span class="ms-icon sm">push_pin</span>
-                        </button>
-                        <button class="btn-action-icon" id="btn-note-export-md" title="导出 Markdown (.md)">
-                            <span class="ms-icon sm">file_download</span>
-                        </button>
-                        <button class="btn-action-icon" id="btn-note-trash" title="放入废纸篓">
-                            <span class="ms-icon sm">delete</span>
                         </button>
                     </div>
                 </div>
@@ -277,7 +279,7 @@
 
             <!-- 4. AI 助手：贴在工作区右侧的问答面板（标题栏按钮开关） -->
             <aside class="ai-panel hidden" id="ai-panel">
-                <!-- 无Tab模式的窗口拖动区：踮在面板顶栏上方的空白（只有该模式显示，见 styles/mode.css），
+                <!-- 现代布局的窗口拖动区：踮在面板顶栏上方的空白（只有该布局显示，见 styles/mode.css），
                      高度与悬浮按钮组一致，同时也把面板顶栏让到按钮下方 -->
                 <div class="ai-panel-drag-strip" aria-hidden="true"></div>
                 <div class="ai-panel-header">
@@ -371,7 +373,8 @@
             <div class="settings-view hidden" id="settings-view">
                 <!-- 设置分类导航（条目由 SETTINGS_CATEGORIES 在 initSettingsNav 中生成） -->
                 <aside class="settings-sidebar">
-                    <!-- 无Tab模式没有标签栏，靠这个按钮回到笔记列表（标准模式下不显示） -->
+                    <!-- 现代布局下的设置页是整屏铺开的（侧边栏与笔记列表都让位，工作区连同它的标签页也不占位），
+                         靠这个按钮回到笔记列表（经典布局下不显示） -->
                     <button class="settings-back" id="btn-settings-back" title="返回笔记列表">
                         <span class="ms-icon xs">arrow_back</span>
                         <span>返回</span>
@@ -421,17 +424,30 @@
 
                     <!-- 分类：外观与主题色 -->
                     <div class="settings-panel hidden" data-settings-panel="appearance">
-                        <!-- 使用模式：原先单独一个分类，现收成一个开关放进这里。
-                             开关只切 <html> 上的类名，其余排布全由 styles/mode.css 承担 -->
+                        <!-- 界面布局（默认现代布局）：原先单独一个分类，现收成一个下拉放进这里。
+                             选择只切 <html> 上的类名，其余排布全由 styles/mode.css 承担 -->
                         <div class="settings-section">
-                            <div class="settings-section-title">使用模式</div>
+                            <div class="settings-section-title">界面布局</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
-                                    <span class="settings-row-label">无Tab模式</span>
-                                    <span class="settings-row-desc">去掉标题栏与标签栏</span>
+                                    <span class="settings-row-label">布局风格</span>
+                                    <span class="settings-row-desc">现代布局去掉标题栏、标签页移到工作区顶部；经典布局保留标题栏</span>
+                                </div>
+                                <select class="settings-select" id="setting-ui-mode">
+                                    <option value="modern">现代布局</option>
+                                    <option value="classic">经典布局</option>
+                                </select>
+                            </div>
+                            <!-- 「禁用标签页」只属于现代布局：整行随布局显隐（.settings-row-modern-only，
+                                 见 styles/mode.css），经典布局里不排出来，
+                                 免得给出一个按下去没反应的开关 -->
+                            <div class="settings-row settings-row-modern-only">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">禁用标签页</span>
+                                    <span class="settings-row-desc">把工作区顶部的标签页整条收起；标签仍然保留，关掉这个开关就回来（默认开启）</span>
                                 </div>
                                 <label class="switch">
-                                    <input type="checkbox" id="setting-notab-mode">
+                                    <input type="checkbox" id="setting-tabs-disabled">
                                     <span class="slider"></span>
                                 </label>
                             </div>

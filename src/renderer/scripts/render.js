@@ -309,9 +309,45 @@ function renderTags() {
     });
 }
 
-// Titlebar Tabs (Extends up to the new note button, mouse wheel over container scrolls horizontally)
+// 标签页的落点随布局走：经典布局在标题栏里（#titlebar-tabs），现代布局在工作区顶部那一行
+// （#workspace-tabs，见 main.html 与 styles/mode.css）。两个容器都在，渲染时只往当前布局的那个里写
+function tabsContainerId() {
+    return isModernLayout() ? 'workspace-tabs' : 'titlebar-tabs';
+}
+
+/* 标签栏两端的渐隐：标签排不下时两端淡出去，替藏起来的滚动条把「还能往哪边滚」提示出来
+   （样式只对现代布局的标签栏生效，见 styles/mode.css）。
+   两个类名只在对应的那一侧「确实还有被截断的标签」时挂上——标签根本没排满、
+   或已经滚到那一端时摘掉，否则最边上的标签会被白白削掉一角。
+   判定要跟着滚动位置与容器宽度走；宽度不只由窗口决定，AI 面板开合、侧边栏收起、
+   切布局都会改动它（见 styles/mode.css 里那几条 margin-right），因此宽度一侧交给
+   ResizeObserver 一并接住，省得在那些地方各补一次调用。 */
+const TABS_FADE_RIGHT_CLASS = 'tabs-fade-right';
+const TABS_FADE_LEFT_CLASS = 'tabs-fade-left';
+// 已绑过监听的容器（两个容器各绑一次，不必每次渲染都重建闭包）
+const tabsFadeObserved = new WeakSet();
+
+function updateTabsFade(container) {
+    if (!container) return;
+    // 留 1px 容差：滚动位置的亚像素误差、面板宽度过渡途中都会让差值停在 0 附近
+    container.classList.toggle(TABS_FADE_LEFT_CLASS, container.scrollLeft > 1);
+    const moreOnRight = container.scrollWidth - container.clientWidth - container.scrollLeft > 1;
+    container.classList.toggle(TABS_FADE_RIGHT_CLASS, moreOnRight);
+}
+
+function bindTabsFade(container) {
+    if (!container || tabsFadeObserved.has(container)) return;
+    tabsFadeObserved.add(container);
+
+    container.addEventListener('scroll', () => updateTabsFade(container));
+    // 容器被整条收起时（一个标签都没有，或设置里开了「禁用标签页」）尺寸归零，
+    // 这里跟着算出「右边没有内容」并摘掉类名，不必另判那两种情形
+    new ResizeObserver(() => updateTabsFade(container)).observe(container);
+}
+
+// Tabs (Extends up to the new note button, mouse wheel over container scrolls horizontally)
 function renderTabs() {
-    const tabsContainer = document.getElementById('titlebar-tabs');
+    const tabsContainer = document.getElementById(tabsContainerId());
 
     // 滚轮横向滚动：只需绑定一次，不必每次渲染都重建闭包
     if (!tabsContainer.onwheel) {
@@ -323,10 +359,14 @@ function renderTabs() {
         };
     }
 
+    // 右端渐隐的监听同样只需绑一次
+    bindTabsFade(tabsContainer);
+
     // 丢弃指向已不存在条目的标签，避免留下打不开的幽灵标签
     State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || !!getItemById(id));
 
-    const signature = `${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
+    // 签名里带上模式：切模式后标签本身没变，也要换到另一个容器里重排一次
+    const signature = `${State.uiMode}\u0001${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
         const item = id === 'settings' ? null : getItemById(id);
         return `${id}\u0002${item ? (item.title || '') : ''}`;
     }).join('\u0001')}`;
@@ -388,8 +428,11 @@ function renderTabs() {
 
         tabsContainer.appendChild(tab);
     });
-}
 
+    // 标签全部挂完后判定一次：新建标签、关标签、切布局都要重新看右端还需不需要淡
+    // （读 scrollWidth 会强制同步一次布局，这里拿到的就是刚排好的宽度）
+    updateTabsFade(tabsContainer);
+}
 // 列表卡片只展示首行摘要，先截断再转义，避免长文档每次都做整篇转义
 const PREVIEW_MAX_LENGTH = 120;
 
@@ -665,16 +708,7 @@ function renderWorkspace() {
         });
     }
 
-    const pinBtn = document.getElementById('btn-note-pin');
-    if (item.isPinned) {
-        pinBtn.querySelector('.ms-icon').classList.add('fill');
-        pinBtn.style.color = 'var(--accent)';
-    } else {
-        pinBtn.querySelector('.ms-icon').classList.remove('fill');
-        pinBtn.style.color = 'var(--text-secondary)';
-    }
-
-    // 待办多一个完成状态开关，非待办条目下隐藏该按钮
+    // 待办多一个完成状态开关，非待办条目下隐藏该按钮（顶栏右侧只剩它一个动作按钮）
     const doneBtn = document.getElementById('btn-todo-done');
     doneBtn.classList.toggle('hidden', !todoItem);
     if (todoItem) {

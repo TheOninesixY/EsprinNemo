@@ -109,8 +109,10 @@ function adoptDataDir(dir, options = {}) {
         accentColor: State.accentColor,
         cornerRadius: State.cornerRadius,
         spellcheck: State.spellcheck,
-        // 使用模式同样属于偏好：新位置没有配置时沿用当前位置的模式
+        // 界面布局同样属于偏好：新位置没有配置时沿用当前位置的布局
         uiMode: State.uiMode,
+        // 「禁用标签页」也是现代布局下的偏好，同样跟着走
+        tabsDisabled: State.tabsDisabled,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
@@ -135,6 +137,7 @@ function adoptDataDir(dir, options = {}) {
         State.cornerRadius = saved.cornerRadius;
         State.spellcheck = saved.spellcheck;
         State.uiMode = saved.uiMode;
+        State.tabsDisabled = saved.tabsDisabled === true;
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.autoUpdate = saved.autoUpdate !== false;
@@ -152,6 +155,7 @@ function adoptDataDir(dir, options = {}) {
         State.cornerRadius = prefs.cornerRadius;
         State.spellcheck = prefs.spellcheck;
         State.uiMode = prefs.uiMode;
+        State.tabsDisabled = prefs.tabsDisabled === true;
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
@@ -199,7 +203,7 @@ function adoptDataDir(dir, options = {}) {
     applySpellcheck();
     applyFonts();
     applySidebarCollapsed();
-    // 使用模式也随新位置的配置走：新位置若选的是无Tab模式，标签栏要跟着收起来
+    // 界面布局也随新位置的配置走：新位置若选的是现代布局，标题栏要跟着收起（标签页改到工作区顶部）
     applyUiMode();
     syncFontSelects();
     syncAccentControls();

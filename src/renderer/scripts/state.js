@@ -24,8 +24,12 @@ const State = {
     // 圆角尺度：square（方）/ slight（微圆角）/ default（默认）/ large（大）
     cornerRadius: 'default',
     spellcheck: false,
-    // 使用模式：standard（全部功能）/ notab（无Tab：不显示标题栏里的标签页，见 scripts/mode.js）
-    uiMode: 'standard',
+    // 界面布局：modern（现代布局：不排标题栏，标签页移到工作区顶部，见 scripts/mode.js）
+    // / classic（经典布局：标题栏与标签页照旧）；现代布局是默认布局
+    uiMode: 'modern',
+    // 现代布局下是否禁用标签页（只属于现代布局：经典布局的标签页归标题栏所有），
+    // 默认关闭，也就是标签页默认开启
+    tabsDisabled: false,
     // 侧边栏是否收起：收起后只保留一条窄条，筛选入口仅显示图标
     sidebarCollapsed: false,
     // 废纸篓自动清理：保留天数，0 表示永不自动清理
@@ -63,20 +67,22 @@ const State = {
     previewTimer: null
 };
 
-// 使用模式（config.json 中的 uiMode 只接受这两个值）
-const UI_MODE_VALUES = ['standard', 'notab'];
+// 界面布局（config.json 中的 uiMode 只接受这两个值，默认现代布局）
+const UI_MODE_VALUES = ['classic', 'modern'];
 
-// 无Tab模式由「极简模式」改名而来，旧配置里存的仍是 minimal：读到旧值就落到 notab，
-// 免得改名后老用户的偏好被当成脏数据丢回标准模式
+// 现代布局先后叫过「Line 模式」「无Tab模式」与「极简模式」，旧配置里存的仍是 line / notab 与 minimal；
+// 更早的经典布局则写作 standard。读到这些旧值就一并落到 modern / classic，
+// 免得改名后老用户的偏好被当成脏数据丢回默认布局
 function normalizeUiMode(value) {
-    if (value === 'minimal') return 'notab';
-    return UI_MODE_VALUES.includes(value) ? value : 'standard';
+    if (value === 'line' || value === 'notab' || value === 'minimal') return 'modern';
+    if (value === 'standard') return 'classic';
+    return UI_MODE_VALUES.includes(value) ? value : 'modern';
 }
 
-// 无Tab模式：界面与标准模式一致，只是标题栏里不排标签页
-// （由 styles/mode.css 按 <html> 上的类名收起标签栏）
-function isNoTabMode() {
-    return State.uiMode === 'notab';
+// 现代布局：界面与经典布局一致，只是不再排一条标题栏——标签页改在工作区顶部那一行
+// （由 styles/mode.css 按 <html> 上的类名接手排版）
+function isModernLayout() {
+    return State.uiMode === 'modern';
 }
 
 // AI 提问时附带的笔记范围（config.json 中的 ai.scope 只接受这几个值）
