@@ -379,6 +379,11 @@ input:checked + .slider {
 input:checked + .slider:before {
     transform: translateX(20px);
 }
+/* 开关不可用时（例如开发运行下的开机自启）：降低不透明度并去掉手型光标 */
+.switch input:disabled + .slider {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
 
 /* 更新分类：下载进度与更新说明 */
 .update-progress {

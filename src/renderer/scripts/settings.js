@@ -1,6 +1,7 @@
 /* 设置视图的分类导航：侧边栏条目与内容面板按 id 一一对应 */
 
-// 设置分类：侧边栏条目与内容面板（data-settings-panel）按 id 一一对应
+// 设置分类：侧边栏条目与内容面板（data-settings-panel）按 id 一一对应。
+// 便携版没有更新功能，因此「更新与版本」一项不列出（面板由 scripts/update.js 移除）。
 const SETTINGS_CATEGORIES = [
     { id: 'editor', label: '编辑器与文本', icon: 'edit_note' },
     { id: 'appearance', label: '外观与主题色', icon: 'palette' },
@@ -9,7 +10,7 @@ const SETTINGS_CATEGORIES = [
     { id: 'data', label: '数据与存储', icon: 'folder' },
     { id: 'system', label: '系统与托盘', icon: 'dock_to_bottom' },
     { id: 'update', label: '更新与版本', icon: 'system_update' }
-];
+].filter((category) => !(IS_PORTABLE_RUN && category.id === 'update'));
 
 // 记录当前分类，退出设置再进入时仍停留在原来的一类
 let activeSettingsCategory = SETTINGS_CATEGORIES[0].id;

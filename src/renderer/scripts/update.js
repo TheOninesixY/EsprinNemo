@@ -4,7 +4,10 @@
 
    状态有两个来源：
    - 打开设置页时主动查询一次（update:get-info）
-   - 主进程在后台自动检查 / 下载过程中推送的 update:state */
+   - 主进程在后台自动检查 / 下载过程中推送的 update:state
+
+   便携版没有更新功能（主进程不注册更新 IPC，也不做自动检查），因此这里整体跳过：
+   设置分类与面板都不显示，也不绑定任何事件。 */
 
 // 主进程最近一次上报的更新状态（字段与 main/updater.js 的 snapshot 一一对应）
 let updateState = {
@@ -14,7 +17,6 @@ let updateState = {
     sourceUrl: '',
     autoUpdate: true,
     canAutoInstall: false,
-    portable: false,
     packaged: false,
     checking: false,
     downloading: false,
@@ -62,11 +64,9 @@ function formatReleaseDate(value) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// 运行方式：开发运行 / 便携版 / 安装版，只有最后一种支持自动安装
+// 运行方式：开发运行 / 安装版，只有后者支持自动安装（便携版没有更新功能，不会走到这里）
 function describeUpdateBuildKind(state) {
-    if (!state.packaged) return '开发运行';
-    if (state.portable) return '便携版';
-    return '安装版';
+    return state.packaged ? '安装版' : '开发运行';
 }
 
 function describeUpdateStatus(state) {
@@ -102,6 +102,9 @@ function updateStatusTone(state) {
 }
 
 function renderUpdateUI() {
+    // 便携版没有更新功能：分类与面板都已摘掉，不再改动任何界面
+    if (IS_PORTABLE_RUN) return;
+
     const toggle = updateEl('setting-auto-update');
     if (toggle) toggle.checked = updateState.autoUpdate !== false;
 
@@ -188,12 +191,14 @@ function adoptUpdateState(payload) {
 
 // 打开设置页 / 切换数据目录后调用：开关状态跟随配置，其余沿用最近一次状态
 function syncUpdateSettingsUI() {
+    if (IS_PORTABLE_RUN) return;
     const toggle = updateEl('setting-auto-update');
     if (toggle) toggle.checked = State.autoUpdate !== false;
     renderUpdateUI();
 }
 
 async function refreshUpdateInfo() {
+    if (IS_PORTABLE_RUN) return;
     try {
         adoptUpdateState(await ipcRenderer.invoke('update:get-info'));
     } catch (err) {
@@ -317,7 +322,21 @@ function handleUpdateStatePush(payload) {
     }
 }
 
+// 便携版：把「更新与版本」的设置项（导航条目与面板）从界面上摘掉
+function removeUpdateSettingsUI() {
+    const navItem = document.querySelector('#settings-nav [data-settings-target="update"]');
+    if (navItem) navItem.remove();
+    const panel = document.querySelector('#settings-view [data-settings-panel="update"]');
+    if (panel) panel.remove();
+}
+
 function initUpdateSettings() {
+    // 便携版整体移除更新功能：设置项与全部事件都不启用
+    if (IS_PORTABLE_RUN) {
+        removeUpdateSettingsUI();
+        return;
+    }
+
     const toggle = updateEl('setting-auto-update');
     if (toggle) {
         toggle.onchange = (e) => {
@@ -342,6 +361,14 @@ function initUpdateSettings() {
     bind('btn-update-open-file', openDownloadedPackage);
 
     ipcRenderer.on('update:state', (event, payload) => handleUpdateStatePush(payload));
+
+    // 「永不提醒」：勾选后关闭更新弹窗，主进程会把配置里的自动更新关掉，这里同步开关并说明一次
+    ipcRenderer.on('update:auto-disabled', () => {
+        State.autoUpdate = false;
+        updateState = { ...updateState, autoUpdate: false };
+        syncUpdateSettingsUI();
+        showToast('已按「永不提醒」关闭自动检查并下载更新，可在设置中重新开启');
+    });
 
     syncUpdateSettingsUI();
     refreshUpdateInfo();

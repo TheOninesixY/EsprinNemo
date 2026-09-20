@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EsprinNemo — 本地优先的极简 Markdown 笔记应用</title>
+    <meta name="description" content="EsprinNemo 是一个本地优先、离线可用的极简 Markdown 笔记应用。没有账号、没有云同步，笔记就是磁盘上的 .md 文件。">
+    <meta name="theme-color" content="#0d1117">
+    <meta property="og:title" content="EsprinNemo — Note, Nothing.">
+    <meta property="og:description" content="本地优先、离线可用的极简 Markdown 笔记应用。笔记就是磁盘上的 .md 文件。">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="../../assets/icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="../../assets/icon.png">
+    <link rel="stylesheet" href="./styles.css">
+    <noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
+    <script>
+        /* 首屏渲染前同步注入主题，与应用内 boot.js 的做法一致，避免闪屏 */
+        (function () {
+            var root = document.documentElement;
+
+            var stored = null;
+            try { stored = localStorage.getItem('en-site-theme'); } catch (e) { /* 隐私模式下忽略 */ }
+            var light = stored === 'light'
+                || ((!stored || stored === 'system') && window.matchMedia('(prefers-color-scheme: light)').matches);
+            if (light) root.classList.add('light');
+        })();
+    </script>
+</head>
+<body>
+    <!-- 图标精灵：线宽与圆角对齐应用内 Material Symbols Rounded 的观感 -->
+    <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M14 3v5h4"/><path d="M8 13h8M8 17h5"/></symbol>
+        <symbol id="i-todo" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/></symbol>
+        <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9.5 3.5h5l-.8 5.2 3.3 3.3H7l3.3-3.3-.8-5.2Z"/><path d="M12 12v8.5"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M9 7V4.5h6V7"/><path d="m6.6 7 .8 12.1a1 1 0 0 0 1 .9h7.2a1 1 0 0 0 1-.9L17.4 7"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m15.5 15.5 4 4"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+        <symbol id="i-min" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+        <symbol id="i-max" viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="2.5"/></symbol>
+        <symbol id="i-ai" viewBox="0 0 24 24"><rect x="4" y="7.5" width="16" height="12" rx="4"/><circle cx="9.5" cy="13.5" r="1.1"/><circle cx="14.5" cy="13.5" r="1.1"/><path d="M12 7.5V4"/><path d="M9.5 4h5"/></symbol>
+        <symbol id="i-sticky" viewBox="0 0 24 24"><path d="M5 5.5A1.5 1.5 0 0 1 6.5 4h11A1.5 1.5 0 0 1 19 5.5V14l-5 5H6.5A1.5 1.5 0 0 1 5 17.5v-12Z"/><path d="M19 14h-3.5A1.5 1.5 0 0 0 14 15.5V19"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></symbol>
+        <symbol id="i-auto" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8 20h8M12 16.5V20"/></symbol>
+        <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.9 2-2 0-1.6-1.4-1.8-1.4-3 0-.9.8-1.6 1.7-1.6H16A5 5 0 0 0 21 9.4C21 5.8 16.9 3 12 3Z"/><circle cx="8.2" cy="10" r="1"/><circle cx="12" cy="7.6" r="1"/><circle cx="15.8" cy="10" r="1"/></symbol>
+        <symbol id="i-github" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19h14"/></symbol>
+        <symbol id="i-edit" viewBox="0 0 24 24"><path d="M16.4 4.6a2 2 0 0 1 2.9 2.8L8 18.8 4.5 20l1.2-3.5L16.4 4.6Z"/><path d="m15.2 6.1 2.6 2.6"/></symbol>
+        <symbol id="i-split" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M12 4.5v15"/></symbol>
+        <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+        <symbol id="i-folder" viewBox="0 0 24 24"><path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h3.2l1.8 2.2h8A1.5 1.5 0 0 1 20 9.7v8.3a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18V7.5Z"/></symbol>
+        <symbol id="i-tag" viewBox="0 0 24 24"><path d="M10.6 4H17a3 3 0 0 1 3 3v6.4l-8.2 8.2a1.5 1.5 0 0 1-2.1 0l-6.2-6.2a1.5 1.5 0 0 1 0-2.1L10.6 4Z"/><circle cx="15.5" cy="8.5" r="1.3"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.5c0 4.2-2.8 7.6-7 9-4.2-1.4-7-4.8-7-9V6l7-2.5Z"/><path d="m9 12.2 2.2 2.2 4.3-4.4"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4.5h-4.5"/></symbol>
+        <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12" rx="2.5"/><path d="M3.5 12h17"/><path d="M7 15h.01M11 15h.01"/></symbol>
+        <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="11" rx="2.5"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01M8 14h8"/></symbol>
+        <symbol id="i-tray" viewBox="0 0 24 24"><path d="M12 4v9"/><path d="m8.5 9.5 3.5 3.5 3.5-3.5"/><path d="M4.5 15.5v2A2.5 2.5 0 0 0 7 20h10a2.5 2.5 0 0 0 2.5-2.5v-2"/></symbol>
+        <symbol id="i-type" viewBox="0 0 24 24"><path d="M5 6.5V5h14v1.5"/><path d="M12 5v14"/><path d="M9 19h6"/></symbol>
+        <symbol id="i-layers" viewBox="0 0 24 24"><rect x="4" y="7.5" width="13" height="12" rx="2.5"/><path d="M8 4.5h9A3 3 0 0 1 20 7.5v8"/></symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="m13 6.5 5.5 5.5L13 17.5"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M15.5 5.8A2.8 2.8 0 0 0 12.7 3H6.8A2.8 2.8 0 0 0 4 5.8v5.9"/></symbol>
+        <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 4l1.7 4.6L18.3 10l-4.6 1.4L12 16l-1.7-4.6L5.7 10l4.6-1.4L12 4Z"/><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8Z"/></symbol>
+        <symbol id="i-ulist" viewBox="0 0 24 24"><path d="M9 7h10M9 12h10M9 17h10"/><circle cx="5" cy="7" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="17" r="1"/></symbol>
+        <symbol id="i-olist" viewBox="0 0 24 24"><path d="M10 7h9M10 12h9M10 17h9"/><path d="M4.4 5.4 6 4.4v3.9"/><path d="M4.2 12.1h1.9L4.4 15h1.9"/></symbol>
+        <symbol id="i-quote" viewBox="0 0 24 24"><path d="M10 7.5c-2.4.6-3.8 2.3-3.8 4.6V17H10v-4H8.1c0-1.5.8-2.5 2.2-3l-.3-2.5Z"/><path d="M19 7.5c-2.4.6-3.8 2.3-3.8 4.6V17H19v-4h-1.9c0-1.5.8-2.5 2.2-3L19 7.5Z"/></symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="m9 8.5-4 3.5 4 3.5"/><path d="m15 8.5 4 3.5-4 3.5"/></symbol>
+        <symbol id="i-hr" viewBox="0 0 24 24"><path d="M4 12h16"/></symbol>
+    </svg>
+
+    <a class="skip-link" href="#main">跳到主要内容</a>
+
+    <!-- 顶部标题栏：与应用标题栏同构（品牌 + 标签页导航 + 动作区） -->
+    <header class="titlebar" id="top">
+        <a class="brand" href="#top">EsprinNemo</a>
+
+        <nav class="titlebar-tabs" id="site-nav" aria-label="站点导航">
+            <a class="tab-item active" href="#interface">界面</a>
+            <a class="tab-item" href="#features">功能</a>
+            <a class="tab-item" href="#ai">AI 助手</a>
+            <a class="tab-item" href="#shortcuts">快捷键</a>
+            <a class="tab-item" href="#download">下载</a>
+        </nav>
+
+        <div class="titlebar-actions">
+            <button class="icon-btn" id="btn-theme" type="button" title="切换主题" aria-label="切换主题">
+                <svg class="icon sm" aria-hidden="true"><use href="#i-auto" id="theme-icon-use"/></svg>
+            </button>
+            <a class="icon-btn" id="link-github" href="https://github.com/TheOninesixY/EsprinNemo" title="GitHub 仓库" aria-label="GitHub 仓库" target="_blank" rel="noopener">
+                <svg class="icon sm fill" aria-hidden="true"><use href="#i-github"/></svg>
+            </a>
+            <a class="btn btn-primary sm" href="https://github.com/TheOninesixY/EsprinNemo/releases" target="_blank" rel="noopener">
+                <svg class="icon xs" aria-hidden="true"><use href="#i-download"/></svg>
+                <span>下载</span>
+            </a>
+        </div>
+    </header>
+
+    <main id="main">
+        <!-- 首屏 -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-badge">
+                    <span class="dot"></span>
+                    <span>Windows 桌面版</span>
+                    <span>·</span>
+                    <span>离线可用</span>
+                </div>
+
+                <h1>EsprinNemo</h1>
+                <div class="hero-tagline">Note, Nothing.</div>
+
+                <p class="hero-lead">
+                    一个<strong>本地优先、离线可用</strong>的极简 Markdown 笔记应用。
+                    没有账号、没有云同步，笔记就是磁盘上的 <code>.md</code> 文件；
+                    内置的 AI 助手是唯一的联网功能，不配置就不会发起任何外部请求。
+                </p>
+
+                <div class="hero-tags">
+                    <span class="chip">无账号</span>
+                    <span class="chip">无云同步</span>
+                    <span class="chip">无遥测</span>
+                    <span class="chip">离线可用</span>
+                    <span class="chip">纯 Markdown 存储</span>
+                    <span class="chip">数据目录可迁移</span>
+                </div>
+
+                <div class="hero-actions">
+                    <a class="btn btn-primary" href="https://github.com/TheOninesixY/EsprinNemo/releases" target="_blank" rel="noopener">
+                        <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+                        <span>下载 Windows 版</span>
+                    </a>
+                    <a class="btn btn-ghost" href="https://github.com/TheOninesixY/EsprinNemo" target="_blank" rel="noopener">
+                        <svg class="icon fill" aria-hidden="true"><use href="#i-github"/></svg>
+                        <span>在 GitHub 上查看</span>
+                    </a>
+                </div>
+
+                <p class="hero-note">安装版与便携版可选 · 自动更新默认开启，随时可在设置中关闭</p>
+
+                <!-- 主界面截图：应用真实界面 -->
+                <figure class="shot hero-shot">
+                    <img src="../../readme/screenshot-2.0.0.png" width="1200" height="800" decoding="async"
+                         alt="EsprinNemo 主界面：左侧边栏、笔记列表、Markdown 编辑器与右侧 AI 助手面板">
+                    <figcaption>主界面 · 侧边栏 / 笔记列表 / Markdown 编辑器 / AI 助手面板</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- 界面截图：全部使用应用的真实截图（readme/ 与 assets/） -->
+        <section class="section" id="interface">
+            <div class="container">
+                <div class="section-head center reveal">
+                    <div class="section-eyebrow">界面</div>
+                    <h2 class="section-title">长这样</h2>
+                    <p class="section-desc">
+                        下面都是应用的真实截图。浅色 / 深色主题、强调色与应用名颜色都能自行更换，
+                        这里分别是侧边栏展开时的主界面，与常驻屏幕右下角的小本本。
+                    </p>
+                </div>
+
+                <div class="shot-grid">
+                    <figure class="shot reveal">
+                        <img src="../../readme/screenshot.png" width="1200" height="801" loading="lazy" decoding="async"
+                             alt="EsprinNemo 主界面：侧边栏展开的文件夹与标签过滤、笔记列表、编辑器与状态栏">
+                        <figcaption>主界面 · 侧边栏展开：文件夹、标签过滤与笔记列表</figcaption>
+                    </figure>
+
+                    <figure class="shot reveal shot-narrow">
+                        <img src="../../readme/scratchpad.png" width="394" height="478" loading="lazy" decoding="async"
+                             alt="小本本窗口：标题栏、正文输入区与底部状态栏">
+                        <figcaption>小本本 · 常驻屏幕右下角的便利贴</figcaption>
+                    </figure>
+                </div>
+            </div>
+        </section>
+
+        <!-- 功能 -->
+        <section class="section" id="features">
+            <div class="container">
+                <div class="section-head center reveal">
+                    <div class="section-eyebrow">功能特性</div>
+                    <h2 class="section-title">简约，但不简单</h2>
+                    <p class="section-desc">该有的都有，不该有的一个也没有。没有账号体系，也没有云同步——数据始终在你自己手里。</p>
+                </div>
+
+                <div class="feature-grid">
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-note"/></svg></div>
+                        <h3>纯 Markdown 存储</h3>
+                        <p>每篇笔记保存为 <code>data/notes/{id}.md</code>，元数据内嵌在文件开头的注释里，可直接用任意编辑器打开。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg></div>
+                        <h3>多标签页</h3>
+                        <p>标题栏标签页同时打开多篇笔记，随时切换；标签栏用图标区分笔记与待办，编号空间两者共用。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg></div>
+                        <h3>文件夹与标签</h3>
+                        <p>侧边栏按文件夹归类、按标签过滤，内置「笔记 / 待办 / 已置顶 / 废纸篓」四个入口，支持修改时间、创建时间与标题排序。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-todo"/></svg></div>
+                        <h3>待办清单</h3>
+                        <p>独立的待办入口，卡片左侧带勾选框，已完成的显示为删除线。与笔记同一套存储格式、同一个编辑器、同一个废纸篓。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-split"/></svg></div>
+                        <h3>三种视图模式</h3>
+                        <p>编辑 / 分屏 / 预览一键切换，分屏即时对照内置的轻量 Markdown 渲染，配合加粗、标题、列表、引用、代码块等格式化工具栏。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-sticky"/></svg></div>
+                        <h3>小本本</h3>
+                        <p>屏幕右下角的便利贴小窗口，始终置顶、自动保存，<kbd>Ctrl</kbd>+<kbd>S</kbd> 一键存成新笔记或写回关联的那篇。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-palette"/></svg></div>
+                        <h3>主题与字体个性化</h3>
+                        <p>浅色 / 深色 / 跟随系统三态切换，强调色可选预设色板或自定义取色，界面字体与文档字体分开设置，西文与 CJK 分别回退。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-tray"/></svg></div>
+                        <h3>托盘与开机自启</h3>
+                        <p>托盘图标右键即可新建笔记 / 待办、唤出小本本或进入设置；托盘在时关闭窗口只是收起界面，应用继续在后台运行。</p>
+                    </article>
+
+                    <article class="feature-card reveal">
+                        <div class="feature-icon"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></div>
+                        <h3>自动更新</h3>
+                        <p>启动后自动检查更新源并在后台下载，装好后询问是否重启安装；升级向导只有一个进度条，笔记与数据位置记录都不受影响。</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI 助手 -->
+        <section class="section" id="ai">
+            <div class="container">
+                <div class="section-head center reveal">
+                    <div class="section-eyebrow">可选功能</div>
+                    <h2 class="section-title">自带的 AI 助手，不配置就不联网</h2>
+                    <p class="section-desc">
+                        在设置里填上 API 站点、API Key 与模型即可使用，兼容 OpenAI 协议的站点都能直接接。
+                        配置留空时，应用不会发起任何外部请求。
+                    </p>
+                </div>
+
+                <ul class="check-list cols reveal">
+                    <li>
+                        <svg class="icon sm" aria-hidden="true"><use href="#i-check"/></svg>
+                        <span><strong>密钥交给系统密钥链</strong>：Windows 用 DPAPI、macOS 用钥匙串、Linux 用 libsecret，不写入数据目录，备份或分享数据目录都不会带走密钥。</span>
+                    </li>
+                    <li>
+                        <svg class="icon sm" aria-hidden="true"><use href="#i-check"/></svg>
+                        <span><strong>结合笔记提问</strong>：范围可选「仅当前笔记 / 全部笔记 / 不附带笔记」，附带数量与字数都有上限。</span>
+                    </li>
+                    <li>
+                        <svg class="icon sm" aria-hidden="true"><use href="#i-check"/></svg>
+                        <span><strong>流式回答与多对话</strong>：逐字生成、可随时停止，回答可复制、插入当前笔记或存为新笔记。</span>
+                    </li>
+                    <li>
+                        <svg class="icon sm" aria-hidden="true"><use href="#i-check"/></svg>
+                        <span><strong>图片与文件</strong>：选择、拖入或直接粘贴截图，图片按多模态发送，文本文件内容内联进提问。</span>
+                    </li>
+                    <li>
+                        <svg class="icon sm" aria-hidden="true"><use href="#i-check"/></svg>
+                        <span><strong>Agent 模式</strong>：模型可以调用工具直接搜索、阅读、新建与修改笔记，每一步都列成带「撤销」的操作卡片，移入废纸篓前仍会单独确认。</span>
+                    </li>
+                    <li>
+                        <svg class="icon sm" aria-hidden="true"><use href="#i-check"/></svg>
+                        <span><strong>自定义人设</strong>：可填写系统提示词约束 AI 的身份与回答风格，留空则使用内置提示词。</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 数据与隐私 -->
+        <section class="section" id="privacy">
+            <div class="container">
+                <div class="split reverse">
+                    <div class="reveal">
+                        <div class="section-eyebrow">数据与隐私</div>
+                        <h2 class="section-title">笔记就在磁盘上，搬走就是全部</h2>
+                        <p class="section-desc">
+                            不上传、无遥测，除主动使用 AI 助手与默认开启的自动更新检查外不发起任何网络请求。
+                        </p>
+
+                        <ul class="check-list">
+                            <li>
+                                <svg class="icon sm" aria-hidden="true"><use href="#i-drive"/></svg>
+                                <span><strong>数据目录可迁移</strong>：在设置中更改存放位置，自动迁移现有笔记并即时生效，无需重启。</span>
+                            </li>
+                            <li>
+                                <svg class="icon sm" aria-hidden="true"><use href="#i-lock"/></svg>
+                                <span><strong>安装版与开发版隔离</strong>：安装版使用应用配置目录，开发版使用项目内 <code>data/</code>，互不干扰。</span>
+                            </li>
+                            <li>
+                                <svg class="icon sm" aria-hidden="true"><use href="#i-shield"/></svg>
+                                <span><strong>安装即可选位置</strong>：Windows 安装向导可分别选择安装位置与数据存放位置；之后也能随时在应用内调整。</span>
+                            </li>
+                            <li>
+                                <svg class="icon sm" aria-hidden="true"><use href="#i-type"/></svg>
+                                <span><strong>手改文件同样生效</strong>：直接往 <code>notes/</code> 里丢一个 <code>.md</code>，启动时会被当成新笔记载入并补齐元数据。</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="panel reveal">
+                        <div class="panel-head">
+                            <svg class="icon sm" aria-hidden="true"><use href="#i-folder"/></svg>
+                            <span>数据目录</span>
+                        </div>
+                        <div class="code-block" style="margin: 14px;">
+                            <div class="code-head">
+                                <svg class="icon xs" aria-hidden="true"><use href="#i-drive"/></svg>
+                                <span>data/</span>
+                            </div>
+                            <pre><span class="cmd">data/
+├── notes/</span>        <span class="cmt"># 笔记：{id}.md</span><span class="cmd">
+├── todos/</span>        <span class="cmt"># 待办：{id}.md</span><span class="cmd">
+├── ai_chats/</span>     <span class="cmt"># AI 对话：{id}.json</span><span class="cmd">
+├── config.json</span>    <span class="cmt"># 界面与功能配置</span><span class="cmd">
+└── scratchpad.json</span> <span class="cmt"># 小本本内容</span></pre>
+                        </div>
+                        <div style="padding: 0 14px 14px;">
+                            <div class="code-snippet">&lt;!--EsprinData
+    title: "Hello world!"
+    folder:
+    tags: [你好，世界！]
+    isPinned: false
+    isTrashed: false
+    createdAt: 1789837475335
+--&gt;</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 快捷键 -->
+        <section class="section" id="shortcuts">
+            <div class="container">
+                <div class="section-head reveal">
+                    <div class="section-eyebrow">快捷操作</div>
+                    <h2 class="section-title">键盘在手，笔记不落</h2>
+                    <p class="section-desc">常用操作全部对应到快捷键，小本本窗口另有独立的一套。</p>
+                </div>
+
+                <div class="table-wrap reveal">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 320px;">快捷键</th>
+                                <th>功能</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><kbd>Ctrl</kbd> + <kbd>N</kbd></td><td>新建笔记</td></tr>
+                            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>N</kbd></td><td>新建待办</td></tr>
+                            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd></td><td>聚焦搜索框</td></tr>
+                            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>保存当前笔记或待办</td></tr>
+                            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd>（小本本窗口）</td><td>未关联笔记时新建为笔记并关联，已关联时保存回那篇笔记</td></tr>
+                            <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd>（小本本窗口）</td><td>打开笔记选择面板</td></tr>
+                            <tr><td><kbd>Tab</kbd>（编辑器内）</td><td>插入缩进</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 下载 -->
+        <section class="section" id="download">
+            <div class="container">
+                <div class="download-card reveal">
+                    <div class="section-eyebrow" style="justify-content: center;">下载</div>
+                    <h2 class="section-title">Get EsprinNemo</h2>
+                    <p class="section-desc">主要面向 Windows；点下面的按钮前往 GitHub Releases，安装版与便携版都在里面。</p>
+
+                    <div class="download-actions">
+                        <a class="btn btn-primary" href="https://github.com/TheOninesixY/EsprinNemo/releases" target="_blank" rel="noopener">
+                            <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+                            <span>下载 EsprinNemo</span>
+                        </a>
+                    </div>
+
+                    <div class="download-meta">
+                        <span class="chip">Windows 10 / 11</span>
+                        <span class="chip">安装版 / 便携版</span>
+                        <span class="chip">无需账号</span>
+                        <span class="chip">离线可用</span>
+                    </div>
+
+                    <div class="download-info">
+                        <div class="info-item">
+                            <svg class="icon sm" aria-hidden="true"><use href="#i-download"/></svg>
+                            <div>
+                                <h4>向导式安装</h4>
+                                <p>可选安装位置与数据存放位置；便携版每次启动解压到临时目录运行，不写注册表。</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <svg class="icon sm" aria-hidden="true"><use href="#i-refresh"/></svg>
+                            <div>
+                                <h4>内置更新</h4>
+                                <p>启动后自动检查更新源并后台下载，也可在设置中随时手动检查、下载与安装。</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <svg class="icon sm" aria-hidden="true"><use href="#i-shield"/></svg>
+                            <div>
+                                <h4>不上传任何数据</h4>
+                                <p>没有遥测与账号体系，笔记始终是磁盘上的 <code>.md</code> 文件。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="code-block">
+                        <div class="code-head">
+                            <svg class="icon xs" aria-hidden="true"><use href="#i-code"/></svg>
+                            <span>从源码运行</span>
+                            <button class="btn btn-quiet sm" style="margin-left: auto;" type="button" data-copy="bun install&#10;bun run start">
+                                <svg class="icon xs" aria-hidden="true"><use href="#i-copy"/></svg>
+                                <span>复制</span>
+                            </button>
+                        </div>
+                        <pre><span class="cmt"># 环境要求：Node.js 与 bun</span>
+<span class="cmd">bun install</span>
+<span class="cmd">bun run start</span>   <span class="cmt"># 开发运行</span>
+<span class="cmd">bun run build</span>   <span class="cmt"># 打包 Windows 安装包与便携版</span></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container footer-inner">
+            <div class="footer-brand">
+                <div class="brand-row">
+                    <img src="../../assets/icon.png" width="22" height="22" alt="">
+                    <span class="brand">EsprinNemo</span>
+                </div>
+                <span>Note, Nothing. · 简约不简单。 </span>
+            </div>
+            <nav class="footer-links" aria-label="页脚导航">
+                <a href="https://github.com/TheOninesixY/EsprinNemo" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/TheOninesixY/EsprinNemo/releases" target="_blank" rel="noopener">版本发布</a>
+                <a href="https://github.com/TheOninesixY/EsprinNemo#readme" target="_blank" rel="noopener">使用文档</a>
+                <a href="#features">功能</a>
+                <a href="#download">下载</a>
+            </nav>
+        </div>
+    </footer>
+
+    <div class="toast-box" id="toast-box" aria-live="polite"></div>
+
+    <script src="./script.js"></script>
+</body>
+</html>

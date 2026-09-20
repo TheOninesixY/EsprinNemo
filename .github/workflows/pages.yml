@@ -1,0 +1,65 @@
+name: Pages
+
+# 官网（.github/pages）发布到 GitHub Pages：
+# 推送到 main 分支且页面文件有变化时自动部署，也可以在 Actions 里手动触发。
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/pages/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+# GITHUB_TOKEN 需要的最小权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只保留一次部署，新的推送取消排队中的旧任务
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+
+      - name: 组装站点
+        # 页面里引用截图与字体的路径是相对仓库根写的（../../readme/…），
+        # 这样在本地直接打开 .github/pages/index.html 也能看到图。
+        # 发布时只把用到的资源一并放进产物，并把路径改写为站点根目录下的相对路径。
+        run: |
+          mkdir -p _site
+          cp -r .github/pages/. _site/
+
+          mkdir -p _site/readme _site/assets _site/src/renderer/fonts/Mohave
+          cp readme/*.png _site/readme/
+          cp assets/icon.png _site/assets/
+          cp src/renderer/fonts/Mohave/Mohave-VariableFont_wght.ttf _site/src/renderer/fonts/Mohave/
+
+          sed -i 's#\.\./\.\./#\./#g' _site/index.html _site/styles.css
+
+          echo "产物文件："
+          find _site -type f | sort
+
+      - name: 上传站点文件
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: 部署
+        id: deployment
+        uses: actions/deploy-pages@v4

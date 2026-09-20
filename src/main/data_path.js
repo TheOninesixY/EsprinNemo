@@ -4,8 +4,10 @@ const path = require('node:path');
 // 主进程通过 webPreferences.additionalArguments 把解析好的数据目录传给渲染进程
 const DATA_DIR_ARG = '--esprin-nemo-data-dir=';
 
-// 数据位置记录：%APPDATA%/esprin_nemo/data_path.json。必须放在数据目录之外（否则切换后
-// 就找不到记录了），同时也是安装向导（见 src/win_installer/installer.nsh）读写的同一个文件。
+// 数据位置记录：安装版是 %APPDATA%/esprin_nemo/data_path.json，便携版是便携版所在目录下的
+// 同名文件（便携版不读取也不写入 %APPDATA% 里的那份）。记录必须放在数据目录之外
+// （否则切换后就找不到记录了）；安装版的这个文件同时也是安装向导
+// （见 src/win_installer/installer.nsh）读写的同一个文件。
 const DEFAULT_APP_DIR_NAME = 'esprin_nemo';
 const DATA_PATH_FILE_NAME = 'data_path.json';
 
@@ -19,6 +21,45 @@ function getApp(appLike = null) {
   }
 }
 
+// 便携版运行目录：electron-builder 的 portable 目标启动时会写入这两个环境变量
+// （PORTABLE_EXECUTABLE_FILE 是便携版 exe 的完整路径，PORTABLE_EXECUTABLE_DIR 是它所在的目录）。
+// 与 src/main/updater.js 的 isPortableRun 同源，这里自带一份，避免配置目录解析反过来依赖更新模块。
+function getPortableDir() {
+  const dir = process.env.PORTABLE_EXECUTABLE_DIR;
+  const file = process.env.PORTABLE_EXECUTABLE_FILE;
+  const raw = (typeof dir === 'string' && dir.trim())
+    || (typeof file === 'string' && file.trim() ? path.dirname(file.trim()) : '');
+  if (!raw) return null;
+  try {
+    return path.resolve(raw);
+  } catch (error) {
+    return null;
+  }
+}
+
+// 可用的便携版目录：必须是可写目录，否则整体退回安装版那套 %APPDATA% 位置。
+// 便携版可能被放在只读位置（光盘、只读共享盘、受策略限制的程序目录），
+// 这种情况下若还坚持用运行目录，数据与位置记录都会静默写不进去。
+let portableDirResolved = false;
+let portableDirCache = null;
+function getPortableWorkDir() {
+  if (!portableDirResolved) {
+    portableDirResolved = true;
+    const dir = getPortableDir();
+    if (dir && ensureDirUsable(dir)) {
+      portableDirCache = dir;
+    } else if (dir) {
+      console.warn('[Esprin Nemo] 便携版运行目录不可写，已改用 %APPDATA% 下的默认位置:', dir);
+    }
+  }
+  return portableDirCache;
+}
+
+// 是否便携版运行（且便携版目录可用）
+function isPortableRun() {
+  return !!getPortableWorkDir();
+}
+
 // 读取命令行传入的数据目录（仅渲染进程会带上该参数）
 function getDataDirFromArgv(argv = process.argv) {
   if (!Array.isArray(argv)) return null;
@@ -28,8 +69,9 @@ function getDataDirFromArgv(argv = process.argv) {
   return dir || null;
 }
 
-// 配置目录：固定为 %APPDATA%/esprin_nemo，与安装向导写记录文件的位置保持一致
-function getConfigDir(appLike = null) {
+// 用户目录下的配置目录：固定为 %APPDATA%/esprin_nemo，与安装向导写记录文件的位置保持一致。
+// 便携版不使用它，但它是「配置目录搬家」后迁移 AI 密钥文件时的旧位置（见 ai_secret.js）。
+function getAppDataConfigDir(appLike = null) {
   const app = getApp(appLike);
   if (!app || typeof app.getPath !== 'function') return null;
   try {
@@ -37,6 +79,13 @@ function getConfigDir(appLike = null) {
   } catch (error) {
     return null;
   }
+}
+
+// 实际生效的配置目录（data_path.json 与 AI 密钥文件都放在这里）：
+// 便携版是便携版所在目录——配置随程序目录走、整体可搬移，也不在系统盘留痕；
+// 其余运行方式是 %APPDATA%/esprin_nemo
+function getConfigDir(appLike = null) {
+  return getPortableWorkDir() || getAppDataConfigDir(appLike);
 }
 
 function getLocationFile(appLike = null) {
@@ -65,7 +114,9 @@ function parseDataDirRecord(text) {
   return matched ? normalizeRecordedDir(matched[1]) : null;
 }
 
-// 读取记录的数据位置；未设置、损坏或无法可靠解码时返回 null
+// 读取记录的数据位置；未设置、损坏或无法可靠解码时返回 null。
+// 便携版读的是便携版目录下的同名文件，因此既不会读到 %APPDATA% 里的那份记录，
+// 也不会把安装版（或上次在其他目录运行）的选择带过来。
 function readStoredDataDir(appLike = null) {
   const file = getLocationFile(appLike);
   if (!file || !fs.existsSync(file)) return null;
@@ -161,8 +212,11 @@ function decodeTextFile(buffer) {
   return buffer.toString('utf8');
 }
 
-// 默认数据目录：安装版 %APPDATA%/esprin_nemo/data，开发版项目内 data/
+// 默认数据目录：便携版是便携版所在目录下的 data/，安装版 %APPDATA%/esprin_nemo/data，
+// 开发版项目内 data/
 function getDefaultDataDir(baseDir = __dirname, appLike = null) {
+  const portableDir = getPortableWorkDir();
+  if (portableDir) return path.join(portableDir, 'data');
   const app = getApp(appLike);
   if (app && app.isPackaged && typeof app.getPath === 'function') {
     return path.join(app.getPath('appData'), DEFAULT_APP_DIR_NAME, 'data');
@@ -178,7 +232,8 @@ function getDataDir(baseDir = __dirname, appLike = null) {
   // 2. 开发运行（bun start）：固定使用项目内 data/，不读位置记录也不接受自定义位置
   if (isDevRun(appLike)) return getDefaultDataDir(baseDir, appLike);
 
-  // 3. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退，避免应用无法启动
+  // 3. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退，避免应用无法启动。
+  //    便携版读的是便携版目录下的记录（见 readStoredDataDir），默认位置也已经是运行目录下的 data/
   const stored = readStoredDataDir(appLike);
   if (stored) {
     if (ensureDirUsable(stored)) return stored;
@@ -189,7 +244,9 @@ function getDataDir(baseDir = __dirname, appLike = null) {
   return getDefaultDataDir(baseDir, appLike);
 }
 
-// 安装版首次运行时，把随应用分发的项目内 data/ 迁移到用户数据目录
+// 安装版首次运行时，把随应用分发的项目内 data/ 迁移到用户数据目录。
+// 便携版的目标目录就是便携版所在目录下的 data/，而这里的 baseDir 是解压出来的临时目录，
+// 打包时并不包含 data/（见 package.json 的 build.files），因此不会发生搬迁。
 function migrateLegacyData(dir, baseDir = __dirname, appLike = null) {
   const app = getApp(appLike);
   if (isDevRun(appLike) || typeof app.getPath !== 'function') return;
@@ -219,7 +276,10 @@ function ensureDataDir(baseDir = __dirname, appLike = null) {
 module.exports = {
   DATA_DIR_ARG,
   isDevRun,
+  isPortableRun,
   getConfigDir,
+  getAppDataConfigDir,
+  getLocationFile,
   getDefaultDataDir,
   writeFileAtomic,
   writeStoredDataDir,

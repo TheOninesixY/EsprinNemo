@@ -1,7 +1,15 @@
 /* 数据存放位置：展示当前目录，并支持更改 / 恢复默认 / 在文件管理器中打开 */
 
-// 数据位置信息（由主进程提供：当前目录、默认目录、是否为自定义位置、是否开发运行）
-let dataDirInfo = { dataDir: DATA_DIR, defaultDir: '', isCustom: false, isDevRun: false };
+// 数据位置信息（由主进程提供：当前目录、默认目录、是否自定义位置、是否开发运行、
+// 是否便携版运行、位置记录文件的实际路径）
+let dataDirInfo = {
+    dataDir: DATA_DIR,
+    defaultDir: '',
+    isCustom: false,
+    isDevRun: false,
+    isPortableRun: false,
+    locationFile: ''
+};
 
 // 开发运行（bun start）下数据固定在项目内 data/，整行置灰不可更改
 const DATA_DIR_LOCKED_HINT = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
@@ -26,17 +34,27 @@ function updateDataDirUI() {
     const resetBtn = document.getElementById('btn-data-reset');
     const status = document.getElementById('data-dir-status');
     const locked = !!dataDirInfo.isDevRun;
+    // 便携版：数据默认在便携版所在目录下的 data/，位置记录也写在该目录下。
+    // 与安装版一样可以更换位置，所以这里不置灰，只在下方说明当前数据与记录的落点
+    const portable = !locked && !!dataDirInfo.isPortableRun;
 
     if (text) text.textContent = dataDirInfo.dataDir || DATA_DIR;
     if (tag) {
         const custom = !locked && !!dataDirInfo.isCustom;
-        tag.textContent = locked ? '开发运行（固定）' : (custom ? '自定义位置' : '默认位置');
+        tag.textContent = locked
+            ? '开发运行（固定）'
+            : (custom ? '自定义位置' : (portable ? '便携版目录' : '默认位置'));
         tag.style.color = custom ? 'var(--accent)' : '';
     }
     if (resetBtn) resetBtn.disabled = locked || !dataDirInfo.isCustom;
     if (status) {
+        const record = dataDirInfo.locationFile ? `位置记录写在 ${dataDirInfo.locationFile}；` : '';
         if (locked) {
-            status.textContent = `${DATA_DIR_LOCKED_HINT}该目录随项目一同管理，仅安装版可改变数据存放位置。`;
+            status.textContent = `${DATA_DIR_LOCKED_HINT}该目录随项目一同管理，仅安装版与便携版可改变数据存放位置。`;
+        } else if (portable) {
+            status.textContent = dataDirInfo.isCustom && dataDirInfo.defaultDir
+                ? `便携版：默认位置为程序所在目录下的 data/（${dataDirInfo.defaultDir}），可用“恢复默认”切回；${record}切换即时生效。`
+                : `便携版：数据默认存放在程序所在目录下的 data/，${record}更改位置后会询问是否把现有数据一并迁移，切换即时生效。`;
         } else if (dataDirInfo.isCustom && dataDirInfo.defaultDir) {
             status.textContent = `默认位置：${dataDirInfo.defaultDir}（可用“恢复默认”切回）`;
         } else {
@@ -67,7 +85,9 @@ async function refreshDataDirInfo() {
                 dataDir: info.dataDir,
                 defaultDir: typeof info.defaultDir === 'string' ? info.defaultDir : '',
                 isCustom: !!info.isCustom,
-                isDevRun: !!info.isDevRun
+                isDevRun: !!info.isDevRun,
+                isPortableRun: !!info.isPortableRun,
+                locationFile: typeof info.locationFile === 'string' ? info.locationFile : ''
             };
             // 兜底：渲染进程使用的目录始终与主进程保持一致
             if (path.resolve(info.dataDir) !== path.resolve(DATA_DIR)) {
@@ -90,6 +110,7 @@ function adoptDataDir(dir, options = {}) {
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
+        autoLaunch: State.autoLaunch === true,
         trayEnabled: State.trayEnabled !== false,
         fonts: { ...State.fonts }
     };
@@ -108,6 +129,7 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.autoUpdate = saved.autoUpdate !== false;
+        State.autoLaunch = saved.autoLaunch === true;
         State.trayEnabled = saved.trayEnabled !== false;
         State.fonts = saved.fonts;
         // AI 接口配置随数据目录走：新位置自带的配置（尤其是迁移过来的）优先
@@ -120,6 +142,7 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
+        State.autoLaunch = prefs.autoLaunch;
         State.trayEnabled = prefs.trayEnabled;
         State.fonts = prefs.fonts;
         saveConfig();
@@ -171,6 +194,8 @@ function adoptDataDir(dir, options = {}) {
     });
     // 托盘开关同样随配置走：新位置若关掉了托盘图标，图标要跟着消失
     syncTraySetting();
+    // 开机自启也随配置走：登记在系统里的启动项要与新位置的设置保持一致
+    syncAutoLaunchSetting();
     renderAiMessages();
     renderAiChatList();
 

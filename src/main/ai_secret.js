@@ -2,7 +2,8 @@
 //
 // 密钥不写进数据目录的 config.json：数据目录是「可备份、可迁移、可分享」的一份普通数据，
 // 明文密钥放在里面会随复制/同步/截图外泄。这里改为交给系统级加密能力保管，并按用户而非
-// 数据目录存放（%APPDATA%/esprin_nemo/ai_key.bin），因此切换数据位置后密钥依然可用：
+// 数据目录存放（安装版为 %APPDATA%/esprin_nemo/ai_key.bin，便携版为便携版目录下的同名文件），
+// 因此切换数据位置后密钥依然可用：
 //   - Windows：DPAPI（凭当前用户账户派生密钥）
 //   - macOS：钥匙串（Keychain）
 //   - Linux：libsecret（gnome-keyring / kwallet）
@@ -13,7 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { app, safeStorage } = require('electron');
-const { getConfigDir, isDevRun } = require('./data_path.js');
+const { getAppDataConfigDir, getConfigDir, isDevRun } = require('./data_path.js');
 
 const KEY_FILE_NAME = 'ai_key.bin';
 // 开发运行（bun start）单独一份：避免与安装版互相覆盖同一个密钥文件
@@ -25,7 +26,8 @@ const MODE_PLAIN = 'plain';
 // 明文退化的权限：仅当前用户可读写（Windows 上由用户配置目录的 ACL 保证）
 const PLAIN_FILE_MODE = 0o600;
 
-// 密钥文件位置：应用配置目录（与数据位置记录 data_path.json 同级），不在数据目录内
+// 密钥文件位置：应用配置目录（与数据位置记录 data_path.json 同级），不在数据目录内。
+// 便携版的配置目录就是便携版所在目录，密钥文件因此也随程序目录走
 function keyFilePath(appLike = null) {
   const target = appLike || app;
   const dir = getConfigDir(target);
@@ -177,6 +179,29 @@ function writeApiKey(apiKey) {
   }
 }
 
+// 配置目录搬家时（便携版把配置目录从 %APPDATA%/esprin_nemo 换到便携版所在目录），
+// 把旧位置的那份密钥文件搬到新位置：加密密钥由系统凭当前账户派生（DPAPI / 钥匙串），
+// 同一台机器上换个路径不影响解密，因此直接复制即可，用户不必重新填一遍 Key。
+// 新位置已有密钥、或旧位置没有密钥时什么都不做（旧文件原样保留，不删不覆盖）。
+function adoptLegacyKeyFile() {
+  const target = keyFilePath();
+  const legacyDir = getAppDataConfigDir(app);
+  if (!target || !legacyDir) return false;
+
+  const legacyFile = path.join(legacyDir, isDevRun(app) ? DEV_KEY_FILE_NAME : KEY_FILE_NAME);
+  if (path.resolve(legacyFile) === path.resolve(target)) return false;
+  if (fs.existsSync(target) || !fs.existsSync(legacyFile)) return false;
+
+  try {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(legacyFile, target);
+    return true;
+  } catch (error) {
+    console.warn('[Esprin Nemo] 迁移旧位置的 AI 密钥文件失败:', error);
+    return false;
+  }
+}
+
 // 从已解析的 config.json 中收编旧版明文密钥：写进密钥链，再把明文从配置里抹掉。
 // 密钥链里已有密钥时以密钥链为准，只清理配置文件。返回当前生效的密钥（没有则空字符串）。
 function adoptLegacyApiKey(config, configFile) {
@@ -233,6 +258,7 @@ module.exports = {
   readApiKey,
   writeApiKey,
   clearApiKey,
+  adoptLegacyKeyFile,
   adoptLegacyApiKey,
   migrateApiKeyFromConfig
 };

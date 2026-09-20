@@ -26,6 +26,8 @@ const State = {
     trashRetentionDays: 0,
     // 自动更新：默认开启，启动后自动检查并在后台下载新版本
     autoUpdate: true,
+    // 开机自启：默认关闭，开启后由主进程登记到系统的登录启动项
+    autoLaunch: false,
     // 系统托盘：默认显示托盘图标，关闭后应用不再随窗口关闭而驻留
     trayEnabled: true,
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈

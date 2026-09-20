@@ -19,6 +19,7 @@ window.onload = () => {
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;
+    State.autoLaunch = saved.autoLaunch === true;
     State.trayEnabled = saved.trayEnabled !== false;
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
@@ -75,6 +76,7 @@ window.onload = () => {
     refreshDataDirInfo();
     initUpdateSettings();
     initTraySettings();
+    initAutoLaunchSettings();
 
     // 启动时不自动打开任何标签页：停留在空状态，由用户自行选择、新建笔记或待办
     State.openNoteIds = [];

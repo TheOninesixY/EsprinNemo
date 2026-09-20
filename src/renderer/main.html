@@ -600,6 +600,21 @@
                     <!-- 分类：系统与托盘 -->
                     <div class="settings-panel hidden" data-settings-panel="system">
                         <div class="settings-section">
+                            <div class="settings-section-title">开机自启</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">开机时自动启动</span>
+                                    <span class="settings-row-desc">把 EsprinNemo 登记到系统的登录启动项：登录后自动启动并打开主窗口；另可开启下方的「显示托盘图标」，从托盘图标随时唤回主窗口或退出</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-auto-launch">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row-desc" id="auto-launch-status">正在读取开机自启状态…</div>
+                        </div>
+
+                        <div class="settings-section">
                             <div class="settings-section-title">系统托盘</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
@@ -622,7 +637,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">自动检查并下载更新</span>
-                                    <span class="settings-row-desc">启动后自动向更新源检查新版本，发现新版本时在后台下载安装包；下载完成后会询问是否立即重启安装，不会在不经确认的情况下替换应用</span>
+                                    <span class="settings-row-desc">启动后自动向更新源检查新版本，发现新版本时在后台下载安装包；下载完成后会弹窗询问是否立即重启安装（弹窗里的「永不提醒」可以一次性关掉本项），不会在不经确认的情况下替换应用</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-auto-update">
@@ -712,6 +727,7 @@
     <script src="./scripts/settings.js"></script>
     <script src="./scripts/data_location.js"></script>
     <script src="./scripts/tray.js"></script>
+    <script src="./scripts/auto_launch.js"></script>
     <script src="./scripts/update.js"></script>
     <script src="./scripts/render.js"></script>
     <script src="./scripts/context_menu.js"></script>

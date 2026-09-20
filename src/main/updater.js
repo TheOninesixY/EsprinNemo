@@ -10,7 +10,9 @@
      与对话框，只留一个安装进度页（进度条 + “正在更新”标题），安装结束后自动重新打开应用；
      --updated / --force-run 是 electron-builder 自带的开关，用于跳过向导页并等待旧进程退出。
 
-   便携版、开发运行（bun start）与非 Windows 平台不支持自动安装，此时只下载安装包
+   便携版整体不启用更新功能：主进程既不注册更新 IPC、也不安排自动检查，界面上的
+   「更新与版本」设置项随之拿掉（见 src/main/main.js 与 src/renderer/scripts/update.js）。
+   开发运行（bun start）与非 Windows 平台不支持自动安装，此时只下载安装包
    并打开它所在的目录，由用户手动完成安装。 */
 const { app, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
@@ -71,14 +73,17 @@ let firstCheckTimer = null;
 let checkIntervalTimer = null;
 let progressSentAt = 0;
 
-// 由 main.js 注入：读取用户配置（config.json）与取主窗口（弹窗的父窗口）
+// 由 main.js 注入：读取用户配置（config.json）、取主窗口（弹窗的父窗口）
+// 与写回配置（「永不提醒」需要在主进程里直接关掉自动更新）
 let readUserConfig = () => ({});
 let getOwnerWindow = () => null;
+let writeUserConfig = () => false;
 let ipcRegistered = false;
 
-function configureUpdater({ getConfig, getOwner } = {}) {
+function configureUpdater({ getConfig, getOwner, setConfig } = {}) {
   if (typeof getConfig === 'function') readUserConfig = getConfig;
   if (typeof getOwner === 'function') getOwnerWindow = getOwner;
+  if (typeof setConfig === 'function') writeUserConfig = setConfig;
 }
 
 /* ---------------- 版本号与状态 ---------------- */
@@ -110,14 +115,18 @@ function currentVersion() {
   return normalizeVersion(app.getVersion());
 }
 
+// 渲染进程启动参数：便携版标记。渲染进程据此把「更新与版本」设置分类与面板一并摘掉
+// （见 src/renderer/boot.js 的 IS_PORTABLE_RUN 与 src/renderer/scripts/update.js）
+const PORTABLE_ARG = '--esprin-nemo-portable';
+
 // 便携版：electron-builder 的 portable 目标会在启动时写入这几个环境变量
-function isPortable() {
+function isPortableRun() {
   return !!(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR);
 }
 
-// 能否自动安装：仅 Windows 安装版（开发运行与便携版都只能手动安装）
+// 能否自动安装：仅 Windows 安装版（开发运行只能手动安装；便携版不会走到这一步）
 function canAutoInstall() {
-  return process.platform === 'win32' && app.isPackaged && !isPortable();
+  return process.platform === 'win32' && app.isPackaged && !isPortableRun();
 }
 
 // 自动更新开关以 config.json 为准：数据目录切换后读到的就是新目录里的配置
@@ -153,7 +162,6 @@ function snapshot() {
     sourceUrl: RELEASE_PAGE_URL,
     autoUpdate: readConfigAutoUpdate(),
     canAutoInstall: canAutoInstall(),
-    portable: isPortable(),
     packaged: app.isPackaged,
     checking: state.checking,
     downloading: state.downloading,
@@ -181,6 +189,26 @@ function broadcast() {
   const contents = win.webContents;
   if (!contents || contents.isDestroyed()) return;
   contents.send('update:state', snapshot());
+}
+
+// 单独通知渲染进程「自动更新已被关掉」：界面借此提示一次，并同步开关与内存状态
+function notifyAutoUpdateDisabled() {
+  const win = getOwnerWindow();
+  if (!win || win.isDestroyed()) return;
+  const contents = win.webContents;
+  if (!contents || contents.isDestroyed()) return;
+  contents.send('update:auto-disabled', { reason: 'muted' });
+}
+
+/* 「永不提醒」：把配置里的自动更新写成关闭并立即停掉定时检查。
+   配置由主进程直接落盘（渲染进程只在自己保存配置时写入），因此写完再广播一次状态，
+   设置页里的开关会跟着变成关闭；下次启动也不会再自动检查与下载。 */
+function disableAutoUpdate() {
+  stopAutoChecks();
+  const saved = writeUserConfig({ autoUpdate: false });
+  if (!saved) console.error('[Esprin Nemo] 关闭自动更新失败：配置未能写入');
+  notifyAutoUpdateDisabled();
+  broadcast();
 }
 
 /* ---------------- 网络请求 ---------------- */
@@ -556,7 +584,7 @@ async function installUpdate() {
     return { ok: false, error: '还没有下载好的安装包' };
   }
 
-  // 便携版 / 开发运行 / 非 Windows：只能手动安装，这里打开文件所在目录
+  // 开发运行 / 非 Windows：只能手动安装，这里打开文件所在目录
   if (!canAutoInstall()) {
     shell.showItemInFolder(file);
     return { ok: true, manual: true, file };
@@ -583,9 +611,10 @@ async function installUpdate() {
 /* ---------------- 自动流程与弹窗 ---------------- */
 
 // 后台自动流程：检查 → 有新版就下载 → 下载完成后询问是否立即重启安装
-// 开发运行（bun start）不参与自动流程：源码本来就不是通过更新包分发的，
-// 设置页里的「检查更新」仍可手动使用。
+// 便携版没有更新功能，开发运行（bun start）也不参与自动流程：源码本来就不是通过
+// 更新包分发的，设置页里的「检查更新」仍可手动使用。
 async function runAutoCheck() {
+  if (isPortableRun()) return;
   if (!app.isPackaged) return;
   if (!readConfigAutoUpdate()) return;
   if (state.downloading || state.checking) return;
@@ -607,7 +636,12 @@ async function promptInstallReady() {
     message: `Esprin Nemo ${version} 已下载完成`,
     detail: installable
       ? '重启应用即可完成安装：应用会先退出，安装完成后自动重新打开。'
-      : '当前运行方式（便携版或开发运行）不支持自动安装，请用下载好的安装包手动升级。',
+      : '当前为开发运行，不支持自动安装，请用下载好的安装包手动升级。',
+    // 「永不提醒」：勾选后关闭本窗口，就不再自动检查并下载更新
+    checkbox: {
+      label: '永不提醒（勾选后关闭本窗口，设置里的「自动检查并下载更新」会一并关闭）',
+      checked: false
+    },
     buttons: installable
       ? [
         { id: 'install', label: '立即重启安装', variant: 'primary' },
@@ -621,9 +655,15 @@ async function promptInstallReady() {
 
   if (choice.id === 'install') {
     await installUpdate();
-  } else if (choice.id === 'open') {
-    shell.showItemInFolder(state.downloadedFile);
+    return;
   }
+  if (choice.id === 'open') {
+    shell.showItemInFolder(state.downloadedFile);
+    return;
+  }
+
+  // 「稍后」与直接关闭窗口都是「这次不装」：勾了永不提醒的就顺手关掉自动更新
+  if (choice.checked) disableAutoUpdate();
 }
 
 function stopAutoChecks() {
@@ -640,6 +680,8 @@ function stopAutoChecks() {
 // 按配置安排自动检查：启动后延迟一次，之后按固定间隔复查
 function scheduleAutoChecks() {
   stopAutoChecks();
+  // 便携版没有更新功能：既不检查新版本，也不在后台下载
+  if (isPortableRun()) return;
   if (!readConfigAutoUpdate()) return;
 
   firstCheckTimer = setTimeout(() => {
@@ -660,6 +702,8 @@ function scheduleAutoChecks() {
 
 function registerUpdateIpc() {
   if (ipcRegistered) return;
+  // 便携版整体移除更新功能：连 IPC 通道都不注册，渲染进程无从触发任何更新动作
+  if (isPortableRun()) return;
   ipcRegistered = true;
 
   ipcMain.handle('update:get-info', () => snapshot());
@@ -692,7 +736,7 @@ function registerUpdateIpc() {
     return true;
   });
 
-  // 打开已下载安装包所在的目录（便携版 / 开发运行下手动安装用）
+  // 打开已下载安装包所在的目录（开发运行下手动安装用）
   ipcMain.handle('update:open-file', () => {
     if (state.downloadedFile && fs.existsSync(state.downloadedFile)) {
       shell.showItemInFolder(state.downloadedFile);
@@ -702,6 +746,8 @@ function registerUpdateIpc() {
 }
 
 module.exports = {
+  PORTABLE_ARG,
+  isPortableRun,
   configureUpdater,
   registerUpdateIpc,
   scheduleAutoChecks

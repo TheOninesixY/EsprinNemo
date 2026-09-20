@@ -350,11 +350,35 @@
             opacity: 1;
         }
 
+        /* 可选勾选框（例如更新提醒里的「永不提醒」）：整行可点，点击文字也能切换 */
+        .dialog-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+        .dialog-checkbox:hover {
+            color: var(--text-primary);
+        }
+        .dialog-checkbox input {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
         .dialog-actions {
             display: flex;
             justify-content: flex-end;
             gap: 8px;
         }
+
         .dialog-btn {
             padding: 6px 14px;
             border-radius: var(--radius-sm);
@@ -412,6 +436,11 @@
                 <div class="dialog-choices hidden" id="dialog-choices"></div>
             </div>
 
+            <label class="dialog-checkbox hidden" id="dialog-checkbox-row">
+                <input type="checkbox" id="dialog-checkbox">
+                <span id="dialog-checkbox-label"></span>
+            </label>
+
             <div class="dialog-actions" id="dialog-actions"></div>
         </main>
     </div>
@@ -427,6 +456,9 @@
         const fieldLabelEl = document.getElementById('dialog-field-label');
         const inputEl = document.getElementById('dialog-input');
         const choicesEl = document.getElementById('dialog-choices');
+        const checkboxRowEl = document.getElementById('dialog-checkbox-row');
+        const checkboxEl = document.getElementById('dialog-checkbox');
+        const checkboxLabelEl = document.getElementById('dialog-checkbox-label');
         const actionsEl = document.getElementById('dialog-actions');
 
         let options = null;
@@ -523,6 +555,12 @@
                 renderChoices(data.input);
             }
 
+            if (data.checkbox) {
+                checkboxEl.checked = !!data.checkbox.checked;
+                setText(checkboxLabelEl, data.checkbox.label || '');
+                checkboxRowEl.classList.remove('hidden');
+            }
+
             renderButtons();
         }
 
@@ -534,6 +572,7 @@
                 id: button ? button.id : null,
                 value: inputEl ? inputEl.value : '',
                 selected: Array.from(selectedChoices),
+                checked: !!(checkboxRowEl && !checkboxRowEl.classList.contains('hidden') && checkboxEl.checked),
                 dismissed: !!dismissed
             });
         }
@@ -593,7 +632,7 @@
             if (!options) {
                 options = {
                     title: '', message: '无法加载弹窗内容', detail: '', type: 'error', icon: 'error',
-                    buttons: [{ id: 'ok', label: '确定', variant: 'primary' }], defaultIndex: 0, cancelIndex: 0, input: null
+                    buttons: [{ id: 'ok', label: '确定', variant: 'primary' }], defaultIndex: 0, cancelIndex: 0, input: null, checkbox: null
                 };
             }
             render(options);

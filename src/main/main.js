@@ -6,26 +6,36 @@ const {
   DATA_DIR_ARG,
   ensureDataDir,
   getDefaultDataDir,
+  getLocationFile,
   isDevRun,
+  isPortableRun: isPortableDataRun,
   writeStoredDataDir
 } = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
 const { configureScratchpadWindow, isScratchpadWindowOpen, openScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
 const { configureTray, isTrayEnabled, registerTrayIpc } = require('./tray.js');
+const { configureAutoLaunch, registerAutoLaunchIpc } = require('./auto_launch.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
-const { migrateApiKeyFromConfig } = require('./ai_secret.js');
-const { configureUpdater, registerUpdateIpc, scheduleAutoChecks } = require('./updater.js');
+const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
+const { configureUpdater, registerUpdateIpc, scheduleAutoChecks, isPortableRun, PORTABLE_ARG } = require('./updater.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
 // 本文件位于 src/main/ 下，因此 assets/、src/renderer/ 与开发版 data/ 都相对它定位。
 const APP_ROOT = app.getAppPath();
 
-// 安装版使用 %APPDATA%/esprin_nemo/data，开发运行（bun start → electron .）使用项目内 data/。
-// 安装向导与“设置 → 数据存放位置”把选择写进 %APPDATA%/esprin_nemo/data_path.json，
-// 该记录优先于默认位置；开发运行不读该记录，也不允许在设置中更改位置。
+// 安装版使用 %APPDATA%/esprin_nemo/data，开发运行（bun start → electron .）使用项目内 data/，
+// 便携版使用便携版所在目录下的 data/（数据与记录都随程序目录走，见 src/main/data_path.js）。
+// 安装向导与“设置 → 数据存放位置”把选择写进 data_path.json（安装版在 %APPDATA%/esprin_nemo 下，
+// 便携版在便携版目录下），该记录优先于默认位置；开发运行不读该记录，也不允许在设置中更改位置。
 const IS_DEV_RUN = isDevRun(app);
+// 便携版：每次启动都解压到临时目录，没有稳定的可升级目标，
+// 因此更新功能（检查 / 下载 / 安装）与相关设置整体不启用
+const IS_PORTABLE_RUN = isPortableRun();
+// 数据目录层面的便携版判定：便携版目录写不进去时会退回 %APPDATA%，
+// 设置页据此展示数据与位置记录的真实落点
+const IS_PORTABLE_DATA_RUN = isPortableDataRun();
 const DATA_DIR_LOCKED_MESSAGE = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
 
 let dataDir = null;
@@ -48,6 +58,28 @@ function readUserConfig() {
     console.error('[Esprin Nemo] 读取用户配置失败:', error);
   }
   return {};
+}
+
+/* 合并写入用户配置（config.json）：目前只有更新弹窗里的「永不提醒」会由主进程改配置
+   （把 autoUpdate 写成 false），因此这里按字段合并，避免整体覆盖掉渲染进程刚写进去的其他设置。
+   写入方式与渲染进程一致：先写同目录的临时文件再改名，防止并发写把配置截断成半截。 */
+function updateUserConfig(patch) {
+  if (!patch || typeof patch !== 'object') return false;
+
+  const configFile = path.join(resolveDataDir(), 'config.json');
+  try {
+    const next = JSON.stringify({ ...readUserConfig(), ...patch }, null, 2);
+    if (fs.existsSync(configFile) && fs.readFileSync(configFile, 'utf8') === next) return true;
+
+    fs.mkdirSync(path.dirname(configFile), { recursive: true });
+    const tempFile = `${configFile}.tmp`;
+    fs.writeFileSync(tempFile, next, 'utf8');
+    fs.renameSync(tempFile, configFile);
+    return true;
+  } catch (error) {
+    console.error('[Esprin Nemo] 写入用户配置失败:', error);
+    return false;
+  }
 }
 
 // 把主题偏好折算为实际生效的明暗色
@@ -98,9 +130,12 @@ configureScratchpadWindow({
 configureAiService({ getDataDir: resolveDataDir });
 
 // 应用更新：检查 / 下载 / 安装三段都在主进程完成（见 updater.js），
-// 自动检查是否开启以 config.json 中的 autoUpdate 为准（默认开启）
+// 自动检查是否开启以 config.json 中的 autoUpdate 为准（默认开启）。
+// 便携版不会走到这里注册的 IPC 与自动检查，这里的注入因此只对其他运行方式生效。
 configureUpdater({
   getConfig: readUserConfig,
+  // 「永不提醒」勾选后由主进程直接关掉配置里的自动更新，因此还要能写回 config.json
+  setConfig: updateUserConfig,
   // 主窗口被收起时不给弹窗挂一个隐藏的父窗口，更新提示因此仍能正常显示
   getOwner: () => (mainWindowClosed ? null : mainWindow)
 });
@@ -361,7 +396,11 @@ ipcMain.handle('data:get-dir', () => {
     // 开发运行固定使用项目内 data/，始终视为默认位置
     isCustom: !IS_DEV_RUN && !isSamePath(current, defaultDir),
     isDefault: isSamePath(current, defaultDir),
-    isDevRun: IS_DEV_RUN
+    isDevRun: IS_DEV_RUN,
+    // 便携版：默认位置是便携版所在目录下的 data/，记录文件也写在同一目录下
+    isPortableRun: IS_PORTABLE_DATA_RUN,
+    // 位置记录文件（data_path.json）的实际路径，设置页据此如实告知用户记录写在哪
+    locationFile: getLocationFile(app) || ''
   };
 });
 
@@ -435,7 +474,10 @@ function createWindow() {
       nodeIntegrationInSubFrames: false,
       webviewTag: false,
       allowRunningInsecureContent: false,
-      additionalArguments: [DATA_DIR_ARG + currentDataDir]
+      // 便携版标记：渲染进程据此把「更新与版本」设置分类与面板一并摘掉
+      additionalArguments: IS_PORTABLE_RUN
+        ? [DATA_DIR_ARG + currentDataDir, PORTABLE_ARG]
+        : [DATA_DIR_ARG + currentDataDir]
     }
   });
 
@@ -518,6 +560,13 @@ app.whenReady().then(() => {
   registerTrayIpc();
   setupTray();
 
+  // 开机自启：设置页开关 + 按配置落定系统启动项（默认关闭）
+  registerAutoLaunchIpc();
+  configureAutoLaunch({ getConfig: readUserConfig });
+
+  // 配置目录搬家时（便携版的配置目录就是便携版所在目录）先把旧位置 %APPDATA%/esprin_nemo
+  // 下的密钥文件搬过来，用户不必重新填一遍 API Key
+  adoptLegacyKeyFile();
   // 旧版把 API Key 明文写在 config.json 里：在窗口创建前先收进系统密钥链并从配置中抹掉，
   // 这样渲染进程读到的配置里不会再出现明文密钥
   migrateApiKeyFromConfig(path.join(resolveDataDir(), 'config.json'));
@@ -527,11 +576,12 @@ app.whenReady().then(() => {
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
   registerUiDefaults();
 
-  // 应用更新：IPC 通道 + 启动后与定时的自动检查（默认开启）
-  registerUpdateIpc();
+  // 应用更新：IPC 通道 + 启动后与定时的自动检查（默认开启）。
+  // 便携版没有可升级的目标，更新功能与相关设置整体不启用。
+  if (!IS_PORTABLE_RUN) registerUpdateIpc();
 
   createWindow();
-  scheduleAutoChecks();
+  if (!IS_PORTABLE_RUN) scheduleAutoChecks();
 });
 
 // 应用开始退出（小本本也关闭后的退出、更新安装时的退出）后，就不再拦下主窗口的关闭

@@ -6,6 +6,13 @@ const path = require('path');
 // 侧边栏收起状态类：挂在 <html> 上。styles/sidebar.css 依赖该类名，scripts/render.js 复用此常量。
 const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
+// 便携版运行标记：主进程判断后通过 --esprin-nemo-portable 告知（见 src/main/updater.js），
+// 环境变量作为兜底。便携版每次启动都会解压到临时目录，没有稳定的可升级目标，
+// 因此更新功能与相关设置整体移除（见 scripts/settings.js 与 scripts/update.js）。
+const PORTABLE_ARG = '--esprin-nemo-portable';
+const IS_PORTABLE_RUN = (process.argv || []).includes(PORTABLE_ARG)
+    || !!(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR);
+
 // 数据目录解析：优先向主进程同步查询（主进程已处理用户在设置中自定义的位置），
 // 失败时回退到命令行参数（主进程启动时会通过 --esprin-nemo-data-dir= 传入）。
 function resolveDataDir() {

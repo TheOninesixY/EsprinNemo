@@ -78,6 +78,15 @@ function normalizeInput(rawInput) {
   };
 }
 
+// 勾选框配置：label 为说明文字（为空则视为没有勾选框），checked 为初始勾选状态。
+// 结果通过 resolve 回传的 checked 字段取回，与 input 并列。
+function normalizeCheckbox(rawCheckbox) {
+  if (!rawCheckbox || typeof rawCheckbox !== 'object') return null;
+  const label = rawCheckbox.label == null ? '' : String(rawCheckbox.label);
+  if (!label.trim()) return null;
+  return { label, checked: !!rawCheckbox.checked };
+}
+
 // 规范化调用方传入的弹窗参数，保证渲染进程拿到的一定是完整、可用的结构
 function normalizeOptions(raw) {
   const source = raw && typeof raw === 'object' ? raw : {};
@@ -117,7 +126,8 @@ function normalizeOptions(raw) {
     defaultIndex,
     cancelIndex,
     cancelId: buttons[cancelIndex].id,
-    input
+    input,
+    checkbox: normalizeCheckbox(source.checkbox)
   };
 }
 
@@ -130,6 +140,7 @@ function estimateHeight(options) {
 
   let height = 40 + 20 + messageLines * 20 + 54; // 标题栏 + 内边距 + 消息 + 按钮行
   if (detailLines) height += 10 + clamp(detailLines, 1, 8) * 18;
+  if (options.checkbox) height += 8 + Math.max(1, Math.ceil(options.checkbox.label.length / 34)) * 18;
   if (options.input) height += 46;
   if (options.input && options.input.choices.length) {
     height += 8 + Math.ceil(options.input.choices.length / 4) * 26; // 候选项气泡大致占用的行数
@@ -151,13 +162,15 @@ function centerOver(win, owner) {
 }
 
 function canceledResult(entry) {
-  const { buttons, cancelIndex } = entry.options;
+  const { buttons, cancelIndex, checkbox } = entry.options;
   const button = buttons[cancelIndex] || buttons[buttons.length - 1];
   return {
     id: button ? button.id : 'cancel',
     index: cancelIndex,
     value: '',
     selected: [],
+    // 窗口被系统收掉这类极端情况下取不到页面里的实际勾选状态，回退为初始状态
+    checked: !!(checkbox && checkbox.checked),
     dismissed: true
   };
 }
@@ -181,7 +194,7 @@ function finishDialog(entry, result) {
   entry.resolve(result);
 }
 
-// 打开一个窗口式弹窗，返回 Promise<{ id, index, value, selected, dismissed }>
+// 打开一个窗口式弹窗，返回 Promise<{ id, index, value, selected, checked, dismissed }>
 function showDialogWindow(owner, rawOptions) {
   const options = normalizeOptions(rawOptions);
   const parentWin = owner && !owner.isDestroyed() ? owner : null;
@@ -276,6 +289,7 @@ function handleRespond(event, payload) {
     index,
     value: typeof data.value === 'string' ? data.value : '',
     selected: Array.isArray(data.selected) ? data.selected.filter((item) => typeof item === 'string') : [],
+    checked: !!data.checked,
     dismissed: !!data.dismissed
   });
 }
