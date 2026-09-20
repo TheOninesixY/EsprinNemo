@@ -6,6 +6,7 @@
 const { BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { writeFileAtomic } = require('./data_path.js');
 
 // 主题 / 主题色在创建窗口时经命令行参数传入，首屏渲染前应用，避免闪烁
 const NOTE_THEME_ARG = '--esprin-nemo-note-theme=';
@@ -81,7 +82,8 @@ function writeNoteState(raw) {
   try {
     fs.mkdirSync(resolveDataDir(), { recursive: true });
     const state = normalizeNoteState(raw);
-    fs.writeFileSync(stateFilePath(), JSON.stringify(state, null, 2), 'utf8');
+    // 小本本未关联笔记时，内容只存在这份文件里，因此同样走原子写入
+    writeFileAtomic(stateFilePath(), JSON.stringify(state, null, 2));
     return { ok: true };
   } catch (error) {
     console.error('[Esprin Nemo] 保存小本本状态失败:', error);

@@ -168,32 +168,43 @@ function setupEvents() {
                 try {
                     const parsed = JSON.parse(evt.target.result);
                     if (parsed && Array.isArray(parsed.notes)) {
-                        State.notes = parsed.notes.filter(note => note && typeof note === 'object');
+                        // 备份内容先整体规范化：字段类型、id 唯一性与时间戳都在这里落定。
+                        // 两侧共用同一份 id 记录，避免生成出来的 id 在笔记与待办之间撞车；
+                        // 备份没有 todos 字段时待办保持现状，它们的 id 也要一并避让。
+                        const importIds = new Set();
+                        if (!Array.isArray(parsed.todos)) {
+                            State.todos.forEach(item => { if (item && item.id) importIds.add(item.id); });
+                        }
+                        State.notes = normalizeImportedItems(parsed.notes, 'note', importIds);
                         // 待办：新备份里带 todos 字段，旧备份没有则保持现状
                         if (Array.isArray(parsed.todos)) {
-                            State.todos = parsed.todos.filter(todo => todo && typeof todo === 'object');
+                            State.todos = normalizeImportedItems(parsed.todos, 'todo', importIds);
                         }
                         const customFolders = Array.isArray(parsed.folders) ? parsed.folders.filter(f => f && f !== '默认') : [];
                         State.folders = ['默认', ...customFolders];
+                        // 备份里引用了已不存在的文件夹时退回“默认”，与启动时的处理保持一致
+                        [...State.notes, ...State.todos].forEach(item => {
+                            if (item.folder !== '默认' && !State.folders.includes(item.folder)) item.folder = '默认';
+                        });
+                        // 导入的条目同样先标好类型，后续渲染与保存都走常数时间判断
+                        markItemKinds(State.notes, State.todos);
                         // 每篇笔记写入自己的 notes/{id}.md（元数据与正文同处一份文件）
-                        State.notes.forEach(note => {
-                            if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(note.id || ''))) note.id = generateUniqueItemId();
-                            saveNote(note);
-                        });
+                        State.notes.forEach(note => saveNote(note));
                         // 每项待办写入自己的 todos/{id}.md，格式与笔记一致（仅多一行 isDone）
-                        State.todos.forEach(todo => {
-                            if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(todo.id || ''))) todo.id = generateUniqueItemId();
-                            todo.isDone = !!todo.isDone;
-                            saveTodo(todo);
-                        });
+                        State.todos.forEach(todo => saveTodo(todo));
+                        // 指向旧数据集的标签页由 renderTabs 自动丢弃，这里无需额外清理
                         saveConfig();
                         renderApp();
                         showToast('备份导入成功');
+                    } else {
+                        showToast('导入失败，文件格式错误');
                     }
                 } catch (err) {
+                    console.error('导入备份失败:', err);
                     showToast('导入失败，文件格式错误');
                 }
             };
+            reader.onerror = () => showToast('读取备份文件失败');
             reader.readAsText(file);
             e.target.value = '';
         };
@@ -282,27 +293,39 @@ function setupEvents() {
     };
 
     window.onkeydown = (e) => {
+        // 输入法组合期间的按键 event.key 不一定是字符串，先挡掉再统一取小写
+        if (typeof e.key !== 'string') return;
+        if (!e.ctrlKey && !e.metaKey) return;
+        const key = e.key.toLowerCase();
+
         // Ctrl+N 新建笔记；Ctrl+Shift+N 新建待办（与「新建」菜单里的两项对应）
-        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'n') {
+        if (key === 'n') {
             e.preventDefault();
-            createNewNote();
+            if (e.shiftKey) createNewTodo();
+            else createNewNote();
+            return;
         }
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n') {
-            e.preventDefault();
-            createNewTodo();
-        }
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        if (e.shiftKey && key === 'f') {
             e.preventDefault();
             searchInput.focus();
+            return;
         }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        if (key === 's') {
             e.preventDefault();
+            const item = getActiveItem();
+            // 没有打开任何内容时不要假装“已保存”
+            if (!item) {
+                showToast('当前没有打开的内容');
+                return;
+            }
             // 废纸篓中的条目为只读，不写盘也不提示“已保存”
-            if (isReadOnlyItem(getActiveItem())) {
+            if (isReadOnlyItem(item)) {
                 showToast('废纸篓中的内容为只读');
                 return;
             }
+            // 快捷键的预期是“按了就落盘”，因此立刻提交，不等自动保存的 300ms 延时
             autoSaveActiveItem();
+            flushPendingSave();
             showToast('已保存');
         }
     };

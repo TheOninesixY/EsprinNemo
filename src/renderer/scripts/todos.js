@@ -28,6 +28,7 @@ function createNewTodo() {
 
     // 创建对应 data/todos/{id}.md 文件（元数据注释与正文一并写入）
     saveTodo(newTodo);
+    markItemKind(newTodo, 'todo');
     State.todos.unshift(newTodo);
 
     // 在「笔记」视图下新建待办时切到「待办」视图，否则新建的待办不会出现在列表里

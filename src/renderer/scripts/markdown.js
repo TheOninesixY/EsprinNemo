@@ -1,5 +1,62 @@
 /* 轻量 Markdown 渲染器（代码块、引用块、列表、任务清单、标题、链接、粗斜体、水平线、行内代码） */
 
+/* ---------------- 链接地址安全 ---------------
+   笔记正文与 AI 生成的回答都会被解析成 HTML 后塞进 innerHTML，而渲染进程开着 Node 集成，
+   因此链接协议必须在这里卡死：只放行 http(s) / mailto / tel 与不带协议的站内相对地址，
+   javascript: / data: / vbscript: 等可执行协议一律降级为纯文本，避免一次点击就执行脚本。 */
+
+// 放行的协议（小写、含冒号）
+const SAFE_LINK_SCHEME = /^(?:https?|mailto|tel):$/;
+// 形如 javascript: 的协议前缀
+const LINK_SCHEME_PATTERN = /^([a-z][a-z0-9+.-]*):/;
+// 协议判断前要去掉的不可见字符：空白、控制字符、零宽字符等（java&#x09;script: 这类伪装）
+const LINK_INVISIBLE_PATTERN = /[\u0000-\u0020\u007f-\u00a0\u1680\u180e\u2000-\u200f\u2028-\u202f\u205f-\u206f\u3000\ufeff]/g;
+// 实体解码：命名实体与十进制 / 十六进制实体，只解一层，避免二次解码把无害文本变成危险协议
+const LINK_ENTITY_PATTERN = /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z]+));/g;
+const LINK_NAMED_ENTITIES = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: '\u00a0'
+};
+
+function decodeLinkEntities(value) {
+    return String(value).replace(LINK_ENTITY_PATTERN, (match, dec, hex, name) => {
+        if (dec) {
+            const code = Number(dec);
+            return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+        }
+        if (hex) {
+            const code = parseInt(hex, 16);
+            return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+        }
+        const key = String(name).toLowerCase();
+        return Object.prototype.hasOwnProperty.call(LINK_NAMED_ENTITIES, key) ? LINK_NAMED_ENTITIES[key] : match;
+    });
+}
+
+// 写回 href 前的转义：解码后可能重新出现引号或尖括号，必须再转义一次才能安全地放进属性里
+function escapeLinkAttribute(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// 返回可安全写入 href 的地址；协议不被放行时返回空字符串（调用方降级为纯文本）
+function sanitizeLinkUrl(raw) {
+    const decoded = decodeLinkEntities(raw).trim();
+    if (!decoded) return '';
+    const compact = decoded.replace(LINK_INVISIBLE_PATTERN, '').toLowerCase();
+    const scheme = compact.match(LINK_SCHEME_PATTERN);
+    if (scheme && !SAFE_LINK_SCHEME.test(scheme[0])) return '';
+    return escapeLinkAttribute(decoded);
+}
+
 const marked = {
     parse(value = '') {
         if (!value) return '';
@@ -81,9 +138,17 @@ const marked = {
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/__(.+?)__/g, '<strong>$1</strong>')
             .replace(/\*([^\*\n]+?)\*/g, '<em>$1</em>')
-            .replace(/_([^_\n]+?)_/g, '<em>$1</em>')
+            // 下划线斜体不允许出现在单词内部，否则 snake_case_name 会被吃掉下划线；
+            // 中文不被 \w 覆盖，因此「中文_强调_中文」仍按原来的方式解析
+            .replace(/(^|[^\w])_([^_\n]+?)_(?![A-Za-z0-9_])/g, '$1<em>$2</em>')
             .replace(/~~(.+?)~~/g, '<del>$1</del>')
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+            // 链接地址先过一遍协议白名单，不放行时只保留链接文字
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+                const safeUrl = sanitizeLinkUrl(url);
+                return safeUrl
+                    ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer nofollow">${label}</a>`
+                    : label;
+            });
 
         // 9. 段落与换行处理
         // 让代码块占位符独占段落，保证还原后不与其他文本挤在同一个 <p> 内

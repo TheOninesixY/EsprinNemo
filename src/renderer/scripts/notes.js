@@ -27,6 +27,7 @@ function createNewNote() {
     // 创建对应 data/notes/{id}.md 文件（元数据注释与正文一并写入）
     saveNote(newNote);
 
+    markItemKind(newNote, 'note');
     State.notes.unshift(newNote);
     // 在「待办」视图下新建笔记时切回「笔记」视图，否则新建的笔记不会出现在列表里
     if (State.currentFilter === 'todos') State.currentFilter = 'all';
@@ -88,7 +89,41 @@ function getItemById(itemId) {
 
 // 是否为待办条目：保存与删除据此选目标文件
 function isTodoItem(item) {
-    return !!item && State.todos.some(todo => todo === item);
+    if (!item || typeof item !== 'object') return false;
+    const kind = item[ITEM_KIND_KEY];
+    if (kind === 'todo') return true;
+    if (kind === 'note') return false;
+    // 尚未标记的条目（例如由 AI 工具刚建出来的）在这里补上一次线性查找，
+    // 之后就走上面的常数时间分支，不会再对每一项扫描整张列表
+    const isTodo = State.todos.indexOf(item) !== -1;
+    markItemKind(item, isTodo ? 'todo' : 'note');
+    return isTodo;
+}
+
+/* 条目类型标记：写在对象上的不可枚举属性（不会进入 JSON 序列化，也不影响备份导出）。
+   列表渲染、渲染签名计算与每次保存都要判断条目类型，条目一多，
+   “逐项扫描 State.todos” 会退化成 O(n²)，因此在数据进入 State 时就一次性定下来。 */
+const ITEM_KIND_KEY = '__esprinKind';
+
+function markItemKind(item, kind) {
+    if (!item || typeof item !== 'object') return item;
+    try {
+        Object.defineProperty(item, ITEM_KIND_KEY, {
+            value: kind,
+            writable: true,
+            enumerable: false,
+            configurable: true
+        });
+    } catch (err) {
+        // 极端情况下（例如对象被冻结）标记失败：isTodoItem 会退回线性查找，功能不受影响
+    }
+    return item;
+}
+
+// 批量标记：笔记与待办载入 / 导入到 State 之后调用一次
+function markItemKinds(notes, todos) {
+    if (Array.isArray(notes)) notes.forEach(item => markItemKind(item, 'note'));
+    if (Array.isArray(todos)) todos.forEach(item => markItemKind(item, 'todo'));
 }
 
 // 条目类型的中文名，用于提示文案
@@ -286,6 +321,50 @@ function syncTrashRetentionSelect() {
     if (select) select.value = String(normalizeTrashRetentionDays(State.trashRetentionDays));
 }
 
+/* ---------------- 备份导入 ---------------- */
+
+// 把备份里的条目重新规范化：字段类型、id 唯一性与时间戳都在这里落定。
+// 手写或旧版本的备份可能带重复 id、非法时间戳与非字符串字段，
+// 直接塞进 State 会让两篇内容写进同一个文件、列表排序出现 NaN。
+// usedIds 由调用方提供时，笔记与待办共用同一份 id 记录，避免跨类型的重复 id。
+function normalizeImportedItems(rawList, kind, usedIds = new Set()) {
+    if (!Array.isArray(rawList)) return [];
+    const now = Date.now();
+    const items = [];
+
+    rawList.forEach((raw) => {
+        if (!raw || typeof raw !== 'object') return;
+
+        let id = typeof raw.id === 'string' ? raw.id.trim() : '';
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || usedIds.has(id)) {
+            id = generateUniqueItemId();
+            // generateUniqueItemId 只保证不与当前 State 冲突，这里再避开同一批里的重复
+            while (usedIds.has(id)) id = generateUniqueItemId();
+        }
+        usedIds.add(id);
+
+        const createdAt = Number(raw.createdAt);
+        const updatedAt = Number(raw.updatedAt);
+        const safeCreatedAt = Number.isFinite(createdAt) ? Math.round(createdAt) : now;
+
+        const item = {
+            id,
+            title: typeof raw.title === 'string' ? raw.title : '',
+            content: typeof raw.content === 'string' ? raw.content : '',
+            folder: typeof raw.folder === 'string' && raw.folder.trim() ? raw.folder.trim() : '默认',
+            tags: Array.isArray(raw.tags) ? raw.tags.filter(tag => typeof tag === 'string' && tag.trim()) : [],
+            isPinned: !!raw.isPinned,
+            isTrashed: !!raw.isTrashed,
+            createdAt: safeCreatedAt,
+            updatedAt: Number.isFinite(updatedAt) ? Math.round(updatedAt) : safeCreatedAt
+        };
+        if (kind === 'todo') item.isDone = !!raw.isDone;
+        items.push(item);
+    });
+
+    return items;
+}
+
 /* ---------------- 中栏列表过滤 ---------------- */
 
 // 当前筛选下的条目：「笔记」与「待办」两个入口各只列一类，
@@ -303,9 +382,11 @@ function getFilteredItems() {
     const sortBy = State.sortBy;
 
     const list = [];
-    [...State.notes, ...State.todos].forEach(item => {
-        if (onlyNotes && isTodoItem(item)) return;
-        if (onlyTodos && !isTodoItem(item)) return;
+    // 分两趟遍历笔记与待办，省掉一次数组拼接（列表在每次界面刷新时都要重建）；
+    // 条目类型由 isTodoItem 常数时间判定，不再对每一项扫描整张待办列表
+    const consider = (item, isTodo) => {
+        if (onlyNotes && isTodo) return;
+        if (onlyTodos && !isTodo) return;
 
         if (item.isTrashed) {
             if (!isTrashView) return;
@@ -322,7 +403,9 @@ function getFilteredItems() {
         }
 
         list.push(item);
-    });
+    };
+    State.notes.forEach(item => consider(item, false));
+    State.todos.forEach(item => consider(item, true));
 
     return list.sort((a, b) => {
         if (!isTrashView) {

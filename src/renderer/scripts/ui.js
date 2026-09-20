@@ -1,12 +1,38 @@
 /* 通用工具与消息弹窗：时间格式化、HTML 转义、Toast，以及由主进程承载的独立弹窗 */
 
+/* 时间格式化：列表里每张卡片都要显示时间，而列表在每次界面刷新时都会重新计算一遍，
+   同一批时间戳会被反复格式化（toLocaleTimeString 走 ICU，开销不低）。
+   这里按「分钟」缓存三种候选文本，命中缓存时只剩一次字符串比较。 */
+
+const DATE_TEXT_CACHE = new Map();
+// 缓存条数上限：超过后整体清空，避免长时间驻留累积过多条目
+const DATE_TEXT_CACHE_LIMIT = 512;
+
+function buildDateTexts(time) {
+    const d = new Date(time);
+    return {
+        // 判断是否为当天的依据
+        day: d.toDateString(),
+        // 当天：只显示时刻
+        time: d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        // 非当天：显示月日
+        date: `${d.getMonth() + 1}月${d.getDate()}日`
+    };
+}
+
 function formatDate(timestamp) {
-    const d = new Date(timestamp);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString()) {
-        return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    const time = Number(timestamp);
+    if (!Number.isFinite(time)) return '';
+
+    const minuteKey = Math.floor(time / 60000);
+    let entry = DATE_TEXT_CACHE.get(minuteKey);
+    if (!entry) {
+        entry = buildDateTexts(time);
+        if (DATE_TEXT_CACHE.size >= DATE_TEXT_CACHE_LIMIT) DATE_TEXT_CACHE.clear();
+        DATE_TEXT_CACHE.set(minuteKey, entry);
     }
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
+    // 以「当天」为界，跨零点时不会取到过期结果
+    return entry.day === new Date().toDateString() ? entry.time : entry.date;
 }
 
 // 转义表提到函数外，避免每次调用都重新创建字面量对象
@@ -19,6 +45,7 @@ function escapeHTML(str) {
 
 function showToast(msg) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const item = document.createElement('div');
     item.className = 'toast-item';
     item.innerHTML = `<span class="ms-icon sm">info</span><span>${escapeHTML(msg)}</span>`;

@@ -26,8 +26,12 @@ const State = {
     trashRetentionDays: 0,
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
     fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
-    // AI 助手接口配置（随 config.json 一起落盘，密钥仅存本机）
-    ai: { enabled: true, agentMode: false, baseUrl: '', apiKey: '', model: '', scope: 'current', maxNotes: 10, systemPrompt: '' },
+    // AI 助手接口配置（随 config.json 一起落盘）
+    ai: { enabled: true, agentMode: false, baseUrl: '', model: '', scope: 'current', maxNotes: 10, systemPrompt: '' },
+    // API Key 不随配置落盘：这里只保留「是否已保存」与保管方式（keychain / encrypted / plain），
+    // 明文始终只存在于主进程与系统密钥链中
+    aiHasApiKey: false,
+    aiKeyStorage: '',
     // AI 助手面板：是否展开，以及多对话（一份对话一个文件，落在数据目录的 ai_chats/ 下）
     aiPanelOpen: false,
     aiConversations: [],

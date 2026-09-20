@@ -125,6 +125,8 @@ function adoptDataDir(dir, options = {}) {
 
     State.notes = saved.notes;
     State.todos = Array.isArray(saved.todos) ? saved.todos : [];
+    // 换目录后条目对象全是新的，重新标一遍类型
+    markItemKinds(State.notes, State.todos);
     State.folders = saved.folders;
 
     // 新位置同样执行一次数据清理（与启动流程一致）：

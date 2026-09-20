@@ -332,6 +332,7 @@ function runCreateNote(args) {
     };
 
     State.notes.unshift(note);
+    markItemKind(note, 'note');
     commitNoteWrite(note);
 
     return {

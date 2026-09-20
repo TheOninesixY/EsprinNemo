@@ -506,13 +506,17 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">API Key</span>
-                                    <span class="settings-row-desc">以明文保存在本机数据目录的 config.json 中，只会在请求上方 API 站点时使用；本地服务（如 Ollama）可留空</span>
+                                    <span class="settings-row-desc">由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不会随 config.json 被复制或分享；输入后回车即保存，本地服务（如 Ollama）可留空</span>
                                 </div>
-                                <div class="ai-input-group">
-                                    <input type="password" class="settings-input mono" id="setting-ai-apikey" spellcheck="false" placeholder="sk-…" autocomplete="off">
-                                    <button class="settings-btn icon-only" id="btn-ai-key-toggle" title="显示 / 隐藏 API Key">
-                                        <span class="ms-icon xs">visibility</span>
-                                    </button>
+                                <div class="ai-input-stack">
+                                    <div class="ai-input-group">
+                                        <input type="password" class="settings-input mono" id="setting-ai-apikey" spellcheck="false" placeholder="sk-…" autocomplete="off">
+                                        <button class="settings-btn icon-only" id="btn-ai-key-toggle" title="显示 / 隐藏输入的 API Key">
+                                            <span class="ms-icon xs">visibility</span>
+                                        </button>
+                                        <button class="settings-btn hidden" id="btn-ai-key-clear" title="清除已保存的 API Key">清除</button>
+                                    </div>
+                                    <span class="ai-key-hint" id="ai-key-hint">尚未保存 API Key</span>
                                 </div>
                             </div>
                             <div class="settings-row">

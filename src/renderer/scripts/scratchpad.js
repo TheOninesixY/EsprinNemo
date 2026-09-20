@@ -53,6 +53,7 @@ function createNoteFromScratchpad(title, content) {
     };
 
     saveNote(note);
+    markItemKind(note, 'note');
     State.notes.unshift(note);
     renderCounts();
     renderListPanel();

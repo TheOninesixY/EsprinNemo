@@ -1,9 +1,11 @@
 // AI 助手（主进程）：代理兼容 OpenAI 协议的对话与模型列表请求。
-// 渲染进程只提交消息内容，API 站点 / KEY / 模型等敏感配置由主进程自行从数据目录的 config.json 读取，
-// 密钥因此不会经由 IPC 往返、也不会出现在页面脚本里；同时也避开了 file:// 页面直接请求外部接口的跨域限制。
+// 渲染进程只提交消息内容，API 站点 / KEY / 模型等敏感配置由主进程自行读取，密钥因此不会经由
+// IPC 往返、也不会出现在页面脚本里；同时也避开了 file:// 页面直接请求外部接口的跨域限制。
+// 其中 API Key 不存在数据目录的 config.json 里，而是由系统密钥链加密保管（见 ai_secret.js）。
 const { ipcMain, dialog, BrowserWindow } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { adoptLegacyApiKey, keyStatus, readApiKey, writeApiKey } = require('./ai_secret.js');
 
 // 对话请求默认超时：流式生成可能很慢，给足 3 分钟；模型列表与连接测试属于轻量请求，30 秒足够
 const CHAT_TIMEOUT_MS = 180000;
@@ -46,29 +48,30 @@ let ipcRegistered = false;
 // requestId -> { controller, aborted }
 const activeRequests = new Map();
 
-// 由 main.js 注入数据目录解析器（AI 配置与笔记一起放在用户数据目录中）
+// 由 main.js 注入数据目录解析器（AI 的站点 / 模型与笔记一起放在用户数据目录中）
 function configureAiService({ getDataDir } = {}) {
   if (typeof getDataDir === 'function') resolveDataDir = getDataDir;
 }
 
-// 读取 AI 配置：只取接口相关三项，其余（默认上下文范围等）由渲染进程自行处理
+// 读取 AI 配置：接口三项。站点与模型来自数据目录的 config.json，
+// 密钥来自系统密钥链（旧版明文密钥在首次读取时收编并从配置里抹掉）。
 function readAiSettings() {
-  const fallback = { baseUrl: '', apiKey: '', model: '' };
+  const settings = { baseUrl: '', apiKey: '', model: '' };
+  if (!resolveDataDir) return settings;
+
+  const configFile = path.join(resolveDataDir(), 'config.json');
+  let config = null;
   try {
-    if (!resolveDataDir) return fallback;
-    const configFile = path.join(resolveDataDir(), 'config.json');
-    if (!fs.existsSync(configFile)) return fallback;
-    const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-    const ai = config && typeof config === 'object' && config.ai && typeof config.ai === 'object' ? config.ai : {};
-    return {
-      baseUrl: typeof ai.baseUrl === 'string' ? ai.baseUrl.trim() : '',
-      apiKey: typeof ai.apiKey === 'string' ? ai.apiKey.trim() : '',
-      model: typeof ai.model === 'string' ? ai.model.trim() : ''
-    };
+    if (fs.existsSync(configFile)) config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   } catch (error) {
     console.error('[Esprin Nemo] 读取 AI 配置失败:', error);
-    return fallback;
   }
+
+  const ai = config && typeof config === 'object' && config.ai && typeof config.ai === 'object' ? config.ai : {};
+  settings.baseUrl = typeof ai.baseUrl === 'string' ? ai.baseUrl.trim() : '';
+  settings.model = typeof ai.model === 'string' ? ai.model.trim() : '';
+  settings.apiKey = readApiKey() || adoptLegacyApiKey(config, configFile);
+  return settings;
 }
 
 // 用户填写的是「API 站点」，可能带 /v1、也可能直接是完整的 /chat/completions 端点，这里统一折算为完整 URL
@@ -558,6 +561,25 @@ async function runChat({ messages, sender, requestId, stream, tools }) {
 function registerAiIpc() {
   if (ipcRegistered) return;
   ipcRegistered = true;
+
+  // API Key：明文只在主进程与系统密钥链里，渲染进程只能提交新密钥、查询保管状态
+  ipcMain.handle('ai:key-status', () => keyStatus());
+
+  // 保存 / 更换 / 清除密钥（传空字符串即清除）；返回最新的保管状态
+  ipcMain.handle('ai:set-key', (event, payload) => {
+    const apiKey = payload && typeof payload.apiKey === 'string' ? payload.apiKey : '';
+    return writeApiKey(apiKey);
+  });
+
+  // 同步版本：载入旧配置时就地收编明文密钥，便于渲染进程立刻把内存里的明文抹掉
+  ipcMain.on('ai:set-key-sync', (event, payload) => {
+    const apiKey = payload && typeof payload.apiKey === 'string' ? payload.apiKey : '';
+    event.returnValue = writeApiKey(apiKey);
+  });
+
+  ipcMain.on('ai:key-status-sync', (event) => {
+    event.returnValue = keyStatus();
+  });
 
   // 流式对话：增量通过 ai:stream 事件推送，最终结果（含工具调用）由 invoke 的返回值给出
   ipcMain.handle('ai:chat', async (event, payload) => {

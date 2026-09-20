@@ -144,6 +144,9 @@ function populateFontSelects(families) {
 }
 
 function syncFontSelects() {
+    // 字体列表用到时才枚举：本机字体可能有上千个，枚举会占用启动阶段的时间，
+    // 而字体下拉框只在「设置 → 字体」里出现
+    ensureFontListLoaded();
     if (!fontListPopulated) return;
     const fonts = normalizeFonts(State.fonts);
     FONT_SELECT_CONFIG.forEach((config) => {
@@ -152,20 +155,8 @@ function syncFontSelects() {
     });
 }
 
-async function initFonts() {
-    FONT_SELECT_CONFIG.forEach((config) => {
-        const select = document.getElementById(config.id);
-        if (!select) return;
-        select.onchange = (e) => {
-            State.fonts[config.key] = e.target.value || '';
-            applyFonts();
-            saveConfig();
-        };
-    });
-
-    // 首屏已注入过一遍，这里再同步一次以兜底
-    applyFonts();
-
+// 枚举本机字体并填充下拉框（结果与失败都会写入设置页的状态行）
+async function loadFontList() {
     try {
         let families = await queryFontsViaApi();
         let source = 'api';
@@ -193,4 +184,33 @@ async function initFonts() {
         if (status) status.textContent = '读取本机字体列表失败，已回退到内置常用字体';
         populateFontSelects(normalizeFamilyList(COMMON_FONT_FAMILIES));
     }
+}
+
+// 幂等的按需加载入口：同一时刻只跑一轮枚举，中途重复调用共享同一个 Promise
+let fontListPromise = null;
+
+function ensureFontListLoaded() {
+    if (fontListPopulated) return null;
+    if (!fontListPromise) {
+        fontListPromise = loadFontList().finally(() => {
+            // 没能成功填充时清掉 Promise，允许下次进入设置页再试一次
+            if (!fontListPopulated) fontListPromise = null;
+        });
+    }
+    return fontListPromise;
+}
+
+function initFonts() {
+    FONT_SELECT_CONFIG.forEach((config) => {
+        const select = document.getElementById(config.id);
+        if (!select) return;
+        select.onchange = (e) => {
+            State.fonts[config.key] = e.target.value || '';
+            applyFonts();
+            saveConfig();
+        };
+    });
+
+    // 首屏已注入过一遍，这里再同步一次以兜底
+    applyFonts();
 }

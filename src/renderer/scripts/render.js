@@ -321,11 +321,37 @@ function renderTabs() {
 // 列表卡片只展示首行摘要，先截断再转义，避免长文档每次都做整篇转义
 const PREVIEW_MAX_LENGTH = 120;
 
-// 列表卡片摘要：取正文首行（笔记与待办的卡片共用同一个函数）
+// 判定首行边界的空白字符：与 String.prototype.trim 的口径保持一致（含全角空格等）
+function isPreviewWhitespace(code) {
+    return code <= 32
+        || code === 0xa0
+        || code === 0x1680
+        || (code >= 0x2000 && code <= 0x200a)
+        || code === 0x2028
+        || code === 0x2029
+        || code === 0x202f
+        || code === 0x205f
+        || code === 0x3000
+        || code === 0xfeff;
+}
+
+// 列表卡片摘要：取正文首个非空行（笔记与待办的卡片共用同一个函数）。
+// 这里只扫到第一行为止，不对整篇正文做 trim / split —— 几百 KB 的笔记下差别很明显。
 function notePreviewText(item) {
-    const content = String(item.content || '').trim();
-    if (!content) return '暂无内容';
-    const firstLine = content.split('\n', 1)[0];
+    const raw = typeof item.content === 'string' ? item.content : '';
+    const length = raw.length;
+
+    // 跳过开头的空白与空行
+    let start = 0;
+    while (start < length && isPreviewWhitespace(raw.charCodeAt(start))) start++;
+    if (start >= length) return '暂无内容';
+
+    // 首行到第一个换行符为止，行尾空白一并去掉
+    const lineBreak = raw.indexOf('\n', start);
+    let end = lineBreak === -1 ? length : lineBreak;
+    while (end > start && isPreviewWhitespace(raw.charCodeAt(end - 1))) end--;
+
+    const firstLine = raw.slice(start, end);
     return firstLine.length > PREVIEW_MAX_LENGTH ? firstLine.slice(0, PREVIEW_MAX_LENGTH) : firstLine;
 }
 

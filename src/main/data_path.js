@@ -89,6 +89,25 @@ function readStoredDataDir(appLike = null) {
   }
 }
 
+// 原子写入：先写同目录下的临时文件，再改名覆盖目标文件。
+// 直接覆盖写时若进程被强杀或断电，原文件会被截断成半截内容；
+// 同一分区内的 rename 是原子操作，目标文件因此要么是旧内容、要么是新内容。
+function writeFileAtomic(filePath, text) {
+  const tempPath = `${filePath}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, text, 'utf8');
+    fs.renameSync(tempPath, filePath);
+    return true;
+  } catch (error) {
+    try {
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    } catch (cleanupError) {
+      // 清理失败不影响错误上报
+    }
+    throw error;
+  }
+}
+
 // 写入数据位置记录；dir 为空表示删除记录（回到默认位置）
 function writeStoredDataDir(dir, appLike = null) {
   // 开发运行不维护位置记录（清空记录会误删安装版的选择）
@@ -105,7 +124,7 @@ function writeStoredDataDir(dir, appLike = null) {
     }
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const record = { dataDir: path.resolve(dir).replace(/\\/g, '/') };
-    fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+    writeFileAtomic(file, `${JSON.stringify(record, null, 2)}\n`);
     return true;
   } catch (error) {
     console.error('[Esprin Nemo] 保存数据位置失败:', error);
@@ -200,7 +219,9 @@ function ensureDataDir(baseDir = __dirname, appLike = null) {
 module.exports = {
   DATA_DIR_ARG,
   isDevRun,
+  getConfigDir,
   getDefaultDataDir,
+  writeFileAtomic,
   writeStoredDataDir,
   ensureDataDir
 };

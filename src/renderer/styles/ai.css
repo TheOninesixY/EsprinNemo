@@ -689,6 +689,11 @@
     align-items: center;
     gap: 6px;
 }
+/* API Key 的保管状态：说明密钥存在哪里，不含任何密钥内容 */
+.ai-key-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
 .ai-quick-fill-label {
     font-size: 11px;
     color: var(--text-muted);

@@ -1,4 +1,6 @@
-/* AI 助手设置面板：API 站点 / KEY / 模型，以及提问时附带的笔记范围 */
+/* AI 助手设置面板：API 站点 / KEY / 模型，以及提问时附带的笔记范围。
+   API Key 不在 config.json 里，也不留在渲染进程：输入框只在提交时把值交给主进程
+   （由系统密钥链加密保存），界面只回显「有没有保存」与保管方式。 */
 
 // 输入过程中攒一下再落盘，避免每敲一个字符就写一次 config.json
 const AI_CONFIG_SAVE_DELAY = 400;
@@ -42,10 +44,103 @@ function describeAiConfigState() {
     if (!ai.baseUrl && !ai.model) return '尚未配置：填写 API 站点与模型后即可在标题栏打开「AI 助手」提问。';
     if (!ai.baseUrl) return '还差 API 站点：请填写兼容 OpenAI 协议的接口地址。';
     if (!ai.model) return '还差模型名称：填写模型后即可开始提问。';
-    return `已配置：${ai.model}${ai.apiKey ? '' : '（未填写 API Key，适用于本地服务）'}`;
+    return `已配置：${ai.model}${State.aiHasApiKey ? '' : '（未保存 API Key，适用于本地服务）'}`;
 }
 
-// 把界面上的值读回 State（含规范化），并刷新依赖配置的界面元素
+/* ---------------- API Key：只经主进程进出，渲染进程不留明文 ---------------- */
+
+// 主进程上报的保管方式：keychain（系统密钥链）/ encrypted（系统加密但非密钥链）/ plain（仅本机可读的文件）
+function aiKeyStorageKind(status) {
+    if (!status || !status.hasKey) return '';
+    if (status.strong) return 'keychain';
+    return status.encrypted ? 'encrypted' : 'plain';
+}
+
+function describeAiKeyStorage() {
+    if (!State.aiHasApiKey) return '尚未保存 API Key：填写后回车即可保存，密钥不会写入配置或笔记文件。';
+    if (State.aiKeyStorage === 'keychain') return '已保存到系统密钥链（内存与磁盘上均为密文）。';
+    if (State.aiKeyStorage === 'encrypted') return '已保存（当前系统未提供密钥链，仅做了基础加密）。';
+    return '已保存（当前系统不支持加密存储，已按仅本机可读的文件权限保存）。';
+}
+
+// 把主进程返回的密钥状态落到界面：输入框提示语、清除按钮与状态说明
+function applyAiKeyStatus(status) {
+    State.aiHasApiKey = !!(status && status.hasKey);
+    State.aiKeyStorage = aiKeyStorageKind(status);
+
+    const keyInput = document.getElementById('setting-ai-apikey');
+    if (keyInput) {
+        // 输入框里永远不放明文：已保存时留空，填写即表示「换成新的」
+        keyInput.placeholder = State.aiHasApiKey ? '已保存，如需更换请直接输入新的 Key' : 'sk-…';
+    }
+    const clearBtn = document.getElementById('btn-ai-key-clear');
+    if (clearBtn) clearBtn.classList.toggle('hidden', !State.aiHasApiKey);
+
+    const hint = document.getElementById('ai-key-hint');
+    if (hint) hint.textContent = describeAiKeyStorage();
+}
+
+// 密钥状态只在主进程手里，设置页每次打开时同步一次
+async function refreshAiKeyStatus() {
+    try {
+        applyAiKeyStatus(await ipcRenderer.invoke('ai:key-status'));
+    } catch (err) {
+        console.error('读取 API Key 状态失败:', err);
+    }
+}
+
+// 提交输入框里的新密钥：成功后立即清空输入框，界面只保留状态
+async function commitAiKeyFromForm() {
+    const input = document.getElementById('setting-ai-apikey');
+    if (!input) return false;
+    const apiKey = input.value.trim();
+    if (!apiKey) return false;
+
+    try {
+        const result = await ipcRenderer.invoke('ai:set-key', { apiKey });
+        if (!result || !result.ok) {
+            setAiStatus((result && result.error) || '保存 API Key 失败', 'error');
+            return false;
+        }
+        input.value = '';
+        applyAiKeyStatus(result);
+        refreshAiConfigViews();
+        showToast('API Key 已保存到本机安全存储');
+        return true;
+    } catch (err) {
+        console.error('保存 API Key 失败:', err);
+        setAiStatus('保存 API Key 失败', 'error');
+        return false;
+    }
+}
+
+// 清除已保存的密钥：需要确认，避免误点后丢失配置
+async function clearAiApiKey() {
+    const confirmed = await showConfirm('清除已保存的 API Key？', {
+        title: '清除 API Key',
+        detail: '清除后需要重新填写才能继续使用需要鉴权的 API 站点；本地服务（如 Ollama）不受影响。',
+        confirmLabel: '清除',
+        danger: true
+    });
+    if (!confirmed) return;
+
+    try {
+        const result = await ipcRenderer.invoke('ai:set-key', { apiKey: '' });
+        if (!result || !result.ok) {
+            setAiStatus((result && result.error) || '清除 API Key 失败', 'error');
+            return;
+        }
+        applyAiKeyStatus(result);
+        refreshAiConfigViews();
+        showToast('已清除 API Key');
+    } catch (err) {
+        console.error('清除 API Key 失败:', err);
+        setAiStatus('清除 API Key 失败', 'error');
+    }
+}
+
+// 把界面上的值读回 State（含规范化），并刷新依赖配置的界面元素。
+// API Key 不在此列：它由主进程保管，界面上的输入框只在提交时单独处理。
 function readAiConfigFromForm() {
     const field = (id) => {
         const el = document.getElementById(id);
@@ -55,7 +150,6 @@ function readAiConfigFromForm() {
     State.ai = normalizeAiConfig({
         ...State.ai,
         baseUrl: field('setting-ai-baseurl'),
-        apiKey: field('setting-ai-apikey'),
         model: field('setting-ai-model'),
         scope: field('setting-ai-scope'),
         maxNotes: field('setting-ai-maxnotes'),
@@ -76,18 +170,20 @@ function syncAiSettingsUI() {
 
     const ai = normalizeAiConfig(State.ai);
     baseUrl.value = ai.baseUrl;
-    document.getElementById('setting-ai-apikey').value = ai.apiKey;
     document.getElementById('setting-ai-model').value = ai.model;
     document.getElementById('setting-ai-scope').value = ai.scope;
     document.getElementById('setting-ai-maxnotes').value = String(ai.maxNotes);
     document.getElementById('setting-ai-system').value = ai.systemPrompt;
     document.getElementById('setting-ai-enabled').checked = ai.enabled;
 
-    // 关掉设置页再回来时 KEY 恢复为掩码显示
+    // 关掉设置页再回来时输入框恢复为空 + 掩码显示（里面从不保留明文）
     const keyInput = document.getElementById('setting-ai-apikey');
+    keyInput.value = '';
     keyInput.type = 'password';
     const keyToggle = document.getElementById('btn-ai-key-toggle');
     if (keyToggle) keyToggle.innerHTML = '<span class="ms-icon xs">visibility</span>';
+    applyAiKeyStatus({ hasKey: State.aiHasApiKey, encrypted: State.aiKeyStorage === 'encrypted', strong: State.aiKeyStorage === 'keychain' });
+    refreshAiKeyStatus();
 
     setAiStatus(describeAiConfigState());
     applyAiEnabledState();
@@ -151,6 +247,8 @@ async function fetchAiModels() {
         return;
     }
     flushAiConfigSave();
+    // 刚粘贴进来的 Key 可能还没失焦提交，先落定再发请求
+    await commitAiKeyFromForm();
 
     setAiButtonBusy('btn-ai-models', true);
     setAiStatus('正在获取模型列表…');
@@ -184,6 +282,8 @@ async function testAiConnection() {
         return;
     }
     flushAiConfigSave();
+    // 同上：先把输入框里待保存的 Key 交给主进程，测试才会用上它
+    await commitAiKeyFromForm();
 
     setAiButtonBusy('btn-ai-test', true);
     setAiStatus('正在测试连接…');
@@ -209,7 +309,8 @@ function initAiSettings() {
     if (!baseUrl) return;
 
     // 文本类字段：输入时只更新内存并稍后落盘，失焦/回车时立即落盘
-    ['setting-ai-baseurl', 'setting-ai-apikey', 'setting-ai-model', 'setting-ai-system'].forEach((id) => {
+    // （API Key 不在此列：输入框内容只在提交时交给主进程，不参与配置读写）
+    ['setting-ai-baseurl', 'setting-ai-model', 'setting-ai-system'].forEach((id) => {
         const el = document.getElementById(id);
         if (!el) return;
         el.oninput = () => {
@@ -223,6 +324,20 @@ function initAiSettings() {
             refreshAiConfigViews();
         };
     });
+
+    // API Key：失焦或回车即提交给主进程保存（成功后输入框立即清空）
+    const keyInput = document.getElementById('setting-ai-apikey');
+    if (keyInput) {
+        keyInput.onchange = () => { commitAiKeyFromForm(); };
+        keyInput.onkeydown = (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            commitAiKeyFromForm();
+        };
+    }
+
+    const keyClearBtn = document.getElementById('btn-ai-key-clear');
+    if (keyClearBtn) keyClearBtn.onclick = clearAiApiKey;
 
     const scopeSelect = document.getElementById('setting-ai-scope');
     if (scopeSelect) {

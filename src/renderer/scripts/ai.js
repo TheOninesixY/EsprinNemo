@@ -796,6 +796,7 @@ function saveAiAnswerAsNote(content) {
     };
 
     saveNote(note);
+    markItemKind(note, 'note');
     State.notes.unshift(note);
     openTab(note.id);
     renderApp();

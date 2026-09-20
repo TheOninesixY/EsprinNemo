@@ -79,6 +79,61 @@ function ensureStorageDirs() {
     }
 }
 
+// 原子写入用的临时文件后缀：不会命中笔记 / 待办 / 对话的文件名规则
+const TEMP_FILE_SUFFIX = '.tmp';
+// rename 失败后的重试等待（毫秒）：仅用于极端情况，正常路径不会走到
+const RENAME_RETRY_DELAYS = [15, 40];
+
+// 同步等待：仅在 rename 重试时使用，且发生在保存失败这一罕见路径上
+function sleepSync(ms) {
+    try {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+    } catch (err) {
+        // 不支持共享内存时退化为不等待
+    }
+}
+
+/* Windows 上杀软与索引器可能瞬时占用刚写出的文件，使 rename 短时间失败。
+   这里对可重试的错误码等一小会儿再试，避免一次自动保存被误判为失败。 */
+function renameWithRetry(from, to) {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            fs.renameSync(from, to);
+            return;
+        } catch (err) {
+            const retryable = err && (err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'EACCES');
+            if (!retryable || attempt >= RENAME_RETRY_DELAYS.length) throw err;
+            sleepSync(RENAME_RETRY_DELAYS[attempt]);
+        }
+    }
+}
+
+/* 原子写入：先写同目录下的临时文件，再改名替换目标文件。
+   直接覆盖写时，若进程被强杀或断电，原文件会被截断成半截内容；
+   而笔记的元数据与正文同处一份文件（待办、对话与配置同理），损坏即整条记录报废。
+   同一分区内的 rename 是原子操作，因此目标文件要么是旧内容、要么是新内容。 */
+function writeFileAtomic(filePath, text) {
+    const tempPath = `${filePath}${TEMP_FILE_SUFFIX}`;
+    try {
+        fs.writeFileSync(tempPath, text, 'utf8');
+        renameWithRetry(tempPath, filePath);
+    } catch (err) {
+        // 失败时清掉临时文件，避免在数据目录里留下垃圾
+        try {
+            if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+        } catch (cleanupError) {
+            // 清理失败不影响错误上报
+        }
+        throw err;
+    }
+}
+
+// 上一次原子写入中途被打断时可能留下临时文件：扫描时静默跳过。
+// 这里只跳过、不删除——万一它比目标文件更新，内容不至于因为一次扫描就丢掉。
+function isStaleTempFile(fileName) {
+    return typeof fileName === 'string' && fileName.endsWith(TEMP_FILE_SUFFIX);
+}
+
 /* ---------------- 笔记文件：内嵌元数据注释 + Markdown 正文 ----------------
    文件形如：
    <!--EsprinData
@@ -260,6 +315,8 @@ function readItemFiles(dir, label) {
 
     entries.forEach((entry) => {
         if (!entry.isFile()) return;
+        // 原子写入中途被打断留下的临时文件：静默跳过，不当成“异常文件”报警
+        if (isStaleTempFile(entry.name)) return;
         const matched = entry.name.match(NOTE_FILE_PATTERN);
         if (!matched) {
             console.warn(`${label}目录中已忽略非${label}文件：${entry.name}`);
@@ -532,6 +589,8 @@ function readAiChatFiles() {
 
     entries.forEach((entry) => {
         if (!entry.isFile()) return;
+        // 原子写入中途被打断留下的临时文件：静默跳过
+        if (isStaleTempFile(entry.name)) return;
         const matched = entry.name.match(AI_CHAT_FILE_PATTERN);
         if (!matched) {
             console.warn(`ai_chats 目录中已忽略非对话文件：${entry.name}`);
@@ -573,7 +632,7 @@ function saveAiChat(chat) {
     try {
         const json = serializeAiChat(chat);
         if (savedAiChatFiles.get(chat.id) === json) return;
-        fs.writeFileSync(path.join(AI_CHATS_DIR, `${chat.id}.json`), json, 'utf8');
+        writeFileAtomic(path.join(AI_CHATS_DIR, `${chat.id}.json`), json);
         savedAiChatFiles.set(chat.id, json);
     } catch (err) {
         console.error(`保存对话 ${chat.id} 失败:`, err);
@@ -641,7 +700,7 @@ function loadAiChats(activeIdFromConfig) {
         savedAiChatFiles.set(chat.id, json);
         if (raws.get(chat.id) === json) return;
         try {
-            fs.writeFileSync(path.join(AI_CHATS_DIR, `${chat.id}.json`), json, 'utf8');
+            writeFileAtomic(path.join(AI_CHATS_DIR, `${chat.id}.json`), json);
         } catch (err) {
             console.error(`写入对话 ${chat.id} 失败:`, err);
             rewriteFailed++;
@@ -679,7 +738,8 @@ function normalizeFonts(raw) {
     };
 }
 
-// AI 配置规范化：容忍缺失/脏数据，范围与数量都夹在合理区间内
+// AI 配置规范化：容忍缺失/脏数据，范围与数量都夹在合理区间内。
+// 注意这里没有 apiKey：密钥由主进程存进系统密钥链，不随 config.json 落盘，也不会进入渲染进程。
 function normalizeAiConfig(raw) {
     const source = (raw && typeof raw === 'object') ? raw : {};
     const pick = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
@@ -690,13 +750,42 @@ function normalizeAiConfig(raw) {
         // Agent 模式：允许模型调用工具改写笔记，默认关闭
         agentMode: !!source.agentMode,
         baseUrl: pick('baseUrl'),
-        // 密钥不 trim 之外的任何改写：原样保存，避免用户粘贴的内容被破坏
-        apiKey: typeof source.apiKey === 'string' ? source.apiKey.trim() : '',
         model: pick('model'),
         scope: normalizeAiScope(source.scope),
         maxNotes: Number.isFinite(maxNotes) ? Math.min(Math.max(Math.round(maxNotes), 1), 100) : 10,
         systemPrompt: typeof source.systemPrompt === 'string' ? source.systemPrompt : ''
     };
+}
+
+/* 旧版把 API Key 明文写在 config.json 的 ai.apiKey 里。主进程在启动时已经做过一次迁移，
+   这里再兜一次底：万一配置文件里仍有明文（例如数据目录刚从别处拷来），载入时立即交给主进程
+   存进系统密钥链，并把明文从内存里的配置抹掉，避免这一轮的任何保存又把它写回磁盘。 */
+function adoptLegacyApiKey(config) {
+    const ai = config && typeof config === 'object' && config.ai && typeof config.ai === 'object' ? config.ai : null;
+    const legacyKey = ai && typeof ai.apiKey === 'string' ? ai.apiKey.trim() : '';
+    if (ai) delete ai.apiKey;
+    if (!legacyKey) return;
+    try {
+        const result = ipcRenderer.sendSync('ai:set-key-sync', { apiKey: legacyKey });
+        if (result && result.ok) {
+            console.warn('API Key 迁移：config.json 中的明文密钥已收进本机安全存储');
+        } else {
+            console.warn('API Key 迁移失败：', (result && result.error) || '未知原因');
+        }
+    } catch (err) {
+        console.error('API Key 迁移失败:', err);
+    }
+}
+
+// 密钥保管状态（是否有密钥、怎么保管）由主进程给出，渲染进程拿不到明文
+function readAiKeyStatus() {
+    const empty = { hasKey: false, encrypted: false, strong: false, migrated: false, path: '' };
+    try {
+        return ipcRenderer.sendSync('ai:key-status-sync') || empty;
+    } catch (err) {
+        console.error('读取 API Key 状态失败:', err);
+        return empty;
+    }
 }
 
 function loadData() {
@@ -709,11 +798,15 @@ function loadData() {
             const rawConfig = fs.readFileSync(CONFIG_FILE, 'utf8');
             if (rawConfig) config = { ...config, ...JSON.parse(rawConfig) };
         } else {
-            fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+            writeFileAtomic(CONFIG_FILE, JSON.stringify(config, null, 2));
         }
     } catch (err) {
         console.error('读取 config.json 失败:', err);
     }
+
+    // API Key 不再随配置落盘：收编旧配置里的明文密钥，并同步取一次保管状态
+    adoptLegacyApiKey(config);
+    const aiKeyStatus = readAiKeyStatus();
 
     // 2. 旧版数据兼容：index.json 中的元数据只作为兜底来源，稍后并入各笔记文件并归档
     const legacyIndex = readLegacyIndex();
@@ -764,7 +857,7 @@ function loadData() {
         const file = fileById.get(note.id);
         if (file && file.raw === text) return;
         try {
-            fs.writeFileSync(path.join(NOTES_DIR, `${note.id}.md`), text, 'utf8');
+            writeFileAtomic(path.join(NOTES_DIR, `${note.id}.md`), text);
             repairedNotes++;
         } catch (err) {
             console.error(`写入笔记 ${note.id} 失败:`, err);
@@ -787,7 +880,7 @@ function loadData() {
         const file = todoFileById.get(todo.id);
         if (file && file.raw === text) return;
         try {
-            fs.writeFileSync(path.join(TODOS_DIR, `${todo.id}.md`), text, 'utf8');
+            writeFileAtomic(path.join(TODOS_DIR, `${todo.id}.md`), text);
             repairedTodos++;
         } catch (err) {
             console.error(`写入待办 ${todo.id} 失败:`, err);
@@ -815,6 +908,7 @@ function loadData() {
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
+        aiKeyStatus,
         aiChats: { conversations: aiChats.conversations, activeId: aiChats.activeId },
         folders: ['默认', ...customFolders],
         notes,
@@ -856,7 +950,7 @@ function saveConfig() {
         };
         const json = JSON.stringify(config, null, 2);
         if (json === savedConfigJSON) return;
-        fs.writeFileSync(CONFIG_FILE, json, 'utf8');
+        writeFileAtomic(CONFIG_FILE, json);
         savedConfigJSON = json;
     } catch (err) {
         console.error('保存 config.json 失败:', err);
@@ -870,7 +964,7 @@ function saveNote(note) {
     try {
         const text = serializeNoteFile(note);
         if (savedNoteFiles.get(note.id) === text) return;
-        fs.writeFileSync(path.join(NOTES_DIR, `${note.id}.md`), text, 'utf8');
+        writeFileAtomic(path.join(NOTES_DIR, `${note.id}.md`), text);
         savedNoteFiles.set(note.id, text);
     } catch (err) {
         console.error(`保存笔记 ${note.id} 失败:`, err);
@@ -895,7 +989,7 @@ function saveTodo(todo) {
     try {
         const text = serializeTodoFile(todo);
         if (savedTodoFiles.get(todo.id) === text) return;
-        fs.writeFileSync(path.join(TODOS_DIR, `${todo.id}.md`), text, 'utf8');
+        writeFileAtomic(path.join(TODOS_DIR, `${todo.id}.md`), text);
         savedTodoFiles.set(todo.id, text);
     } catch (err) {
         console.error(`保存待办 ${todo.id} 失败:`, err);

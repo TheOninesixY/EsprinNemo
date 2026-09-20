@@ -1,11 +1,16 @@
 /* 应用启动：载入数据、迁移旧版单文件记录（index.json / ai_chats.json）与清理过期废纸篓条目，
    初始化各模块并首次渲染 */
 
+// 废纸篓定期复查的定时器句柄：留一个引用，便于窗口卸载或调试时清理
+let trashPurgeTimer = null;
+
 // App Boot
 window.onload = () => {
     const saved = loadData();
     State.notes = Array.isArray(saved.notes) ? saved.notes : [];
     State.todos = Array.isArray(saved.todos) ? saved.todos : [];
+    // 一次性标好条目类型：后续所有类型判断都是常数时间
+    markItemKinds(State.notes, State.todos);
     State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
     State.theme = saved.theme || 'system';
     State.accentColor = normalizeAccentColor(saved.accentColor);
@@ -15,6 +20,9 @@ window.onload = () => {
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
+    // API Key 只保留「是否已保存 + 保管方式」，明文始终留在主进程与系统密钥链里
+    State.aiHasApiKey = !!(saved.aiKeyStatus && saved.aiKeyStatus.hasKey);
+    State.aiKeyStorage = aiKeyStorageKind(saved.aiKeyStatus);
     State.aiScope = State.ai.scope;
     // 多对话记录（ai_chats/ 下的一份份文件）：载入后保证至少有一份可用对话
     adoptAiChats(saved.aiChats);
@@ -83,7 +91,18 @@ window.onload = () => {
             ? 'AI 对话已拆分为 ai_chats 下的一份份文件（原 ai_chats.json 保留为 ai_chats.json.bak）'
             : 'AI 对话已拆分为 ai_chats 下的一份份文件');
     }
+    // 本次启动刚把 config.json 里的明文 API Key 收进系统密钥链：提示一次，避免用户以为密钥丢了
+    if (saved.aiKeyStatus && saved.aiKeyStatus.migrated) {
+        showToast('API Key 已改存到本机安全存储（不再明文写入 config.json）');
+    }
 
-    // 应用长时间驻留时也按策略复查；没有过期内容时不会产生任何刷新或磁盘写入
-    setInterval(runTrashAutoPurge, TRASH_PURGE_INTERVAL_MS);
+    // 应用长时间驻留时也按策略复查；没有过期内容时不会产生任何刷新或磁盘写入。
+    // 窗口在后台时先跳过，回到前台立即补一次，避免后台空转做无用的目录扫描。
+    trashPurgeTimer = setInterval(() => {
+        if (document.hidden) return;
+        runTrashAutoPurge();
+    }, TRASH_PURGE_INTERVAL_MS);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) runTrashAutoPurge();
+    });
 };

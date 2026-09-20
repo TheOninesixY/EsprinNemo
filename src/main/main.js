@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const {
   DATA_DIR_ARG,
   ensureDataDir,
@@ -13,6 +14,7 @@ const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require(
 const { closeScratchpadWindow, configureScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
+const { migrateApiKeyFromConfig } = require('./ai_secret.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
 // 本文件位于 src/main/ 下，因此 assets/、src/renderer/ 与开发版 data/ 都相对它定位。
@@ -88,7 +90,7 @@ configureScratchpadWindow({
   icon: path.join(APP_ROOT, 'assets', 'icon.png')
 });
 
-// AI 助手：接口配置（站点 / KEY / 模型）随数据目录存放，由主进程直接读取，不经 IPC 传递密钥
+// AI 助手：站点与模型随数据目录存放，API Key 由系统密钥链单独保管；两者都只由主进程读取
 configureAiService({ getDataDir: resolveDataDir });
 
 // 主窗口引用：小本本据此定位停靠屏幕，并在主窗口关闭时一并收掉
@@ -102,6 +104,53 @@ function normalizePathForCompare(target) {
 function isSamePath(a, b) {
   return normalizePathForCompare(a) === normalizePathForCompare(b);
 }
+
+// 应用自身的界面文件（main.html / dialog.html / scratchpad.html）都位于 APP_ROOT 内，
+// 只有这些 file:// 页面允许作为渲染进程的停留目标。
+function isInternalPageUrl(targetUrl) {
+  try {
+    const parsed = new URL(String(targetUrl));
+    if (parsed.protocol !== 'file:') return false;
+    const decoded = decodeURIComponent(parsed.pathname);
+    // file:///E:/dir/page.html 的 pathname 以斜杠开头，去掉后再交给 path 处理
+    const filePath = process.platform === 'win32'
+      ? decoded.replace(/^\//, '').replace(/\//g, '\\')
+      : decoded;
+    const relative = path.relative(APP_ROOT, path.resolve(filePath));
+    return !!relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+  } catch (error) {
+    return false;
+  }
+}
+
+// 站外链接交给系统浏览器：应用窗口本身不承担浏览器的职责
+function openExternalUrl(targetUrl) {
+  const value = String(targetUrl || '');
+  if (!/^https?:\/\//i.test(value)) return;
+  shell.openExternal(value).catch((error) => {
+    console.error('[Esprin Nemo] 打开外部链接失败:', error);
+  });
+}
+
+// 页面导航收口：站外链接走系统浏览器，其余导航一律拦下。
+// 笔记正文与 AI 回答里的链接因此不可能把窗口导航到不受控的页面。
+app.on('web-contents-created', (event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    openExternalUrl(url);
+    return { action: 'deny' };
+  });
+
+  contents.on('will-navigate', (event, url) => {
+    if (isInternalPageUrl(url)) return;
+    event.preventDefault();
+    openExternalUrl(url);
+  });
+
+  // 页面里不允许挂载 <webview>
+  contents.on('will-attach-webview', (event) => {
+    event.preventDefault();
+  });
+});
 
 // child 是否为 parent 的子路径（用于阻止把数据目录搬到自己的子目录/父目录，避免递归复制）
 function isPathInside(parent, child) {
@@ -184,6 +233,8 @@ async function applyDataDirChange(targetPath, win, { persist = true, confirmExis
 
   if (persist) writeStoredDataDir(target, app);
   dataDir = target;
+  // 新位置的配置里若还留着明文 API Key（例如从别处拷来的数据），就地收进本机安全存储
+  migrateApiKeyFromConfig(path.join(target, 'config.json'));
   return { canceled: false, dataDir: target, migrated: migrate };
 }
 
@@ -314,6 +365,11 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      // 页面脚本还在使用 require，因此维持上面的两项目前设置；
+      // 其余能力按最小可用原则显式关掉。
+      nodeIntegrationInSubFrames: false,
+      webviewTag: false,
+      allowRunningInsecureContent: false,
       additionalArguments: [DATA_DIR_ARG + currentDataDir]
     }
   });
@@ -336,17 +392,38 @@ function createWindow() {
     win.webContents.send('window:fullscreen-changed', false);
   });
 
-  win.loadURL('file://' + path.join(APP_ROOT, 'src', 'renderer', 'main.html'));
+  // 用 file URL 而不是手工拼 file://，避免 Windows 盘符与空格路径被拼错
+  win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'renderer', 'main.html')).href);
 
   mainWindow = win;
   return win;
 }
 
+// 单实例锁：数据是磁盘上的一组文件，两个实例并发写入会互相覆盖，
+// 因此后启动的实例直接退出，并由既有实例把窗口带到前台。
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+
+app.on('second-instance', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
+
 app.whenReady().then(() => {
-  // 允许 Local Font Access API 的 local-fonts 权限（保持其它权限默认放行行为）
+  if (!hasSingleInstanceLock) return;
+
+  // 权限白名单：只放行字体枚举（「设置 → 字体」里读取本机字体列表用），其余一律拒绝。
+  // 渲染进程开着 Node 集成，未使用的摄像头 / 麦克风 / 定位等权限没有必要开放。
+  const ALLOWED_PERMISSIONS = new Set(['local-fonts']);
   try {
-    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => callback(true));
-    session.defaultSession.setPermissionCheckHandler(() => true);
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      callback(ALLOWED_PERMISSIONS.has(permission));
+    });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+      return ALLOWED_PERMISSIONS.has(permission);
+    });
   } catch (error) {
     console.error('[Esprin Nemo] 注册字体权限处理器失败:', error);
   }
@@ -357,6 +434,10 @@ app.whenReady().then(() => {
   // 小本本窗口的 IPC 通道（打开 / 读写内容 / 外观同步）
   registerScratchpadIpc();
 
+
+  // 旧版把 API Key 明文写在 config.json 里：在窗口创建前先收进系统密钥链并从配置中抹掉，
+  // 这样渲染进程读到的配置里不会再出现明文密钥
+  migrateApiKeyFromConfig(path.join(resolveDataDir(), 'config.json'));
   // AI 助手：对话代理与模型列表
   registerAiIpc();
 

@@ -67,6 +67,19 @@ let lastStatsNoteId = null;
 let lastStatsContent = null;
 let lastStatsUpdatedAt = null;
 
+// 中英混排的字数统计：CJK / 谚文按「字」计，其余按空白分词计。
+// 旧实现一律按空白分词，一整段中文会被算成 1 个字，与「字数」的直觉完全不符。
+const CJK_CHAR_PATTERN = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\u{20000}-\u{3ffff}]/gu;
+
+function countWords(text) {
+    if (!text) return 0;
+    const cjk = text.match(CJK_CHAR_PATTERN);
+    const cjkCount = cjk ? cjk.length : 0;
+    // 去掉 CJK 字符后再按空白分词，避免标点与英文单词被并入中文字数
+    const rest = text.replace(CJK_CHAR_PATTERN, ' ').trim();
+    return cjkCount + (rest ? rest.split(/\s+/).length : 0);
+}
+
 function updateStats() {
     const item = getActiveItem();
     if (!item) return;
@@ -78,8 +91,7 @@ function updateStats() {
     lastStatsUpdatedAt = item.updatedAt;
 
     document.getElementById('stat-char-count').textContent = `字符: ${content.length}`;
-    const trimmed = content.trim();
-    document.getElementById('stat-word-count').textContent = `字数: ${trimmed ? trimmed.split(/\s+/).length : 0}`;
+    document.getElementById('stat-word-count').textContent = `字数: ${countWords(content)}`;
     document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(item.updatedAt)}`;
 }
 
