@@ -11,9 +11,11 @@ on:
       - .github/workflows/releases.yml
   workflow_dispatch:
 
-# 发布 Release 需要写权限
 permissions:
+  # 创建 Release / 推送 tag 需要写权限
   contents: write
+  # 清理 Actions 缓存需要 actions 权限
+  actions: write
 
 jobs:
   release:
@@ -60,6 +62,10 @@ jobs:
       - name: 构建
         if: steps.check.outputs.published == 'false'
         run: bun run build
+        env:
+          # electron-builder 检测到 CI 环境后会尝试连接 GitHub 处理草稿 Release，
+          # 缺少 token 时会直接报错中断打包，因此这里必须提供 GH_TOKEN。
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 列出构建产物
         if: steps.check.outputs.published == 'false'
@@ -82,3 +88,13 @@ jobs:
             dist/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 清理 Actions 缓存
+        # 无论构建/发布成功与否都执行，避免缓存不断累积占满仓库配额
+        if: ${{ !cancelled() && steps.check.outputs.published == 'false' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "清理 $GITHUB_REPOSITORY 的 Actions 缓存……"
+          gh cache delete --all --repo "$GITHUB_REPOSITORY" || echo "没有可清理的缓存。"
