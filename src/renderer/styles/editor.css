@@ -86,10 +86,12 @@
     border-radius: var(--radius-sm);
     font-size: 11.5px;
     color: var(--text-secondary);
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s;
 }
 .view-btn.active {
-    background: var(--bg-list);
+    /* 选中项改用「浮起表面」：原用的 --bg-list 在深色主题下与容器底色几乎同色，
+       根本看不出当前处在编辑 / 分屏 / 预览中的哪一档 */
+    background: var(--bg-elevated);
     color: var(--text-primary);
     font-weight: 500;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -105,6 +107,12 @@
     padding: 0 16px;
     flex-shrink: 0;
     overflow-x: auto;
+    /* 窗口较窄时工具栏会横向滚动，但不必显示那条 6px 滚动条——
+       与标签栏、标签容器保持一致，滚动能力仍在，只是不画滑块 */
+    scrollbar-width: none;
+}
+.editor-toolbar::-webkit-scrollbar {
+    display: none;
 }
 .fmt-btn {
     width: 24px;
@@ -112,11 +120,14 @@
     border-radius: var(--radius-sm);
     font-size: 12px;
     color: var(--text-secondary);
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, transform 0.1s;
 }
 .fmt-btn:hover {
     background: var(--item-hover);
     color: var(--text-primary);
+}
+.fmt-btn:active {
+    transform: scale(0.92);
 }
 .fmt-divider {
     width: 1px;

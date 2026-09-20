@@ -179,7 +179,11 @@ input, textarea, select {
     font-size: 12px;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 只过渡真正会变的几个属性，不用 transition: all——
+       它会把 width / transform 之类一同纳入监听，容易在布局变化时触发多余的重排 */
+    transition: background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     white-space: nowrap;
 }
@@ -188,7 +192,9 @@ input, textarea, select {
     color: var(--text-primary);
 }
 .tab-item.active {
-    background-color: var(--tab-active-bg);
+    /* 这里原先引用的是 --tab-active-bg，但该令牌从未定义，当前标签页实际上没有底色、
+       只剩一圈边框。改用「浮起表面」令牌后，深色 / 浅色主题下当前页都能一眼认出 */
+    background-color: var(--bg-elevated);
     border-color: var(--border-color);
     color: var(--text-primary);
     font-weight: 500;
@@ -204,7 +210,7 @@ input, textarea, select {
     height: 18px;
     border-radius: var(--radius-sm);
     opacity: 0.6;
-    transition: all 0.15s;
+    transition: opacity 0.15s, background-color 0.15s, color 0.15s;
 }
 .tab-close-btn:hover {
     opacity: 1;
@@ -233,10 +239,14 @@ input, textarea, select {
     color: var(--accent-fg);
     font-size: 12px;
     font-weight: 500;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, transform 0.1s;
 }
 .btn-new-note:hover {
     opacity: 0.9;
+}
+/* 与侧边栏「新建」按钮同一套按压反馈（见 sidebar.css） */
+.btn-new-note:active {
+    transform: scale(0.98);
 }
 
 .btn-action-icon {
@@ -244,11 +254,15 @@ input, textarea, select {
     height: 26px;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    transition: all 0.15s;
+    transition: background-color 0.15s, color 0.15s, transform 0.1s;
 }
 .btn-action-icon:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
+}
+/* 按压反馈：只做不影响布局的缩放（工具栏、标题栏、面板顶栏的小图标按钮共用） */
+.btn-action-icon:active {
+    transform: scale(0.94);
 }
 
 /* Window Controls */
@@ -296,3 +310,19 @@ body.is-fullscreen .titlebar-tabs {
 }
 
 .hidden { display: none !important; }
+
+/* 动效偏好：系统开启「减少动态效果」时，去掉浮层的入场动画与图标的按压缩放。
+   这里刻意只关动画、不动过渡——侧边栏收起 / 展开依赖宽度过渡的 transitionend
+   （另配了计时器兜底，见 scripts/render.js），保留原行为更稳妥。 */
+@media (prefers-reduced-motion: reduce) {
+    .toast-item,
+    .dropdown-menu,
+    .context-menu {
+        animation: none !important;
+    }
+    .btn-action-icon:active,
+    .btn-new-note:active,
+    .fmt-btn:active {
+        transform: none !important;
+    }
+}

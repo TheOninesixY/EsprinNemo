@@ -16,6 +16,9 @@
     --bg-sidebar: #0d1117;
     --bg-list: #161b22;
     --bg-editor: #0d1117;
+    /* 浮起表面：比所在容器亮一档，用于「当前项」——标签页当前页、分段控件（编辑 / 分屏 / 预览）选中项。
+       深色主题里标题栏与工作区本来就只差一档，选中项若沿用这两个色就分辨不出当前选中了谁 */
+    --bg-elevated: #21262d;
     --border-color: #30363d;
     --border-light: rgba(255, 255, 255, 0.08);
 
@@ -63,6 +66,8 @@
     --bg-sidebar: #f6f8fa;
     --bg-list: #ffffff;
     --bg-editor: #ffffff;
+    /* 浅色下选中项用纯白：容器本身已是一层浅灰，白色即为「浮起」 */
+    --bg-elevated: #ffffff;
     --border-color: #d0d7de;
     --border-light: rgba(0, 0, 0, 0.06);
 

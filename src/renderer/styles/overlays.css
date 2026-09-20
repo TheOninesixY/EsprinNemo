@@ -13,6 +13,8 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    /* 与自绘下拉菜单同一拍入场（关键帧定义见 dropdown.css，两者共用） */
+    animation: dropdownIn 0.12s ease-out;
 }
 .context-menu-item {
     padding: 6px 10px;
@@ -23,6 +25,7 @@
     gap: 8px;
     color: var(--text-primary);
     cursor: pointer;
+    transition: background-color 0.12s, color 0.12s;
 }
 .context-menu-item:hover {
     background: var(--item-active);

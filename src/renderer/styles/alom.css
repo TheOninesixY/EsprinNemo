@@ -11,6 +11,8 @@
     --bg-sidebar: #1c1c1e;
     --bg-list: #2c2c2e;
     --bg-editor: #1c1c1e;
+    /* 浮起表面：比 --bg-list 再亮一档，与 Alom 用明度差拉层次的做法一致 */
+    --bg-elevated: #3a3a3c;
     --border-color: #38383a;
     --border-light: rgba(255, 255, 255, 0.1);
 
@@ -43,6 +45,8 @@
     --bg-sidebar: #f2f2f7;
     --bg-list: #ffffff;
     --bg-editor: #ffffff;
+    /* 浮起表面：与 --bg-list 同为纯白，层次交给投影（见下方卡片 / 浮层规则） */
+    --bg-elevated: #ffffff;
     --border-color: #d8d8dc;
     --border-light: rgba(0, 0, 0, 0.07);
 
