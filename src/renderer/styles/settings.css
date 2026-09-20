@@ -552,17 +552,40 @@ input:checked + .slider:before {
     font-size: 11.5px;
     color: var(--text-muted);
 }
-/* 更新说明按纯文本呈现：保留发布说明里的换行，超长内容在框内滚动 */
+/* 版本说明按 Markdown 渲染（排版交给 editor.css 的 .markdown-body），超长内容在框内滚动 */
 .update-notes-body {
     max-height: 260px;
     overflow-y: auto;
     font-size: 12px;
-    line-height: 1.7;
     color: var(--text-secondary);
-    white-space: pre-wrap;
     word-break: break-word;
     user-select: text;
     cursor: text;
+}
+/* 正文比笔记正文更小，标题层级跟着收一号；首尾元素去掉外边距，避免框内留白过多 */
+.update-notes-body h1,
+.update-notes-body h2 {
+    font-size: 13.5px;
+}
+.update-notes-body h3,
+.update-notes-body h4,
+.update-notes-body h5,
+.update-notes-body h6 {
+    font-size: 12.5px;
+}
+.update-notes-body > *:first-child {
+    margin-top: 0;
+}
+.update-notes-body > *:last-child {
+    margin-bottom: 0;
+}
+/* 版本号做成指向该版本发布页的链接：外观与纯文本一致，悬停才给出下划线 */
+.update-notes-version a {
+    color: inherit;
+    text-decoration: none;
+}
+.update-notes-version a:hover {
+    text-decoration: underline;
 }
 /* 更新状态行：沿用 AI 面板的状态着色约定（ok / error） */
 #update-status[data-tone='ok'] {

@@ -762,24 +762,40 @@
                         </div>
 
                         <div class="settings-section hidden" id="update-notes-section">
-                            <div class="settings-section-title">更新说明</div>
+                            <div class="settings-section-title">新版本说明</div>
                             <div class="update-notes">
                                 <div class="update-notes-head">
                                     <span class="update-notes-version" id="update-notes-version"></span>
                                     <span class="update-notes-date" id="update-notes-date"></span>
                                 </div>
-                                <div class="update-notes-body" id="update-notes-body"></div>
+                                <!-- 新版本说明按 Markdown 渲染（见 scripts/update.js 的 setReleaseNotesBody） -->
+                                <div class="update-notes-body markdown-body" id="update-notes-body"></div>
                             </div>
                         </div>
 
                         <div class="settings-section">
                             <div class="settings-section-title">版本信息</div>
+                            <!-- 版本号下面一行展示项目地址（这里原本放的是「更新源」） -->
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">Esprin Nemo <span id="update-current-version">…</span></span>
-                                    <span class="settings-row-desc" id="update-build-kind"></span>
-                                    <span class="settings-row-desc" id="update-source"></span>
+                                    <span class="settings-row-desc" id="update-repo-url">正在读取项目地址…</span>
                                 </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-update-repo" title="在系统浏览器中打开项目主页">打开项目主页</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 当前版本说明：取自更新源上 tag 等于当前版本的那条 release，同样按 Markdown 渲染 -->
+                        <div class="settings-section">
+                            <div class="settings-section-title">当前版本说明</div>
+                            <div class="update-notes">
+                                <div class="update-notes-head">
+                                    <span class="update-notes-version" id="update-current-notes-version"></span>
+                                    <span class="update-notes-date" id="update-current-notes-date"></span>
+                                </div>
+                                <div class="update-notes-body markdown-body" id="update-current-notes-body"></div>
                             </div>
                         </div>
                     </div>

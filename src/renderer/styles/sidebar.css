@@ -179,28 +179,30 @@
     font-size: 11px;
     color: var(--text-muted);
 }
-/* 清空废纸篓：与底栏的设置、收起按钮同尺寸的图标按钮，悬停高亮大小一致（保留危险操作的红色） */
+/* 清空废纸篓：与底栏的设置、收起按钮同尺寸的图标按钮，悬停高亮大小一致（保留危险操作的红色）。
+   opacity 参与过渡：收起动画期间它随底栏一起渐隐（见下方 .icons-fading） */
 .btn-clear-trash {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
     color: var(--danger);
-    transition: background-color 0.15s, color 0.15s, width 0.18s ease, height 0.18s ease;
+    transition: background-color 0.15s, color 0.15s, width 0.18s ease, height 0.18s ease, opacity 0.14s ease;
 }
 .btn-clear-trash:hover {
     background-color: var(--item-hover);
     color: var(--danger);
 }
 /* 底栏右侧的小图标按钮：设置与收起/展开，成组靠右（收起按钮在最右侧）。
-   width / height 参与过渡：收起时它们会从 20×20 放到 24×24，与背景收窄同步变化 */
+   width / height 参与过渡：收起时它们会从 20×20 放到 24×24，与背景收窄同步变化；
+   opacity 参与过渡：收起动画期间它们随底栏一起渐隐（见下方 .icons-fading） */
 .btn-sidebar-bottom {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
-    transition: background-color 0.15s, color 0.15s, width 0.18s ease, height 0.18s ease;
+    transition: background-color 0.15s, color 0.15s, width 0.18s ease, height 0.18s ease, opacity 0.14s ease;
 }
 .btn-sidebar-bottom:hover {
     background-color: var(--item-hover);
@@ -273,8 +275,7 @@ html.sidebar-collapsed .sidebar #btn-open-settings {
 
 /* 文字淡出 / 淡入共用一个临时类（.text-fading 由 scripts/render.js 控制时机）：
    收起时它负责第一拍的文字渐隐（此阶段布局不动，图标因此不位移）；
-   展开时它让文字在宽度过渡结束前保持不可见，先完成组件展开，再淡入文字。
-   设置按钮在收起态也可见，因此不参与淡入淡出。 */
+   展开时它让文字在宽度过渡结束前保持不可见，先完成组件展开，再淡入文字。 */
 .nav-text,
 .nav-badge,
 .nav-section-folders,
@@ -289,6 +290,16 @@ html.sidebar-collapsed .sidebar #btn-open-settings {
 .sidebar.text-fading .nav-section-folders,
 .sidebar.text-fading .nav-section-tags,
 .sidebar.text-fading .sidebar-brand {
+    opacity: 0;
+}
+
+/* 底栏图标的临时类（.icons-fading 由 scripts/render.js 只在收起方向上挂）：
+   收起时底栏要从横排换成竖排、按钮还要从 20 放大到 24，若一路可见就会看到一次跳变。
+   因此让它们跟文字同一拍先渐隐（比文字略快，保证换排布时已经彻底看不见），
+   等宽度过渡结束、临时类被摘掉后再渐显回新位置。
+   展开方向不挂这个类，底栏因此保持一直可见。 */
+.sidebar.icons-fading .btn-clear-trash,
+.sidebar.icons-fading .btn-sidebar-bottom {
     opacity: 0;
 }
 

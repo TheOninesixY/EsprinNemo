@@ -9,6 +9,9 @@
      运行。--upgrade 由安装脚本（src/win_installer/installer.nsh）识别：不显示任何向导页
      与对话框，只留一个安装进度页（进度条 + “正在更新”标题），安装结束后自动重新打开应用；
      --updated / --force-run 是 electron-builder 自带的开关，用于跳过向导页并等待旧进程退出。
+   - 当前版本说明：GET /repos/{owner}/{repo}/releases/tags/v<当前版本>，取该版本的发布说明与
+     发布时间给「更新与版本」页展示；更新源上没有对应的发布记录（例如本地构建的版本）时
+     只记一个状态，不影响检查更新等其他功能。
 
    便携版整体不启用更新功能：主进程既不注册更新 IPC、也不安排自动检查，界面上的
    「更新与版本」设置项随之拿掉（见 src/main/main.js 与 src/renderer/scripts/update.js）。
@@ -23,8 +26,12 @@ const { showDialogWindow } = require('./dialog_window.js');
 
 // 更新源：仓库的 Releases 里上传安装包即可被检查到（改仓库地址时改这里）
 const UPDATE_REPO = 'TheOninesixY/EsprinNemo';
-const RELEASE_PAGE_URL = `https://github.com/${UPDATE_REPO}/releases`;
+// 项目地址：设置页「更新与版本」里作为信息展示，并可在系统浏览器中打开
+const REPO_URL = `https://github.com/${UPDATE_REPO}`;
+const RELEASE_PAGE_URL = `${REPO_URL}/releases`;
 const LATEST_RELEASE_API = `https://api.github.com/repos/${UPDATE_REPO}/releases/latest`;
+// 指定 tag 的发布记录（当前版本的发布说明用）：tag 形如 v0.0.0
+const releaseTagApi = (tag) => `https://api.github.com/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`;
 
 const USER_AGENT = 'EsprinNemo-Updater';
 const REQUEST_TIMEOUT_MS = 20000;
@@ -59,6 +66,11 @@ const state = {
   canceled: false,
   // 检查到的新版本：{ version, notes, publishedAt, releaseUrl, asset }
   update: null,
+  // 当前版本对应的发布记录：{ version, notes, publishedAt, releaseUrl }
+  currentRelease: null,
+  // 当前版本发布记录的读取状态：idle / loading / ready / missing / error
+  currentReleaseStatus: 'idle',
+  currentReleaseError: '',
   downloadedFile: '',
   // 已下载安装包对应的版本号：与检查到的新版本不一致时说明文件已过期
   downloadedVersion: '',
@@ -157,9 +169,8 @@ function snapshot() {
   return {
     status: state.status,
     currentVersion: currentVersion(),
-    // 更新源：仓库名与发布页地址，界面上作为说明文字展示
-    source: UPDATE_REPO,
-    sourceUrl: RELEASE_PAGE_URL,
+    // 项目地址：设置页里作为说明文字展示，并可在系统浏览器中打开
+    repoUrl: REPO_URL,
     autoUpdate: readConfigAutoUpdate(),
     canAutoInstall: canAutoInstall(),
     packaged: app.isPackaged,
@@ -169,6 +180,10 @@ function snapshot() {
     progress: state.progress ? { ...state.progress } : null,
     lastCheckAt: state.lastCheckAt,
     error: state.error,
+    // 当前版本的发布说明（来自 tag 等于当前版本的那条 release）
+    currentRelease: state.currentRelease ? { ...state.currentRelease } : null,
+    currentReleaseStatus: state.currentReleaseStatus,
+    currentReleaseError: state.currentReleaseError,
     update: update
       ? {
         version: update.version,
@@ -226,7 +241,8 @@ function describeNetworkError(error) {
   return asString(error && error.message) || '检查更新失败';
 }
 
-function requestJson(url, redirects = 0) {
+// allowNotFound：把 404 当成“没有这条记录”而不是错误（当前版本可能没有发布过）
+function requestJson(url, redirects = 0, { allowNotFound = false } = {}) {
   return new Promise((resolve, reject) => {
     const request = https.get(url, {
       headers: {
@@ -241,7 +257,7 @@ function requestJson(url, redirects = 0) {
           reject(new Error('更新源重定向次数过多'));
           return;
         }
-        resolve(requestJson(new URL(response.headers.location, url).href, redirects + 1));
+        resolve(requestJson(new URL(response.headers.location, url).href, redirects + 1, { allowNotFound }));
         return;
       }
 
@@ -253,6 +269,10 @@ function requestJson(url, redirects = 0) {
       });
       response.on('end', () => {
         if (response.statusCode === 404) {
+          if (allowNotFound) {
+            resolve(null);
+            return;
+          }
           reject(new Error('更新源暂无发布版本'));
           return;
         }
@@ -351,6 +371,64 @@ function checkForUpdates() {
   })();
 
   return pendingCheck;
+}
+
+/* ---------------- 当前版本的发布说明 ---------------- */
+
+let pendingCurrentRelease = null;
+
+/* 读取当前版本在更新源上的发布记录（更新说明、发布时间、发布页地址）。
+   与「检查更新」互不影响：只读 tag 等于当前版本的那条 release，拿到就缓存，
+   同一版本不再重复请求；更新源上没有这条记录（404）或网络出错都只记状态，
+   界面上显示一句说明即可，不影响检查更新与下载安装包。 */
+function ensureCurrentRelease() {
+  if (pendingCurrentRelease) return pendingCurrentRelease;
+
+  const version = currentVersion();
+  if (!version) return Promise.resolve(snapshot());
+  // 已经拿到当前版本的记录：直接复用缓存，避免每次打开设置页都打一次 API
+  if (state.currentReleaseStatus === 'ready'
+    && state.currentRelease
+    && state.currentRelease.version === version) {
+    return Promise.resolve(snapshot());
+  }
+
+  state.currentReleaseStatus = 'loading';
+  state.currentReleaseError = '';
+  broadcast();
+
+  pendingCurrentRelease = (async () => {
+    try {
+      // 发布用的是 v<版本> 形式的 tag；万一没带 v，就按原样再试一次
+      let release = await requestJson(releaseTagApi(`v${version}`), 0, { allowNotFound: true });
+      if (!release) release = await requestJson(releaseTagApi(version), 0, { allowNotFound: true });
+
+      if (!release) {
+        state.currentRelease = null;
+        state.currentReleaseStatus = 'missing';
+        return snapshot();
+      }
+
+      state.currentRelease = {
+        version: normalizeVersion(release.tag_name || release.name) || version,
+        notes: asString(release.body),
+        publishedAt: asString(release.published_at),
+        releaseUrl: asString(release.html_url) || RELEASE_PAGE_URL
+      };
+      state.currentReleaseStatus = 'ready';
+      return snapshot();
+    } catch (error) {
+      state.currentRelease = null;
+      state.currentReleaseStatus = 'error';
+      state.currentReleaseError = describeNetworkError(error);
+      return snapshot();
+    } finally {
+      pendingCurrentRelease = null;
+      broadcast();
+    }
+  })();
+
+  return pendingCurrentRelease;
 }
 
 /* ---------------- 下载安装包 ---------------- */
@@ -706,7 +784,11 @@ function registerUpdateIpc() {
   if (isPortableRun()) return;
   ipcRegistered = true;
 
-  ipcMain.handle('update:get-info', () => snapshot());
+  ipcMain.handle('update:get-info', () => {
+    // 打开设置页时顺带异步读一次当前版本的发布记录：读完通过 update:state 推送过来
+    ensureCurrentRelease();
+    return snapshot();
+  });
 
   // 自动更新开关：渲染进程改完后立即落盘配置，这里只需重新安排 / 停掉定时检查
   ipcMain.handle('update:set-auto', (event, payload) => {
@@ -718,6 +800,7 @@ function registerUpdateIpc() {
 
   ipcMain.handle('update:check', async () => {
     await checkForUpdates();
+    await ensureCurrentRelease();
     return snapshot();
   });
 
@@ -732,6 +815,14 @@ function registerUpdateIpc() {
     const url = state.update && state.update.releaseUrl ? state.update.releaseUrl : RELEASE_PAGE_URL;
     shell.openExternal(url).catch((error) => {
       console.error('[Esprin Nemo] 打开发布页失败:', error);
+    });
+    return true;
+  });
+
+  // 项目地址：在系统浏览器里打开仓库主页
+  ipcMain.handle('update:open-repo', () => {
+    shell.openExternal(REPO_URL).catch((error) => {
+      console.error('[Esprin Nemo] 打开项目主页失败:', error);
     });
     return true;
   });

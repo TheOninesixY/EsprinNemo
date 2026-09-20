@@ -1,10 +1,13 @@
-/* 应用更新设置：版本与更新源展示、检查更新、下载进度与重启安装。
+/* 应用更新设置：版本与项目地址展示、检查更新、下载进度与重启安装。
    检查、下载、安装全部由主进程完成（见 src/main/updater.js），这里只做两件事：
    把主进程上报的状态画到界面上，把用户的操作转成 IPC 调用。
 
    状态有两个来源：
    - 打开设置页时主动查询一次（update:get-info）
-   - 主进程在后台自动检查 / 下载过程中推送的 update:state
+   - 主进程在后台自动检查 / 下载 / 读取当前版本发布记录后推送的 update:state
+
+   两处说明文字（新版本、当前版本）都按 Markdown 渲染：marked.parse 会先转义 HTML，
+   发布页里的内容（包括 <script>）只会以纯文本形式出现，不会被当成 HTML 执行。
 
    便携版没有更新功能（主进程不注册更新 IPC，也不做自动检查），因此这里整体跳过：
    设置分类与面板都不显示，也不绑定任何事件。 */
@@ -13,8 +16,7 @@
 let updateState = {
     status: 'idle', // idle / checking / latest / available / downloading / downloaded / error
     currentVersion: '',
-    source: '',
-    sourceUrl: '',
+    repoUrl: '',
     autoUpdate: true,
     canAutoInstall: false,
     packaged: false,
@@ -24,6 +26,10 @@ let updateState = {
     progress: null,
     lastCheckAt: 0,
     error: '',
+    // 当前版本的发布记录：{ version, notes, publishedAt, releaseUrl }
+    currentRelease: null,
+    currentReleaseStatus: 'idle', // idle / loading / ready / missing / error
+    currentReleaseError: '',
     update: null
 };
 
@@ -64,11 +70,7 @@ function formatReleaseDate(value) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-// 运行方式：开发运行 / 安装版，只有后者支持自动安装（便携版没有更新功能，不会走到这里）
-function describeUpdateBuildKind(state) {
-    return state.packaged ? '安装版' : '开发运行';
-}
-
+// 运行方式不再在界面上区分：能不能自动安装由按钮显隐与状态文字自己说明
 function describeUpdateStatus(state) {
     const version = state.update ? state.update.version : '';
     switch (state.status) {
@@ -101,6 +103,63 @@ function updateStatusTone(state) {
     return '';
 }
 
+// 说明文字统一按 Markdown 渲染；没有正文时退回到一句纯文本说明。
+// innerHTML 在这里是安全的：marked.parse 会先做 HTML 转义，链接也会过协议白名单。
+function setReleaseNotesBody(el, notes, fallback) {
+    if (!el) return;
+    const text = String(notes || '').trim();
+    el.innerHTML = marked.parse(text || fallback);
+}
+
+// 当前版本说明：版本号做成指向该版本发布页的链接，正文来自更新源上对应的 release
+function renderCurrentReleaseNotes() {
+    const release = updateState.currentRelease;
+    const label = updateState.currentVersion ? `v${updateState.currentVersion}` : '当前版本';
+
+    const versionEl = updateEl('update-current-notes-version');
+    if (versionEl) {
+        versionEl.textContent = '';
+        if (release && release.releaseUrl) {
+            const link = document.createElement('a');
+            link.href = release.releaseUrl;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = label;
+            link.title = '在系统浏览器中打开该版本的发布页';
+            versionEl.appendChild(link);
+        } else {
+            versionEl.textContent = label;
+        }
+    }
+
+    const dateEl = updateEl('update-current-notes-date');
+    const body = updateEl('update-current-notes-body');
+
+    switch (updateState.currentReleaseStatus) {
+        case 'ready':
+            if (dateEl) dateEl.textContent = formatReleaseDate(release && release.publishedAt);
+            setReleaseNotesBody(body, release && release.notes, '该版本没有填写更新说明。');
+            break;
+        case 'loading':
+            // idle 也走这里：界面打开时主进程已经在读了，显示“读取中”比“尚未读取”更贴切
+            if (dateEl) dateEl.textContent = '';
+            setReleaseNotesBody(body, '', '正在向更新源读取当前版本的发布说明…');
+            break;
+        case 'missing':
+            // 本地构建（bun start / 未发布的版本）在更新源上不会有对应的发布记录
+            if (dateEl) dateEl.textContent = '';
+            setReleaseNotesBody(body, '', `更新源上没有找到 ${label} 的发布记录，可能是本地运行的未发布版本。`);
+            break;
+        case 'error':
+            if (dateEl) dateEl.textContent = '';
+            setReleaseNotesBody(body, '', updateState.currentReleaseError || '读取当前版本的发布说明失败。');
+            break;
+        default:
+            if (dateEl) dateEl.textContent = '';
+            setReleaseNotesBody(body, '', '正在向更新源读取当前版本的发布说明…');
+    }
+}
+
 function renderUpdateUI() {
     // 便携版没有更新功能：分类与面板都已摘掉，不再改动任何界面
     if (IS_PORTABLE_RUN) return;
@@ -111,16 +170,9 @@ function renderUpdateUI() {
     const versionEl = updateEl('update-current-version');
     if (versionEl) versionEl.textContent = updateState.currentVersion ? `v${updateState.currentVersion}` : '未知版本';
 
-    const buildEl = updateEl('update-build-kind');
-    if (buildEl) {
-        const kind = describeUpdateBuildKind(updateState);
-        buildEl.textContent = updateState.canAutoInstall
-            ? `运行方式：${kind}，支持自动下载并安装更新`
-            : `运行方式：${kind}，只支持下载安装包后手动升级`;
-    }
-
-    const sourceEl = updateEl('update-source');
-    if (sourceEl) sourceEl.textContent = updateState.source ? `更新源：${updateState.source}` : '';
+    // 版本号下面那行显示项目地址（原来这里是「更新源」）
+    const repoEl = updateEl('update-repo-url');
+    if (repoEl) repoEl.textContent = updateState.repoUrl ? `项目地址：${updateState.repoUrl}` : '正在读取项目地址…';
 
     const statusEl = updateEl('update-status');
     if (statusEl) {
@@ -166,7 +218,7 @@ function renderUpdateUI() {
         if (percentEl) percentEl.textContent = downloaded ? '已完成' : `${percent}%`;
     }
 
-    // 更新说明：只在真的有新版本可看时展开
+    // 新版本说明：只在真的有新版本可看时展开，正文按 Markdown 渲染
     const showNotes = !!update && ['available', 'downloading', 'downloaded'].includes(updateState.status);
     setUpdatesHidden('update-notes-section', !showNotes);
     if (showNotes) {
@@ -174,10 +226,11 @@ function renderUpdateUI() {
         if (versionText) versionText.textContent = `v${update.version}`;
         const dateText = updateEl('update-notes-date');
         if (dateText) dateText.textContent = formatReleaseDate(update.publishedAt);
-        const body = updateEl('update-notes-body');
-        // 更新说明按纯文本呈现：不渲染 Markdown，避免把发布页里的任意内容当 HTML 执行
-        if (body) body.textContent = String(update.notes || '').trim() || '该版本没有填写更新说明。';
+        setReleaseNotesBody(updateEl('update-notes-body'), update.notes, '该版本没有填写更新说明。');
     }
+
+    // 当前版本说明：内容取自更新源上该版本的发布记录，没读到就显示对应的状态说明
+    renderCurrentReleaseNotes();
 }
 
 // 主进程状态里有缺项时用当前值兜底，保证渲染函数拿到的字段齐全
@@ -297,6 +350,13 @@ function openUpdatePage() {
     });
 }
 
+// 项目地址：交给主进程用系统浏览器打开
+function openProjectPage() {
+    ipcRenderer.invoke('update:open-repo').catch((err) => {
+        console.error('打开项目主页失败:', err);
+    });
+}
+
 // 主进程推送的状态：后台自动下载开始时提示一次，下载完成后提示一次
 function handleUpdateStatePush(payload) {
     const previousStatus = updateState.status;
@@ -358,6 +418,7 @@ function initUpdateSettings() {
     bind('btn-update-install', installUpdate);
     bind('btn-update-cancel', cancelUpdateDownload);
     bind('btn-update-page', openUpdatePage);
+    bind('btn-update-repo', openProjectPage);
     bind('btn-update-open-file', openDownloadedPackage);
 
     ipcRenderer.on('update:state', (event, payload) => handleUpdateStatePush(payload));

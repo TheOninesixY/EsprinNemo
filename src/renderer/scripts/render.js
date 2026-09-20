@@ -20,19 +20,23 @@ function renderApp() {
 const SIDEBAR_WIDTH_TRANSITION_MS = 180;
 // 侧边栏文字渐隐时长（与 CSS 中 .nav-text 等的 opacity 过渡保持一致）
 const SIDEBAR_TEXT_FADE_MS = 160;
+// 底栏图标（清空废纸篓 / 设置 / 收起）渐隐渐显的临时类：只在收起方向上挂。
+// 收起时它们跟文字一起先渐隐，宽度过渡结束（收起动画走完）后再渐显回新位置，
+// 样式见 styles/sidebar.css 里的 .sidebar.icons-fading
+const SIDEBAR_ICONS_FADING_CLASS = 'icons-fading';
 
 let sidebarFadeTimer = null;
 let sidebarCollapseTimer = null;
 let sidebarFadeInBound = false;
 
-// 文字淡入结束：移除临时类并清掉兜底定时器
+// 渐显结束（文字与底栏图标共用）：移除临时类并清掉兜底定时器
 function finishSidebarTextFadeIn() {
     if (sidebarFadeTimer) {
         clearTimeout(sidebarFadeTimer);
         sidebarFadeTimer = null;
     }
     const sidebar = document.getElementById('app-sidebar');
-    if (sidebar) sidebar.classList.remove('text-fading');
+    if (sidebar) sidebar.classList.remove('text-fading', SIDEBAR_ICONS_FADING_CLASS);
 }
 
 function clearSidebarCollapseTimer() {
@@ -42,16 +46,24 @@ function clearSidebarCollapseTimer() {
     }
 }
 
+// 兜底：侧边栏处于隐藏状态时不会触发宽度过渡，靠定时器保证临时类最终能被摘掉
+function scheduleSidebarFadeInFallback() {
+    if (sidebarFadeTimer) clearTimeout(sidebarFadeTimer);
+    sidebarFadeTimer = setTimeout(finishSidebarTextFadeIn, SIDEBAR_WIDTH_TRANSITION_MS + 60);
+}
+
 // 侧边栏收起/展开：收起后只剩一条窄条，筛选入口仅保留图标。
 // 动效分两拍，两个方向正好相反：
-//   收起：先渐隐文字（计数、文件夹 / 标签分区、应用名同步淡出），此阶段布局不动，
-//         图标原地不动；淡出结束再切到收起态，只让背景与「新建」按钮往里收；
-//   展开：先把背景与按钮展开，宽度过渡结束后文字才淡入。
+//   收起：先渐隐文字（计数、文件夹 / 标签分区、应用名同步淡出）与底栏图标
+//         （清空废纸篓 / 设置 / 收起——它们紧接着要换排布并放大，先隐掉才看不到那一跳），
+//         此阶段布局不动，导航图标原地不动；淡出结束再切到收起态，
+//         只让背景与「新建」按钮往里收，宽度过渡走完底栏图标才渐显回新位置；
+//   展开：先把背景与按钮展开，宽度过渡结束后文字才淡入（底栏图标不参与，全程可见）。
 function applySidebarCollapsed() {
     const sidebar = document.getElementById('app-sidebar');
     if (!sidebar) return;
 
-    // 宽度过渡结束（或超时兜底）后再让文字淡入
+    // 宽度过渡结束（或超时兜底）后再让文字（收起方向上还有底栏图标）渐显
     if (!sidebarFadeInBound) {
         sidebar.addEventListener('transitionend', (e) => {
             if (e.target === sidebar && e.propertyName === 'width') finishSidebarTextFadeIn();
@@ -72,14 +84,17 @@ function applySidebarCollapsed() {
             clearSidebarCollapseTimer();
             finishSidebarTextFadeIn();
         } else if (!fading) {
-            // 第一拍：文字渐隐。此时不碰布局，图标因此不会位移
-            sidebar.classList.add('text-fading');
+            // 第一拍：文字与底栏图标一起渐隐。此时不碰布局，导航图标因此不会位移
+            sidebar.classList.add('text-fading', SIDEBAR_ICONS_FADING_CLASS);
             clearSidebarCollapseTimer();
             sidebarCollapseTimer = setTimeout(() => {
                 sidebarCollapseTimer = null;
-                // 第二拍：文字已看不见了，这时才换收起态布局——
+                // 第二拍：文字与底栏图标已看不见了，这时才换收起态布局——
                 // 背景变窄，「新建」按钮与底栏按钮跟着一起往里收
                 rootClass.add(SIDEBAR_COLLAPSED_CLASS);
+                // 收起动画走完（宽度过渡结束）再由 finishSidebarTextFadeIn 摘掉临时类、
+                // 让底栏图标渐显；这里只是过渡不触发时的兜底
+                scheduleSidebarFadeInFallback();
             }, SIDEBAR_TEXT_FADE_MS);
         }
         // 其余情况（渐隐正进行中）：让动画走完，不重启计时
@@ -89,9 +104,8 @@ function applySidebarCollapsed() {
         if (wasCollapsed) {
             // 收起 → 展开：宽度过渡期间文字保持不可见，过渡结束（或超时）后再淡入
             sidebar.classList.add('text-fading');
-            if (sidebarFadeTimer) clearTimeout(sidebarFadeTimer);
             // 兜底：侧边栏处于隐藏状态时不会触发过渡，靠定时器保证文字最终可见
-            sidebarFadeTimer = setTimeout(finishSidebarTextFadeIn, SIDEBAR_WIDTH_TRANSITION_MS + 60);
+            scheduleSidebarFadeInFallback();
         } else {
             // 渐隐途中被撤销（还没进入收缩）：让文字淡回来即可，布局始终没变过
             finishSidebarTextFadeIn();
