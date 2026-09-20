@@ -8,6 +8,7 @@ const {
   ensureDirUsable,
   getDefaultDataDir,
   getLocationFile,
+  getPortableUserDataDir,
   getStartupBlocker,
   isDevRun,
   isPortableRun: isPortableDataRun,
@@ -36,11 +37,41 @@ const IS_DEV_RUN = isDevRun(app);
 // 便携版：每次启动都解压到临时目录，没有稳定的可升级目标，
 // 因此更新功能（检查 / 下载 / 安装）与相关设置整体不启用
 const IS_PORTABLE_RUN = isPortableRun();
-// 数据目录层面的便携版判定：便携版目录写不进去时应用会在启动阶段停下
-// （见下面启动检查处的 resolveStartupBlock），因此这里与「程序目录即数据目录」等价，
-// 设置页据此展示数据与位置记录的真实落点
+// 数据目录层面的便携版判定（只看启动环境变量，与目录能否写入无关）：
+// 便携版的数据、配置与运行时目录都随程序目录走，设置页据此展示真实落点；
+// 目录写不进去时由启动检查拦下并弹出说明（见下面的 resolveStartupBlock）
 const IS_PORTABLE_DATA_RUN = isPortableDataRun();
 const DATA_DIR_LOCKED_MESSAGE = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
+
+/* 便携版：把 Chromium 的 profile（缓存 / Cookie / GPU 缓存 / 崩溃转储 / 日志）也挪进程序目录。
+   它默认落在 %APPDATA%\<产品名> 下，而这些都是实打实的写入——「便携版不写 %APPDATA%」
+   若只覆盖应用自己的数据文件，系统盘上照样会留下这一大堆，还会与安装版共用同一个 profile。
+   必须在 app ready 之前设置，也要早于单实例锁（锁文件就在这个目录里）。 */
+const PORTABLE_USER_DATA_DIR = getPortableUserDataDir();
+if (PORTABLE_USER_DATA_DIR) {
+  try {
+    // 程序目录不可写时这里会失败：交给启动检查弹窗说明，但路径照旧指过去，
+    // 让 Chromium 写不进去也不去碰 %APPDATA%
+    fs.mkdirSync(PORTABLE_USER_DATA_DIR, { recursive: true });
+  } catch (error) {
+    console.warn('[Esprin Nemo] 创建便携版运行时目录失败:', error.message);
+  }
+
+  for (const name of ['userData', 'sessionData', 'crashDumps']) {
+    try {
+      // 崩溃转储单独起一个子目录，不把转储文件混在 profile 根目录里
+      app.setPath(name, name === 'crashDumps' ? path.join(PORTABLE_USER_DATA_DIR, 'Crashpad') : PORTABLE_USER_DATA_DIR);
+    } catch (error) {
+      // 个别 Electron 版本没有 sessionData 这一项，其余路径照常设置
+      console.warn(`[Esprin Nemo] 设置 ${name} 路径失败:`, error.message);
+    }
+  }
+  try {
+    app.setAppLogsPath(path.join(PORTABLE_USER_DATA_DIR, 'logs'));
+  } catch (error) {
+    console.warn('[Esprin Nemo] 设置日志目录失败:', error.message);
+  }
+}
 
 let dataDir = null;
 function resolveDataDir() {
@@ -432,30 +463,58 @@ ipcMain.handle('data:get-dir', () => {
   };
 });
 
-// 数据存放位置：弹出目录选择框并按需迁移
+/* 数据位置用不了时的统一出路：把原因说清楚，并给一个「重新选择路径」。
+   返回 true 表示用户选择了重选，由调用方接着再走一遍选择流程。 */
+async function askReselectDataDir(owner, message, detail) {
+  const choice = await showDialogWindow(owner, {
+    type: 'error',
+    title: '数据存放位置',
+    message,
+    detail,
+    width: 480,
+    buttons: [
+      { id: 'reselect', label: '重新选择路径', variant: 'primary' },
+      { id: 'close', label: '关闭', cancel: true }
+    ]
+  });
+  return choice.id === 'reselect';
+}
+
+// 选中一个位置并切过去（含迁移确认）；中途出问题就弹窗请用户重选，直到成功或放弃
+async function chooseDataDirWithRetry(win) {
+  while (true) {
+    const picked = await pickDataDir(win, resolveDataDir());
+    if (!picked) return { canceled: true };
+
+    const result = await applyDataDirChange(picked, win);
+    if (!result.error) return result;
+    if (!await askReselectDataDir(win, '无法使用所选位置', result.error)) return { canceled: true };
+  }
+}
+
+// 数据存放位置：弹出目录选择框并按需迁移；位置用不了时给「重新选择路径」而不是只报错
 ipcMain.handle('data:choose-dir', async (event) => {
   if (IS_DEV_RUN) return { canceled: false, error: DATA_DIR_LOCKED_MESSAGE };
-  const win = BrowserWindow.fromWebContents(event.sender);
-  const result = await dialog.showOpenDialog(win, {
-    title: '选择数据存放位置',
-    defaultPath: resolveDataDir(),
-    buttonLabel: '选择此文件夹',
-    properties: ['openDirectory', 'createDirectory']
-  });
-  if (result.canceled || !result.filePaths.length) return { canceled: true };
-  return applyDataDirChange(result.filePaths[0], win);
+  return chooseDataDirWithRetry(BrowserWindow.fromWebContents(event.sender));
 });
 
-// 数据存放位置：恢复为默认位置（并清除自定义记录）
+// 数据存放位置：恢复为默认位置（并清除自定义记录）。
+// 默认位置不可用时（例如便携版程序目录被设成只读）同样给一次改选其他位置的出路
 ipcMain.handle('data:reset-dir', async (event) => {
   if (IS_DEV_RUN) return { canceled: false, error: DATA_DIR_LOCKED_MESSAGE };
   const win = BrowserWindow.fromWebContents(event.sender);
   const target = getDefaultDataDir(APP_ROOT, app);
   const result = await applyDataDirChange(target, win, { persist: false, targetLabel: '默认位置' });
-  if (!result || result.canceled || result.error) return result || { canceled: true };
-  writeStoredDataDir(null, app);
-  dataDir = target;
-  return { ...result, isCustom: false };
+  if (!result || result.canceled) return result || { canceled: true };
+
+  if (!result.error) {
+    writeStoredDataDir(null, app);
+    dataDir = target;
+    return { ...result, isCustom: false };
+  }
+
+  if (!await askReselectDataDir(win, '无法恢复默认位置', result.error)) return { canceled: true };
+  return chooseDataDirWithRetry(win);
 });
 
 // 数据存放位置：在文件管理器中打开当前数据目录
@@ -476,8 +535,8 @@ const WINDOW_MIN_WIDTH = 860;
 const WINDOW_MIN_HEIGHT = 600;
 
 /* 便携版写不进数据目录时的说明文案：把「哪里写不进去」与「怎么恢复」都写清楚，
-   用户不必去翻文档。reselectable 为 true 时说明里会带上「重新选择位置」这条出路。 */
-function dataDirBlockerDialog(blocker, reselectable) {
+   用户不必去翻文档。三种原因都会给出「重新选择路径」这条出路。 */
+function dataDirBlockerDialog(blocker) {
   const recordDir = blocker.kind === 'recorded-dir';
   const message = blocker.kind === 'portable-dir'
     ? '便携版所在目录不可写'
@@ -503,48 +562,47 @@ function dataDirBlockerDialog(blocker, reselectable) {
 
   if (recordDir) {
     detail.push('请先确认该位置（移动硬盘、网络共享等）已连接且可写，再重新启动；');
-    detail.push('也可以点「重新选择位置」另挑一个目录，选好后应用会直接启动。');
-  } else if (reselectable) {
+    detail.push('也可以点「重新选择路径」另挑一个目录，选好后应用会直接启动。');
+  } else if (blocker.kind === 'data-dir') {
     detail.push('请检查该目录是否被只读设置或同名文件占用，再重新启动；');
-    detail.push('也可以点「重新选择位置」把数据改放到别处，选好后应用会直接启动。');
+    detail.push('也可以点「重新选择路径」把数据改放到别处，选好后应用会直接启动。');
   } else {
-    detail.push('请把便携版移到可写的位置（例如文档目录、移动硬盘），或解除该目录的只读 / 权限限制后重新启动。');
+    detail.push('请把便携版移到可写的位置（例如文档目录、移动硬盘），或解除该目录的只读 / 权限限制后重新启动；');
+    detail.push('也可以点「重新选择路径」先把数据放到别处继续使用——程序目录不可写，这个选择不会被记住。');
   }
 
   return { message, detail: detail.join('\n') };
 }
 
-/* 让用户重新挑选数据目录：必须可写，选不出来就再给一次机会。
+/* 让用户挑选数据目录：必须可写，选不出来就一直给机会。
+   owner 为弹窗的父窗口（启动阶段没有窗口，传 null）。
    返回选定的绝对路径；用户取消选择时返回 null。 */
-async function pickDataDir(current) {
+async function pickDataDir(owner, current) {
+  const parent = owner && !owner.isDestroyed() ? owner : null;
+
   while (true) {
-    const result = await dialog.showOpenDialog({
+    const options = {
       title: '选择数据存放位置',
       defaultPath: current,
       buttonLabel: '选择此文件夹',
       properties: ['openDirectory', 'createDirectory']
-    });
+    };
+    const result = parent ? await dialog.showOpenDialog(parent, options) : await dialog.showOpenDialog(options);
     if (result.canceled || !result.filePaths.length) return null;
 
     const picked = path.resolve(result.filePaths[0]);
     if (isDirWritable(picked)) return picked;
 
-    // 选到不可写的目录（只读盘、系统目录等）时原地重挑，不回到启动弹窗
-    await showDialogWindow(null, {
-      type: 'warning',
-      title: '数据存放位置',
-      message: '所选目录不可写',
-      detail: `请检查该目录的访问权限，或换一个位置。\n位置：${picked}`,
-      width: 420,
-      buttons: [{ id: 'retry', label: '重新选择', variant: 'primary' }]
-    });
+    // 选到不可写的目录（只读盘、系统目录等）时就地重挑，回到上一层没有意义
+    if (!await askReselectDataDir(parent, '所选目录不可写', `请检查该目录的访问权限，或换一个位置。\n位置：${picked}`)) {
+      return null;
+    }
   }
 }
 
-/* 启动被拦下时的交互：位置记录指向的目录不可用（或默认 data/ 建不出来）时给用户一次
-   「重新选择位置」的机会——选到可写目录并写回位置记录后照常启动，不必自己去找并删除
-   data_path.json。便携版目录本身写不进去时，位置记录无处可写，重选也就无从保存，
-   因此那种情况只说明原因。
+/* 启动被拦下时的交互：三种原因一律给出「重新选择路径」——选到可写目录后就用它继续启动，
+   不必自己去找并删除 data_path.json，也不必先去搬动便携版。
+   程序目录不可写时位置记录无处可写，选定的位置只能对本次运行生效（弹窗里已写明）。
 
    返回选定的数据目录；用户选择退出时返回 null，由调用方收场。 */
 async function resolveStartupBlock(blocker) {
@@ -553,24 +611,20 @@ async function resolveStartupBlock(blocker) {
   dataDir = blocker.dataDir;
 
   while (true) {
-    // 只有便携版目录可写时才谈得上重选：位置记录 data_path.json 就写在那里
-    const reselectable = blocker.kind !== 'portable-dir';
     const choice = await showDialogWindow(null, {
-      type: reselectable ? 'warning' : 'error',
+      type: blocker.kind === 'portable-dir' ? 'error' : 'warning',
       title: '无法启动',
-      ...dataDirBlockerDialog(blocker, reselectable),
+      ...dataDirBlockerDialog(blocker),
       width: 480,
-      buttons: reselectable
-        ? [
-            { id: 'reselect', label: '重新选择位置', variant: 'primary' },
-            { id: 'quit', label: '退出', cancel: true }
-          ]
-        : [{ id: 'quit', label: '退出', variant: 'primary' }]
+      buttons: [
+        { id: 'reselect', label: '重新选择路径', variant: 'primary' },
+        { id: 'quit', label: '退出', cancel: true }
+      ]
     });
 
     if (choice.id !== 'reselect') return null;
 
-    const picked = await pickDataDir(blocker.dataDir);
+    const picked = await pickDataDir(null, blocker.dataDir);
     if (!picked) continue;
 
     // 位置记录写回便携版目录下的 data_path.json，下次启动直接生效
@@ -579,8 +633,14 @@ async function resolveStartupBlock(blocker) {
       return picked;
     }
 
-    // 记录写不回去（例如目录中途被设成只读）：这次选择无法保存，
-    // 改按「程序目录不可写」说明，别让用户以为已经改好了
+    if (blocker.kind === 'portable-dir') {
+      // 程序目录本来就不可写：这次选择只能用于本次运行（弹窗里已写明）
+      console.warn('[Esprin Nemo] 程序目录不可写，本次运行临时使用数据位置:', picked);
+      return picked;
+    }
+
+    // 其余情况下记录本该写得进去：写失败说明程序目录也出问题了，
+    // 改按「程序目录不可写」再说一次，别让用户以为已经改好了
     console.error('[Esprin Nemo] 位置记录写入失败，新的数据位置无法保存:', picked);
     blocker = { ...blocker, kind: 'portable-dir', reason: '位置记录无法写入', dataDir: picked };
   }
@@ -692,7 +752,7 @@ app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
 
   // 便携版无法写入数据目录（只读位置、无权限等）：不退回 %APPDATA%，先弹窗告知；
-  // 位置记录指向的目录不可用时还可以就地重选一个位置，选好并写回记录后照常启动。
+  // 三种原因都会给出「重新选择路径」，选到可写目录后照常启动，只有用户选「退出」才真的退出。
   // 检查必须早于任何窗口与 IPC 注册，应用因此不会留下一份「看起来正常」的数据。
   const startupBlocker = getStartupBlocker(APP_ROOT, app);
   if (startupBlocker) {
@@ -714,7 +774,7 @@ app.whenReady().then(async () => {
       abortStartup(startupBlocker);
       return;
     }
-    // 位置记录已写回便携版目录，数据目录即用户刚选定的位置
+    // 用户刚选定的数据目录就是本次运行的位置（位置记录能写时已写回便携版目录）
     dataDir = pickedDir;
     startupBlocked = false;
   }

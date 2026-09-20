@@ -10,6 +10,8 @@ const DATA_DIR_ARG = '--esprin-nemo-data-dir=';
 // （见 src/win_installer/installer.nsh）读写的同一个文件。
 const DEFAULT_APP_DIR_NAME = 'esprin_nemo';
 const DATA_PATH_FILE_NAME = 'data_path.json';
+// 便携版的运行时目录名（Chromium profile：缓存 / Cookie / GPU 缓存 / 崩溃转储等）
+const USER_DATA_DIR_NAME = 'user_data';
 
 function getApp(appLike = null) {
   if (appLike) return appLike;
@@ -63,9 +65,12 @@ function resolvePortableDir() {
   return portableDir;
 }
 
-// 是否便携版运行（与目录能否写入无关：目录不可写也仍是便携版，只是无法启动）
+// 是否便携版运行：只看启动环境变量，与目录能否解析、能否写入完全无关。
+// 便携版的位置解析一律以它为准——只要是便携版运行，就绝不使用 %APPDATA% 下的任何位置
+// （目录不可写时由启动检查弹窗说明，见 getStartupBlocker），
+// 目录本身能否写入另由 portableDirWritable 单独记录。
 function isPortableRun() {
-  return !!resolvePortableDir();
+  return !!getPortableDir();
 }
 
 // 读取命令行传入的数据目录（仅渲染进程会带上该参数）
@@ -92,15 +97,27 @@ function getAppDataConfigDir(appLike = null) {
 // 实际生效的配置目录（data_path.json 与 AI 密钥文件都放在这里）：
 // 便携版是便携版所在目录——配置随程序目录走、整体可搬移，也不在系统盘留痕；
 // 其余运行方式是 %APPDATA%/esprin_nemo。
-// 便携版目录不可写时同样返回便携版目录（配置仍是读得出来的），绝不改指 %APPDATA%：
-// 那等于把数据位置记录写进系统盘，用户既看不到也不知道。
+// 便携版目录不可写时同样返回便携版目录（配置仍是读得出来的）：宁可写入失败并在启动时弹窗说明，
+// 也不改指 %APPDATA% —— 不碰系统盘上的那份配置是便携版的硬约束。
+// 注意：%APPDATA% 这个分支只可能属于安装版与开发运行，便携版永远走不到这里。
 function getConfigDir(appLike = null) {
-  return resolvePortableDir() || getAppDataConfigDir(appLike);
+  if (isPortableRun()) return resolvePortableDir();
+  return getAppDataConfigDir(appLike);
 }
 
 function getLocationFile(appLike = null) {
   const configDir = getConfigDir(appLike);
   return configDir ? path.join(configDir, DATA_PATH_FILE_NAME) : null;
+}
+
+/* 便携版的运行时目录：Chromium 的 profile 放在程序目录下的 user_data/。
+   Electron 默认把 userData 放在 %APPDATA%\<产品名>，而其中的缓存、Cookie、GPU 缓存、
+   崩溃转储等都是实打实的写入——「便携版不写 %APPDATA%」若只覆盖应用自己的数据文件，
+   浏览器内核留下的那堆东西依然是系统盘上的痕迹（还会与安装版共用同一个 userData）。
+   非便携版返回 null，调用方保持 Electron 的默认位置。 */
+function getPortableUserDataDir() {
+  const portable = resolvePortableDir();
+  return portable ? path.join(portable, USER_DATA_DIR_NAME) : null;
 }
 
 // 记录里的路径统一以正斜杠保存：安装向导（NSIS）不擅长转义反斜杠，这样两边都能安全读写
@@ -236,8 +253,9 @@ function decodeTextFile(buffer) {
 // 默认数据目录：便携版是便携版所在目录下的 data/，安装版 %APPDATA%/esprin_nemo/data，
 // 开发版项目内 data/
 function getDefaultDataDir(baseDir = __dirname, appLike = null) {
-  const portable = resolvePortableDir();
-  if (portable) return path.join(portable, 'data');
+  // 便携版与安装版的分岔同样以「是否便携版运行」为准，不依赖目录能否写入：
+  // 便携版目录写不进去时可能连 data/ 都建不出来，但那也不该把数据引到 %APPDATA% 去
+  if (isPortableRun()) return path.join(resolvePortableDir(), 'data');
   const app = getApp(appLike);
   if (app && app.isPackaged && typeof app.getPath === 'function') {
     return path.join(app.getPath('appData'), DEFAULT_APP_DIR_NAME, 'data');
@@ -297,7 +315,8 @@ function ensureDataDir(baseDir = __dirname, appLike = null) {
 }
 
 /* 启动前置检查：返回 null 表示可以正常启动；否则返回描述阻塞原因的对象，
-   由 main.js 用与界面同一套窗口式弹窗说明原因后退出。
+   由 main.js 用与界面同一套的窗口式弹窗说明原因，并给出「重新选择路径」的出路
+   （用户坚持不改就退出，见 main.js 的 resolveStartupBlock / abortStartup）。
 
    只有便携版会命中：安装版与开发运行的数据位置本就不随程序目录走，
    目录不可写时按原有顺序回退即可（安装版有 %APPDATA% 兜底，开发运行固定项目内 data/）。
@@ -365,6 +384,7 @@ module.exports = {
   getConfigDir,
   getAppDataConfigDir,
   getLocationFile,
+  getPortableUserDataDir,
   getDefaultDataDir,
   writeFileAtomic,
   writeStoredDataDir,

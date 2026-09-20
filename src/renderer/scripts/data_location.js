@@ -276,7 +276,10 @@ async function resetDataDir() {
         flushPendingSave();
         flushActiveAiChatSave();
         const result = await ipcRenderer.invoke('data:reset-dir');
-        await handleDataDirResult(result, '已恢复默认数据存放位置');
+        // 默认位置不可用而改选了其他位置时主进程返回的是自定义位置（isCustom 不为 false），
+        // 这种情况不能说成「已恢复默认」
+        const message = result && result.isCustom === false ? '已恢复默认数据存放位置' : '数据存放位置已切换';
+        await handleDataDirResult(result, message);
         await refreshDataDirInfo();
     } catch (err) {
         console.error('恢复默认数据存放位置失败:', err);
