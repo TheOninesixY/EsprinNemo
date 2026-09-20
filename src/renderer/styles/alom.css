@@ -60,13 +60,21 @@
     --item-active: rgba(0, 0, 0, 0.09);
 }
 
-/* ===== 标题栏与侧边栏：半透明材质 + 发丝分隔线 ===== */
-:root[data-theme-style="alom"] .titlebar {
+/* ===== 标题栏与侧边栏：半透明材质 + 发丝分隔线 =====
+   标题栏材质只属于标准模式：无Tab模式（<html class="notab-mode">，见 styles/mode.css）里
+   标题栏整条被撤掉，只剩「右上角悬浮按钮组」的定位容器（position: fixed、40px 高、
+   背景透明、pointer-events: none，见 mode.css）。这里若照旧刷上材质，就会在窗口顶部
+   压出一条 40px 高的毛玻璃与发丝线——它 z-index 100 悬在内容之上（见 base.css），
+   正好盖住同样 40px 高的编辑器顶栏、笔记列表顶行与侧边栏顶端，
+   「内容一路顶到窗口上沿」也就没了着落（只清背景不顶用：backdrop-filter 会把顶上那 40px 直接糊掉）。
+   mode.css 的 `html.notab-mode .titlebar` 权重只有 0,2,1，压不过下面这两条带属性选择器的规则
+   （0,3,0 / 浅色 0,4,0），所以由本文件自己排除无Tab模式，深色与浅色两条都要排除。 */
+:root[data-theme-style="alom"]:not(.notab-mode) .titlebar {
     background-color: rgba(44, 44, 46, 0.86);
     backdrop-filter: saturate(180%) blur(20px);
     border-bottom: 1px solid var(--border-light);
 }
-:root.light[data-theme-style="alom"] .titlebar {
+:root.light[data-theme-style="alom"]:not(.notab-mode) .titlebar {
     background-color: rgba(246, 246, 248, 0.86);
 }
 

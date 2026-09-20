@@ -18,7 +18,7 @@ window.onload = () => {
     State.brandColor = normalizeBrandColor(saved.brandColor);
     State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
-    // 使用模式（标准 / 极简）：极简模式只保留笔记与待办
+    // 使用模式（标准 / 无Tab）：无Tab模式不显示标题栏里的标签页
     State.uiMode = normalizeUiMode(saved.uiMode);
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);

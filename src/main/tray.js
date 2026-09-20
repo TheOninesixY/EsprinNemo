@@ -73,49 +73,21 @@ function trayIcon() {
   return image.resize({ width: ICON_SIZE, height: ICON_SIZE });
 }
 
-// 极简模式（config.json 的 uiMode = 'minimal'）只保留笔记与待办：菜单里不出现「小本本」
-function isMinimalModeConfigured() {
-  try {
-    const config = getConfig();
-    return !!(config && typeof config === 'object' && config.uiMode === 'minimal');
-  } catch (error) {
-    return false;
-  }
-}
-
-// 右键菜单：打开主窗口 / 小本本 / 新建笔记 / 新建待办 / 设置 / 退出
-// 极简模式下略过「小本本」一项，其余条目不变
+// 右键菜单：打开主窗口 / 小本本 / 新建笔记 / 新建待办 / 设置 / 退出。
+// 条目与使用模式无关：无Tab模式只收起标题栏里的标签页，小本本照旧提供
 function buildTrayMenu() {
   const template = [
     { label: '打开 Esprin Nemo', click: () => { onShowMainWindow(); } },
-    { type: 'separator' }
-  ];
-
-  if (!isMinimalModeConfigured()) {
-    template.push({ label: '小本本', click: () => { onOpenScratchpad(); } });
-  }
-
-  template.push(
+    { type: 'separator' },
+    { label: '小本本', click: () => { onOpenScratchpad(); } },
     { label: '新建笔记', click: () => { sendAction(ACTION_NEW_NOTE); } },
     { label: '新建待办', click: () => { sendAction(ACTION_NEW_TODO); } },
     { label: '设置', click: () => { sendAction(ACTION_OPEN_SETTINGS); } },
     { type: 'separator' },
     { label: '退出', click: () => { onQuit(); } }
-  );
+  ];
 
   return Menu.buildFromTemplate(template);
-}
-
-// 设置页切换使用模式后调用：菜单条目随模式变化，重建一次即可；没有图标时直接跳过
-function refreshTrayMenu() {
-  if (!tray) return false;
-  try {
-    tray.setContextMenu(buildTrayMenu());
-    return true;
-  } catch (error) {
-    console.error('[Esprin Nemo] 重建托盘菜单失败:', error);
-    return false;
-  }
 }
 
 function createTray() {
@@ -209,7 +181,5 @@ function registerTrayIpc() {
 module.exports = {
   configureTray,
   registerTrayIpc,
-  isTrayEnabled,
-  // 使用模式变化后由 main.js 调用：菜单条目（小本本）随模式增减
-  refreshTrayMenu
+  isTrayEnabled
 };

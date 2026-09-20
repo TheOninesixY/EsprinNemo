@@ -13,9 +13,9 @@ const {
 } = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
-const { configureScratchpadWindow, closeScratchpadWindow, isScratchpadWindowOpen, openScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
+const { configureScratchpadWindow, isScratchpadWindowOpen, openScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
 const { buildWindowAppearance } = require('./window_appearance.js');
-const { configureTray, isTrayEnabled, refreshTrayMenu, registerTrayIpc } = require('./tray.js');
+const { configureTray, isTrayEnabled, registerTrayIpc } = require('./tray.js');
 const { configureAutoLaunch, registerAutoLaunchIpc } = require('./auto_launch.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
@@ -88,12 +88,6 @@ function resolveEffectiveTheme() {
   const theme = readUserConfig().theme || 'system';
   const isLight = theme === 'light' || (theme === 'system' && !nativeTheme.shouldUseDarkColors);
   return isLight ? 'light' : 'dark';
-}
-
-// 极简模式（config.json 的 uiMode = 'minimal'）只保留笔记与待办：
-// 小本本这类附加入口的按钮与托盘菜单项都已隐藏，主进程侧再兜一层底。
-function isMinimalModeConfigured() {
-  return readUserConfig().uiMode === 'minimal';
 }
 
 // 主题色（强调色）：统一为 #RRGGBB；未设置或格式非法时返回空字符串，弹窗沿用内置默认色
@@ -189,8 +183,7 @@ function setupTray() {
     icon: path.join(APP_ROOT, 'assets', 'icon.png'),
     onShowMainWindow: showMainWindow,
     // 小本本与退出都在主进程内直接完成，不经过渲染进程
-    // （极简模式下小本本整体不提供，见 isMinimalModeConfigured）
-    onOpenScratchpad: () => { if (!isMinimalModeConfigured()) openScratchpadWindow(); },
+    onOpenScratchpad: openScratchpadWindow,
     onQuit: () => { app.quit(); },
     // 关掉托盘后应用失去唯一的常驻入口：此时没有任何可见窗口就应当退出，
     // 否则进程会留在后台且再也唤不回来
@@ -398,15 +391,6 @@ ipcMain.handle('window:toggle-fullscreen', (event) => {
   const next = !win.isFullScreen();
   win.setFullScreen(next);
   return next;
-});
-
-/* 使用模式切换（设置 → 使用模式）在主进程侧的收尾：
-   config.json 已由渲染进程写盘，这里只处理「菜单条目」与「已经开着的窗口」两件事——
-   极简模式不提供小本本，托盘菜单里的那一项要消失，已开着的便利贴也一并关掉。 */
-ipcMain.handle('mode:apply', () => {
-  const minimal = isMinimalModeConfigured();
-  if (minimal) closeScratchpadWindow();
-  return { ok: true, minimal, trayMenuRefreshed: refreshTrayMenu() };
 });
 
 // 系统字体列表：渲染进程可通过 Local Font Access API 直接获取，这里作为兜底

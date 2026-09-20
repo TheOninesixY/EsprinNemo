@@ -4,7 +4,8 @@
 function setupEvents() {
     // 点击标题栏左上角的应用名（标准模式）：先落盘未保存的编辑，再退出到首页。
     // 注意这里只取消激活标签，不关闭标签页——已打开的标签仍然保留在标签栏中可随时切回。
-    // 极简模式下的应用名只是展示，不再承担这个入口（改为编辑器顶栏的「返回」）。
+    // 无Tab模式下标题栏整条没了，侧边栏里的那份应用名只是展示，
+    // 不承担这个入口（改由编辑器顶栏的「返回」）。
     const leaveActiveItem = () => {
         if (!State.activeNoteId) return;
         flushPendingSave();
@@ -13,7 +14,7 @@ function setupEvents() {
     };
     document.getElementById('app-brand').onclick = leaveActiveItem;
 
-    // 极简模式没有标签栏，编辑器顶栏的「返回」负责退出当前编辑（标准模式下该按钮不显示）
+    // 无Tab模式没有标签栏，编辑器顶栏的「返回」负责退出当前编辑（标准模式下该按钮不显示）
     const editorBack = document.getElementById('btn-editor-back');
     if (editorBack) editorBack.onclick = leaveActiveItem;
 
@@ -67,7 +68,7 @@ function setupEvents() {
         openSettingsTab();
     };
 
-    // 极简模式没有标签栏，设置页头部的「返回」按钮负责回到笔记列表（标准模式下该按钮不显示）
+    // 无Tab模式没有标签栏，设置页头部的「返回」按钮负责回到笔记列表（标准模式下该按钮不显示）
     const btnSettingsBack = document.getElementById('btn-settings-back');
     if (btnSettingsBack) {
         btnSettingsBack.onclick = () => {

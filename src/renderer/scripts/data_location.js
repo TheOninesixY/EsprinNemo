@@ -195,7 +195,7 @@ function adoptDataDir(dir, options = {}) {
     applySpellcheck();
     applyFonts();
     applySidebarCollapsed();
-    // 使用模式也随新位置的配置走：极简模式需要的状态收尾（AI 面板、筛选、设置分类）都在这里
+    // 使用模式也随新位置的配置走：新位置若选的是无Tab模式，标签栏要跟着收起来
     applyUiMode();
     syncFontSelects();
     syncAccentControls();
@@ -211,8 +211,6 @@ function adoptDataDir(dir, options = {}) {
     });
     // 托盘开关同样随配置走：新位置若关掉了托盘图标，图标要跟着消失
     syncTraySetting();
-    // 使用模式随新位置的配置走：托盘菜单条目与小本本窗口由主进程按新模式收尾
-    applyModeInMainProcess();
     // 开机自启也随配置走：登记在系统里的启动项要与新位置的设置保持一致
     syncAutoLaunchSetting();
     renderAiMessages();

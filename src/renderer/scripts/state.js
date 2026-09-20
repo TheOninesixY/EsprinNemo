@@ -24,7 +24,7 @@ const State = {
     // 圆角尺度：square（方）/ slight（微圆角）/ default（默认）/ large（大）
     cornerRadius: 'default',
     spellcheck: false,
-    // 使用模式：standard（全部功能）/ minimal（极简：只保留笔记与待办，见 scripts/mode.js）
+    // 使用模式：standard（全部功能）/ notab（无Tab：不显示标题栏里的标签页，见 scripts/mode.js）
     uiMode: 'standard',
     // 侧边栏是否收起：收起后只保留一条窄条，筛选入口仅显示图标
     sidebarCollapsed: false,
@@ -62,15 +62,19 @@ const State = {
 };
 
 // 使用模式（config.json 中的 uiMode 只接受这两个值）
-const UI_MODE_VALUES = ['standard', 'minimal'];
+const UI_MODE_VALUES = ['standard', 'notab'];
 
+// 无Tab模式由「极简模式」改名而来，旧配置里存的仍是 minimal：读到旧值就落到 notab，
+// 免得改名后老用户的偏好被当成脏数据丢回标准模式
 function normalizeUiMode(value) {
+    if (value === 'minimal') return 'notab';
     return UI_MODE_VALUES.includes(value) ? value : 'standard';
 }
 
-// 极简模式：界面只保留笔记与待办，其余入口由 styles/mode.css 按 <html> 上的类名隐藏
-function isMinimalMode() {
-    return State.uiMode === 'minimal';
+// 无Tab模式：界面与标准模式一致，只是标题栏里不排标签页
+// （由 styles/mode.css 按 <html> 上的类名收起标签栏）
+function isNoTabMode() {
+    return State.uiMode === 'notab';
 }
 
 // AI 提问时附带的笔记范围（config.json 中的 ai.scope 只接受这几个值）

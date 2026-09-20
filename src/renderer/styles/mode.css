@@ -1,111 +1,160 @@
-/* 使用模式：极简模式（<html class="minimal-mode">）只保留笔记与待办，
-   其余功能入口在这里统一藏起来。模式切换与相关状态收尾见 scripts/mode.js，
-   首屏的类名由 boot.js 提前写入，因此不会先闪出完整界面再收起。 */
+/* 使用模式：无Tab模式（<html class="notab-mode">）没有标题栏与标签栏。
+   标题栏整条移除——内容一路顶到窗口上沿、不再空出一条顶栏：应用名移到侧边栏顶部，
+   工具按钮（AI 助手 / 小本本 / 主题 / 全屏）与窗口操作键脱离布局、悬浮在窗口右上角，
+   原本由标题栏承担的拖动改由几处留白接手（见下面的拖动区）。
+   除这一条顶栏之外功能一个不少：AI 助手面板与设置里的分类、小本本、
+   侧边栏的文件夹与标签过滤、托盘菜单都与标准模式一致。
+   模式切换见 scripts/mode.js，首屏的类名由 boot.js 提前写入，因此不会先闪出完整界面再收起。 */
 
 /* ---------------- 标题栏与标签栏 ----------------
-   极简模式把标题栏与标签栏整体移除：内容一路顶到窗口上沿，窗口操作键脱离布局、悬浮在右上角。
-   .titlebar 于是只剩「窗口按钮的定位容器」这一个身份——不再占高度，也不再整条作为拖动区域
-   （整条拖动区会吞掉它下面搜索框、工具栏的鼠标事件），空白处 pointer-events: none 直接透传。 */
-html.minimal-mode .titlebar {
+   .titlebar 只剩「右上角悬浮按钮组的定位容器」这一个身份——不再占高度，也不再整条作为拖动区域
+   （整条拖动区会吞掉它下面搜索框、工具栏的鼠标事件），空白处 pointer-events: none 直接透传。
+   品牌名与标签栏藏起来，留下工具按钮组与窗口操作键，两组一起贴到右上角。 */
+html.notab-mode .titlebar {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     height: 40px;
     padding: 0;
-    /* 品牌名、标签栏与右侧按钮组都藏起来后，窗口按钮是这一条里唯一的子元素：
-       必须显式靠右，否则会顺着 space-between 落到最左边 */
+    /* 品牌名与标签栏都藏起来后，这里只剩按钮组与窗口按钮两组：必须显式靠右，
+       否则会顺着 space-between 落到最左边 */
     justify-content: flex-end;
     background-color: transparent;
     border-bottom: none;
     -webkit-app-region: no-drag;
     pointer-events: none;
 }
-html.minimal-mode .titlebar-brand,
-html.minimal-mode .titlebar-tabs,
-html.minimal-mode .titlebar-actions {
+html.notab-mode .titlebar-brand,
+html.notab-mode .titlebar-tabs {
     display: none !important;
 }
-/* 右上角的窗口按钮照常接收点击（其余空白处全部透传给下面的内容） */
-html.minimal-mode .titlebar .window-controls {
+/* 悬浮的两组按钮照常接收点击（其余空白处全部透传给下面的内容）。
+   注意别把这两个容器本身做成拖动区：它们就压在按钮上，一旦成为拖动区，
+   整排按钮的点击会被吞掉（拖动区与按钮重叠是这个模式里最容易踩的坑，见下面拖动区那段注释）。 */
+html.notab-mode .titlebar .titlebar-actions,
+html.notab-mode .titlebar .window-controls {
     pointer-events: auto;
 }
 
-/* 拖动窗口改由几处留白承担：编辑器顶栏里文件夹 / 标签之后的空余段（.editor-meta 容器本身）、
-   笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、设置页的标题区与分类侧边栏（留白部分）、
-   空状态的工作区（见下面的 .empty-drag-surface），以及侧边栏「新建」按钮周围的留白。
+/* 拖动窗口改由几处留白承担：编辑器顶栏里的空闲段（文件夹 / 标签之后，以及右侧按钮组自身的间距；
+   注意不能把整条 .editor-topbar 做成拖动区——它一直伸到悬浮按钮下面，
+   那样会把右上角那排按钮的点击吃掉）、笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、
+   设置页的标题区与分类侧边栏（留白部分）、空状态的工作区（见下面的 .empty-drag-surface）、
+   AI 面板顶部那条空白（见下面 .ai-panel-drag-strip）与面板顶栏，以及侧边栏「新建」周围的留白。
    这些区域里的控件单独标回 no-drag，点击行为不受影响。
 
-   一条硬约束：这些拖动区都不能伸进右上角的窗口按钮走廊。拖动区与窗口按钮重叠时，
-   按钮的点击会被拖动区吞掉（点最小化 / 关闭变成拖窗口）——空状态整块拖动区与窗口按钮
-   重叠过，表现就是「什么都没打开时窗口按钮突然失灵」。因此编辑器顶栏与设置内容区
-   各自让出右侧 140px，空状态则用下面那块让开走廊的拖动层。 */
-html.minimal-mode .editor-meta,
-html.minimal-mode .notes-panel-header,
-html.minimal-mode .settings-header,
-html.minimal-mode .settings-sidebar,
-html.minimal-mode .sidebar-action-wrap {
+   一条硬约束：拖动区一律不能伸到悬浮按钮下面——两者重叠时按钮的点击会被拖动区吞掉，
+   表现就是「右上角那排按钮点不动」。因此编辑器顶栏与设置内容区各自让出右侧 280px
+   （即悬浮按钮组的宽度），面板顶部那条空白与空状态的拖动层也都在按钮之外截断。 */
+html.notab-mode .editor-meta,
+html.notab-mode .editor-actions,
+html.notab-mode .notes-panel-header,
+html.notab-mode .settings-header,
+html.notab-mode .settings-sidebar,
+html.notab-mode .sidebar-action-wrap {
     -webkit-app-region: drag;
 }
 /* no-drag 是「抠洞」语义：把这些控件从上面的拖动区里挖出来，它们照常接收点击 */
-html.minimal-mode .editor-meta > *,
-html.minimal-mode .notes-panel-header .search-box,
-html.minimal-mode .notes-panel-header .dropdown,
-html.minimal-mode .settings-sidebar .settings-back,
-html.minimal-mode .settings-sidebar .settings-nav-item,
-html.minimal-mode .sidebar-action-wrap .btn-sidebar-new {
+html.notab-mode .editor-meta > *,
+html.notab-mode .editor-view-modes,
+html.notab-mode .notes-panel-header .search-box,
+html.notab-mode .notes-panel-header .dropdown,
+html.notab-mode .settings-sidebar .settings-back,
+html.notab-mode .settings-sidebar .settings-nav-item,
+html.notab-mode .sidebar-action-wrap .btn-sidebar-new {
+    -webkit-app-region: no-drag;
+}
+/* 浮层同样要从拖动区里挖出来，而且最容易漏——「新建」菜单、下拉列表与右键菜单都挂在 <body> 下，
+   弹出位置跟着触发按钮走，正好会落进拖动区（空状态的工作区、笔记列表顶部的搜索栏那一行）。
+   拖动区判定的是一张矩形并集，浮层浮在上面也照样被吞掉点击，表现就是
+   「菜单弹得出来、选项却点不动」，也就是无Tab模式下点「新建」后新建不了笔记或待办。
+   三个浮层的 z-index 都高于各自的拖动区（见 dropdown.css / overlays.css），
+   因此这次回扣一定排在并集之后，稳稳生效。 */
+html.notab-mode .dropdown-menu,
+html.notab-mode .context-menu {
     -webkit-app-region: no-drag;
 }
 
 /* 空状态的工作区：拖动区由 #empty-state 里的 .empty-drag-surface 承担（见 main.html）。
-   铺在图标 / 文字 / 按钮之下，所以它们照常接收点击；整列让开右侧 140px 后，
-   即便此刻没有任何条目打开，右上角的窗口按钮也不会被拖动区抢走点击。 */
-html.minimal-mode .empty-drag-surface {
+   铺在图标 / 文字 / 按钮之下（按钮自己的 no-drag 见 styles/base.css），
+   铺不到的「新建」菜单则靠上面那条 .dropdown-menu 规则；整列让开右侧 280px 后，
+   即便此刻没有任何条目打开，右上角的悬浮按钮也不会被拖动区抢走点击。 */
+html.notab-mode .empty-drag-surface {
     display: block;
     position: absolute;
-    inset: 0 140px 0 0;
+    inset: 0 280px 0 0;
     z-index: -1;
     -webkit-app-region: drag;
 }
 
-/* 悬浮的窗口按钮占住右上角 132px 宽、40px 高的一条：编辑器顶栏与设置内容各让出右侧 140px，
-   免得那排「编辑 / 分屏 / 预览」与置顶 / 导出 / 删除被压在下面点不到 */
-html.minimal-mode .editor-topbar {
-    padding-right: 140px;
+/* 悬浮按钮组占住右上角约 270px 宽、40px 高的一条（4 个工具按钮 + 3 个窗口按钮）：
+   编辑器顶栏与设置内容各让出右侧 280px，免得那排「编辑 / 分屏 / 预览」与置顶 / 导出 / 删除
+   被压在下面点不到 */
+html.notab-mode .editor-topbar {
+    padding-right: 280px;
 }
-html.minimal-mode .settings-view .settings-content {
+html.notab-mode .settings-view .settings-content {
     /* 上内边距挪到标题区（见下）：标题区本身就是拖动区，
        这样从窗口顶部开始就能拖，而不是只有下面那一条文字带 */
     padding-top: 0;
-    padding-right: 140px;
+    padding-right: 280px;
 }
-html.minimal-mode .settings-view .settings-header {
+html.notab-mode .settings-view .settings-header {
     /* 接过内容区原本的 32px 上内边距：视觉效果不变，但这块空白现在归标题区，可以拖动窗口 */
     padding-top: 32px;
 }
-/* 全屏时窗口按钮不显示（见 base.css），这条走廊也就不必留 */
-html.minimal-mode body.is-fullscreen .editor-topbar {
-    padding-right: 16px;
+/* 全屏时窗口按钮不显示（见 base.css），走廊收窄到工具按钮组那么宽 */
+html.notab-mode body.is-fullscreen .editor-topbar {
+    padding-right: 146px;
 }
-html.minimal-mode body.is-fullscreen .settings-view .settings-content {
-    padding-right: 48px;
+html.notab-mode body.is-fullscreen .settings-view .settings-content {
+    padding-right: 146px;
 }
 
-/* AI 对话面板：入口（标题栏按钮）整体没了，面板本身也不必留在布局里 */
-html.minimal-mode #ai-panel,
-/* 侧边栏：这两栏是「按文件夹 / 标签浏览」的导航入口，极简模式只用「笔记 / 待办 / 已置顶 / 废纸篓」。
-   注意只藏导航：编辑器顶栏的文件夹选择与标签（笔记自身的属性）仍然保留，
-   它们所在的 .editor-meta 同时兼作弹性占位与拖动区。 */
-html.minimal-mode .sidebar .nav-section-folders,
-html.minimal-mode .sidebar .nav-section-tags {
-    display: none !important;
+/* AI 面板贴着工作区右侧（360px 宽），悬浮按钮组正好压在它的 40px 顶栏上，
+   会把那排「新建对话 / 对话记录 / 清空 / 关闭」盖住：面板里垫一块 40px 的拖动空白
+   （.ai-panel-drag-strip，见 main.html），把面板顶栏让到按钮下面，这块空白本身也能拖窗口。
+   宽度上要停在悬浮按钮组的左沿（面板宽 360 - 按钮组宽 270）：
+   这条空白是拖动区，再往右伸就会钻到按钮下面，把那排按钮的点击吞掉。 */
+html.notab-mode .ai-panel-drag-strip {
+    display: block;
+    margin-right: 270px;
+    -webkit-app-region: drag;
+}
+/* 全屏时窗口按钮不显示（见 base.css），按钮组只剩工具按钮那 138px，空白可以放宽一些 */
+html.notab-mode body.is-fullscreen .ai-panel-drag-strip {
+    margin-right: 138px;
+}
+/* 面板顶栏（40px 高，在悬浮按钮下面一层）整条都能拖，按钮单独标回 no-drag */
+html.notab-mode .ai-panel-header {
+    -webkit-app-region: drag;
+}
+html.notab-mode .ai-panel-header .btn-action-icon {
+    -webkit-app-region: no-drag;
+}
+/* 对话记录抽屉原本从面板顶栏下方展开（top: 40px，见 ai.css）：面板里多出这条 40px 拖动空白后，
+   顶栏整体下移，抽屉的起点也要跟着下移，否则会盖住顶栏那排按钮 */
+html.notab-mode .ai-drawer {
+    top: 80px;
+}
+
+/* 面板打开时，窗口右侧那 360px 已经归面板所有，悬浮按钮组整组落在面板上方，
+   编辑器顶栏与空状态拖动层都不必再让出走廊——否则顶栏右侧那 280px 空白会让
+   文件夹 / 标签之外的拖动区被挤没，表现就是「开了 AI 之后窗口拖不动」。
+   两者都在右侧且面板比按钮组宽，让出走廊反而多余。 */
+html.notab-mode .app-body:has(#ai-panel:not(.hidden)) .editor-topbar {
+    padding-right: 16px;
+}
+html.notab-mode .app-body:has(#ai-panel:not(.hidden)) .empty-drag-surface {
+    inset: 0;
 }
 
 /* ---------------- 应用名与「新建」按钮 ----------------
    标题栏没了，应用名移到侧边栏顶部（标准模式下仍留在标题栏，这里不显示）。
    应用名与「新建」按钮并排一行：名字在左靠边，按钮顶到最右边、收成一个正方形只留加号。
    字号、字重与颜色跟标题栏里的那份保持一致，颜色同样由设置页的「应用名颜色」决定。
-   极简模式里应用名只是展示、不可点击（退出编辑改由编辑器顶栏的「返回」承担），
+   无Tab模式里应用名只是展示、不可点击（退出编辑改由编辑器顶栏的「返回」承担），
    因此没有悬停 / 按下反馈；这一行里按钮之外的留白都可用于拖动窗口。 */
 .sidebar-brand {
     display: none;
@@ -117,7 +166,7 @@ html.minimal-mode .sidebar .nav-section-tags {
     padding: 4px 6px;
     margin-bottom: 6px;
 }
-html.minimal-mode .sidebar-brand {
+html.notab-mode .sidebar-brand {
     display: block;
     /* 与「新建」按钮同处一行，纵向对齐交给 .sidebar-action-wrap，不再往下留白 */
     margin-bottom: 0;
@@ -128,7 +177,7 @@ html.minimal-mode .sidebar-brand {
     text-overflow: ellipsis;
 }
 /* 侧边栏顶部这一块改成横向排布：应用名在左，「新建」按钮顶到这一行的最右边 */
-html.minimal-mode .sidebar-action-wrap {
+html.notab-mode .sidebar-action-wrap {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -136,7 +185,7 @@ html.minimal-mode .sidebar-action-wrap {
     padding: 8px;
 }
 /* 「新建」按钮收成正方形：不再撑满侧边栏宽度，也不跟名字抢空间 */
-html.minimal-mode .sidebar-action-wrap .btn-sidebar-new {
+html.notab-mode .sidebar-action-wrap .btn-sidebar-new {
     flex-shrink: 0;
     width: 28px;
     height: 28px;
@@ -144,12 +193,12 @@ html.minimal-mode .sidebar-action-wrap .btn-sidebar-new {
     padding: 0;
 }
 /* 方形按钮里只留加号，文字「新建」交给 title 提示 */
-html.minimal-mode .sidebar-action-wrap .nav-text {
+html.notab-mode .sidebar-action-wrap .nav-text {
     display: none;
 }
 /* 加号平时是绝对定位在按钮左内侧、透明的（标准模式收起侧边栏时才淡入），
    这里让它回到常规流中：按钮本身就是居中排布，加号自然落在正中间 */
-html.minimal-mode .sidebar-action-wrap .btn-new-note-icon {
+html.notab-mode .sidebar-action-wrap .btn-new-note-icon {
     position: static;
     transform: none;
     opacity: 1;
@@ -163,12 +212,12 @@ html.sidebar-collapsed .sidebar .sidebar-action-wrap {
 }
 
 /* ---------------- 设置页的返回入口 ----------------
-   标准模式靠标签栏离开设置页；极简模式没有标签栏，因此在设置页左侧的分类侧边栏顶部
+   标准模式靠标签栏离开设置页；无Tab模式没有标签栏，因此在设置页左侧的分类侧边栏顶部
    补一个返回按钮（与分类条目同一套视觉语言，放在「设置」标题栏下方第一条的位置） */
 .settings-back {
     display: none;
 }
-html.minimal-mode .settings-back {
+html.notab-mode .settings-back {
     display: flex;
     align-items: center;
     /* 基础 button 样式是居中排布，这里要显式靠左（与分类条目同一套对齐方式） */
@@ -182,19 +231,19 @@ html.minimal-mode .settings-back {
     font-size: 12.5px;
     transition: background-color 0.15s, color 0.15s;
 }
-html.minimal-mode .settings-back:hover {
+html.notab-mode .settings-back:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
 }
 
 /* ---------------- 编辑器顶栏的返回 ----------------
-   极简模式没有标签栏，退出当前编辑靠编辑器顶栏左侧（文件夹选择之前）的返回按钮。
-   只把按钮本身左移 8px（连同悬停高亮一起），让它与侧边栏 8px 的缩进对齐，
-   后面的文件夹选择与标签仍留在顶栏原本的 16px 位置，不受影响。 */
+   无Tab模式没有标签栏，「关掉当前标签」这个动作也就不存在了：退出当前编辑改由编辑器顶栏左侧
+   （文件夹选择之前）的返回按钮承担。只把按钮本身左移 8px（连同悬停高亮一起），
+   让它与侧边栏 8px 的缩进对齐，后面的文件夹选择与标签仍留在顶栏原本的 16px 位置，不受影响。 */
 .editor-back {
     display: none;
 }
-html.minimal-mode .editor-back {
+html.notab-mode .editor-back {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -206,7 +255,7 @@ html.minimal-mode .editor-back {
     font-size: 12.5px;
     transition: background-color 0.15s, color 0.15s;
 }
-html.minimal-mode .editor-back:hover {
+html.notab-mode .editor-back:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
 }

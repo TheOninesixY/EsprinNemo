@@ -952,7 +952,7 @@ function saveConfig() {
             brandColor: normalizeBrandColor(State.brandColor),
             cornerRadius: normalizeCornerRadius(State.cornerRadius),
             spellcheck: State.spellcheck,
-            // 使用模式（默认标准）：只接受 standard / minimal，脏数据回退为标准模式
+            // 使用模式（默认标准）：只接受 standard / notab，脏数据回退为标准模式
             uiMode: normalizeUiMode(State.uiMode),
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),

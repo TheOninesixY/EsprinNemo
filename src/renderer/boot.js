@@ -6,8 +6,8 @@ const path = require('path');
 // 侧边栏收起状态类：挂在 <html> 上。styles/sidebar.css 依赖该类名，scripts/render.js 复用此常量。
 const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
-// 极简模式状态类：同样挂在 <html> 上。styles/mode.css 依赖该类名，scripts/mode.js 复用此常量。
-const MINIMAL_MODE_CLASS = 'minimal-mode';
+// 无Tab模式状态类：同样挂在 <html> 上。styles/mode.css 依赖该类名，scripts/mode.js 复用此常量。
+const NOTAB_MODE_CLASS = 'notab-mode';
 
 // 便携版运行标记：主进程判断后通过 --esprin-nemo-portable 告知（见 src/main/updater.js），
 // 环境变量作为兜底。便携版每次启动都会解压到临时目录，没有稳定的可升级目标，
@@ -64,9 +64,10 @@ try {
             document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
         }
 
-        // 极简模式同理：先落定类名，首屏就不会闪出随后要隐藏的那些入口
-        if (config && config.uiMode === 'minimal') {
-            document.documentElement.classList.add(MINIMAL_MODE_CLASS);
+        // 无Tab模式同理：先落定类名，首屏就不会先排出一行标签再收起。
+        // 旧版本的这一档叫 minimal（极简模式），改名后旧值一并认
+        if (config && (config.uiMode === 'notab' || config.uiMode === 'minimal')) {
+            document.documentElement.classList.add(NOTAB_MODE_CLASS);
         }
     }
 

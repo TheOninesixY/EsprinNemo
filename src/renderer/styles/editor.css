@@ -66,6 +66,14 @@
     color: var(--danger);
 }
 
+/* 编辑器顶栏右侧：视图切换与置顶 / 导出 / 删除。无Tab模式下这一行兼作拖动窗口的留白，
+   因此单独成一个类，而不是写成行内样式（见 styles/mode.css） */
+.editor-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .editor-view-modes {
     display: flex;
     background: var(--item-hover);
@@ -224,7 +232,7 @@
 }
 
 /* Empty State */
-/* 极简模式的窗口拖动区：默认不存在，只有极简模式下才填充空状态的空白处（见 styles/mode.css） */
+/* 无Tab模式的窗口拖动区：默认不存在，只有该模式下才填充空状态的空白处（见 styles/mode.css） */
 .empty-drag-surface {
     display: none;
 }

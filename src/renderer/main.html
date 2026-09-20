@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="./styles/alom.css">
     <!-- 圆角尺度：按设置中的选择把 --radius-* 令牌换算成最终圆角，需排在其它风格之后 -->
     <link rel="stylesheet" href="./styles/radius.css">
-    <!-- 使用模式：极简模式（<html class="minimal-mode">）下隐藏笔记与待办之外的入口 -->
+    <!-- 使用模式：无Tab模式（<html class="notab-mode">）下去掉标题栏与标签栏，入口悬浮到右上角 -->
     <link rel="stylesheet" href="./styles/mode.css">
 </head>
 <body>
@@ -71,10 +71,10 @@
             <!-- Left Sidebar Navigation -->
             <aside class="sidebar" id="app-sidebar">
                 <!-- Top New Button in Sidebar：点击后在按钮下方展开「新建笔记 / 新建待办」菜单。
-                     极简模式下应用名（.sidebar-brand）与这个按钮并排一行：名字在左、按钮靠最右，
+                     无Tab模式下应用名（.sidebar-brand）与这个按钮并排一行：名字在左、按钮靠最右，
                      按钮收成只带加号的正方形（见 styles/mode.css）。 -->
                 <div class="sidebar-action-wrap">
-                    <!-- 应用名：仅极简模式显示（标题栏在极简模式里被移除），纯展示、不可点击，
+                    <!-- 应用名：仅无Tab模式显示（标题栏在该模式下被移除），纯展示、不可点击，
                          与「新建」按钮同一行；侧边栏收起时连同按钮一起收成加号 -->
                     <div class="sidebar-brand" id="sidebar-brand">EsprinNemo</div>
                     <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记或待办 (Ctrl+N / Ctrl+Shift+N)">
@@ -177,8 +177,8 @@
             <main class="workspace" id="workspace-box">
                 <!-- Empty Placeholder Screen -->
                 <div class="empty-placeholder" id="empty-state">
-                    <!-- 极简模式的窗口拖动区：一块不可见的空白，铺在下面的图标 / 文字 / 按钮之下，
-                         并整列避开右上角的窗口按钮（只有极简模式显示，见 styles/mode.css） -->
+                    <!-- 无Tab模式的窗口拖动区：一块不可见的空白，铺在下面的图标 / 文字 / 按钮之下，
+                         并整列避开右上角的悬浮按钮（只有该模式显示，见 styles/mode.css） -->
                     <div class="empty-drag-surface" aria-hidden="true"></div>
                     <span class="ms-icon">edit_note</span>
                     <p>选择一篇笔记或一项待办，或新建</p>
@@ -188,7 +188,7 @@
                 <!-- Workspace Topbar -->
                 <div class="editor-topbar" id="editor-topbar">
                     <div class="editor-meta">
-                        <!-- 极简模式没有标签栏，靠这个按钮退出当前编辑（标准模式下不显示） -->
+                        <!-- 无Tab模式没有标签栏，靠这个按钮退出当前编辑（标准模式下不显示） -->
                         <button class="editor-back" id="btn-editor-back" title="退出编辑，回到笔记列表">
                             <span class="ms-icon xs">arrow_back</span>
                             <span>返回</span>
@@ -200,7 +200,9 @@
                         </button>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 8px;">
+                    <!-- 视图切换与置顶 / 导出 / 删除：无Tab模式下这一行本身就是拖动窗口的留白，
+                         按钮与分段控件单独抠回 no-drag（见 styles/mode.css） -->
+                    <div class="editor-actions">
                         <div class="editor-view-modes">
                             <button class="view-btn active" id="btn-mode-edit">编辑</button>
                             <button class="view-btn" id="btn-mode-split">分屏</button>
@@ -272,6 +274,9 @@
 
             <!-- 4. AI 助手：贴在工作区右侧的问答面板（标题栏按钮开关） -->
             <aside class="ai-panel hidden" id="ai-panel">
+                <!-- 无Tab模式的窗口拖动区：踮在面板顶栏上方的空白（只有该模式显示，见 styles/mode.css），
+                     高度与悬浮按钮组一致，同时也把面板顶栏让到按钮下方 -->
+                <div class="ai-panel-drag-strip" aria-hidden="true"></div>
                 <div class="ai-panel-header">
                     <span class="ms-icon sm">smart_toy</span>
                     <span class="ai-panel-title">AI 助手</span>
@@ -363,7 +368,7 @@
             <div class="settings-view hidden" id="settings-view">
                 <!-- 设置分类导航（条目由 SETTINGS_CATEGORIES 在 initSettingsNav 中生成） -->
                 <aside class="settings-sidebar">
-                    <!-- 极简模式没有标签栏，靠这个按钮回到笔记列表（标准模式下不显示） -->
+                    <!-- 无Tab模式没有标签栏，靠这个按钮回到笔记列表（标准模式下不显示） -->
                     <button class="settings-back" id="btn-settings-back" title="返回笔记列表">
                         <span class="ms-icon xs">arrow_back</span>
                         <span>返回</span>
@@ -379,32 +384,6 @@
                             <span>设置</span>
                         </div>
                         <div class="settings-desc">管理 EsprinNemo 的偏好设置与编辑器行为</div>
-                    </div>
-
-                    <!-- 分类：使用模式（标准 / 极简） -->
-                    <div class="settings-panel" data-settings-panel="mode">
-                        <div class="settings-section">
-                            <div class="settings-section-title">使用模式</div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">界面模式</span>
-                                    <span class="settings-row-desc">极简模式只保留笔记与待办：新建、编辑、搜索、排序、置顶、废纸篓与设置入口，切换即时生效</span>
-                                </div>
-                                <select class="settings-select" id="setting-ui-mode">
-                                    <option value="standard">标准模式（全部功能）</option>
-                                    <option value="minimal">极简模式（只有笔记与待办）</option>
-                                </select>
-                            </div>
-                            <div class="settings-row-desc" id="mode-current-hint">…</div>
-                        </div>
-
-                        <div class="settings-section">
-                            <div class="settings-section-title">极简模式会隐藏什么</div>
-                            <div class="settings-row-desc">
-                                标题栏与标签栏整体移除（内容不再让出顶部空白，窗口操作键直接悬浮在右上角，应用名移到侧边栏「新建」按钮上方且仅作展示），以及 AI 助手（含侧边的「AI 助手」分类与托盘菜单里的「小本本」）、小本本按钮、侧边栏的文件夹与标签过滤两栏。
-                                退出编辑与退出设置分别由编辑器顶栏、设置分类侧边栏顶部的「返回」按钮承担；编辑笔记本身的属性不受影响：文件夹选择、标签与「添加标签」仍在编辑器顶栏，文件夹与标签的归属也原样保留。
-                            </div>
-                        </div>
                     </div>
 
                     <!-- 分类：编辑器与文本 -->
@@ -439,6 +418,22 @@
 
                     <!-- 分类：外观与主题色 -->
                     <div class="settings-panel hidden" data-settings-panel="appearance">
+                        <!-- 使用模式：原先单独一个分类，现收成一个开关放进这里。
+                             开关只切 <html> 上的类名，其余排布全由 styles/mode.css 承担 -->
+                        <div class="settings-section">
+                            <div class="settings-section-title">使用模式</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">无Tab模式</span>
+                                    <span class="settings-row-desc">去掉标题栏与标签栏</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-notab-mode">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="settings-section">
                             <div class="settings-section-title">主题风格</div>
                             <div class="settings-row">
