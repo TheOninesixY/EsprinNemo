@@ -7,6 +7,7 @@ const SETTINGS_CATEGORIES = [
     { id: 'fonts', label: '字体', icon: 'text_format' },
     { id: 'ai', label: 'AI 助手', icon: 'smart_toy' },
     { id: 'data', label: '数据与存储', icon: 'folder' },
+    { id: 'system', label: '系统与托盘', icon: 'dock_to_bottom' },
     { id: 'update', label: '更新与版本', icon: 'system_update' }
 ];
 

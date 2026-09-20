@@ -908,6 +908,8 @@ function loadData() {
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         // 自动更新默认开启：只有显式写成 false 才视为关闭
         autoUpdate: config.autoUpdate !== false,
+        // 系统托盘默认显示：同样只有显式写成 false 才视为关闭
+        trayEnabled: config.trayEnabled !== false,
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
         aiKeyStatus,
@@ -946,6 +948,8 @@ function saveConfig() {
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
             // 自动更新（默认开启）：主进程读取这一项决定是否在启动后自动检查
             autoUpdate: State.autoUpdate !== false,
+            // 系统托盘（默认显示）：主进程读取这一项决定是否创建托盘图标
+            trayEnabled: State.trayEnabled !== false,
             // 当前选中的 AI 对话：对话本体在 ai_chats/ 下，这里只记一个 id
             aiActiveChat: typeof State.aiActiveConversationId === 'string' ? State.aiActiveConversationId : '',
             folders: normalizeCustomFolders(State.folders),

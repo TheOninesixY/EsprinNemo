@@ -11,7 +11,8 @@ const {
 } = require('./data_path.js');
 const { listSystemFonts } = require('./font_list.js');
 const { configureDialogWindows, registerDialogIpc, showDialogWindow } = require('./dialog_window.js');
-const { closeScratchpadWindow, configureScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
+const { configureScratchpadWindow, isScratchpadWindowOpen, openScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
+const { configureTray, isTrayEnabled, registerTrayIpc } = require('./tray.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { migrateApiKeyFromConfig } = require('./ai_secret.js');
@@ -88,7 +89,9 @@ configureScratchpadWindow({
   getDataDir: resolveDataDir,
   // 便利贴停靠在哪块屏幕右下角，取决于主窗口当前所在的显示器
   getOwner: () => mainWindow,
-  icon: path.join(APP_ROOT, 'assets', 'icon.png')
+  icon: path.join(APP_ROOT, 'assets', 'icon.png'),
+  // 便利贴关闭后：主窗口此前已被收起时，屏幕上再无窗口，应用也随之退出
+  onClosed: handleScratchpadClosed
 });
 
 // AI 助手：站点与模型随数据目录存放，API Key 由系统密钥链单独保管；两者都只由主进程读取
@@ -98,11 +101,65 @@ configureAiService({ getDataDir: resolveDataDir });
 // 自动检查是否开启以 config.json 中的 autoUpdate 为准（默认开启）
 configureUpdater({
   getConfig: readUserConfig,
-  getOwner: () => mainWindow
+  // 主窗口被收起时不给弹窗挂一个隐藏的父窗口，更新提示因此仍能正常显示
+  getOwner: () => (mainWindowClosed ? null : mainWindow)
 });
 
-// 主窗口引用：小本本据此定位停靠屏幕，并在主窗口关闭时一并收掉
+// 主窗口引用：小本本据此定位停靠屏幕
 let mainWindow = null;
+// 主窗口是否已被用户关闭（小本本还在运行时，主窗口只是收起，进程继续存活）
+let mainWindowClosed = false;
+// 应用是否正在退出（更新安装、或窗口都关掉了）：此时不再拦下主窗口的关闭
+let isQuitting = false;
+
+// 系统托盘的入口动作：托盘本身不持有窗口与数据的知识，全部由这里注入。
+// 托盘图标在 app.whenReady 之后创建（Tray 必须等应用就绪），是否显示由 config.json 的
+// trayEnabled 决定；托盘在时应用不再随窗口关闭而退出（见下面的关闭拦截与 handleScratchpadClosed）。
+function setupTray() {
+  configureTray({
+    getConfig: readUserConfig,
+    getOwner: () => mainWindow,
+    icon: path.join(APP_ROOT, 'assets', 'icon.png'),
+    onShowMainWindow: showMainWindow,
+    // 小本本与退出都在主进程内直接完成，不经过渲染进程
+    onOpenScratchpad: () => { openScratchpadWindow(); },
+    onQuit: () => { app.quit(); },
+    // 关掉托盘后应用失去唯一的常驻入口：此时没有任何可见窗口就应当退出，
+    // 否则进程会留在后台且再也唤不回来
+    onEnabledChanged: (enabled) => { if (!enabled) quitIfNoVisibleWindow(); }
+  });
+}
+
+// 把主窗口叫回前台：托盘菜单、托盘动作与「再次启动应用」都走这里。
+// 主窗口确实不在了时重新创建一扇，同样不另起进程。
+function showMainWindow() {
+  if (isQuitting) return null;
+  if (!mainWindow || mainWindow.isDestroyed()) return createWindow();
+
+  mainWindowClosed = false;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  return mainWindow;
+}
+
+// 关闭托盘且屏幕上已无可见窗口（主窗口被收起、小本本也没开）时退出应用：
+// 此时应用没有任何入口，继续驻留只会变成一个无法唤回的残留进程。
+function quitIfNoVisibleWindow() {
+  if (isQuitting || isTrayEnabled()) return;
+  if (isScratchpadWindowOpen()) return;
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
+  app.quit();
+}
+
+// 小本本关闭后：托盘还在时应用继续驻留（图标就是入口）；
+// 没有托盘时，主窗口此前已被收起就意味着屏幕上再没有窗口，应用随之退出。
+function handleScratchpadClosed() {
+  if (isQuitting) return;
+  if (isTrayEnabled()) return;
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
+  app.quit();
+}
 
 function normalizePathForCompare(target) {
   const resolved = path.resolve(target);
@@ -386,10 +443,20 @@ function createWindow() {
     win.show();
   });
 
-  // 主窗口关闭时同步关闭小本本，否则便利贴会独自留在屏幕上、应用也无法退出
+  // 关闭主窗口：托盘开启时一律收进托盘（图标就是重新打开界面的入口）；
+  // 托盘关闭、但小本本还开着时同样只收起——渲染进程继续存活，笔记读写与小本本的
+  // 联动（列表 / 打开 / 保存）都不受影响，小本本得以单独留在屏幕上继续记事。
+  // 两者都不成立时保持原样：关闭主窗口即退出应用。
+  win.on('close', (event) => {
+    if (isQuitting) return;
+    if (!isTrayEnabled() && !isScratchpadWindowOpen()) return;
+    event.preventDefault();
+    mainWindowClosed = true;
+    win.hide();
+  });
+
   win.once('closed', () => {
     if (mainWindow === win) mainWindow = null;
-    closeScratchpadWindow();
   });
 
   win.on('enter-full-screen', () => {
@@ -403,6 +470,7 @@ function createWindow() {
   // 用 file URL 而不是手工拼 file://，避免 Windows 盘符与空格路径被拼错
   win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'renderer', 'main.html')).href);
 
+  mainWindowClosed = false;
   mainWindow = win;
   return win;
 }
@@ -412,11 +480,14 @@ function createWindow() {
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
+// 单实例锁的既有实例被再次启动时：把已有的主窗口带到前台。
+// 主窗口此前被收起（小本本仍在运行或应用已缩进托盘）时，
+// 这里就是「重新打开应用」的入口——只显示那扇已存在的主窗口，不再启动新进程。
 app.on('second-instance', () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
+  // 正在退出（例如安装更新时）就不要再开窗口了
+  if (isQuitting) return;
+  // 主窗口确实不在了（例如已被销毁）时重新创建，同样不启动新进程
+  showMainWindow();
 });
 
 app.whenReady().then(() => {
@@ -442,6 +513,10 @@ app.whenReady().then(() => {
   // 小本本窗口的 IPC 通道（打开 / 读写内容 / 外观同步）
   registerScratchpadIpc();
 
+  // 系统托盘：设置页开关。应用已就绪，托盘图标同时按配置在此落定，
+  // 因此主窗口创建时的关闭拦截已经能读到正确的托盘状态。
+  registerTrayIpc();
+  setupTray();
 
   // 旧版把 API Key 明文写在 config.json 里：在窗口创建前先收进系统密钥链并从配置中抹掉，
   // 这样渲染进程读到的配置里不会再出现明文密钥
@@ -459,6 +534,13 @@ app.whenReady().then(() => {
   scheduleAutoChecks();
 });
 
+// 应用开始退出（小本本也关闭后的退出、更新安装时的退出）后，就不再拦下主窗口的关闭
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  // 托盘还在就等于应用还有一个入口，窗口都关掉也不必退出
+  if (process.platform === 'darwin' || isTrayEnabled()) return;
+  app.quit();
 });

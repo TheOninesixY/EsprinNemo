@@ -597,6 +597,24 @@
                         </div>
                     </div>
 
+                    <!-- 分类：系统与托盘 -->
+                    <div class="settings-panel hidden" data-settings-panel="system">
+                        <div class="settings-section">
+                            <div class="settings-section-title">系统托盘</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">显示托盘图标</span>
+                                    <span class="settings-row-desc">在任务栏通知区域显示 EsprinNemo 图标：右键图标可打开主窗口 / 小本本、新建笔记、新建待办或进入设置；左键单击则直接把主窗口唤回前台</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-tray-enabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row-desc" id="tray-status">正在读取托盘状态…</div>
+                        </div>
+                    </div>
+
                     <!-- 分类：更新 -->
                     <div class="settings-panel hidden" data-settings-panel="update">
                         <div class="settings-section">
@@ -693,6 +711,7 @@
     <script src="./scripts/editor.js"></script>
     <script src="./scripts/settings.js"></script>
     <script src="./scripts/data_location.js"></script>
+    <script src="./scripts/tray.js"></script>
     <script src="./scripts/update.js"></script>
     <script src="./scripts/render.js"></script>
     <script src="./scripts/context_menu.js"></script>

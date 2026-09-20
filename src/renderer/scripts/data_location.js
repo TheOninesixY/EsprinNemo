@@ -90,6 +90,7 @@ function adoptDataDir(dir, options = {}) {
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
+        trayEnabled: State.trayEnabled !== false,
         fonts: { ...State.fonts }
     };
 
@@ -107,6 +108,7 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.autoUpdate = saved.autoUpdate !== false;
+        State.trayEnabled = saved.trayEnabled !== false;
         State.fonts = saved.fonts;
         // AI 接口配置随数据目录走：新位置自带的配置（尤其是迁移过来的）优先
         State.ai = saved.ai;
@@ -118,6 +120,7 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
+        State.trayEnabled = prefs.trayEnabled;
         State.fonts = prefs.fonts;
         saveConfig();
     }
@@ -166,6 +169,8 @@ function adoptDataDir(dir, options = {}) {
     ipcRenderer.invoke('update:set-auto', { enabled: State.autoUpdate !== false }).catch((err) => {
         console.error('同步自动更新开关失败:', err);
     });
+    // 托盘开关同样随配置走：新位置若关掉了托盘图标，图标要跟着消失
+    syncTraySetting();
     renderAiMessages();
     renderAiChatList();
 

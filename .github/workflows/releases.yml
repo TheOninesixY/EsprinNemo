@@ -1,0 +1,84 @@
+name: Release
+
+# 当 package.json 被推送到 main 分支时触发（版本号更新即代表有新版本需要发布）
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - .github/releases.md
+      - .github/workflows/releases.yml
+  workflow_dispatch:
+
+# 发布 Release 需要写权限
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+    env:
+      # 无代码签名证书，跳过自动查找证书
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          # 需要完整的 tag 历史来判断该版本是否已经发布过
+          fetch-depth: 0
+
+      - name: 读取版本号并检查是否已发布
+        id: check
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "标签 $TAG 已存在，版本未更新，跳过发布。"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "检测到新版本 $TAG，开始构建并发布。"
+          fi
+
+      - name: 安装 Bun
+        if: steps.check.outputs.published == 'false'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装依赖
+        if: steps.check.outputs.published == 'false'
+        run: bun install
+
+      - name: 构建
+        if: steps.check.outputs.published == 'false'
+        run: bun run build
+
+      - name: 列出构建产物
+        if: steps.check.outputs.published == 'false'
+        shell: bash
+        run: ls -lh dist
+
+      - name: 发布 Release
+        if: steps.check.outputs.published == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.check.outputs.tag }}
+          name: ${{ steps.check.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          # Release 说明使用 .github/releases.md 的内容
+          body_path: .github/releases.md
+          draft: false
+          prerelease: false
+          # 发布 electron-builder 打出的两个 exe：Setup 与 Portable
+          files: |
+            dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

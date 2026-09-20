@@ -3,6 +3,8 @@
 // 两种状态：未关联笔记时内容属于小本本自己（数据目录下的 scratchpad.json）；
 // 关联某篇笔记后，小本本直接编辑那篇笔记——笔记数据统一由主窗口渲染进程读写，
 // 避免两个窗口各存一份、互相覆盖。
+// 小本本还决定应用的存活时间：主窗口关闭后进程靠它继续运行，它也被关闭时应用才退出
+// （关闭动作在这里上报给 main.js，由 main.js 决定去留）。
 const { BrowserWindow, ipcMain, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -36,17 +38,20 @@ let resolveAccent = () => '';
 let resolveDataDir = () => '';
 let getOwnerWindow = () => null;
 let iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
+// 便利贴关闭后的回调（由 main.js 注入）：主窗口也已关闭时据此退出应用
+let handleWindowClosed = () => {};
 let ipcRegistered = false;
 // 标题把手拖动窗口时的起点（窗口坐标），松手后清空
 let dragOrigin = null;
 
-// 由 main.js 注入主题、主题色、数据目录、归属窗口与图标
-function configureScratchpadWindow({ getTheme, getAccent, getDataDir, getOwner, icon } = {}) {
+// 由 main.js 注入主题、主题色、数据目录、归属窗口、图标与关闭回调
+function configureScratchpadWindow({ getTheme, getAccent, getDataDir, getOwner, icon, onClosed } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
   if (typeof getDataDir === 'function') resolveDataDir = getDataDir;
   if (typeof getOwner === 'function') getOwnerWindow = getOwner;
   if (typeof icon === 'string' && icon) iconPath = icon;
+  if (typeof onClosed === 'function') handleWindowClosed = onClosed;
 }
 
 function stateFilePath() {
@@ -193,6 +198,8 @@ function createScratchpadWindow() {
   win.once('ready-to-show', () => win.show());
   win.once('closed', () => {
     if (noteWin === win) noteWin = null;
+    // 便利贴也没了：此刻屏幕上是否还有窗口，只有 main.js 清楚
+    handleWindowClosed();
   });
 
   win.loadFile(NOTE_HTML).catch((error) => {
@@ -215,11 +222,9 @@ function openScratchpadWindow() {
   return true;
 }
 
-// 主窗口关闭时同步收掉便利贴，避免留下孤儿窗口导致应用无法退出
-function closeScratchpadWindow() {
-  const win = noteWin;
-  noteWin = null;
-  if (win && !win.isDestroyed()) win.destroy();
+// 便利贴是否正开着（含被最小化的情形）：主窗口关闭时据此决定是收起主窗口还是退出应用
+function isScratchpadWindowOpen() {
+  return !!(noteWin && !noteWin.isDestroyed());
 }
 
 // 把便利贴内容新建为一篇笔记：交给主窗口渲染进程落地，
@@ -384,8 +389,8 @@ function registerScratchpadIpc() {
 }
 
 module.exports = {
-  closeScratchpadWindow,
   configureScratchpadWindow,
+  isScratchpadWindowOpen,
   openScratchpadWindow,
   registerScratchpadIpc
 };
