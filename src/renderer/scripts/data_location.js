@@ -89,6 +89,7 @@ function adoptDataDir(dir, options = {}) {
         spellcheck: State.spellcheck,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
+        autoUpdate: State.autoUpdate,
         fonts: { ...State.fonts }
     };
 
@@ -105,6 +106,7 @@ function adoptDataDir(dir, options = {}) {
         State.spellcheck = saved.spellcheck;
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
+        State.autoUpdate = saved.autoUpdate !== false;
         State.fonts = saved.fonts;
         // AI 接口配置随数据目录走：新位置自带的配置（尤其是迁移过来的）优先
         State.ai = saved.ai;
@@ -115,6 +117,7 @@ function adoptDataDir(dir, options = {}) {
         State.spellcheck = prefs.spellcheck;
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
+        State.autoUpdate = prefs.autoUpdate !== false;
         State.fonts = prefs.fonts;
         saveConfig();
     }
@@ -158,6 +161,11 @@ function adoptDataDir(dir, options = {}) {
     syncAccentControls();
     syncTrashRetentionSelect();
     syncAiSettingsUI();
+    // 自动更新开关随配置走：新位置若关掉了自动更新，主进程的定时检查也要跟着停
+    syncUpdateSettingsUI();
+    ipcRenderer.invoke('update:set-auto', { enabled: State.autoUpdate !== false }).catch((err) => {
+        console.error('同步自动更新开关失败:', err);
+    });
     renderAiMessages();
     renderAiChatList();
 

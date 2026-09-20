@@ -18,6 +18,7 @@ window.onload = () => {
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
+    State.autoUpdate = saved.autoUpdate !== false;
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
     // API Key 只保留「是否已保存 + 保管方式」，明文始终留在主进程与系统密钥链里
@@ -71,6 +72,7 @@ window.onload = () => {
     setupEvents();
     syncTrashRetentionSelect();
     refreshDataDirInfo();
+    initUpdateSettings();
 
     // 启动时不自动打开任何标签页：停留在空状态，由用户自行选择、新建笔记或待办
     State.openNoteIds = [];

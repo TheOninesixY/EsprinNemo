@@ -6,7 +6,8 @@ const SETTINGS_CATEGORIES = [
     { id: 'appearance', label: '外观与主题色', icon: 'palette' },
     { id: 'fonts', label: '字体', icon: 'text_format' },
     { id: 'ai', label: 'AI 助手', icon: 'smart_toy' },
-    { id: 'data', label: '数据与存储', icon: 'folder' }
+    { id: 'data', label: '数据与存储', icon: 'folder' },
+    { id: 'update', label: '更新与版本', icon: 'system_update' }
 ];
 
 // 记录当前分类，退出设置再进入时仍停留在原来的一类
@@ -30,6 +31,9 @@ function switchSettingsCategory(id) {
     // 新面板通常比上一个短，回到顶部避免留下大片空白
     const content = document.querySelector('#settings-view .settings-content');
     if (content) content.scrollTop = 0;
+
+    // 「更新」分类的面板内容依赖主进程状态（可能已在后台检查/下载过）：每次切进来都刷一遍
+    if (category.id === 'update' && typeof refreshUpdateInfo === 'function') refreshUpdateInfo();
 }
 
 function initSettingsNav() {

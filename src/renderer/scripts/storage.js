@@ -790,7 +790,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: '', brandColor: 'brand', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', accentColor: '', brandColor: 'brand', spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -906,6 +906,8 @@ function loadData() {
         spellcheck: !!config.spellcheck,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
+        // 自动更新默认开启：只有显式写成 false 才视为关闭
+        autoUpdate: config.autoUpdate !== false,
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
         aiKeyStatus,
@@ -942,6 +944,8 @@ function saveConfig() {
             spellcheck: State.spellcheck,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
+            // 自动更新（默认开启）：主进程读取这一项决定是否在启动后自动检查
+            autoUpdate: State.autoUpdate !== false,
             // 当前选中的 AI 对话：对话本体在 ai_chats/ 下，这里只记一个 id
             aiActiveChat: typeof State.aiActiveConversationId === 'string' ? State.aiActiveConversationId : '',
             folders: normalizeCustomFolders(State.folders),

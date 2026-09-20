@@ -24,6 +24,8 @@ const State = {
     sidebarCollapsed: false,
     // 废纸篓自动清理：保留天数，0 表示永不自动清理
     trashRetentionDays: 0,
+    // 自动更新：默认开启，启动后自动检查并在后台下载新版本
+    autoUpdate: true,
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
     fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
     // AI 助手接口配置（随 config.json 一起落盘）

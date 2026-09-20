@@ -58,8 +58,15 @@
 - **自定义人设**：可填写系统提示词约束 AI 的身份与回答风格，留空则使用内置提示词
 - **密钥不出渲染层**：请求由主进程代理发出，API Key 由主进程从系统密钥链读取，既不经 IPC 往返，也不会出现在页面脚本或配置文件里
 
+### 自动更新
+- **默认开启**：启动后自动检查更新源，发现新版本时在后台下载安装包，下载完成后弹窗询问是否立即重启安装；可在「设置 → 更新与版本」中一键关闭
+- **手动检查**：设置页可随时「检查更新」，未开启自动更新时同样可以手动检查、下载与安装
+- **更新说明可读**：检查到新版本后，设置页会列出该版本的说明、发布日期与安装包大小，下载进度实时可见（可随时取消）
+- **应用自己完成升级**：安装包以 `--upgrade` 方式启动，安装向导不显示任何选择页与对话框，只留一个进度条和「正在更新」提示；装完自动重新打开应用，笔记与数据存放位置记录都不受影响
+- **无第三方依赖**：检查走 GitHub Releases API、下载走 Node 内置 `https`，未引入 electron-updater 之类的依赖
+
 ### 数据与隐私
-- **完全离线**：不联网、不上传、无遥测（主动使用 AI 助手时除外，详见下文）
+- **本地优先**：不上传、无遥测；除主动使用 AI 助手（详见下文）与默认开启的自动更新检查外，不发起任何网络请求，自动更新可在设置中关闭
 - **安装即可选位置**：Windows 安装向导可选择安装位置与数据存放位置（默认位置或任意目录）
 - **数据目录可迁移**：在设置中更改数据存放位置，自动迁移现有笔记并即时生效，无需重启
 - **安装版与开发版隔离**：安装版使用应用配置目录，开发版使用项目内 `data/`
@@ -108,11 +115,14 @@ Windows 下由 electron-builder 生成安装包，产物位于 `dist/`。安装�
 
 实现细节见 [`src/win_installer/README.md`](src/win_installer/README.md)。
 
+> 更新用同一个安装包：把 `dist/Esprin Nemo Setup x.y.z.exe` 随版本号一起上传到 GitHub Releases，
+> 旧版本的应用即可自动检查到并升级（见下文「应用更新」）。
+
 ## 数据存储
 
 ```
 data/
-├── config.json     # 偏好设置：主题、主题色、应用名颜色、字体、拼写检查、废纸篓保留天数、自定义文件夹、AI 接口配置、当前选中的对话等
+├── config.json     # 偏好设置：主题、主题色、应用名颜色、字体、拼写检查、废纸篓保留天数、自动更新开关、自定义文件夹、AI 接口配置、当前选中的对话等
 ├── scratchpad.json # 小本本：关联的笔记 ID 与标题/正文缓存
 ├── ai_files/       # AI 图片附件（对话记录里只存文件名，请求时才读成 base64）
 ├── ai_chats/       # AI 对话：一份对话一个文件
@@ -272,6 +282,28 @@ API Key **不随数据目录保存**，也不写入 [data/config.json](data/conf
 }
 ```
 
+## 应用更新
+
+更新的检查、下载与安装都在主进程完成（`src/main/updater.js`），界面在「设置 → 更新与版本」里展示状态与操作。
+
+| 设置项 | 说明 |
+| --- | --- |
+| 自动检查并下载更新 | 默认开启；开启后启动约 12 秒检查一次，之后每 6 小时复查，发现新版本即在后台下载 |
+| 检查更新 | 立即检查一次，结果直接显示在设置页（也可在关闭自动更新后手动使用） |
+| 下载更新 / 取消下载 | 手动下载当前版本（仅在自动下载被关闭、或自动下载失败后需要时出现），下载中可随时取消并丢弃已下载的部分 |
+| 重启并安装 / 打开安装包 | 安装版直接调用安装包完成升级（无向导、装完自动重开）；便携版与开发运行只打开安装包所在目录，由用户手动升级 |
+| 打开发布页 | 在系统浏览器中打开 GitHub Releases，便于查看完整更新说明或手动下载 |
+
+更新源与流程：
+
+- 更新源为 GitHub 仓库 `TheOninesixY/EsprinNemo` 的 Releases（写在 `src/main/updater.js` 的 `UPDATE_REPO`，改仓库时改这一处即可）
+- 检查走 `GET https://api.github.com/repos/{owner}/{repo}/releases/latest`，取该 release 的 tag（形如 `v0.0.0`）与当前版本逐段数值比较（支持 `2.1.10 > 2.1.9`），只有比当前版本高才会提醒更新
+- 安装包只认同时满足两个条件的附件：文件名里有一个独立的 `setup` 段（由点 / 空格 / 连字符 / 下划线分隔，如 `Esprin Nemo Setup 2.1.2.exe`、`en.Setup.123.exe`），且以 `.exe` 结尾；发布页里没有这样的附件时，设置页会提示到发布页手动下载。下载到系统临时目录，按 `Content-Length` 校验体积，并检查文件头（`MZ`）
+- 安装时以 `--upgrade --updated --force-run` 运行安装包：`--upgrade` 由安装脚本（`src/win_installer/installer.nsh`）识别——跳过数据位置向导页、沿用上次的安装范围（不再询问“为谁安装”）、不显示“完成”页，安装完成由安装器重新拉起应用；`--updated` / `--force-run` 是 electron-builder 自带的开关，用于跳过许可与安装目录页、并允许安装程序等待旧应用退出。结果就是用户只会看到一个进度条和“正在更新”提示，`%APPDATA%\esprin_nemo\data_path.json` 与数据目录都不会被改动
+- 开发运行（`bun start`）不参与自动检查与后台下载（源码不是通过更新包分发的），但设置页里的「检查更新」仍可手动使用；便携版会因为自身不是安装版而只提供下载与手动升级
+- 一次发布只要把安装包（`dist/Esprin Nemo Setup x.y.z.exe`）上传到 Releases 即可，不需要额外维护版本清单文件
+- 网络请求仅指向 GitHub（API 与下载地址）；检查失败（离线、代理、频率限制等）只会在设置页显示原因，不会重试打扰
+
 ## 项目结构
 
 ```
@@ -286,6 +318,7 @@ API Key **不随数据目录保存**，也不写入 [data/config.json](data/conf
 │   │   ├── data_path.js    # 数据目录解析：默认位置、自定义位置记录、迁移
 │   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入）
 │   │   ├── scratchpad_window.js # 小本本：右下角置顶便利贴小窗口与内容读写
+│   │   ├── updater.js      # 应用更新：检查 GitHub Releases、下载安装包、静默升级
 │   │   ├── font_list.js    # 跨平台本机字体枚举（解析字体文件 name 表）
 │   │   └── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
 │   ├── win_installer/      # Windows 安装器：NSIS 自定义向导页（数据存放位置）
@@ -298,7 +331,7 @@ API Key **不随数据目录保存**，也不写入 [data/config.json](data/conf
 │       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题色 / 字体预注入（无闪屏）
 │       ├── fonts/          # 随应用分发的品牌字体（Mohave）
 │       ├── styles/         # tokens / base / sidebar / editor / overlays / settings / ai
-│       └── scripts/        # state / storage / markdown / ui / theme_color / notes / scratchpad / editor / ai / ai_chats / ai_files / ai_agent / render …
+│       └── scripts/        # state / storage / markdown / ui / theme_color / notes / scratchpad / editor / ai / ai_chats / ai_files / ai_agent / update / render …
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
 └── readme/                 # 文档配图

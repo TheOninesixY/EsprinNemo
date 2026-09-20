@@ -21,11 +21,90 @@
   Var EsprinDataDirPathEdit
   Var EsprinDataDirMode
   Var EsprinDataDirPath
+  # 应用内自动更新：安装包被以 --upgrade 启动时为 "1"（见下方 customInit）
+  Var EsprinUpgradeMode
 !endif
+
+/* 应用内更新（--upgrade）：应用会把新版本的安装包下载到临时目录，然后以命令行运行它：
+     "Esprin Nemo Setup x.y.z.exe" --upgrade --updated --force-run
+   --upgrade 由本文件识别（跳过数据位置向导页、沿用上次的安装范围、不显示“完成”页，
+   安装结束后自动重新拉起应用），--updated / --force-run 是 electron-builder 自带的开关，
+   用于跳过许可与安装目录向导页、并且允许安装程序等待旧进程退出。
+   最终用户能看到的只有一个安装进度页（进度条 + “正在更新”标题）。
+   手工双击安装包时不带这些参数，因此仍然走完整的向导流程。 */
+
+!macro customInit
+  !ifndef BUILD_UNINSTALLER
+    ${StdUtils.TestParameter} $R9 "upgrade"
+    ${If} $R9 != "true"
+      # 兜底：只带了 electron-builder 的升级开关时同样按升级处理
+      # （例如 UAC 提权后重新启动的内层实例）
+      ${StdUtils.TestParameter} $R9 "updated"
+    ${EndIf}
+    ${If} $R9 == "true"
+      StrCpy $EsprinUpgradeMode "1"
+    ${EndIf}
+  !endif
+!macroend
+
+/* 安装范围：升级时沿用上次装好的范围（仅当前用户 / 本机所有用户），
+   这样安装向导的“为谁安装”选择页会被直接跳过；普通安装不受影响，仍由用户选择。
+   electron-builder 在同一处分别用了 customInstallmode（检查）与 customInstallMode（插入）
+   两种拼写，这里把两种拼写都补上：先定义的那个会被后面的 !ifmacrodef 命中并跳过，
+   因此无论 NSIS 的符号是否区分大小写都不会重复定义、也不会漏掉。 */
+!macro EsprinApplyInstallModeOnUpgrade
+  !ifndef BUILD_UNINSTALLER
+    ${If} $EsprinUpgradeMode == "1"
+      ${If} $hasPerMachineInstallation == "1"
+        StrCpy $isForceMachineInstall "1"
+      ${Else}
+        StrCpy $isForceCurrentInstall "1"
+      ${EndIf}
+    ${EndIf}
+  !endif
+!macroend
+
+!ifmacrodef customInstallMode
+!else
+  !macro customInstallMode
+    !insertmacro EsprinApplyInstallModeOnUpgrade
+  !macroend
+!endif
+
+!ifmacrodef customInstallmode
+!else
+  !macro customInstallmode
+    !insertmacro EsprinApplyInstallModeOnUpgrade
+  !macroend
+!endif
+
+/* 升级时不显示“完成”页（应用由 customInstall 在安装结束时自动重新打开）。 */
+!macro customFinishPage
+  Function EsprinFinishPagePre
+    ${If} $EsprinUpgradeMode == "1"
+      Abort
+    ${EndIf}
+  FunctionEnd
+
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE EsprinFinishPagePre
+  !insertmacro MUI_PAGE_FINISH
+!macroend
 
 !macro customPageAfterChangeDir
 
   Page custom EsprinDataDirPageCreate EsprinDataDirPageLeave
+
+  /* 安装进度页：升级时把页头与窗口标题换成“正在更新…”，
+     用户因此只会看到一个进度条加一行提示，不需要任何点选。
+     这个宏恰好在本页声明（!insertmacro MUI_PAGE_INSTFILES）之前展开，
+     所以这里定义的 SHOW 回调会被进度页取走。 */
+  Function EsprinInstFilesPageShow
+    ${If} $EsprinUpgradeMode == "1"
+      !insertmacro MUI_HEADER_TEXT "正在更新 Esprin Nemo" "更新完成后应用会自动重新打开，请稍候…"
+      SendMessage $HWNDPARENT ${WM_SETTEXT} 0 "STR:正在更新 Esprin Nemo…"
+    ${EndIf}
+  FunctionEnd
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW EsprinInstFilesPageShow
 
   Function EsprinToSlash
     StrCpy $1 ""
@@ -63,6 +142,15 @@
   FunctionEnd
 
   Function EsprinDataDirPageCreate
+    # 静默安装（/S）与应用内更新（--upgrade）都不需要这个向导页，
+    # 这里提前 Abort，避免在无界面环境下创建控件失败导致整次安装被中断。
+    ${If} ${Silent}
+      Abort
+    ${EndIf}
+    ${If} $EsprinUpgradeMode == "1"
+      Abort
+    ${EndIf}
+
     nsDialogs::Create 1018
     Pop $0
     ${If} $0 == error
@@ -106,6 +194,15 @@
   FunctionEnd
 
   Function EsprinDataDirPageLeave
+    # 静默安装与应用内更新下不询问数据位置：保持 $EsprinDataDirMode 为空，
+    # customInstall 因此不会改写 %APPDATA%\esprin_nemo\data_path.json。
+    ${If} ${Silent}
+      Return
+    ${EndIf}
+    ${If} $EsprinUpgradeMode == "1"
+      Return
+    ${EndIf}
+
     ${If} $EsprinDataDirMode == "keep"
       Return
     ${EndIf}
@@ -170,5 +267,11 @@
     ${EndIf}
     Pop $1
     Pop $0
+  ${EndIf}
+
+  # 应用内更新：文件已全部就绪，这里把应用重新打开（升级时不显示“完成”页，
+  # 也就没有向导自带的“运行应用”勾选，重开动作由安装器自己做）。
+  ${If} $EsprinUpgradeMode == "1"
+    ${StdUtils.ExecShellAsUser} $0 "$launchLink" "open" "--updated"
   ${EndIf}
 !macroend

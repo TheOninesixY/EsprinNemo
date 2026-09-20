@@ -15,6 +15,7 @@ const { closeScratchpadWindow, configureScratchpadWindow, registerScratchpadIpc 
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { migrateApiKeyFromConfig } = require('./ai_secret.js');
+const { configureUpdater, registerUpdateIpc, scheduleAutoChecks } = require('./updater.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
 // 本文件位于 src/main/ 下，因此 assets/、src/renderer/ 与开发版 data/ 都相对它定位。
@@ -92,6 +93,13 @@ configureScratchpadWindow({
 
 // AI 助手：站点与模型随数据目录存放，API Key 由系统密钥链单独保管；两者都只由主进程读取
 configureAiService({ getDataDir: resolveDataDir });
+
+// 应用更新：检查 / 下载 / 安装三段都在主进程完成（见 updater.js），
+// 自动检查是否开启以 config.json 中的 autoUpdate 为准（默认开启）
+configureUpdater({
+  getConfig: readUserConfig,
+  getOwner: () => mainWindow
+});
 
 // 主窗口引用：小本本据此定位停靠屏幕，并在主窗口关闭时一并收掉
 let mainWindow = null;
@@ -444,7 +452,11 @@ app.whenReady().then(() => {
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
   registerUiDefaults();
 
+  // 应用更新：IPC 通道 + 启动后与定时的自动检查（默认开启）
+  registerUpdateIpc();
+
   createWindow();
+  scheduleAutoChecks();
 });
 
 app.on('window-all-closed', () => {
