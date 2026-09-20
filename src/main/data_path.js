@@ -37,27 +37,35 @@ function getPortableDir() {
   }
 }
 
-// 可用的便携版目录：必须是可写目录，否则整体退回安装版那套 %APPDATA% 位置。
-// 便携版可能被放在只读位置（光盘、只读共享盘、受策略限制的程序目录），
-// 这种情况下若还坚持用运行目录，数据与位置记录都会静默写不进去。
+// 便携版运行目录的解析结果（整个进程只解析一次）：
+// portableDir 非空即表示本次是便携版运行，portableDirWritable 表示该目录能否写入。
+// 便携版目录写不进去时不退回安装版那套 %APPDATA% 位置：数据与位置记录都随程序目录走
+// 才是「便携」的全部意义，静默改用系统盘会让用户在自己的程序目录里找不到笔记，
+// 还会与安装版（或另一份便携版）的记录与数据互相覆盖；这种情况改为启动失败并弹窗告知用户
+// （见本文件末尾的 getStartupBlocker 与 main.js 里的启动检查）。
+// 便携版可能被放在只读位置（光盘、只读共享盘、受策略限制的程序目录）。
 let portableDirResolved = false;
-let portableDirCache = null;
-function getPortableWorkDir() {
+let portableDir = null;
+let portableDirWritable = false;
+
+function resolvePortableDir() {
   if (!portableDirResolved) {
     portableDirResolved = true;
     const dir = getPortableDir();
-    if (dir && ensureDirUsable(dir)) {
-      portableDirCache = dir;
-    } else if (dir) {
-      console.warn('[Esprin Nemo] 便携版运行目录不可写，已改用 %APPDATA% 下的默认位置:', dir);
+    if (dir) {
+      portableDir = dir;
+      portableDirWritable = ensureDirUsable(dir);
+      if (!portableDirWritable) {
+        console.warn('[Esprin Nemo] 便携版运行目录不可写:', dir);
+      }
     }
   }
-  return portableDirCache;
+  return portableDir;
 }
 
-// 是否便携版运行（且便携版目录可用）
+// 是否便携版运行（与目录能否写入无关：目录不可写也仍是便携版，只是无法启动）
 function isPortableRun() {
-  return !!getPortableWorkDir();
+  return !!resolvePortableDir();
 }
 
 // 读取命令行传入的数据目录（仅渲染进程会带上该参数）
@@ -83,9 +91,11 @@ function getAppDataConfigDir(appLike = null) {
 
 // 实际生效的配置目录（data_path.json 与 AI 密钥文件都放在这里）：
 // 便携版是便携版所在目录——配置随程序目录走、整体可搬移，也不在系统盘留痕；
-// 其余运行方式是 %APPDATA%/esprin_nemo
+// 其余运行方式是 %APPDATA%/esprin_nemo。
+// 便携版目录不可写时同样返回便携版目录（配置仍是读得出来的），绝不改指 %APPDATA%：
+// 那等于把数据位置记录写进系统盘，用户既看不到也不知道。
 function getConfigDir(appLike = null) {
-  return getPortableWorkDir() || getAppDataConfigDir(appLike);
+  return resolvePortableDir() || getAppDataConfigDir(appLike);
 }
 
 function getLocationFile(appLike = null) {
@@ -191,15 +201,26 @@ function isDevRun(appLike = null) {
   return !(app && app.isPackaged);
 }
 
-// 目录必须可创建且可写，否则视为不可用
+// 目录必须可创建且可写，否则视为不可用。
+// 只做 mkdir + access 并不足以判定可写：目录的只读属性、ACL、只读盘 / 只读共享盘
+// 都可能被放过，而「目录不可写」在便携版下直接决定应用能否启动，
+// 因此这里实际落一个空文件探一探，探完立刻删掉。
 function ensureDirUsable(dir) {
+  const probe = dir ? path.join(dir, `.esprin-nemo-write-test-${process.pid}-${Date.now()}`) : null;
   try {
+    if (!dir) return false;
     fs.mkdirSync(dir, { recursive: true });
-    fs.accessSync(dir, fs.constants.W_OK);
+    fs.writeFileSync(probe, '');
     return true;
   } catch (error) {
     console.warn(`[Esprin Nemo] 数据目录不可用 ${dir}:`, error.message);
     return false;
+  } finally {
+    try {
+      if (probe && fs.existsSync(probe)) fs.unlinkSync(probe);
+    } catch (error) {
+      // 探测文件删不掉不影响判定结果
+    }
   }
 }
 
@@ -215,8 +236,8 @@ function decodeTextFile(buffer) {
 // 默认数据目录：便携版是便携版所在目录下的 data/，安装版 %APPDATA%/esprin_nemo/data，
 // 开发版项目内 data/
 function getDefaultDataDir(baseDir = __dirname, appLike = null) {
-  const portableDir = getPortableWorkDir();
-  if (portableDir) return path.join(portableDir, 'data');
+  const portable = resolvePortableDir();
+  if (portable) return path.join(portable, 'data');
   const app = getApp(appLike);
   if (app && app.isPackaged && typeof app.getPath === 'function') {
     return path.join(app.getPath('appData'), DEFAULT_APP_DIR_NAME, 'data');
@@ -232,8 +253,10 @@ function getDataDir(baseDir = __dirname, appLike = null) {
   // 2. 开发运行（bun start）：固定使用项目内 data/，不读位置记录也不接受自定义位置
   if (isDevRun(appLike)) return getDefaultDataDir(baseDir, appLike);
 
-  // 3. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退，避免应用无法启动。
-  //    便携版读的是便携版目录下的记录（见 readStoredDataDir），默认位置也已经是运行目录下的 data/
+  // 3. 记录文件中的位置（安装时选择或应用内更改）优先；不可用时回退到默认位置，
+  //    免得记着一个连不上的位置就完全无法启动。
+  //    便携版读的是便携版目录下的记录（见 readStoredDataDir），默认位置也已经是运行目录下的 data/；
+  //    若记录与默认位置都写不进去，不在这里改用别的位置，而是由启动检查拦下并弹窗说明（见 getStartupBlocker）
   const stored = readStoredDataDir(appLike);
   if (stored) {
     if (ensureDirUsable(stored)) return stored;
@@ -273,6 +296,68 @@ function ensureDataDir(baseDir = __dirname, appLike = null) {
   return dir;
 }
 
+/* 启动前置检查：返回 null 表示可以正常启动；否则返回描述阻塞原因的对象，
+   由 main.js 用与界面同一套窗口式弹窗说明原因后退出。
+
+   只有便携版会命中：安装版与开发运行的数据位置本就不随程序目录走，
+   目录不可写时按原有顺序回退即可（安装版有 %APPDATA% 兜底，开发运行固定项目内 data/）。
+   便携版则相反——数据与位置记录都随程序目录走才是「便携」的全部意义，
+   目录写不进去时改投 %APPDATA%（或悄悄改用别的数据目录）会让用户在便携版目录里
+   找不到自己的笔记，还会与安装版（或另一份便携版）的记录、数据互相覆盖，
+   因此宁可启动失败也要把真实原因说清楚。
+
+   返回对象的 kind 取值为：
+   portable-dir  便携版所在目录不可写（位置记录与 AI 密钥也在这里）
+   recorded-dir  位置记录指向的目录不可用
+   data-dir      便携版目录下的默认数据目录建不出来 / 写不进去 */
+function getStartupBlocker(baseDir = __dirname, appLike = null) {
+  // 开发运行固定使用项目内 data/，与便携版标记无关
+  if (isDevRun(appLike)) return null;
+
+  const portable = resolvePortableDir();
+  if (!portable) return null;
+
+  const recordFile = getLocationFile(appLike) || '';
+
+  // 便携版目录本身写不进去：位置记录 data_path.json 与 AI 密钥文件都无处可写
+  if (!portableDirWritable) {
+    return {
+      kind: 'portable-dir',
+      reason: '便携版所在目录无法写入',
+      dir: portable,
+      // 数据本身可能已被指到别处（记录仍在便携版目录里，读得出来），弹窗里如实显示
+      dataDir: readStoredDataDir(appLike) || path.join(portable, 'data'),
+      recordFile
+    };
+  }
+
+  // 位置记录里的自定义位置不可用：不改用默认位置，否则用户看到的是「笔记全没了」
+  const stored = readStoredDataDir(appLike);
+  if (stored && !ensureDirUsable(stored)) {
+    return {
+      kind: 'recorded-dir',
+      reason: '记录的数据位置无法写入',
+      dir: portable,
+      dataDir: stored,
+      recordFile
+    };
+  }
+
+  // 便携版目录可写，但它下面的数据目录建不出来 / 写不进去
+  // （例如同名的 data 是个文件、或该子目录被单独设成只读）
+  const dir = getDataDir(baseDir, appLike);
+  if (!ensureDirUsable(dir)) {
+    return {
+      kind: 'data-dir',
+      reason: '数据目录无法创建或写入',
+      dir: portable,
+      dataDir: dir,
+      recordFile
+    };
+  }
+  return null;
+}
+
 module.exports = {
   DATA_DIR_ARG,
   isDevRun,
@@ -283,5 +368,6 @@ module.exports = {
   getDefaultDataDir,
   writeFileAtomic,
   writeStoredDataDir,
+  getStartupBlocker,
   ensureDataDir
 };

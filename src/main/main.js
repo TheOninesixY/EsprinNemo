@@ -5,8 +5,10 @@ const { pathToFileURL } = require('url');
 const {
   DATA_DIR_ARG,
   ensureDataDir,
+  ensureDirUsable,
   getDefaultDataDir,
   getLocationFile,
+  getStartupBlocker,
   isDevRun,
   isPortableRun: isPortableDataRun,
   writeStoredDataDir
@@ -34,7 +36,8 @@ const IS_DEV_RUN = isDevRun(app);
 // 便携版：每次启动都解压到临时目录，没有稳定的可升级目标，
 // 因此更新功能（检查 / 下载 / 安装）与相关设置整体不启用
 const IS_PORTABLE_RUN = isPortableRun();
-// 数据目录层面的便携版判定：便携版目录写不进去时会退回 %APPDATA%，
+// 数据目录层面的便携版判定：便携版目录写不进去时应用会在启动阶段停下
+// （见下面启动检查处的 resolveStartupBlock），因此这里与「程序目录即数据目录」等价，
 // 设置页据此展示数据与位置记录的真实落点
 const IS_PORTABLE_DATA_RUN = isPortableDataRun();
 const DATA_DIR_LOCKED_MESSAGE = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
@@ -172,6 +175,9 @@ let mainWindow = null;
 let mainWindowClosed = false;
 // 应用是否正在退出（更新安装、或窗口都关掉了）：此时不再拦下主窗口的关闭
 let isQuitting = false;
+// 启动阶段被拦下（便携版写不进数据目录）：应用正停在弹窗上等用户处理，
+// 此时既没有主窗口，也不该因为「再次启动应用」而新建窗口
+let startupBlocked = false;
 
 // 系统托盘的入口动作：托盘本身不持有窗口与数据的知识，全部由这里注入。
 // 托盘图标在 app.whenReady 之后创建（Tray 必须等应用就绪），是否显示由 config.json 的
@@ -194,7 +200,7 @@ function setupTray() {
 // 把主窗口叫回前台：托盘菜单、托盘动作与「再次启动应用」都走这里。
 // 主窗口确实不在了时重新创建一扇，同样不另起进程。
 function showMainWindow() {
-  if (isQuitting) return null;
+  if (isQuitting || startupBlocked) return null;
   if (!mainWindow || mainWindow.isDestroyed()) return createWindow();
 
   mainWindowClosed = false;
@@ -284,14 +290,10 @@ function isPathInside(parent, child) {
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
+// 目录是否可写：与数据目录解析共用同一份实现（见 main/data_path.js 的 ensureDirUsable，
+// 它会实际落一个空文件再删掉），目录的只读属性、ACL 与只读盘因此都能识别出来
 function isDirWritable(dir) {
-  try {
-    fs.mkdirSync(dir, { recursive: true });
-    fs.accessSync(dir, fs.constants.W_OK);
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return ensureDirUsable(dir);
 }
 
 function dirHasData(dir) {
@@ -473,6 +475,129 @@ ipcMain.handle('data:open-dir', async () => {
 const WINDOW_MIN_WIDTH = 860;
 const WINDOW_MIN_HEIGHT = 600;
 
+/* 便携版写不进数据目录时的说明文案：把「哪里写不进去」与「怎么恢复」都写清楚，
+   用户不必去翻文档。reselectable 为 true 时说明里会带上「重新选择位置」这条出路。 */
+function dataDirBlockerDialog(blocker, reselectable) {
+  const recordDir = blocker.kind === 'recorded-dir';
+  const message = blocker.kind === 'portable-dir'
+    ? '便携版所在目录不可写'
+    : (recordDir ? '便携版的数据位置不可用' : '便携版的数据目录不可写');
+
+  const detail = [];
+  if (blocker.kind === 'portable-dir') {
+    detail.push('便携版把笔记、待办与设置都保存在程序所在的目录里，位置记录与 AI 密钥也放在这里。');
+    detail.push('该目录当前无法写入，应用因此没有启动——免得把数据写到别处，让你在便携版目录里找不到它。');
+  } else if (recordDir) {
+    detail.push('便携版的数据位置记录指向的目录当前无法写入，应用因此没有启动。');
+    detail.push('不会自动改用其他位置：换成空目录启动，看上去就像笔记全都不见了。');
+  } else {
+    detail.push('便携版把笔记、待办与设置都保存在程序所在目录下的 data/ 里。');
+    detail.push('该目录当前无法创建或写入，应用因此没有启动。');
+  }
+
+  detail.push('');
+  detail.push(`程序目录：${blocker.dir}`);
+  detail.push(recordDir ? `记录的位置：${blocker.dataDir}` : `数据目录：${blocker.dataDir}`);
+  if (recordDir && blocker.recordFile) detail.push(`位置记录：${blocker.recordFile}`);
+  detail.push('');
+
+  if (recordDir) {
+    detail.push('请先确认该位置（移动硬盘、网络共享等）已连接且可写，再重新启动；');
+    detail.push('也可以点「重新选择位置」另挑一个目录，选好后应用会直接启动。');
+  } else if (reselectable) {
+    detail.push('请检查该目录是否被只读设置或同名文件占用，再重新启动；');
+    detail.push('也可以点「重新选择位置」把数据改放到别处，选好后应用会直接启动。');
+  } else {
+    detail.push('请把便携版移到可写的位置（例如文档目录、移动硬盘），或解除该目录的只读 / 权限限制后重新启动。');
+  }
+
+  return { message, detail: detail.join('\n') };
+}
+
+/* 让用户重新挑选数据目录：必须可写，选不出来就再给一次机会。
+   返回选定的绝对路径；用户取消选择时返回 null。 */
+async function pickDataDir(current) {
+  while (true) {
+    const result = await dialog.showOpenDialog({
+      title: '选择数据存放位置',
+      defaultPath: current,
+      buttonLabel: '选择此文件夹',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+
+    const picked = path.resolve(result.filePaths[0]);
+    if (isDirWritable(picked)) return picked;
+
+    // 选到不可写的目录（只读盘、系统目录等）时原地重挑，不回到启动弹窗
+    await showDialogWindow(null, {
+      type: 'warning',
+      title: '数据存放位置',
+      message: '所选目录不可写',
+      detail: `请检查该目录的访问权限，或换一个位置。\n位置：${picked}`,
+      width: 420,
+      buttons: [{ id: 'retry', label: '重新选择', variant: 'primary' }]
+    });
+  }
+}
+
+/* 启动被拦下时的交互：位置记录指向的目录不可用（或默认 data/ 建不出来）时给用户一次
+   「重新选择位置」的机会——选到可写目录并写回位置记录后照常启动，不必自己去找并删除
+   data_path.json。便携版目录本身写不进去时，位置记录无处可写，重选也就无从保存，
+   因此那种情况只说明原因。
+
+   返回选定的数据目录；用户选择退出时返回 null，由调用方收场。 */
+async function resolveStartupBlock(blocker) {
+  // 目录不可写、但仍然可能是可读的（例如整个目录被设成只读）：先把解析结果落定，
+  // 弹窗于是还能沿用用户当前的主题、主题色与字体，不会突然换一副长相
+  dataDir = blocker.dataDir;
+
+  while (true) {
+    // 只有便携版目录可写时才谈得上重选：位置记录 data_path.json 就写在那里
+    const reselectable = blocker.kind !== 'portable-dir';
+    const choice = await showDialogWindow(null, {
+      type: reselectable ? 'warning' : 'error',
+      title: '无法启动',
+      ...dataDirBlockerDialog(blocker, reselectable),
+      width: 480,
+      buttons: reselectable
+        ? [
+            { id: 'reselect', label: '重新选择位置', variant: 'primary' },
+            { id: 'quit', label: '退出', cancel: true }
+          ]
+        : [{ id: 'quit', label: '退出', variant: 'primary' }]
+    });
+
+    if (choice.id !== 'reselect') return null;
+
+    const picked = await pickDataDir(blocker.dataDir);
+    if (!picked) continue;
+
+    // 位置记录写回便携版目录下的 data_path.json，下次启动直接生效
+    if (writeStoredDataDir(picked, app)) {
+      console.log('[Esprin Nemo] 数据位置已改为:', picked);
+      return picked;
+    }
+
+    // 记录写不回去（例如目录中途被设成只读）：这次选择无法保存，
+    // 改按「程序目录不可写」说明，别让用户以为已经改好了
+    console.error('[Esprin Nemo] 位置记录写入失败，新的数据位置无法保存:', picked);
+    blocker = { ...blocker, kind: 'portable-dir', reason: '位置记录无法写入', dataDir: picked };
+  }
+}
+
+// 用户选择「退出」后的收场：弹窗已经说明过原因，这里不再重复弹窗，只退出应用
+function abortStartup(blocker) {
+  console.error('[Esprin Nemo] 便携版启动失败:', blocker.reason, blocker.dir);
+
+  if (!dataDir) dataDir = blocker.dataDir;
+  // 弹窗期间再次启动应用（单实例锁会把请求转给本进程）不该去开主窗口：
+  // 数据目录都写不进去，开出来的窗口也只会立刻出错
+  isQuitting = true;
+
+  app.quit();
+}
+
 function createWindow() {
   Menu.setApplicationMenu(null);
 
@@ -563,8 +688,36 @@ app.on('second-instance', () => {
   showMainWindow();
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return;
+
+  // 便携版无法写入数据目录（只读位置、无权限等）：不退回 %APPDATA%，先弹窗告知；
+  // 位置记录指向的目录不可用时还可以就地重选一个位置，选好并写回记录后照常启动。
+  // 检查必须早于任何窗口与 IPC 注册，应用因此不会留下一份「看起来正常」的数据。
+  const startupBlocker = getStartupBlocker(APP_ROOT, app);
+  if (startupBlocker) {
+    // 应用停在启动弹窗上：这期间再次启动应用不该去开主窗口（数据目录还写不进去）
+    startupBlocked = true;
+    // 弹窗页面靠这几条 IPC 取回内容、量高与回传所选按钮
+    registerDialogIpc();
+
+    let pickedDir = null;
+    try {
+      pickedDir = await resolveStartupBlock(startupBlocker);
+    } catch (error) {
+      // 连自绘弹窗都开不出来（例如图形环境异常）时退回系统原生消息框，至少让用户知道原因
+      console.error('[Esprin Nemo] 显示启动失败弹窗失败:', error);
+      dialog.showErrorBox('Esprin Nemo 无法启动', `${startupBlocker.reason}：\n${startupBlocker.dataDir}`);
+    }
+
+    if (!pickedDir) {
+      abortStartup(startupBlocker);
+      return;
+    }
+    // 位置记录已写回便携版目录，数据目录即用户刚选定的位置
+    dataDir = pickedDir;
+    startupBlocked = false;
+  }
 
   // 权限白名单：只放行字体枚举（「设置 → 字体」里读取本机字体列表用），其余一律拒绝。
   // 渲染进程开着 Node 集成，未使用的摄像头 / 麦克风 / 定位等权限没有必要开放。
