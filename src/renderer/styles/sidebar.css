@@ -16,6 +16,7 @@
     padding: 10px 8px 4px 8px;
 }
 .btn-sidebar-new {
+    position: relative;
     width: 100%;
     display: flex;
     align-items: center;
@@ -30,9 +31,17 @@
     transition: opacity 0.15s, transform 0.1s;
     cursor: pointer;
 }
-/* 展开时只显示文字，收起时文字换成加号图标 */
+/* 展开时只显示文字，收起时加号渐显出来。
+   加号用绝对定位：不参与展开态的排版（不会把「新建」文字顶偏，也不需要 gap 留给它），
+   并且固定贴在按钮左内侧——与下方导航图标同一列，淡入过程中不会位移。
+   不用 display: none 是因为那样无法过渡，收起时会硬生生跳出来。 */
 .btn-new-note-icon {
-    display: none;
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity 0.18s ease;
 }
 .btn-sidebar-new:hover {
     opacity: 0.92;
@@ -177,20 +186,21 @@
     flex-shrink: 0;
     border-radius: var(--radius-sm);
     color: var(--danger);
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color 0.15s, color 0.15s, width 0.18s ease, height 0.18s ease;
 }
 .btn-clear-trash:hover {
     background-color: var(--item-hover);
     color: var(--danger);
 }
-/* 底栏右侧的小图标按钮：设置与收起/展开，成组靠右（收起按钮在最右侧） */
+/* 底栏右侧的小图标按钮：设置与收起/展开，成组靠右（收起按钮在最右侧）。
+   width / height 参与过渡：收起时它们会从 20×20 放到 24×24，与背景收窄同步变化 */
 .btn-sidebar-bottom {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
-    transition: background-color 0.15s, color 0.15s;
+    transition: background-color 0.15s, color 0.15s, width 0.18s ease, height 0.18s ease;
 }
 .btn-sidebar-bottom:hover {
     background-color: var(--item-hover);
@@ -209,7 +219,9 @@
 
 /* Sidebar Collapsed State: 只保留一条窄条与图标入口。
    状态类挂在 <html> 上：boot.js 会在首屏渲染前根据 config.sidebarCollapsed 写一次，
-   因此启动时已是收起态，既不会先展开再收起，也不会补播收起动效。 */
+   因此启动时已是收起态，既不会先展开再收起，也不会补播收起动效。
+   收起动效由 scripts/render.js 分两拍驱动（文字先渐隐，之后才写这个类），
+   所以这里只描述「静下来之后长什么样」，并保证整个过程里图标是原地不动的。 */
 html.sidebar-collapsed .sidebar {
     width: 48px;
 }
@@ -220,46 +232,48 @@ html.sidebar-collapsed .sidebar .nav-section-folders,
 html.sidebar-collapsed .sidebar .nav-section-tags {
     display: none;
 }
-/* 收起时清空按钮与设置按钮一起放大到 24×24，位置就在设置上方（靠 DOM 顺序） */
+/* 导航图标收起前后停在同一个 x 上：这里的左右内边距与展开态一致（分区 8px + 条目 8px），
+   条目变窄时图标也不会被居中排布推着走，所以收起过程中途不需要居中 */
+html.sidebar-collapsed .sidebar .nav-item {
+    padding: 7px 8px;
+}
+html.sidebar-collapsed .sidebar .nav-item-left {
+    gap: 0;
+}
+
+/* 「新建」按钮跟着背景一起往里收：宽度仍是 100%，随侧边栏宽度连续变窄；
+   加号（绝对定位在按钮左侧）则同时淡入，与收窄同一拍，位置始终不动 */
+html.sidebar-collapsed .sidebar .btn-new-note-icon {
+    opacity: 1;
+}
+
+/* 底栏：收起后改为竖排图标组，不再显示上方分界线（上方已无内容）。
+   这里用右对齐而不是居中，是为了让这组按钮在收窄过程中贴着右边缘一起往里收；
+   窄条 48px 减去原内边距 12px 后放 24px 按钮本身就是居中的，终态与居中排布等价 */
+html.sidebar-collapsed .sidebar .sidebar-bottom {
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 4px;
+    border-top: none;
+}
+/* 清空废纸篓与设置 / 展开按钮一起放大到 24×24，位置就在设置上方（靠 DOM 顺序） */
 html.sidebar-collapsed .sidebar .btn-clear-trash {
     width: 24px;
     height: 24px;
-}
-html.sidebar-collapsed .sidebar .btn-new-note-icon {
-    display: inline-flex;
-}
-html.sidebar-collapsed .sidebar .btn-sidebar-new {
-    width: 32px;
-    height: 32px;
-    margin: 0 auto;
-}
-html.sidebar-collapsed .sidebar .nav-item {
-    justify-content: center;
-    padding: 7px 0;
-}
-html.sidebar-collapsed .sidebar .nav-item-left {
-    justify-content: center;
-    gap: 0;
-}
-/* 收起时不显示底栏上方的分界线（上方已无内容） */
-html.sidebar-collapsed .sidebar .sidebar-bottom {
-    flex-direction: column;
-    justify-content: center;
-    padding: 8px 0;
-    gap: 4px;
-    border-top: none;
 }
 html.sidebar-collapsed .sidebar .btn-sidebar-bottom {
     width: 24px;
     height: 24px;
 }
-/* 竖向排列后取消右推，让设置与展开按钮居中对齐 */
+/* 竖向排列后取消右推（设置按钮原本靠 margin-left: auto 顶到最右） */
 html.sidebar-collapsed .sidebar #btn-open-settings {
     margin-left: 0;
 }
 
-/* 展开过程：宽度过渡期间文字保持不可见（.text-fading 由脚本在过渡结束后移除），
-   从而先完成组件展开，再淡入文字。
+/* 文字淡出 / 淡入共用一个临时类（.text-fading 由 scripts/render.js 控制时机）：
+   收起时它负责第一拍的文字渐隐（此阶段布局不动，图标因此不位移）；
+   展开时它让文字在宽度过渡结束前保持不可见，先完成组件展开，再淡入文字。
    设置按钮在收起态也可见，因此不参与淡入淡出。 */
 .nav-text,
 .nav-badge,

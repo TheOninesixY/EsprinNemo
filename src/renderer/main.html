@@ -70,9 +70,12 @@
         <div class="app-body">
             <!-- Left Sidebar Navigation -->
             <aside class="sidebar" id="app-sidebar">
-                <!-- Top New Button in Sidebar：点击后在按钮下方展开「新建笔记 / 新建待办」菜单 -->
+                <!-- Top New Button in Sidebar：点击后在按钮下方展开「新建笔记 / 新建待办」菜单。
+                     极简模式下应用名（.sidebar-brand）与这个按钮并排一行：名字在左、按钮靠最右，
+                     按钮收成只带加号的正方形（见 styles/mode.css）。 -->
                 <div class="sidebar-action-wrap">
-                    <!-- 应用名：仅极简模式显示（标题栏在极简模式里被移除），纯展示、不可点击，侧边栏收起时隐藏 -->
+                    <!-- 应用名：仅极简模式显示（标题栏在极简模式里被移除），纯展示、不可点击，
+                         与「新建」按钮同一行；侧边栏收起时连同按钮一起收成加号 -->
                     <div class="sidebar-brand" id="sidebar-brand">EsprinNemo</div>
                     <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记或待办 (Ctrl+N / Ctrl+Shift+N)">
                         <span class="ms-icon sm btn-new-note-icon">add</span>
@@ -174,6 +177,9 @@
             <main class="workspace" id="workspace-box">
                 <!-- Empty Placeholder Screen -->
                 <div class="empty-placeholder" id="empty-state">
+                    <!-- 极简模式的窗口拖动区：一块不可见的空白，铺在下面的图标 / 文字 / 按钮之下，
+                         并整列避开右上角的窗口按钮（只有极简模式显示，见 styles/mode.css） -->
+                    <div class="empty-drag-surface" aria-hidden="true"></div>
                     <span class="ms-icon">edit_note</span>
                     <p>选择一篇笔记或一项待办，或新建</p>
                     <button class="btn-new-note" id="btn-empty-new">新建</button>

@@ -224,6 +224,10 @@
 }
 
 /* Empty State */
+/* 极简模式的窗口拖动区：默认不存在，只有极简模式下才填充空状态的空白处（见 styles/mode.css） */
+.empty-drag-surface {
+    display: none;
+}
 .empty-placeholder {
     position: absolute;
     inset: 0;

@@ -33,13 +33,17 @@ html.minimal-mode .titlebar .window-controls {
 
 /* 拖动窗口改由几处留白承担：编辑器顶栏里文件夹 / 标签之后的空余段（.editor-meta 容器本身）、
    笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、设置页的标题区与分类侧边栏（留白部分）、
-   空状态的工作区，以及侧边栏「新建」按钮周围的留白。
-   这些区域里的控件单独标回 no-drag，点击行为不受影响。 */
+   空状态的工作区（见下面的 .empty-drag-surface），以及侧边栏「新建」按钮周围的留白。
+   这些区域里的控件单独标回 no-drag，点击行为不受影响。
+
+   一条硬约束：这些拖动区都不能伸进右上角的窗口按钮走廊。拖动区与窗口按钮重叠时，
+   按钮的点击会被拖动区吞掉（点最小化 / 关闭变成拖窗口）——空状态整块拖动区与窗口按钮
+   重叠过，表现就是「什么都没打开时窗口按钮突然失灵」。因此编辑器顶栏与设置内容区
+   各自让出右侧 140px，空状态则用下面那块让开走廊的拖动层。 */
 html.minimal-mode .editor-meta,
 html.minimal-mode .notes-panel-header,
 html.minimal-mode .settings-header,
 html.minimal-mode .settings-sidebar,
-html.minimal-mode .empty-placeholder,
 html.minimal-mode .sidebar-action-wrap {
     -webkit-app-region: drag;
 }
@@ -49,9 +53,19 @@ html.minimal-mode .notes-panel-header .search-box,
 html.minimal-mode .notes-panel-header .dropdown,
 html.minimal-mode .settings-sidebar .settings-back,
 html.minimal-mode .settings-sidebar .settings-nav-item,
-html.minimal-mode .sidebar-action-wrap .btn-sidebar-new,
-html.minimal-mode .empty-placeholder button {
+html.minimal-mode .sidebar-action-wrap .btn-sidebar-new {
     -webkit-app-region: no-drag;
+}
+
+/* 空状态的工作区：拖动区由 #empty-state 里的 .empty-drag-surface 承担（见 main.html）。
+   铺在图标 / 文字 / 按钮之下，所以它们照常接收点击；整列让开右侧 140px 后，
+   即便此刻没有任何条目打开，右上角的窗口按钮也不会被拖动区抢走点击。 */
+html.minimal-mode .empty-drag-surface {
+    display: block;
+    position: absolute;
+    inset: 0 140px 0 0;
+    z-index: -1;
+    -webkit-app-region: drag;
 }
 
 /* 悬浮的窗口按钮占住右上角 132px 宽、40px 高的一条：编辑器顶栏与设置内容各让出右侧 140px，
@@ -87,11 +101,12 @@ html.minimal-mode .sidebar .nav-section-tags {
     display: none !important;
 }
 
-/* ---------------- 应用名 ----------------
-   标题栏没了，应用名移到侧边栏「新建」按钮上方（标准模式下仍留在标题栏，这里不显示）。
+/* ---------------- 应用名与「新建」按钮 ----------------
+   标题栏没了，应用名移到侧边栏顶部（标准模式下仍留在标题栏，这里不显示）。
+   应用名与「新建」按钮并排一行：名字在左靠边，按钮顶到最右边、收成一个正方形只留加号。
    字号、字重与颜色跟标题栏里的那份保持一致，颜色同样由设置页的「应用名颜色」决定。
-   极简模式里它只是展示、不可点击（退出编辑改由编辑器顶栏的「返回」承担），
-   因此没有悬停 / 按下反馈；它所在的整块侧边栏顶部留白都可用于拖动窗口。 */
+   极简模式里应用名只是展示、不可点击（退出编辑改由编辑器顶栏的「返回」承担），
+   因此没有悬停 / 按下反馈；这一行里按钮之外的留白都可用于拖动窗口。 */
 .sidebar-brand {
     display: none;
     font-family: 'Mohave', var(--font-sans);
@@ -104,10 +119,47 @@ html.minimal-mode .sidebar .nav-section-tags {
 }
 html.minimal-mode .sidebar-brand {
     display: block;
+    /* 与「新建」按钮同处一行，纵向对齐交给 .sidebar-action-wrap，不再往下留白 */
+    margin-bottom: 0;
+    /* 名字过长时让位给按钮：自身收窄并省略，而不是把按钮挤出侧边栏 */
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
-/* 收起态侧边栏只剩一条窄条：应用名跟着一起隐藏（收起态下「新建」按钮只留加号图标） */
+/* 侧边栏顶部这一块改成横向排布：应用名在左，「新建」按钮顶到这一行的最右边 */
+html.minimal-mode .sidebar-action-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px;
+}
+/* 「新建」按钮收成正方形：不再撑满侧边栏宽度，也不跟名字抢空间 */
+html.minimal-mode .sidebar-action-wrap .btn-sidebar-new {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    gap: 0;
+    padding: 0;
+}
+/* 方形按钮里只留加号，文字「新建」交给 title 提示 */
+html.minimal-mode .sidebar-action-wrap .nav-text {
+    display: none;
+}
+/* 加号平时是绝对定位在按钮左内侧、透明的（标准模式收起侧边栏时才淡入），
+   这里让它回到常规流中：按钮本身就是居中排布，加号自然落在正中间 */
+html.minimal-mode .sidebar-action-wrap .btn-new-note-icon {
+    position: static;
+    transform: none;
+    opacity: 1;
+}
+/* 收起态侧边栏只剩一条窄条：应用名跟着一起隐藏，方形按钮在窄条里居中 */
 html.sidebar-collapsed .sidebar .sidebar-brand {
     display: none;
+}
+html.sidebar-collapsed .sidebar .sidebar-action-wrap {
+    justify-content: center;
 }
 
 /* ---------------- 设置页的返回入口 ----------------
