@@ -1,0 +1,159 @@
+/* 动效层：进场动画与换肤交叉淡入。只负责「动」，不改变任何静默状态下的外观——
+   抽掉本文件的 <link>（或系统开启「减少动态效果」），界面回到原来的静态样子。
+
+   为什么只有进场动画：界面的显示 / 隐藏统一走 .hidden（display: none !important，
+   见 base.css），元素一旦不再渲染，退场动画就没有播放的机会——要做退场得先在 JS 里
+   把元素留到动画结束再摘掉，代价与风险都不小；而这里要的效果只是「不生硬」，进场足够。
+
+   时长与曲线统一取 tokens.css 的 --motion-* / --ease-* 令牌：进场用 --motion-slow
+   （0.26s）让位移看得出来，纯透明度用 --motion-base（0.18s）。
+   列表、文字这类小位移一律控制在 4~6px，只作提示，不喧宾夺主。 */
+
+/* ---------- 关键帧 ---------- */
+
+/* 淡入：只动不透明度。用于铺满整行的容器——整行做位移很容易被看成布局在跳 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+}
+/* 淡入上浮：给「一块内容刚刚落位」的观感，位移不超过 6px */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(6px); }
+}
+/* 从上方滑入：盖在内容之上的下抽屉（对话记录）的入场方向 */
+@keyframes slideInDown {
+    from { opacity: 0; transform: translateY(-8px); }
+}
+/* 浮现：给图标这类小元件一点「长大」的暗示 */
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.94); }
+}
+
+/* ---------- 1. 面板与视图 ---------- */
+
+/* AI 助手面板不在这里：它的收起 / 展开是宽度过渡（360px ↔ 0，与左侧边栏同一套观感），
+   样式见 styles/ai.css 的 .ai-panel / .ai-collapsed，两拍驱动见 scripts/ai.js */
+
+/* 对话记录抽屉：绝对定位盖在消息区之上，从上方落下 */
+.ai-drawer {
+    animation: slideInDown var(--motion-base) var(--ease-out);
+}
+
+/* 设置视图整块淡入；分类面板再补一次「淡入上浮」，
+   于是切换左侧分类时也有一小段出场（面板的显示切换在 scripts/settings.js） */
+.settings-view {
+    animation: fadeIn var(--motion-base) var(--ease-out);
+}
+.settings-panel {
+    animation: fadeInUp var(--motion-base) var(--ease-out);
+}
+
+/* ---------- 2. 工作区（编辑器） ---------- */
+
+/* 打开一篇笔记时，顶栏 → 工具栏 → 标题 → 正文 → 状态栏依次淡入（每级差 20~30ms），
+   像「这篇笔记被展开」而不是整块瞬移。
+   注意 .editor-topbar 只做透明度：无Tab模式下它本身就是窗口拖动区（见 styles/mode.css），
+   带上位移会让拖动区域的判定跟着动画漂。 */
+.editor-topbar {
+    animation: fadeIn var(--motion-base) var(--ease-out);
+}
+.editor-toolbar {
+    animation: fadeInUp var(--motion-base) var(--ease-out) 30ms backwards;
+}
+.editor-title-area {
+    animation: fadeInUp var(--motion-base) var(--ease-out) 50ms backwards;
+}
+.editor-content-area {
+    animation: fadeInUp var(--motion-slow) var(--ease-out) 70ms backwards;
+}
+.editor-footer {
+    animation: fadeIn var(--motion-base) var(--ease-out) 90ms backwards;
+}
+
+/* 空状态：整块淡入（同样只做透明度——无Tab模式下它的拖动层铺满整个工作区），图标单独浮现一下 */
+#empty-state {
+    animation: fadeIn var(--motion-slow) var(--ease-out);
+}
+#empty-state > .ms-icon {
+    animation: popIn var(--motion-slow) var(--ease-out) 60ms backwards;
+}
+
+/* ---------- 3. 中栏列表：整列错开落位 ---------- */
+
+/* .list-enter 由 scripts/render.js 按「列表上下文是否变化」挂上、340ms 后自动摘掉。
+   不能无条件给卡片加动画：编辑正文时列表同样会整列重建（自动保存每 300ms 刷新一次），
+   那样打字过程中卡片会反复淡入。 */
+#notes-list-box.list-enter > * {
+    animation: fadeInUp var(--motion-base) var(--ease-out) backwards;
+}
+/* 前 8 项逐项延迟 16ms（0 / 16 / … / 112ms），第 9 项起统一停在 128ms：
+   只让首屏那几项看得出「依次落位」，长列表末尾不必干等。
+   这几条必须排在 n+9 那条之后——选择器权重相同，靠先后决定谁生效 */
+#notes-list-box.list-enter > :nth-child(n+9) { animation-delay: 128ms; }
+#notes-list-box.list-enter > :nth-child(2) { animation-delay: 16ms; }
+#notes-list-box.list-enter > :nth-child(3) { animation-delay: 32ms; }
+#notes-list-box.list-enter > :nth-child(4) { animation-delay: 48ms; }
+#notes-list-box.list-enter > :nth-child(5) { animation-delay: 64ms; }
+#notes-list-box.list-enter > :nth-child(6) { animation-delay: 80ms; }
+#notes-list-box.list-enter > :nth-child(7) { animation-delay: 96ms; }
+#notes-list-box.list-enter > :nth-child(8) { animation-delay: 112ms; }
+
+/* ---------- 4. 换肤交叉淡入 ---------- */
+
+/* 切换明暗主题 / 界面风格时，整棵界面在 0.25s 内过渡到新配色，而不是整屏硬切。
+   类名由 scripts/appearance.js 在改配色之前挂到 <html> 上、250ms 后摘掉；
+   那边必须先挂类、强制刷一次样式再改配色，否则浏览器会认为「变化前没有过渡」，动效不会发生。
+   选择器里带上 html 自身：html 与 body 都有底色（见 base.css 的 html, body 规则），
+   只匹配后代的话根元素那层会硬切。 */
+html.appearance-fading,
+html.appearance-fading *,
+html.appearance-fading *::before,
+html.appearance-fading *::after {
+    /* !important 是为了在这 0.25s 内压过各组件自己的 transition 声明；
+       代价是这期间其它过渡（侧边栏宽度、按压缩放）暂时不参与补间——
+       窗口极短，又只出现在换主题的瞬间，实际看不出来 */
+    transition: background-color var(--motion-crossfade) ease,
+                border-color var(--motion-crossfade) ease,
+                color var(--motion-crossfade) ease,
+                opacity var(--motion-crossfade) ease !important;
+}
+
+/* ---------- 5. 独立窗口（弹窗 / 小本本） ---------- */
+
+/* 这两个窗口是弹出来的：整窗内容（含标题栏）淡入，不至于「啪」地出现。
+   它们同样加载本文件（见 dialog.html / scratchpad.html），这里按类名通用。
+   这里刻意只做透明度、不做位移：这两个窗口的 html/body 都是 overflow: hidden，
+   内容一旦带着 6px 的位移，动画期间最下面那条边就会被视口裁掉一小截 */
+.dialog-container,
+.note-container {
+    animation: fadeIn var(--motion-slow) var(--ease-out);
+}
+
+/* ---------- 6. 动效偏好 ---------- */
+
+/* 系统开启「减少动态效果」时，本文件的动画全部停掉
+   （基础过渡与图标按压缩放的降级在 base.css，两边合起来才是完整的降级）。
+   这里停的是 animation 而不是 transition：宽度一类的过渡被逻辑依赖
+   （侧边栏收起 / 展开靠 transitionend 收尾，见 scripts/render.js），不能一刀切。 */
+@media (prefers-reduced-motion: reduce) {
+    .ai-drawer,
+    .settings-view,
+    .settings-panel,
+    .editor-topbar,
+    .editor-toolbar,
+    .editor-title-area,
+    .editor-content-area,
+    .editor-footer,
+    #empty-state,
+    #empty-state > .ms-icon,
+    #notes-list-box.list-enter > *,
+    .dialog-container,
+    .note-container {
+        animation: none !important;
+    }
+    html.appearance-fading,
+    html.appearance-fading *,
+    html.appearance-fading *::before,
+    html.appearance-fading *::after {
+        transition: none !important;
+    }
+}

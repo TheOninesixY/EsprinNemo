@@ -473,15 +473,82 @@ function updateAiComposerState() {
 
 // ---------- 面板开关 ----------
 
+/* 面板的收起 / 展开走宽度过渡（360px ↔ 0，样式见 styles/ai.css 的 .ai-panel），
+   与左侧边栏同一种观感：面板让出位置，工作区跟着变宽。
+   动效分两拍，两个方向正好相反：
+     收起：先挂 .ai-collapsed 收宽度，过渡走完再挂 .hidden 真正移出布局；
+     展开：先摘 .hidden（此时宽度仍是 0）、刷一次样式，再摘 .ai-collapsed——
+           若把两步放在同一次样式计算里，display: none 期间过渡不会发生，面板会瞬间铺开。 */
+const AI_PANEL_WIDTH_TRANSITION_MS = 260;
+// 收起状态类：宽度收到 0（样式见 styles/ai.css）
+const AI_PANEL_COLLAPSED_CLASS = 'ai-collapsed';
+
+/* 面板当前是否占位展开。界面每次刷新（renderWorkspace）都会调用 applyAiPanelVisibility，
+   靠这个标记区分「已在位 / 正在收」与「需要切换」，避免每次刷新都重启动画。
+   初值 false 与 main.html 里面板默认带 .hidden 的写法一致 */
+let aiPanelExpanded = false;
+let aiPanelHideTimer = null;
+
+function clearAiPanelHideTimer() {
+    if (aiPanelHideTimer) {
+        clearTimeout(aiPanelHideTimer);
+        aiPanelHideTimer = null;
+    }
+}
+
+// 展开：宽度 0 → 360
+function expandAiPanel(panel) {
+    clearAiPanelHideTimer();
+    // 先确保起点是「已收起」——首屏时这个类还没挂过（面板直接是 .hidden），
+    // 少了它第一次展开就没有起点，会直接铺开
+    panel.classList.add(AI_PANEL_COLLAPSED_CLASS);
+    panel.classList.remove('hidden');
+    // 强制刷一次样式：先让浏览器把「已渲染、宽度仍是 0」这一帧算进去，
+    // 紧接着放开宽度才会补间
+    void panel.offsetWidth;
+    panel.classList.remove(AI_PANEL_COLLAPSED_CLASS);
+}
+
+// 收起：宽度 360 → 0，过渡结束再移出布局。
+// 收尾只靠定时器：这一刻面板已经是 0 宽，早一点晚一点摘都看不出差别，
+// 没必要再挂 transitionend（面板未被渲染时那次过渡根本不会触发）
+function collapseAiPanel(panel) {
+    closeAiDrawer();
+    panel.classList.add(AI_PANEL_COLLAPSED_CLASS);
+    clearAiPanelHideTimer();
+    aiPanelHideTimer = setTimeout(() => {
+        aiPanelHideTimer = null;
+        panel.classList.add('hidden');
+    }, AI_PANEL_WIDTH_TRANSITION_MS + 60);
+}
+
+// 不进动效、直接收起：设置页占据整个窗口，这一步属于「页面切换」而不是「收起面板」，
+// 同一个瞬间侧边栏、中栏、工作区也都是瞬间切换的
+function hideAiPanelImmediately(panel) {
+    clearAiPanelHideTimer();
+    closeAiDrawer();
+    panel.classList.add(AI_PANEL_COLLAPSED_CLASS, 'hidden');
+}
+
 function applyAiPanelVisibility() {
     const panel = document.getElementById('ai-panel');
     const btn = document.getElementById('btn-ai-assistant');
     if (!panel) return;
     // 总开关关闭时面板一律不显示；设置页占据整个窗口，此时同样不显示
-    const visible = isAiEnabled() && !!State.aiPanelOpen && State.activeNoteId !== 'settings';
-    panel.classList.toggle('hidden', !visible);
+    const inSettings = State.activeNoteId === 'settings';
+    const visible = isAiEnabled() && !!State.aiPanelOpen && !inSettings;
     if (btn) btn.classList.toggle('active', visible);
-    if (!visible) closeAiDrawer();
+
+    if (visible === aiPanelExpanded) {
+        // 已经到位（或正往同一方向动）：不重启动画，只补上「不显示时顺手收起抽屉」
+        if (!visible) closeAiDrawer();
+        return;
+    }
+    aiPanelExpanded = visible;
+
+    if (visible) expandAiPanel(panel);
+    else if (inSettings) hideAiPanelImmediately(panel);
+    else collapseAiPanel(panel);
 }
 
 function setAiPanelOpen(open) {

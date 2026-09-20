@@ -9,13 +9,40 @@
 /* 1. 对话面板 */
 .ai-panel {
     position: relative;
-    width: 360px;
+    /* 面板宽度：收起 / 展开的宽度过渡与内部各区块的固定绘制宽度共用这一个变量 */
+    --ai-panel-width: 360px;
+    width: var(--ai-panel-width);
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    /* 收起 / 展开靠裁切实现：内容按原始宽度绘制（见下方 min-width 那组规则），
+       面板变窄时把多出来的部分裁掉，看上去就是整块面板往右滑出去 */
+    overflow: hidden;
     background-color: var(--bg-list);
     border-left: 1px solid var(--border-color);
+    /* 只过渡宽度与左侧分隔线，其余属性不参与——免得连带触发多余的重排 */
+    transition: width var(--motion-slow) cubic-bezier(0.22, 0.61, 0.36, 1),
+                border-left-width var(--motion-slow) ease;
+}
+
+/* 收起态：宽度收到 0，左侧分隔线一并收到 0 宽（否则窗口右缘会留下一条 1px 的竖线）。
+   这里用 border-left-width 而不是把它变透明：Alom 风格用更高优先级的 border-color
+   重刷了这条边框（见 styles/alom.css），改颜色在那套风格下会被盖掉。
+   这个类由 scripts/ai.js 挂上与摘掉；真正移出布局（.hidden）要等宽度过渡走完——
+   .hidden 是 display: none，一旦先挂上，过渡就没机会播了 */
+.ai-panel.ai-collapsed {
+    width: 0;
+    border-left-width: 0;
+}
+
+/* 收起 / 展开过程中内容不跟着变窄：仍按面板原始宽度绘制，多出来的部分交给上面的
+   overflow: hidden 裁掉。否则每一帧都要重排文字，看着是「被挤扁」而不是「滑出去」。
+   .ai-drawer 不在此列：它是绝对定位、随面板宽度伸缩，且收起时会立刻关闭，不会被挤压 */
+.ai-panel-header,
+.ai-messages,
+.ai-composer {
+    min-width: var(--ai-panel-width);
 }
 
 /* 无Tab模式的窗口拖动区：垫在面板顶栏上方的一条空白（默认不存在，见 styles/mode.css）。
@@ -731,4 +758,12 @@
 }
 .ai-status[data-tone='error'] {
     color: var(--danger);
+}
+
+/* 动效偏好：收起 / 展开是纯视觉的宽度过渡（收尾靠定时器，不依赖 transitionend），
+   系统开启「减少动态效果」时直接去掉，面板瞬间到位 */
+@media (prefers-reduced-motion: reduce) {
+    .ai-panel {
+        transition: none !important;
+    }
 }

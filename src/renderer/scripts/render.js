@@ -12,6 +12,25 @@ const LIST_RENDER_CHUNK = 80;
 // 列表渲染代号：每轮渲染自增，用来作废上一轮还没挂完的分批任务
 let listRenderToken = 0;
 
+/* 中栏列表的进场动画（关键帧见 styles/motion.css）：只在「换了一批内容」时播一次——
+   筛选、搜索词、排序任一变化。编辑正文同样会整列重建（自动保存每 300ms 刷新一次列表），
+   那种重建必须保持静态，否则打字过程中卡片会一遍遍淡入。
+   容器上的 .list-enter 会在动画跑完后自动摘掉，避免后续重建的卡片又赶上一轮。 */
+const LIST_ENTER_CLASS = 'list-enter';
+// 动画总时长：最大延迟 128ms + 单卡时长 180ms，再留一点余量
+const LIST_ENTER_MS = 340;
+let listEnterKey = null;
+let listEnterTimer = null;
+
+function playListEnter(container) {
+    container.classList.add(LIST_ENTER_CLASS);
+    if (listEnterTimer) clearTimeout(listEnterTimer);
+    listEnterTimer = setTimeout(() => {
+        listEnterTimer = null;
+        container.classList.remove(LIST_ENTER_CLASS);
+    }, LIST_ENTER_MS);
+}
+
 // 侧边栏顶部的筛选条目（静态节点，只需查询一次）
 const sidebarNavItems = document.querySelectorAll('.sidebar .nav-item');
 
@@ -447,6 +466,13 @@ function renderListPanel() {
         + list.map(item => `${item.id}\u0005${isTodoItem(item) ? 1 : 0}\u0005${item.title || ''}\u0005${formatDate(item.updatedAt)}\u0005${item.folder}\u0005${item.isPinned ? 1 : 0}\u0005${item.isDone ? 1 : 0}\u0005${notePreviewText(item)}`).join('\u0006');
     if (renderSignatures.list === signature) return;
     renderSignatures.list = signature;
+
+    // 换了一批内容（筛选 / 搜索词 / 排序）才播入场动画；签名里的正文摘要与展示时间变化不算
+    const enterKey = `${State.currentFilter}\u0001${State.searchQuery}\u0002${State.sortBy}`;
+    if (enterKey !== listEnterKey) {
+        listEnterKey = enterKey;
+        playListEnter(container);
+    }
 
     // 新一轮渲染开始：作废上一轮尚未挂完的分批任务
     const token = ++listRenderToken;

@@ -8,6 +8,11 @@ const DATE_TEXT_CACHE = new Map();
 // 缓存条数上限：超过后整体清空，避免长时间驻留累积过多条目
 const DATE_TEXT_CACHE_LIMIT = 512;
 
+// Toast 停留时长与退场动画时长（动画定义见 styles/overlays.css 的 .toast-item.is-leaving，
+// 节点在这段动画跑完后才被摘掉，否则动画会被截断）
+const TOAST_VISIBLE_MS = 1800;
+const TOAST_LEAVE_MS = 200;
+
 function buildDateTexts(time) {
     const d = new Date(time);
     return {
@@ -65,11 +70,12 @@ function showToast(msg) {
     item.className = 'toast-item';
     item.innerHTML = `<span class="ms-icon sm">info</span><span>${escapeHTML(msg)}</span>`;
     container.appendChild(item);
+    // 退场交给样式表里的动画（原来是就地写行内样式）：曲线与时长跟其余动效同一套，
+    // 并且「减少动态效果」下能跟着一起降级——动画关掉、换成纯透明度过渡，见 overlays.css
     setTimeout(() => {
-        item.style.opacity = '0';
-        item.style.transition = 'opacity 0.2s';
-        setTimeout(() => item.remove(), 200);
-    }, 1800);
+        item.classList.add('is-leaving');
+        setTimeout(() => item.remove(), TOAST_LEAVE_MS);
+    }, TOAST_VISIBLE_MS);
 }
 
 // 所有消息弹窗都由主进程创建独立窗口（自绘标题栏，非窗口内假窗口）

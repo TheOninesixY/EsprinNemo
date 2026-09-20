@@ -443,7 +443,7 @@ API Key **不随数据目录保存**，也不写入 [data/config.json](data/conf
 │       ├── scratchpad.html # 小本本窗口页面（标题 + 正文、选择笔记、Ctrl+S 保存）
 │       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题风格 / 主题色 / 圆角尺度 / 字体 / 使用模式预注入（无闪屏）
 │       ├── fonts/          # 随应用分发的品牌字体（Mohave）
-│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / alom（Alom 风格）/ radius（圆角尺度）/ mode（使用模式）
+│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / alom（Alom 风格）/ radius（圆角尺度）/ mode（使用模式）/ motion（动效：进场动画与换肤交叉淡入）
 │       └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / mode / notes / scratchpad / tray / auto_launch / editor / ai / ai_chats / ai_files / ai_agent / update / render …
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）

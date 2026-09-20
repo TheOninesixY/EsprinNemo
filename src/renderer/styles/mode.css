@@ -90,9 +90,13 @@ html.notab-mode .empty-drag-surface {
 
 /* 悬浮按钮组占住右上角约 270px 宽、40px 高的一条（4 个工具按钮 + 3 个窗口按钮）：
    编辑器顶栏与设置内容各让出右侧 280px，免得那排「编辑 / 分屏 / 预览」与置顶 / 导出 / 删除
-   被压在下面点不到 */
+   被压在下面点不到。
+   这条留白会随 AI 面板开关在 280px / 16px 之间切换（见下面的 :has 规则），
+   过渡一下让顶栏那排按钮跟着面板一起滑，而不是在面板收完之后整排平移过去。
+   只过渡这一个属性——顶栏本身是拖动区，多带属性容易在无Tab模式里出岔子 */
 html.notab-mode .editor-topbar {
     padding-right: 280px;
+    transition: padding-right var(--motion-slow) cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 html.notab-mode .settings-view .settings-content {
     /* 上内边距挪到标题区（见下）：标题区本身就是拖动区，
@@ -142,11 +146,17 @@ html.notab-mode .ai-drawer {
 /* 面板打开时，窗口右侧那 360px 已经归面板所有，悬浮按钮组整组落在面板上方，
    编辑器顶栏与空状态拖动层都不必再让出走廊——否则顶栏右侧那 280px 空白会让
    文件夹 / 标签之外的拖动区被挤没，表现就是「开了 AI 之后窗口拖不动」。
-   两者都在右侧且面板比按钮组宽，让出走廊反而多余。 */
-html.notab-mode .app-body:has(#ai-panel:not(.hidden)) .editor-topbar {
+   两者都在右侧且面板比按钮组宽，让出走廊反而多余。
+
+   判定条件带上 :not(.ai-collapsed)：AI 面板的收起 / 展开是 0.26s 的宽度过渡
+   （见 styles/ai.css），过渡期间面板还占着宽度、却比按钮组窄。这段路上若已经
+   按「面板已铺开」处理，拖动层就会伸到悬浮按钮下面把那排按钮的点击吞掉；
+   等到过渡真走完（.ai-collapsed 被摘掉）再切，既没有这段危险窗口，
+   顶栏留白也能和面板宽度同一拍变化。 */
+html.notab-mode .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .editor-topbar {
     padding-right: 16px;
 }
-html.notab-mode .app-body:has(#ai-panel:not(.hidden)) .empty-drag-surface {
+html.notab-mode .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-drag-surface {
     inset: 0;
 }
 
@@ -258,5 +268,13 @@ html.notab-mode .editor-back {
 html.notab-mode .editor-back:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
+}
+
+/* 动效偏好：顶栏留白那条过渡只是为了让按钮跟着 AI 面板一起滑，
+   系统开启「减少动态效果」时去掉——面板本身也会瞬间到位（见 styles/ai.css） */
+@media (prefers-reduced-motion: reduce) {
+    html.notab-mode .editor-topbar {
+        transition: none !important;
+    }
 }
 

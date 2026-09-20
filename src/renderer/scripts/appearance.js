@@ -6,6 +6,30 @@
 // 可选值：default（内置风格）/ alom（Alom 风格）
 const THEME_STYLE_VALUES = ['default', 'alom'];
 
+/* 换肤交叉淡入（样式见 styles/motion.css 的 html.appearance-fading）：
+   切换明暗主题 / 界面风格时，整棵界面用 0.25s 过渡到新配色，而不是整屏硬切。
+
+   顺序是关键：先挂类、强制刷一次样式，之后才真正改配色 / 属性。
+   若把挂类和改配色放在同一次样式计算里，浏览器会认为「变化前没有过渡」，动效不会发生。
+   强制刷新用读 offsetWidth 触发（只这一次，代价可以忽略）。 */
+const APPEARANCE_FADE_CLASS = 'appearance-fading';
+// 与 motion.css 里 --motion-crossfade 一致；多留 60ms 再摘类，避免过渡被提前掐断
+const APPEARANCE_FADE_MS = 250;
+let appearanceFadeTimer = null;
+// 外观是否已经应用过一次：用来区分「启动」与「用户切换」
+let themeAppliedOnce = false;
+
+function beginAppearanceFade() {
+    const root = document.documentElement;
+    root.classList.add(APPEARANCE_FADE_CLASS);
+    void root.offsetWidth;
+    if (appearanceFadeTimer) clearTimeout(appearanceFadeTimer);
+    appearanceFadeTimer = setTimeout(() => {
+        appearanceFadeTimer = null;
+        root.classList.remove(APPEARANCE_FADE_CLASS);
+    }, APPEARANCE_FADE_MS + 60);
+}
+
 function normalizeThemeStyle(value) {
     return THEME_STYLE_VALUES.includes(value) ? value : 'default';
 }
@@ -23,6 +47,8 @@ function syncThemeStyleSelect() {
 
 // 切换主题风格：即时生效并写入 config.json（风格与明暗模式、主题色互相独立）
 function setThemeStyle(value) {
+    // 换风格是大面积换色，先铺好交叉淡入再改属性
+    beginAppearanceFade();
     State.themeStyle = normalizeThemeStyle(value);
     applyThemeStyle();
     syncThemeStyleSelect();
@@ -49,6 +75,10 @@ function getEffectiveTheme() {
 }
 
 function applyTheme() {
+    // 启动时的首次应用不算「切换」（此时界面还没画出来），不做交叉淡入
+    if (themeAppliedOnce) beginAppearanceFade();
+    themeAppliedOnce = true;
+
     const effective = getEffectiveTheme();
     if (effective === 'light') {
         document.documentElement.classList.add('light');

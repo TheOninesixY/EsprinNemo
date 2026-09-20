@@ -64,3 +64,24 @@
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* 退场：淡出并继续往「来时的反方向」上浮一小段，与入场的 slideUp 首尾呼应，
+   不再像原来那样只是原地变透明。.is-leaving 由 scripts/ui.js 在停留结束时挂上，
+   动画跑完（200ms）再把节点摘掉 */
+.toast-item.is-leaving {
+    animation: fadeOutUp 0.2s var(--ease-standard) forwards;
+}
+@keyframes fadeOutUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-6px); }
+}
+/* 减少动态效果：入场 / 退场动画由 base.css 统一关掉，这里把退场换成纯透明度过渡——
+   不然提示会在停留结束时「原地消失」，比原来的行内淡出还生硬。
+   过渡声明挂在 .toast-item 上（不是 .is-leaving），否则它会与 opacity: 0 同一次计算生效，不会补间 */
+@media (prefers-reduced-motion: reduce) {
+    .toast-item {
+        transition: opacity 0.2s linear;
+    }
+    .toast-item.is-leaving {
+        opacity: 0;
+    }
+}

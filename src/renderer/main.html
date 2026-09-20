@@ -23,6 +23,9 @@
     <link rel="stylesheet" href="./styles/radius.css">
     <!-- 使用模式：无Tab模式（<html class="notab-mode">）下去掉标题栏与标签栏，入口悬浮到右上角 -->
     <link rel="stylesheet" href="./styles/mode.css">
+    <!-- 动效层：进场动画与换肤交叉淡入。需排在所有组件样式之后：它只补动效，
+         静默状态的外观仍由上面的各文件决定（令牌见 tokens.css 的 --motion-* / --ease-*） -->
+    <link rel="stylesheet" href="./styles/motion.css">
 </head>
 <body>
     <div class="app-container">
