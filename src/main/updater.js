@@ -2,8 +2,12 @@
    整个流程只用 Node 内置模块，不引入第三方依赖：
    - 检查：GET /repos/{owner}/{repo}/releases/latest（GitHub Releases API）
      取该 release 的 tag（形如 v0.0.0）与当前版本逐段比较，比当前版本高才会提醒更新。
+     检查、读取当前版本发布记录与下载安装包都受「使用 gh-proxy 加速」开关影响：
+     打开后先经代理转发，代理不可用或返回的内容不对时自动回落直连（见 githubUrls）。
    - 下载：取该 release 里符合命名规则的附件（Windows 要求文件名里有独立的 setup 段且以
-     .exe 结尾，例如 “Esprin Nemo Setup 2.1.2.exe” 或 “en.Setup.123.exe”）
+     .exe 结尾，例如 “Esprin Nemo Setup 2.1.2.exe” 或 “en.Setup.123.exe”）。
+     默认直连 GitHub 下载；设置里打开「使用 gh-proxy 加速下载」后，安装包先经 gh-proxy
+     公共代理转发（见 GH_PROXY_PREFIX），代理不可用或下载失败时自动回落直连。
    - 安装：把安装包以
        "Esprin Nemo Setup x.y.z.exe" --upgrade --updated --force-run
      运行。--upgrade 由安装脚本（src/win_installer/installer.nsh）识别：不显示任何向导页
@@ -33,10 +37,18 @@ const LATEST_RELEASE_API = `https://api.github.com/repos/${UPDATE_REPO}/releases
 // 指定 tag 的发布记录（当前版本的发布说明用）：tag 形如 v0.0.0
 const releaseTagApi = (tag) => `https://api.github.com/repos/${UPDATE_REPO}/releases/tags/${encodeURIComponent(tag)}`;
 
+// gh-proxy：把 GitHub 的地址（页面、API、附件）交给公共代理转发，直连 GitHub 慢或不通时用来加速。
+// 设置里的「使用 gh-proxy 加速」打开后，检查更新与下载安装包都先走这个前缀，失败再回落直连。
+// 换用别的 gh-proxy 实例时只改这一行即可（形如 “https://<站点>/”，转发时直接拼在原始地址前面）
+const GH_PROXY_PREFIX = 'https://gh-proxy.com/';
+// 允许代理转发的地址：GitHub 的仓库页与 API（github.com / api.github.com）以及附件站
+const PROXYABLE_URL_PATTERN = /^https?:\/\/(?:[\w.-]+\.)?(?:github\.com|githubusercontent\.com)\//i;
+
 const USER_AGENT = 'EsprinNemo-Updater';
 const REQUEST_TIMEOUT_MS = 20000;
 // 重定向跟随次数与 API 响应体上限（正常响应只有几 KB）
-const MAX_REDIRECTS = 5;
+// 走 gh-proxy 时链路上会多一跳，因此留出比直连更宽的余量
+const MAX_REDIRECTS = 8;
 const MAX_API_BYTES = 2 * 1024 * 1024;
 // 单个安装包的体积上限：防止被异常响应写成无限增长的文件
 const MAX_PACKAGE_BYTES = 1024 * 1024 * 1024;
@@ -151,6 +163,17 @@ function readConfigAutoUpdate() {
   }
 }
 
+// gh-proxy 加速开关同样以 config.json 为准（默认关闭）：每次检查 / 下载时现读，
+// 用户在设置里改完立刻对下一次检查与下载生效，不需要重启或重新注册 IPC
+function readConfigGhProxy() {
+  try {
+    const config = readUserConfig();
+    return !!(config && config.ghProxyEnabled === true);
+  } catch (error) {
+    return false;
+  }
+}
+
 function setStatus(status) {
   state.status = status;
 }
@@ -172,6 +195,8 @@ function snapshot() {
     // 项目地址：设置页里作为说明文字展示，并可在系统浏览器中打开
     repoUrl: REPO_URL,
     autoUpdate: readConfigAutoUpdate(),
+    // gh-proxy 下载加速：设置页的开关状态直接取这里的值
+    ghProxyEnabled: readConfigGhProxy(),
     canAutoInstall: canAutoInstall(),
     packaged: app.isPackaged,
     checking: state.checking,
@@ -297,6 +322,39 @@ function requestJson(url, redirects = 0, { allowNotFound = false } = {}) {
   });
 }
 
+// 把 GitHub 地址换成经 gh-proxy 转发的地址；不是 GitHub 的地址返回空串（不转发）
+function ghProxyUrl(url) {
+  const target = asString(url);
+  return PROXYABLE_URL_PATTERN.test(target) ? `${GH_PROXY_PREFIX}${target}` : '';
+}
+
+// 本次请求要依次尝试的地址：开了加速就先走代理再直连，没开就只有直连一条。
+// 检查更新、读取发布记录与下载安装包共用这里，因此三处的链路行为始终一致。
+function githubUrls(url) {
+  const direct = asString(url);
+  if (!readConfigGhProxy()) return [direct];
+  const proxied = ghProxyUrl(direct);
+  return proxied ? [proxied, direct] : [direct];
+}
+
+/* 请求 GitHub 的 JSON 接口：依次尝试 githubUrls 给出的地址，代理被拦下、限速或
+   返回的压根不是 JSON 时自动改用直连重来，全部失败才把最后一个错误抛出去。 */
+async function requestGithubJson(url, { allowNotFound = false } = {}) {
+  const urls = githubUrls(url);
+  let lastError = null;
+
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      // allowNotFound 在所有地址上同样生效：任一个地址确认“没有这条记录”就直接返回 null
+      return await requestJson(urls[i], 0, { allowNotFound });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error('请求更新源失败');
+}
+
 /* ---------------- 检查更新 ---------------- */
 
 function hasPackageExtension(name) {
@@ -332,7 +390,7 @@ function checkForUpdates() {
 
   pendingCheck = (async () => {
     try {
-      const release = await requestJson(LATEST_RELEASE_API);
+      const release = await requestGithubJson(LATEST_RELEASE_API);
       const latest = normalizeVersion(release && (release.tag_name || release.name));
       if (!latest) throw new Error('更新源返回的版本号无法识别');
 
@@ -400,8 +458,8 @@ function ensureCurrentRelease() {
   pendingCurrentRelease = (async () => {
     try {
       // 发布用的是 v<版本> 形式的 tag；万一没带 v，就按原样再试一次
-      let release = await requestJson(releaseTagApi(`v${version}`), 0, { allowNotFound: true });
-      if (!release) release = await requestJson(releaseTagApi(version), 0, { allowNotFound: true });
+      let release = await requestGithubJson(releaseTagApi(`v${version}`), { allowNotFound: true });
+      if (!release) release = await requestGithubJson(releaseTagApi(version), { allowNotFound: true });
 
       if (!release) {
         state.currentRelease = null;
@@ -456,7 +514,8 @@ function removeFileQuietly(target) {
   attempt(true);
 }
 
-// 下载安装包：重定向跟随 + 进度回调 + 可取消。返回 Promise，取消时以 canceled 标记拒绝
+// 下载安装包：重定向跟随 + 进度回调 + 可取消。返回 Promise，取消时以 canceled 标记拒绝。
+// 地址由调用方给出（见 githubUrls：开了加速就是“代理地址、直连地址”两条）
 function downloadPackage(url, target, onProgress, redirects = 0) {
   return new Promise((resolve, reject) => {
     // 出错 / 取消时要把写流一并关掉，否则残留的句柄会让后续删除临时文件失败
@@ -527,6 +586,57 @@ function downloadPackage(url, target, onProgress, redirects = 0) {
       reject(error);
     });
   });
+}
+
+/* 校验下载结果：体积要和声明的一致，Windows 安装包还要有 MZ 文件头。
+   代理失手把错误页面当附件返回时这一步就会失败，于是会换下一个地址重来。 */
+function verifyPackage(target, expected, received, ext) {
+  if (expected && received !== expected) {
+    throw new Error(`安装包不完整（${received}/${expected} 字节）`);
+  }
+  const head = Buffer.alloc(2);
+  const handle = fs.openSync(target, 'r');
+  try {
+    fs.readSync(handle, head, 0, 2, 0);
+  } finally {
+    fs.closeSync(handle);
+  }
+  if (ext === '.exe' && head.toString('ascii') !== 'MZ') {
+    throw new Error('下载到的文件不是有效的安装包');
+  }
+}
+
+/* 按候选地址依次尝试下载：代理被限速、拦下、断流或返回一个错误页面时自动改用直连重来，
+   只有在所有地址都失败后才把错误抛给调用方（用户主动取消则立即结束，不再换地址）。
+   每次尝试都完整走一遍「下载 + 校验」，因此代理给出坏文件也不会被当成下载成功。 */
+async function downloadPackageFrom(urls, target, { expectedSize = 0, ext = '', onProgress }) {
+  let lastError = null;
+
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const result = await downloadPackage(urls[i], target, onProgress);
+      verifyPackage(target, result.declared || expectedSize, result.received, ext);
+      return result;
+    } catch (error) {
+      lastError = error;
+      if (state.canceled) break;
+      // 半截文件会干扰下一次尝试：先删干净（写入流本来也会截断，这里顺手把失败痕迹清掉）
+      removeFileQuietly(target);
+      if (i < urls.length - 1) {
+        // 换地址等于从头开始：进度归零重画，界面不会停在上一段的进度与速度上
+        state.progress = {
+          received: 0,
+          total: expectedSize || (state.update && state.update.asset ? state.update.asset.size : 0) || 0,
+          percent: 0,
+          bytesPerSecond: 0
+        };
+        progressSentAt = 0;
+        broadcast();
+      }
+    }
+  }
+
+  throw lastError || new Error('下载安装包失败');
 }
 
 function cancelDownload() {
@@ -609,28 +719,18 @@ async function startDownload({ auto = false } = {}) {
     }
   };
 
-  // 下载放到后台跑：界面立刻拿到返回值，后续进度通过 update:state 事件推送
-  downloadPackage(update.asset.url, target, onProgress).then((result) => {
+  // 下载放到后台跑：界面立刻拿到返回值，后续进度通过 update:state 事件推送。
+  // 地址可能有两条（代理 + 直连，见 githubUrls），由 downloadPackageFrom 依次尝试；
+  // 体积与文件头校验也在那里逐次完成，避免把半截文件或错误页面当成安装包。
+  downloadPackageFrom(githubUrls(update.asset.url), target, {
+    expectedSize: update.asset.size || 0,
+    ext,
+    onProgress
+  }).then((result) => {
     state.request = null;
     state.downloading = false;
 
-    // 体积与文件头校验：避免把半截文件或错误页面当成安装包
-    const expected = result.declared || update.asset.size || 0;
-    if (expected && result.received !== expected) {
-      throw new Error(`安装包不完整（${result.received}/${expected} 字节）`);
-    }
-    const head = Buffer.alloc(2);
-    const handle = fs.openSync(target, 'r');
-    try {
-      fs.readSync(handle, head, 0, 2, 0);
-    } finally {
-      fs.closeSync(handle);
-    }
-    if (ext === '.exe' && head.toString('ascii') !== 'MZ') {
-      throw new Error('下载到的文件不是有效的安装包');
-    }
-
-    finishDownload(target, update.version, expected, result.received, { auto: state.autoFlow });
+    finishDownload(target, update.version, result.declared || update.asset.size || 0, result.received, { auto: state.autoFlow });
   }).catch((error) => {
     state.request = null;
     state.downloading = false;
@@ -810,6 +910,10 @@ function registerUpdateIpc() {
     return snapshot();
   });
   ipcMain.handle('update:install', () => installUpdate());
+
+  // gh-proxy 加速开关：开关值由渲染进程写进 config.json（与自动更新同一套做法），
+  // 这里只是回一份最新快照，让界面与下一次检查 / 下载实际采用的行为保持一致
+  ipcMain.handle('update:set-gh-proxy', () => snapshot());
 
   ipcMain.handle('update:open-release', (event) => {
     const url = state.update && state.update.releaseUrl ? state.update.releaseUrl : RELEASE_PAGE_URL;

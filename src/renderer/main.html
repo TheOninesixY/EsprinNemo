@@ -737,6 +737,17 @@
 
                             <div class="settings-row">
                                 <div class="settings-row-info">
+                                    <span class="settings-row-label">使用 gh-proxy 加速</span>
+                                    <span class="settings-row-desc">检查更新与下载安装包时先经 gh-proxy 公共代理转发，直连 GitHub 慢或不通时能明显快一些；代理不可用（或返回的内容不对）时自动回落直连</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-gh-proxy">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-row">
+                                <div class="settings-row-info">
                                     <span class="settings-row-label">检查更新</span>
                                     <span class="settings-row-desc" id="update-status">正在读取更新状态…</span>
                                 </div>

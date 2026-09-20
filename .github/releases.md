@@ -1,1 +1,1 @@
-- fix bug
+- 添加gh-proxy加速支持

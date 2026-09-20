@@ -790,7 +790,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, uiMode: 'standard', sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, uiMode: 'standard', sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -912,6 +912,8 @@ function loadData() {
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
         // 自动更新默认开启：只有显式写成 false 才视为关闭
         autoUpdate: config.autoUpdate !== false,
+        // gh-proxy 加速默认关闭：只有显式写成 true 才视为开启
+        ghProxyEnabled: config.ghProxyEnabled === true,
         // 开机自启默认关闭：只有显式写成 true 才视为开启
         autoLaunch: config.autoLaunch === true,
         // 系统托盘默认显示：同样只有显式写成 false 才视为关闭
@@ -958,6 +960,8 @@ function saveConfig() {
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
             // 自动更新（默认开启）：主进程读取这一项决定是否在启动后自动检查
             autoUpdate: State.autoUpdate !== false,
+            // gh-proxy 加速（默认关闭）：主进程读取这一项决定检查更新与下载安装包时是否先走代理
+            ghProxyEnabled: State.ghProxyEnabled === true,
             // 开机自启（默认关闭）：主进程读取这一项决定是否登记系统启动项
             autoLaunch: State.autoLaunch === true,
             // 系统托盘（默认显示）：主进程读取这一项决定是否创建托盘图标

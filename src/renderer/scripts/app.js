@@ -23,6 +23,8 @@ window.onload = () => {
     State.sidebarCollapsed = !!saved.sidebarCollapsed;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;
+    // gh-proxy 加速（默认关闭）：主进程检查更新与下载安装包时读这一项决定是否走代理
+    State.ghProxyEnabled = saved.ghProxyEnabled === true;
     State.autoLaunch = saved.autoLaunch === true;
     State.trayEnabled = saved.trayEnabled !== false;
     State.fonts = normalizeFonts(saved.fonts);

@@ -114,6 +114,8 @@ function adoptDataDir(dir, options = {}) {
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
+        // gh-proxy 加速开关也属于偏好：新位置没有配置时沿用当前位置的选择
+        ghProxyEnabled: State.ghProxyEnabled === true,
         autoLaunch: State.autoLaunch === true,
         trayEnabled: State.trayEnabled !== false,
         fonts: { ...State.fonts }
@@ -136,6 +138,7 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = saved.sidebarCollapsed;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.autoUpdate = saved.autoUpdate !== false;
+        State.ghProxyEnabled = saved.ghProxyEnabled === true;
         State.autoLaunch = saved.autoLaunch === true;
         State.trayEnabled = saved.trayEnabled !== false;
         State.fonts = saved.fonts;
@@ -152,6 +155,7 @@ function adoptDataDir(dir, options = {}) {
         State.sidebarCollapsed = prefs.sidebarCollapsed;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
+        State.ghProxyEnabled = prefs.ghProxyEnabled === true;
         State.autoLaunch = prefs.autoLaunch;
         State.trayEnabled = prefs.trayEnabled;
         State.fonts = prefs.fonts;

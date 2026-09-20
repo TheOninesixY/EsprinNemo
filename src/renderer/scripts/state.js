@@ -32,6 +32,8 @@ const State = {
     trashRetentionDays: 0,
     // 自动更新：默认开启，启动后自动检查并在后台下载新版本
     autoUpdate: true,
+    // gh-proxy 加速：默认关闭，打开后检查更新与下载安装包先经 gh-proxy 代理（见 main/updater.js）
+    ghProxyEnabled: false,
     // 开机自启：默认关闭，开启后由主进程登记到系统的登录启动项
     autoLaunch: false,
     // 系统托盘：默认显示托盘图标，关闭后应用不再随窗口关闭而驻留

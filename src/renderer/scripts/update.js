@@ -6,6 +6,11 @@
    - 打开设置页时主动查询一次（update:get-info）
    - 主进程在后台自动检查 / 下载 / 读取当前版本发布记录后推送的 update:state
 
+   「更新与版本」页里有两个开关：「自动检查并下载更新」（config.json 的 autoUpdate）与
+   「使用 gh-proxy 加速」（config.json 的 ghProxyEnabled）。两者都由这里写进配置，
+   主进程读到后分别决定要不要自动检查、检查更新与下载安装包时先走代理还是直连
+   （见 main/updater.js 的 githubUrls）。
+
    两处说明文字（新版本、当前版本）都按 Markdown 渲染：marked.parse 会先转义 HTML，
    发布页里的内容（包括 <script>）只会以纯文本形式出现，不会被当成 HTML 执行。
 
@@ -18,6 +23,8 @@ let updateState = {
     currentVersion: '',
     repoUrl: '',
     autoUpdate: true,
+    // gh-proxy 加速（默认关闭）：开启后主进程检查更新与下载安装包都先走代理，失败回落直连
+    ghProxyEnabled: false,
     canAutoInstall: false,
     packaged: false,
     checking: false,
@@ -167,6 +174,9 @@ function renderUpdateUI() {
     const toggle = updateEl('setting-auto-update');
     if (toggle) toggle.checked = updateState.autoUpdate !== false;
 
+    const proxyToggle = updateEl('setting-gh-proxy');
+    if (proxyToggle) proxyToggle.checked = updateState.ghProxyEnabled === true;
+
     const versionEl = updateEl('update-current-version');
     if (versionEl) versionEl.textContent = updateState.currentVersion ? `v${updateState.currentVersion}` : '未知版本';
 
@@ -239,6 +249,7 @@ function adoptUpdateState(payload) {
     updateState = { ...updateState, ...payload };
     // 自动更新开关以配置为准，主进程读到的就是 config.json 里的值
     State.autoUpdate = updateState.autoUpdate !== false;
+    State.ghProxyEnabled = updateState.ghProxyEnabled === true;
     renderUpdateUI();
 }
 
@@ -247,6 +258,9 @@ function syncUpdateSettingsUI() {
     if (IS_PORTABLE_RUN) return;
     const toggle = updateEl('setting-auto-update');
     if (toggle) toggle.checked = State.autoUpdate !== false;
+    // gh-proxy 加速开关以 State 为准（便携版不会走到这里，因为整个更新分类已被移除）
+    const proxyToggle = updateEl('setting-gh-proxy');
+    if (proxyToggle) proxyToggle.checked = State.ghProxyEnabled === true;
     renderUpdateUI();
 }
 
@@ -406,6 +420,19 @@ function initUpdateSettings() {
                 .then((payload) => adoptUpdateState(payload))
                 .catch((err) => console.error('同步自动更新开关失败:', err));
             showToast(State.autoUpdate ? '已开启自动更新' : '已关闭自动更新');
+        };
+    }
+
+    // gh-proxy 加速：与自动更新同一套做法，渲染进程写配置，主进程每次检查 / 下载时现读
+    const proxyToggle = updateEl('setting-gh-proxy');
+    if (proxyToggle) {
+        proxyToggle.onchange = (e) => {
+            State.ghProxyEnabled = !!e.target.checked;
+            saveConfig();
+            ipcRenderer.invoke('update:set-gh-proxy')
+                .then((payload) => adoptUpdateState(payload))
+                .catch((err) => console.error('同步 gh-proxy 加速开关失败:', err));
+            showToast(State.ghProxyEnabled ? '已开启 gh-proxy 加速' : '已关闭 gh-proxy 加速');
         };
     }
 
