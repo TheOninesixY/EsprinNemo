@@ -23,6 +23,7 @@ const { configureAutoLaunch, registerAutoLaunchIpc } = require('./auto_launch.js
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
+const { configureSyncServer, registerSyncIpc, applyAutoSyncRuntime } = require('./sync_server.js');
 const { configureUpdater, registerUpdateIpc, scheduleAutoChecks, isPortableRun, PORTABLE_ARG } = require('./updater.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
@@ -224,6 +225,18 @@ configureScratchpadWindow({
 
 // AI 助手：站点与模型随数据目录存放，API Key 由系统密钥链单独保管；两者都只由主进程读取
 configureAiService({ getDataDir: resolveDataDir });
+
+/* 自建同步（操作日志模型，服务端见 server/EsprinServer.py）：
+   服务器地址与设备名取自 config.json，访问令牌由系统密钥链单独保管；
+   拉取到的操作会直接改动本地文件，因此改完之后要告知主窗口重新载入数据 */
+configureSyncServer({
+  getDataDir: resolveDataDir,
+  getConfig: readUserConfig,
+  onRendererMessage: (channel, payload) => {
+    if (mainWindowClosed || !mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send(channel, payload);
+  }
+});
 
 // 应用更新：检查 / 下载 / 安装三段都在主进程完成（见 updater.js），
 // 自动检查是否开启以 config.json 中的 autoUpdate 为准（默认开启）。
@@ -591,6 +604,21 @@ ipcMain.handle('data:open-dir', async () => {
     console.error('[Esprin Nemo] 打开数据目录失败:', error);
     return String(error && error.message ? error.message : error);
   }
+});
+
+/* 界面里的固定站外入口：渲染进程只传键名，地址留在主进程，
+   渲染进程因此无法要求主进程打开任意地址。 */
+const EXTERNAL_LINKS = {
+  // 自建同步的服务端项目（设置 → 数据与存储 → 自建同步 → 服务端）
+  serverRepo: 'https://github.com/TheOninesixY/EsprinServer'
+};
+
+// 固定站外链接：交给系统浏览器打开
+ipcMain.handle('app:open-external', (event, key) => {
+  const url = EXTERNAL_LINKS[String(key || '')];
+  if (!url) return false;
+  openExternalUrl(url);
+  return true;
 });
 
 // 主窗口最小尺寸（内容尺寸）：收起侧边栏 48 + 笔记列表 270 后仍要留给编辑器一栏可用的宽度，
@@ -963,6 +991,12 @@ app.whenReady().then(async () => {
 
   // AI 助手：对话代理与模型列表
   runStartupStep('AI 助手', () => registerAiIpc());
+
+  // 自建同步：测试连接 / 立即同步 / 首次接入 / 诊断（令牌不经过渲染进程）
+  runStartupStep('自建同步', () => registerSyncIpc());
+
+  // 自动同步：按设置里的间隔拉取并重放远端操作、推送本地改动
+  runStartupStep('自建同步自动同步', () => applyAutoSyncRuntime());
 
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
   runStartupStep('界面默认值', () => registerUiDefaults());

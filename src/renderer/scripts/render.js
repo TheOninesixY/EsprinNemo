@@ -1050,6 +1050,7 @@ function renderWorkspace() {
         syncFontSelects();
         syncAccentControls();
         syncAiSettingsUI();
+        syncSyncServerSettingsUI();
         syncUiModeUI();
         syncUpdateSettingsUI();
         applyAiPanelVisibility();

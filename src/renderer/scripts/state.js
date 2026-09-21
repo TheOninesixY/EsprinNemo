@@ -45,6 +45,24 @@ const State = {
     autoLaunch: false,
     // 系统托盘：默认显示托盘图标，关闭后应用不再随窗口关闭而驻留
     trayEnabled: true,
+    // 自建同步（随 config.json 落盘）：服务器地址、设备名、自动同步节奏，以及上次同步的时刻与结果。
+    // 令牌不在配置里：它由主进程存进系统密钥链，这里只保留「是否已保存」（syncTokenSaved）
+    syncServer: {
+        // 默认关闭：填好服务器地址后再由用户打开
+        enabled: false,
+        url: '',
+        device: '',
+        // 自动同步：off / 5s / 1m / 5m / startup / custom（custom 用 autoSyncSeconds）
+        autoSync: 'off',
+        autoSyncSeconds: 60,
+        lastSyncAt: 0,
+        lastSyncSummary: ''
+    },
+    // syncServer 是否已从 config.json 载入过（载入点在 app.js 与 data_location.js）：
+    // 未载入时不把它写回配置，免得用这里的默认空值把用户填好的地址抹掉
+    syncServerLoaded: false,
+    syncTokenSaved: false,
+    syncTokenStrong: false,
     // 字体设置：空字符串表示跟随 CSS 中的默认字体栈
     fonts: { uiLatin: '', uiCjk: '', docLatin: '', docCjk: '' },
     // AI 助手接口配置（随 config.json 一起落盘）

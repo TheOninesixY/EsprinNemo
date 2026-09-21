@@ -37,6 +37,11 @@ window.onload = () => {
     State.aiHasApiKey = !!(saved.aiKeyStatus && saved.aiKeyStatus.hasKey);
     State.aiKeyStorage = aiKeyStorageKind(saved.aiKeyStatus);
     State.aiScope = State.ai.scope;
+    // 自建同步（操作日志模型）：服务器地址、设备名与自动同步设置随 config.json 落盘，
+    // 访问令牌在系统密钥链里。这一项必须在启动时载入：漏了的话界面读到的是默认空值，
+    // 紧接着的首次保存又会把配置里那份抹掉
+    State.syncServer = normalizeSyncServerConfig(saved.syncServer);
+    State.syncServerLoaded = true;
     // 多对话记录（ai_chats/ 下的一份份文件）：载入后保证至少有一份可用对话
     adoptAiChats(saved.aiChats);
 
@@ -90,6 +95,7 @@ window.onload = () => {
     setupEvents();
     syncTrashRetentionSelect();
     refreshDataDirInfo();
+    initSyncServerSettings();
     initUpdateSettings();
     initTraySettings();
     initAutoLaunchSettings();

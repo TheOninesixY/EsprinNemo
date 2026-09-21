@@ -48,17 +48,17 @@ function updateDataDirUI() {
     }
     if (resetBtn) resetBtn.disabled = locked || !dataDirInfo.isCustom;
     if (status) {
-        const record = dataDirInfo.locationFile ? `位置记录写在 ${dataDirInfo.locationFile}；` : '';
+        const record = dataDirInfo.locationFile ? `位置记录位于 ${dataDirInfo.locationFile}；` : '';
         if (locked) {
             status.textContent = `${DATA_DIR_LOCKED_HINT}该目录随项目一同管理，仅安装版与便携版可改变数据存放位置。`;
         } else if (portable) {
             status.textContent = dataDirInfo.isCustom && dataDirInfo.defaultDir
-                ? `便携版：默认位置为程序所在目录下的 data/（${dataDirInfo.defaultDir}），可用“恢复默认”切回；${record}切换即时生效。`
-                : `便携版：数据默认存放在程序所在目录下的 data/，${record}更改位置后会询问是否把现有数据一并迁移，切换即时生效。`;
+                ? `便携版：默认位置为程序所在目录下的 data/（${dataDirInfo.defaultDir}），可用「恢复默认」切回；${record}切换即时生效。`
+                : `便携版：数据默认存放在程序所在目录下的 data/，${record}更改位置时会询问是否迁移现有数据，切换即时生效。`;
         } else if (dataDirInfo.isCustom && dataDirInfo.defaultDir) {
-            status.textContent = `默认位置：${dataDirInfo.defaultDir}（可用“恢复默认”切回）`;
+            status.textContent = `默认位置：${dataDirInfo.defaultDir}（可用「恢复默认」切回）`;
         } else {
-            status.textContent = '更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。';
+            status.textContent = '更改位置时会询问是否迁移现有数据；切换即时生效，无需重启应用。';
         }
     }
     applyDataDirLock(locked);
@@ -122,6 +122,8 @@ function adoptDataDir(dir, options = {}) {
         ghProxyEnabled: State.ghProxyEnabled === true,
         autoLaunch: State.autoLaunch === true,
         trayEnabled: State.trayEnabled !== false,
+        // 应用名文字颜色（brand / mono / accent）同样属于偏好
+        brandColor: State.brandColor,
         fonts: { ...State.fonts }
     };
 
@@ -136,6 +138,7 @@ function adoptDataDir(dir, options = {}) {
         State.theme = saved.theme;
         State.themeStyle = saved.themeStyle;
         State.accentColor = saved.accentColor;
+        State.brandColor = normalizeBrandColor(saved.brandColor);
         State.cornerRadius = saved.cornerRadius;
         State.uiScale = saved.uiScale;
         State.spellcheck = saved.spellcheck;
@@ -151,10 +154,20 @@ function adoptDataDir(dir, options = {}) {
         // AI 接口配置随数据目录走：新位置自带的配置（尤其是迁移过来的）优先
         State.ai = saved.ai;
         State.aiScope = State.ai.scope;
+        /* 自建同步的服务器地址这类连接信息更像「这台机器连哪个同步服务」的偏好，而不是数据目录的内容：
+           新位置的配置里带了地址就采用（迁移过来的数据），没带就沿用当前这份。令牌本就在系统密钥链里、
+           与数据目录无关，地址跟着保持一致，才不会出现「切一次目录就少了一半配置」。
+           上次同步的时刻与结果为同一份数据服务，因此跟着新位置走 */
+        const loadedSync = normalizeSyncServerConfig(saved.syncServer);
+        State.syncServer = loadedSync.url
+            ? loadedSync
+            : { ...State.syncServer, lastSyncAt: loadedSync.lastSyncAt, lastSyncSummary: loadedSync.lastSyncSummary };
+        State.syncServerLoaded = true;
     } else {
         State.themeStyle = prefs.themeStyle;
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
+        State.brandColor = prefs.brandColor;
         State.cornerRadius = prefs.cornerRadius;
         State.uiScale = prefs.uiScale;
         State.spellcheck = prefs.spellcheck;
@@ -203,6 +216,7 @@ function adoptDataDir(dir, options = {}) {
 
     applyTheme();
     applyThemeStyle();
+    applyBrandColor();
     applyCornerRadius();
     applyUiScale();
     applySpellcheck();
@@ -212,11 +226,13 @@ function adoptDataDir(dir, options = {}) {
     applyUiMode();
     syncFontSelects();
     syncAccentControls();
+    syncBrandColorSelect();
     syncThemeStyleSelect();
     syncCornerRadiusControl();
     syncUiScaleControl();
     syncTrashRetentionSelect();
     syncAiSettingsUI();
+    syncSyncServerSettingsUI();
     syncUiModeUI();
     // 自动更新开关随配置走：新位置若关掉了自动更新，主进程的定时检查也要跟着停
     syncUpdateSettingsUI();
@@ -273,7 +289,7 @@ async function changeDataDir() {
         await refreshDataDirInfo();
     } catch (err) {
         console.error('切换数据存放位置失败:', err);
-        showToast('切换数据存放位置失败');
+        showToast('切换数据存放位置失败：与主进程通信异常，请重试');
     } finally {
         setDataDirButtonsDisabled(false);
     }
@@ -297,7 +313,7 @@ async function resetDataDir() {
         await refreshDataDirInfo();
     } catch (err) {
         console.error('恢复默认数据存放位置失败:', err);
-        showToast('恢复默认数据存放位置失败');
+        showToast('恢复默认数据存放位置失败：与主进程通信异常，请重试');
     } finally {
         setDataDirButtonsDisabled(false);
     }
@@ -310,6 +326,6 @@ async function openDataDir() {
         if (error) showToast(`打开数据文件夹失败：${error}`);
     } catch (err) {
         console.error('打开数据文件夹失败:', err);
-        showToast('打开数据文件夹失败');
+        showToast('打开数据文件夹失败：与主进程通信异常，请重试');
     }
 }

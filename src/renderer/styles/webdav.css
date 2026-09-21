@@ -1,0 +1,110 @@
+/* WebDAV 同步（设置 → 数据与存储）：输入堆叠、快捷填入、状态行与同步进度条。
+   输入框与按钮沿用 settings.css / ai.css 里的通用类（.settings-input / .settings-btn），
+   这里只补 WebDAV 面板自己的排版。 */
+
+/* 输入框 + 下方的快捷填入：按钮右对齐贴在输入框下面（与 AI 面板的地址栏一致） */
+.webdav-input-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.webdav-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.webdav-quick-fill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.webdav-quick-fill-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.webdav-quick-chip {
+    padding: 2px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: var(--bg-body);
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+.webdav-quick-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-bg);
+}
+
+/* 自定义同步间隔：数值 + 单位（秒 / 分钟）成对出现，跟在间隔下拉下面 */
+.webdav-interval-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.webdav-interval-group .settings-input.short {
+    width: 90px;
+}
+.webdav-interval-group .settings-select {
+    min-width: 90px;
+    max-width: 110px;
+    font-size: 12px;
+}
+
+/* 口令的保管状态：说明口令存在哪里，不含任何口令内容 */
+.webdav-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* 配置与同步状态行：正常为说明文字，成功 / 失败时着色 */
+.webdav-status[data-tone='ok'] {
+    color: var(--accent);
+}
+.webdav-status[data-tone='error'] {
+    color: var(--danger);
+}
+
+/* 同步进度：一条细进度条 + 当前文件名（未同步时整块隐藏） */
+.webdav-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.webdav-progress-bar {
+    flex: 1;
+    height: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--item-hover);
+    overflow: hidden;
+}
+.webdav-progress-bar > i {
+    display: block;
+    width: 0;
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--accent);
+    transition: width 0.2s ease;
+}
+.webdav-progress-text {
+    flex-shrink: 0;
+    max-width: 45%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* 「减少动态效果」下不做宽度补间，进度直接到位 */
+@media (prefers-reduced-motion: reduce) {
+    .webdav-progress-bar > i {
+        transition: none;
+    }
+}

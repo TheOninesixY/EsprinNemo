@@ -1,0 +1,46 @@
+/* 自建同步（设置 → 数据与存储）：输入堆叠、令牌提示与状态行。
+   输入框与按钮沿用 settings.css / ai.css 里的通用类（.settings-input / .settings-btn）。 */
+
+/* 输入框与其下方的提示文字成一组，右对齐贴在行尾 */
+.sync-input-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.sync-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* 自定义同步间隔：数值 + 单位（秒 / 分钟） */
+.sync-interval-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.sync-interval-group .settings-input.short {
+    width: 90px;
+}
+.sync-interval-group .settings-select {
+    min-width: 90px;
+    max-width: 110px;
+    font-size: 12px;
+}
+
+/* 令牌的保管状态：说明令牌存在哪里，不含任何令牌内容 */
+.sync-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* 状态行：正常为说明文字，成功 / 失败时着色 */
+.sync-status[data-tone='ok'] {
+    color: var(--accent);
+}
+.sync-status[data-tone='error'] {
+    color: var(--danger);
+}

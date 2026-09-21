@@ -88,7 +88,7 @@ function describeUpdateStatus(state) {
         case 'available':
             // 发布页里没有符合命名规则的安装包（setup 段 + .exe）时只能去发布页手动下载
             return state.update && state.update.hasAsset === false
-                ? `发现新版本 v${version}，但发布页里没有符合规则的安装包（文件名需带 setup 且为 .exe），请点「打开发布页」手动下载`
+                ? `发现新版本 v${version}，但发布页中没有符合命名规则的安装包（文件名需含 setup 且以 .exe 结尾），请用「打开发布页」手动下载`
                 : `发现新版本 v${version}，可立即下载`;
         case 'downloading':
             return `正在下载 v${version}…`;
@@ -97,9 +97,9 @@ function describeUpdateStatus(state) {
                 ? `v${version} 已下载完成，重启应用即可完成安装`
                 : `v${version} 已下载完成，请用该安装包手动升级`;
         case 'error':
-            return state.error || '检查更新失败';
+            return state.error || '检查更新失败：未获取到原因，请重试';
         default:
-            return '尚未检查更新：可打开上方开关自动检查，也可点右侧按钮立即检查';
+            return '尚未检查更新：可开启「自动检查并下载更新」自动检查，也可点「检查更新」立即检查';
     }
 }
 
@@ -155,11 +155,11 @@ function renderCurrentReleaseNotes() {
         case 'missing':
             // 本地构建（bun start / 未发布的版本）在更新源上不会有对应的发布记录
             if (dateEl) dateEl.textContent = '';
-            setReleaseNotesBody(body, '', `更新源上没有找到 ${label} 的发布记录，可能是本地运行的未发布版本。`);
+            setReleaseNotesBody(body, '', `更新源上没有 ${label} 的发布记录：可能是本地运行的未发布版本。`);
             break;
         case 'error':
             if (dateEl) dateEl.textContent = '';
-            setReleaseNotesBody(body, '', updateState.currentReleaseError || '读取当前版本的发布说明失败。');
+            setReleaseNotesBody(body, '', updateState.currentReleaseError || '读取当前版本的发布说明失败：请检查网络后重试。');
             break;
         default:
             if (dateEl) dateEl.textContent = '';
@@ -339,7 +339,7 @@ async function installUpdate() {
 
     const confirmed = await showConfirm('立即重启并安装更新？', {
         title: '安装更新',
-        detail: '应用会先退出，安装程序完成升级后自动重新打开。当前编辑的内容会先保存。',
+        detail: '应用将先退出，安装程序完成升级后自动重新打开；当前编辑的内容会先保存。',
         confirmLabel: '重启并安装'
     });
     if (!confirmed) return;
@@ -350,11 +350,11 @@ async function installUpdate() {
     try {
         const result = await ipcRenderer.invoke('update:install');
         if (result && result.ok === false) {
-            showToast(result.error || '启动安装程序失败');
+            showToast(result.error || '启动安装程序失败：请手动运行已下载的安装包');
         }
     } catch (err) {
         console.error('安装更新失败:', err);
-        showToast('启动安装程序失败');
+        showToast('启动安装程序失败：请手动运行已下载的安装包');
     }
 }
 

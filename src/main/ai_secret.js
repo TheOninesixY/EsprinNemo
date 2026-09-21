@@ -1,4 +1,6 @@
-// AI 助手 API Key 的独立存储（仅主进程可读）。
+// AI 助手 API Key 的独立存储（仅主进程可读）：密钥文件本身由通用密钥存储读写
+//（见 secret_store.js，自建同步的访问令牌用的是同一套实现、另一份文件），本文件只保留 AI 这一侧的
+// 业务：旧版明文密钥的收编，以及配置目录搬家时的密钥文件迁移。
 //
 // 密钥不写进数据目录的 config.json：数据目录是「可备份、可迁移、可分享」的一份普通数据，
 // 明文密钥放在里面会随复制/同步/截图外泄。这里改为交给系统级加密能力保管，并按用户而非
@@ -13,170 +15,57 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, safeStorage } = require('electron');
-const { getAppDataConfigDir, getConfigDir, isDevRun } = require('./data_path.js');
+const { app } = require('electron');
+const { getAppDataConfigDir, isDevRun } = require('./data_path.js');
+const { createSecretStore, writeFileAtomic } = require('./secret_store.js');
 
 const KEY_FILE_NAME = 'ai_key.bin';
 // 开发运行（bun start）单独一份：避免与安装版互相覆盖同一个密钥文件
 const DEV_KEY_FILE_NAME = 'ai_key.dev.bin';
-// 文件头：第一行标记格式版本与存储方式，第二行起为负载（加密时为 base64）
-const FILE_HEADER = 'esprin-nemo-ai-key/1';
-const MODE_ENCRYPTED = 'encrypted';
-const MODE_PLAIN = 'plain';
-// 明文退化的权限：仅当前用户可读写（Windows 上由用户配置目录的 ACL 保证）
-const PLAIN_FILE_MODE = 0o600;
+
+/* 密钥的加密、落盘与保管状态都交给通用密钥存储：文件第一行标记格式版本与存储方式
+   （esprin-nemo-ai-key/1），第二行起为负载（加密时为 base64），格式与旧版完全一致 */
+const store = createSecretStore({
+  header: 'esprin-nemo-ai-key/1',
+  fileName: KEY_FILE_NAME,
+  devFileName: DEV_KEY_FILE_NAME,
+  label: 'API Key'
+});
 
 // 密钥文件位置：应用配置目录（与数据位置记录 data_path.json 同级），不在数据目录内。
 // 便携版的配置目录就是便携版所在目录，密钥文件因此也随程序目录走
 function keyFilePath(appLike = null) {
-  const target = appLike || app;
-  const dir = getConfigDir(target);
-  if (!dir) return null;
-  return path.join(dir, isDevRun(target) ? DEV_KEY_FILE_NAME : KEY_FILE_NAME);
+  return store.filePath(appLike);
 }
 
-function encryptionAvailable() {
-  try {
-    return typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable();
-  } catch (error) {
-    return false;
-  }
-}
-
-// 具体后端：dpapi / keychain / gnome_libsecret / kwallet / basic_text …
-function storageBackend() {
-  try {
-    return typeof safeStorage.getSelectedStorageBackend === 'function'
-      ? String(safeStorage.getSelectedStorageBackend() || '')
-      : '';
-  } catch (error) {
-    return '';
-  }
-}
-
-// basic_text 表示系统没提供密钥环（Electron 用固定密钥加密，等同于没有保护），不算安全存储
-function isStronglyProtected() {
-  return encryptionAvailable() && storageBackend() !== 'basic_text';
-}
-
-// 读原始文件：返回 { mode, payload }，不存在或格式不认识时 mode 为空
-function readStored() {
-  const file = keyFilePath();
-  if (!file || !fs.existsSync(file)) return { mode: '', payload: '' };
-  try {
-    const text = fs.readFileSync(file, 'utf8');
-    const separator = text.indexOf('\n');
-    if (separator < 0) return { mode: '', payload: '' };
-    const header = text.slice(0, separator).trim();
-    if (!header.startsWith(FILE_HEADER)) return { mode: '', payload: '' };
-    const mode = header.slice(FILE_HEADER.length).trim();
-    return { mode, payload: text.slice(separator + 1).replace(/\r?\n+$/, '') };
-  } catch (error) {
-    console.error('[Esprin Nemo] 读取 AI 密钥文件失败:', error);
-    return { mode: '', payload: '' };
-  }
-}
-
-// 解出密钥明文；解密失败（换了系统账户、密钥环被重置等）时按「没有密钥」处理
-function decodeStored(stored) {
-  if (!stored.payload) return '';
-  if (stored.mode === MODE_PLAIN) return stored.payload.trim();
-  if (stored.mode !== MODE_ENCRYPTED) return '';
-  if (!encryptionAvailable()) return '';
-  try {
-    return safeStorage.decryptString(Buffer.from(stored.payload, 'base64')).trim();
-  } catch (error) {
-    console.error('[Esprin Nemo] 解密 AI 密钥失败（可能更换了系统账户或密钥环）:', error);
-    return '';
-  }
-}
-
-// 读取密钥明文
+// 读取密钥明文（没有时为空字符串）
 function readApiKey() {
-  return decodeStored(readStored());
-}
-
-// 原子写入：先写同目录下的临时文件再改名，避免进程被中断时留下半截文件。
-// 传入 mode 时用于密钥文件这类需要限制权限的场合（仅当前用户可读写）。
-function writeFileAtomic(file, text, mode) {
-  const tempPath = `${file}.tmp`;
-  try {
-    fs.writeFileSync(tempPath, text, mode ? { encoding: 'utf8', mode } : 'utf8');
-    fs.renameSync(tempPath, file);
-    if (mode) {
-      // 已存在的文件不受 mode 选项影响，补一次 chmod（Windows 上无效，忽略即可）
-      try {
-        fs.chmodSync(file, mode);
-      } catch (error) {
-        // 忽略
-      }
-    }
-  } catch (error) {
-    try {
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-    } catch (cleanupError) {
-      // 清理失败不影响错误上报
-    }
-    throw error;
-  }
+  return store.read();
 }
 
 // 刚完成过一次明文迁移时置位：界面据此提示一次「密钥已改存到安全存储」
 let pendingMigrationNotice = false;
 
-// 密钥保管状态：hasKey 是否有密钥，encrypted 磁盘上是否加密存放，strong 是否为系统密钥链级加密
+// 密钥保管状态：hasKey 是否有密钥，encrypted 磁盘上是否加密存放，strong 是否为系统密钥链级加密；
+// migrated 只在刚完成过一次明文迁移时为 true，供界面提示一次
 function keyStatus() {
-  const stored = readStored();
-  const hasKey = !!decodeStored(stored);
   const migrated = pendingMigrationNotice;
   pendingMigrationNotice = false;
-  return {
-    hasKey,
-    encrypted: hasKey && stored.mode === MODE_ENCRYPTED,
-    strong: hasKey && stored.mode === MODE_ENCRYPTED && isStronglyProtected(),
-    migrated,
-    path: keyFilePath() || ''
-  };
+  return { ...store.status(), migrated };
 }
 
 // 清除密钥：删除密钥文件（没有则视为已清除）
 function clearApiKey() {
-  const file = keyFilePath();
-  try {
-    if (file && fs.existsSync(file)) fs.unlinkSync(file);
-  } catch (error) {
-    console.error('[Esprin Nemo] 删除 AI 密钥文件失败:', error);
-    return { ok: false, error: `清除 API Key 失败：${error.message}` };
-  }
+  const result = store.clear();
+  if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, ...keyStatus() };
 }
 
 // 保存密钥（空字符串等于清除）
 function writeApiKey(apiKey) {
-  const value = typeof apiKey === 'string' ? apiKey.trim() : '';
-  if (!value) return clearApiKey();
-
-  const file = keyFilePath();
-  if (!file) return { ok: false, error: '无法定位密钥存储位置，API Key 未保存' };
-
-  try {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    let mode = MODE_PLAIN;
-    let payload = value;
-    if (encryptionAvailable()) {
-      try {
-        payload = safeStorage.encryptString(value).toString('base64');
-        mode = MODE_ENCRYPTED;
-      } catch (error) {
-        console.warn('[Esprin Nemo] 加密 API Key 失败，改用仅本机可读的明文文件保存:', error);
-      }
-    }
-    writeFileAtomic(file, `${FILE_HEADER} ${mode}\n${payload}\n`, PLAIN_FILE_MODE);
-    return { ok: true, ...keyStatus() };
-  } catch (error) {
-    console.error('[Esprin Nemo] 保存 AI 密钥失败:', error);
-    return { ok: false, error: `保存 API Key 失败：${error.message}` };
-  }
+  const saved = store.write(apiKey);
+  if (!saved.ok) return { ok: false, error: saved.error };
+  return { ok: true, ...keyStatus() };
 }
 
 // 配置目录搬家时（便携版把配置目录从 %APPDATA%/esprin_nemo 换到便携版所在目录），

@@ -93,13 +93,13 @@ function applyTheme() {
     const themeBtn = document.getElementById('btn-theme-toggle');
     if (State.theme === 'system') {
         if (themeIcon) themeIcon.textContent = 'computer';
-        if (themeBtn) themeBtn.title = '主题：跟随系统 (点击切换到浅色)';
+        if (themeBtn) themeBtn.title = '主题：跟随系统（点击切换到浅色）';
     } else if (State.theme === 'light') {
         if (themeIcon) themeIcon.textContent = 'light_mode';
-        if (themeBtn) themeBtn.title = '主题：浅色模式 (点击切换到深色)';
+        if (themeBtn) themeBtn.title = '主题：浅色模式（点击切换到深色）';
     } else {
         if (themeIcon) themeIcon.textContent = 'dark_mode';
-        if (themeBtn) themeBtn.title = '主题：深色模式 (点击切换到跟随系统)';
+        if (themeBtn) themeBtn.title = '主题：深色模式（点击切换到跟随系统）';
     }
 
     syncScratchpadAppearance();
@@ -459,9 +459,9 @@ async function commitCustomUiScale() {
     const seconds = Math.round(UI_SCALE_CUSTOM_CONFIRM_MS / 1000);
     const keep = await showConfirm(`保留界面尺寸 ${percent}%？`, {
         title: '保持更改',
-        detail: `界面已经按 ${percent}% 缩放，确认之后才会写进设置：\n`
+        detail: `界面已按 ${percent}% 缩放，确认后写入设置：\n`
             + `· 点「保持」：沿用 ${percent}%；\n`
-            + `· 点「回到默认」或 ${seconds} 秒内没有回应：回到默认的 100%。`,
+            + `· 点「回到默认」，或 ${seconds} 秒内未确认：恢复为默认的 100%。`,
         confirmLabel: '保持',
         cancelLabel: '回到默认',
         // 弹窗自带倒计时，到点自动按「取消」处理（见 main/dialog_window.js）
@@ -472,12 +472,12 @@ async function commitCustomUiScale() {
         setUiScale(percent / 100);
         // 输入框里可能还留着刚才那个数字（它正被聚焦时同步会跳过它），这里显式对齐一次
         el.value = isUiScaleStop(percent / 100) ? '' : String(percent);
-        showToast(`界面尺寸已设为 ${percent}%`);
+        showToast(`缩放比例已设为 ${percent}%`);
         return;
     }
     setUiScale(UI_SCALE_DEFAULT);
     el.value = '';
-    showToast('界面尺寸已回到默认 100%');
+    showToast('缩放比例已恢复为默认 100%');
 }
 
 // 自定义比例输入框：回车与「应用」都能提交，输入期间只保留数字

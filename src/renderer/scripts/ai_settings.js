@@ -25,7 +25,8 @@ function scheduleAiConfigSave() {
 }
 
 function flushAiConfigSave() {
-    if (!aiConfigSaveTimer) return;
+    // 无条件写一次：拨动总开关、切换范围这类操作不会产生「待保存的输入」，
+    // 依赖防抖定时器会漏掉它们（saveConfig 内部会在内容没变时跳过，不会多写盘）
     clearTimeout(aiConfigSaveTimer);
     aiConfigSaveTimer = null;
     saveConfig();
@@ -42,8 +43,8 @@ function setAiStatus(text, tone) {
 function describeAiConfigState() {
     const ai = State.ai || {};
     if (!ai.baseUrl && !ai.model) return '尚未配置：填写 API 站点与模型后即可在标题栏打开「AI 助手」提问。';
-    if (!ai.baseUrl) return '还差 API 站点：请填写兼容 OpenAI 协议的接口地址。';
-    if (!ai.model) return '还差模型名称：填写模型后即可开始提问。';
+    if (!ai.baseUrl) return '尚未配置 API 站点：请填写兼容 OpenAI 协议的接口地址。';
+    if (!ai.model) return '尚未配置模型：请填写模型名称。';
     return `已配置：${ai.model}${State.aiHasApiKey ? '' : '（未保存 API Key，适用于本地服务）'}`;
 }
 
@@ -57,10 +58,10 @@ function aiKeyStorageKind(status) {
 }
 
 function describeAiKeyStorage() {
-    if (!State.aiHasApiKey) return '尚未保存 API Key：填写后回车即可保存，密钥不会写入配置或笔记文件。';
+    if (!State.aiHasApiKey) return '尚未保存 API Key：输入后回车即保存；密钥不写入配置或笔记文件。';
     if (State.aiKeyStorage === 'keychain') return '已保存到系统密钥链（内存与磁盘上均为密文）。';
-    if (State.aiKeyStorage === 'encrypted') return '已保存（当前系统未提供密钥链，仅做了基础加密）。';
-    return '已保存（当前系统不支持加密存储，已按仅本机可读的文件权限保存）。';
+    if (State.aiKeyStorage === 'encrypted') return '已保存：当前系统未提供密钥链，仅做基础加密。';
+    return '已保存：当前系统不支持加密存储，仅按本机可读的文件权限保存。';
 }
 
 // 把主进程返回的密钥状态落到界面：输入框提示语、清除按钮与状态说明
@@ -71,7 +72,7 @@ function applyAiKeyStatus(status) {
     const keyInput = document.getElementById('setting-ai-apikey');
     if (keyInput) {
         // 输入框里永远不放明文：已保存时留空，填写即表示「换成新的」
-        keyInput.placeholder = State.aiHasApiKey ? '已保存，如需更换请直接输入新的 Key' : 'sk-…';
+        keyInput.placeholder = State.aiHasApiKey ? '已保存；输入新的 API Key 即可替换' : 'sk-…';
     }
     const clearBtn = document.getElementById('btn-ai-key-clear');
     if (clearBtn) clearBtn.classList.toggle('hidden', !State.aiHasApiKey);
@@ -99,17 +100,17 @@ async function commitAiKeyFromForm() {
     try {
         const result = await ipcRenderer.invoke('ai:set-key', { apiKey });
         if (!result || !result.ok) {
-            setAiStatus((result && result.error) || '保存 API Key 失败', 'error');
+            setAiStatus((result && result.error) || '保存 API Key 失败：与主进程通信异常，请重试', 'error');
             return false;
         }
         input.value = '';
         applyAiKeyStatus(result);
         refreshAiConfigViews();
-        showToast('API Key 已保存到本机安全存储');
+        showToast('API Key 已保存');
         return true;
     } catch (err) {
         console.error('保存 API Key 失败:', err);
-        setAiStatus('保存 API Key 失败', 'error');
+        setAiStatus('保存 API Key 失败：与主进程通信异常，请重试', 'error');
         return false;
     }
 }
@@ -118,7 +119,7 @@ async function commitAiKeyFromForm() {
 async function clearAiApiKey() {
     const confirmed = await showConfirm('清除已保存的 API Key？', {
         title: '清除 API Key',
-        detail: '清除后需要重新填写才能继续使用需要鉴权的 API 站点；本地服务（如 Ollama）不受影响。',
+        detail: '清除后需重新填写才能使用需要鉴权的 API 站点；本地服务（如 Ollama）不受影响。',
         confirmLabel: '清除',
         danger: true
     });
@@ -127,7 +128,7 @@ async function clearAiApiKey() {
     try {
         const result = await ipcRenderer.invoke('ai:set-key', { apiKey: '' });
         if (!result || !result.ok) {
-            setAiStatus((result && result.error) || '清除 API Key 失败', 'error');
+            setAiStatus((result && result.error) || '清除 API Key 失败：与主进程通信异常，请重试', 'error');
             return;
         }
         applyAiKeyStatus(result);
@@ -135,7 +136,7 @@ async function clearAiApiKey() {
         showToast('已清除 API Key');
     } catch (err) {
         console.error('清除 API Key 失败:', err);
-        setAiStatus('清除 API Key 失败', 'error');
+        setAiStatus('清除 API Key 失败：与主进程通信异常，请重试', 'error');
     }
 }
 
@@ -255,7 +256,7 @@ async function fetchAiModels() {
     try {
         const result = await ipcRenderer.invoke('ai:models');
         if (!result || !result.ok) {
-            setAiStatus((result && result.error) || '获取模型列表失败', 'error');
+            setAiStatus((result && result.error) || '获取模型列表失败：请检查 API 站点与 API Key', 'error');
             return;
         }
         const list = document.getElementById('ai-model-list');
@@ -264,11 +265,11 @@ async function fetchAiModels() {
                 .map(model => `<option value="${escapeHTML(model)}"></option>`)
                 .join('');
         }
-        setAiStatus(`已获取 ${result.models.length} 个模型，在模型输入框中输入或按 ↓ 即可选择`, 'ok');
+        setAiStatus(`已获取 ${result.models.length} 个模型：可在模型输入框中输入，或从候选列表中选择`, 'ok');
         showToast(`已获取 ${result.models.length} 个模型`);
     } catch (err) {
         console.error('获取模型列表失败:', err);
-        setAiStatus('获取模型列表失败', 'error');
+        setAiStatus('获取模型列表失败：与主进程通信异常，请重试', 'error');
     } finally {
         setAiButtonBusy('btn-ai-models', false);
     }
@@ -290,7 +291,7 @@ async function testAiConnection() {
     try {
         const result = await ipcRenderer.invoke('ai:test');
         if (!result || !result.ok) {
-            setAiStatus((result && result.error) || '连接测试失败', 'error');
+            setAiStatus((result && result.error) || '连接测试失败：请检查 API 站点、API Key 与模型', 'error');
             return;
         }
         const reply = String(result.content || '').replace(/\s+/g, ' ').trim().slice(0, 40);
@@ -298,7 +299,7 @@ async function testAiConnection() {
         showToast('AI 连接测试通过');
     } catch (err) {
         console.error('AI 连接测试失败:', err);
-        setAiStatus('连接测试失败', 'error');
+        setAiStatus('连接测试失败：与主进程通信异常，请重试', 'error');
     } finally {
         setAiButtonBusy('btn-ai-test', false);
     }

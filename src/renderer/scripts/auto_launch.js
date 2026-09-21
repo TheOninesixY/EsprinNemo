@@ -17,12 +17,12 @@ function syncAutoLaunchStatusText(result) {
         return;
     }
     if (result.supported === false) {
-        status.textContent = '当前为开发运行（bun start），开机自启只对安装版与便携版生效，因此这里无法设置。';
+        status.textContent = '当前为开发运行（bun start）：开机自启仅对安装版与便携版生效，此处无法设置。';
         return;
     }
     status.textContent = result.enabled
-        ? '已开启：登录系统后 EsprinNemo 会自动启动并打开主窗口；不想让它常驻时，直接关闭主窗口即可（开启托盘图标时则收进通知区域）。'
-        : '已关闭：登录系统后不会自动启动，需要手动双击图标运行。';
+        ? '已开启：登录系统后自动启动 EsprinNemo 并打开主窗口；无需常驻时可关闭主窗口（已开启托盘图标时窗口收进通知区域）。'
+        : '已关闭：登录系统后不自动启动，需手动运行应用。';
 }
 
 // 采用主进程回传的真实状态：系统不允许写入时改回界面，同时把配置也写成实际状态，

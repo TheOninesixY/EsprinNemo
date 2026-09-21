@@ -175,13 +175,13 @@ async function loadFontList() {
         const status = document.getElementById('font-list-status');
         if (status) {
             status.textContent = source === 'fallback'
-                ? '未能读取本机字体列表，已回退到内置常用字体'
+                ? '未能读取本机字体列表：已回退到内置常用字体'
                 : `已读取本机字体 ${families.length} 个（西文与 CJK 共用同一列表）`;
         }
     } catch (err) {
         console.error('读取本机字体列表失败:', err);
         const status = document.getElementById('font-list-status');
-        if (status) status.textContent = '读取本机字体列表失败，已回退到内置常用字体';
+        if (status) status.textContent = '读取本机字体列表失败：已回退到内置常用字体';
         populateFontSelects(normalizeFamilyList(COMMON_FONT_FAMILIES));
     }
 }

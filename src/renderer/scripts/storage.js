@@ -117,6 +117,8 @@ function writeFileAtomic(filePath, text) {
     try {
         fs.writeFileSync(tempPath, text, 'utf8');
         renameWithRetry(tempPath, filePath);
+        // 告诉主进程「这份文件刚变了」：自建同步会把这次改动变成一条操作推给服务器
+        notifyRemoteWrite(filePath);
     } catch (err) {
         // 失败时清掉临时文件，避免在数据目录里留下垃圾
         try {
@@ -132,6 +134,45 @@ function writeFileAtomic(filePath, text) {
 // 这里只跳过、不删除——万一它比目标文件更新，内容不至于因为一次扫描就丢掉。
 function isStaleTempFile(fileName) {
     return typeof fileName === 'string' && fileName.endsWith(TEMP_FILE_SUFFIX);
+}
+
+/* ---------------- 自建同步的写穿通知 ----------------
+   同步采用操作日志模型（见 src/main/sync_server.js）：本地每一次写入与删除都要变成一条操作
+   （put / del）记进待推送队列，其中「删除」本身就是一条操作——这样别的设备重放时
+   只会把本地那份删掉，而不会把「文件不存在」当成「缺文件」又补回来。
+   这里只负责发个通知（send，不等回复），要不要同步、什么时候推由主进程决定。 */
+
+// 数据目录内的相对路径（正斜杠）：数据目录外的路径一律不参与同步
+function dataRelativePath(filePath) {
+    try {
+        const relative = path.relative(DATA_DIR, filePath).replace(/\\/g, '/');
+        if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return '';
+        return relative;
+    } catch (err) {
+        return '';
+    }
+}
+
+function notifyRemoteWrite(filePath) {
+    try {
+        const relative = dataRelativePath(filePath);
+        // 临时文件不是数据的一部分，不推
+        if (!relative || isStaleTempFile(relative)) return;
+        ipcRenderer.send('sync:push', { path: relative });
+    } catch (err) {
+        // 通知失败不影响本地保存
+    }
+}
+
+function notifyRemoteDelete(filePath) {
+    try {
+        const relative = dataRelativePath(filePath);
+        if (!relative || isStaleTempFile(relative) || relative.endsWith('.bak')) return;
+        // 删除同样是一条操作：它会被记进待推送队列，而不是让别的设备把文件补回来
+        ipcRenderer.send('sync:remove', { path: relative });
+    } catch (err) {
+        // 同上
+    }
 }
 
 /* ---------------- 笔记文件：内嵌元数据注释 + Markdown 正文 ----------------
@@ -644,7 +685,11 @@ function deleteAiChatFile(chatId) {
     savedAiChatFiles.delete(chatId);
     try {
         const filePath = path.join(AI_CHATS_DIR, `${chatId}.json`);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            // 使用模式：本地删了，服务器上那份也要跟着删
+            notifyRemoteDelete(filePath);
+        }
     } catch (err) {
         console.error(`删除对话文件 ${chatId}.json 失败:`, err);
     }
@@ -757,6 +802,43 @@ function normalizeAiConfig(raw) {
     };
 }
 
+/* 自建同步的自动同步间隔：预设（秒）与自定义秒数的范围，
+   取值与 src/main/sync_server.js 的 AUTO_SYNC_* 保持一致。 */
+const SYNC_AUTO_SYNC_PRESETS = { off: 0, '5s': 5, '1m': 60, '5m': 300, startup: 0 };
+const SYNC_AUTO_SYNC_VALUES = Object.keys(SYNC_AUTO_SYNC_PRESETS).concat('custom');
+const SYNC_AUTO_SYNC_MIN_SECONDS = 5;
+const SYNC_AUTO_SYNC_MAX_SECONDS = 24 * 60 * 60;
+const SYNC_AUTO_SYNC_DEFAULT_SECONDS = 60;
+
+// 自定义间隔的取值整理：非数字回落到 1 分钟，夹在 5 秒 ~ 24 小时之间
+function normalizeAutoSyncSeconds(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return SYNC_AUTO_SYNC_DEFAULT_SECONDS;
+    return Math.min(Math.max(Math.round(num), SYNC_AUTO_SYNC_MIN_SECONDS), SYNC_AUTO_SYNC_MAX_SECONDS);
+}
+
+/* 自建同步配置规范化：容忍缺失/脏数据。
+   注意这里没有令牌：令牌由主进程存进系统密钥链，不随 config.json 落盘、也不进入渲染进程；
+   设备 id（deviceId）同样不在配置里——它由主进程生成并保存在配置目录的 sync_state.json。
+   lastSyncAt / lastSyncSummary 是上一次同步留下的记录，供设置页展示。 */
+function normalizeSyncServerConfig(raw) {
+    const source = (raw && typeof raw === 'object') ? raw : {};
+    const pick = (key) => (typeof source[key] === 'string' ? source[key].trim() : '');
+    const lastSyncAt = Number(source.lastSyncAt);
+    return {
+        // 总开关：默认关闭，填好地址后再由用户打开
+        enabled: source.enabled === true,
+        url: pick('url').replace(/\/+$/, ''),
+        // 设备名：只用于在日志里分辨是哪台机器改的
+        device: pick('device'),
+        // 自动同步：off / 5s / 1m / 5m / startup / custom
+        autoSync: SYNC_AUTO_SYNC_VALUES.includes(source.autoSync) ? source.autoSync : 'off',
+        autoSyncSeconds: normalizeAutoSyncSeconds(source.autoSyncSeconds),
+        lastSyncAt: Number.isFinite(lastSyncAt) && lastSyncAt > 0 ? lastSyncAt : 0,
+        lastSyncSummary: typeof source.lastSyncSummary === 'string' ? source.lastSyncSummary : ''
+    };
+}
+
 /* 旧版把 API Key 明文写在 config.json 的 ai.apiKey 里。主进程在启动时已经做过一次迁移，
    这里再兜一次底：万一配置文件里仍有明文（例如数据目录刚从别处拷来），载入时立即交给主进程
    存进系统密钥链，并把明文从内存里的配置抹掉，避免这一轮的任何保存又把它写回磁盘。 */
@@ -790,7 +872,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', uiScale: 1, spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', uiScale: 1, spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, syncServer: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -933,6 +1015,8 @@ function loadData() {
         trayEnabled: config.trayEnabled !== false,
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
+        // 自建同步：服务器地址与自动同步设置随数据目录走，令牌在系统密钥链里（不在这份配置中）
+        syncServer: normalizeSyncServerConfig(config.syncServer),
         aiKeyStatus,
         aiChats: { conversations: aiChats.conversations, activeId: aiChats.activeId },
         folders: ['默认', ...customFolders],
@@ -990,6 +1074,11 @@ function saveConfig() {
             fonts: normalizeFonts(State.fonts),
             ai: normalizeAiConfig(State.ai)
         };
+
+        // 自建同步配置只在从磁盘载入过之后才写回（载入点见 app.js 与 data_location.js）：
+        // 漏一个字段只是这次的同步配置不落盘，直接写却会把用户填好的地址静默抹成默认值
+        if (State.syncServerLoaded) config.syncServer = normalizeSyncServerConfig(State.syncServer);
+
         const json = JSON.stringify(config, null, 2);
         if (json === savedConfigJSON) return;
         writeFileAtomic(CONFIG_FILE, json);
@@ -1018,7 +1107,11 @@ function deleteNoteFile(noteId) {
     savedNoteFiles.delete(noteId);
     try {
         const notePath = path.join(NOTES_DIR, `${noteId}.md`);
-        if (fs.existsSync(notePath)) fs.unlinkSync(notePath);
+        if (fs.existsSync(notePath)) {
+            fs.unlinkSync(notePath);
+            // 使用模式：本地删了，服务器上那份也要跟着删
+            notifyRemoteDelete(notePath);
+        }
     } catch (err) {
         console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
     }
@@ -1043,7 +1136,11 @@ function deleteTodoFile(todoId) {
     savedTodoFiles.delete(todoId);
     try {
         const todoPath = path.join(TODOS_DIR, `${todoId}.md`);
-        if (fs.existsSync(todoPath)) fs.unlinkSync(todoPath);
+        if (fs.existsSync(todoPath)) {
+            fs.unlinkSync(todoPath);
+            // 使用模式：本地删了，服务器上那份也要跟着删
+            notifyRemoteDelete(todoPath);
+        }
     } catch (err) {
         console.error(`删除待办文件 ${todoId}.md 失败:`, err);
     }

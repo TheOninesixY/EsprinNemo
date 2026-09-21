@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="./styles/dropdown.css">
     <link rel="stylesheet" href="./styles/settings.css">
     <link rel="stylesheet" href="./styles/ai.css">
+    <!-- 自建同步：设置页「数据与存储」里的服务器与同步面板 -->
+    <link rel="stylesheet" href="./styles/sync.css">
     <!-- Alom 风格：仅当 <html data-theme-style="alom"> 时生效 -->
     <link rel="stylesheet" href="./styles/alom.css">
     <!-- 圆角尺度：按设置中的选择把 --radius-* 令牌换算成最终圆角，需排在其它风格之后 -->
@@ -403,7 +405,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">错词红波浪线检查</span>
-                                    <span class="settings-row-desc">在编辑笔记标题与正文时对拼写错误标出红色波浪下划线</span>
+                                    <span class="settings-row-desc">在笔记标题与正文中为拼写错误绘制红色波浪下划线</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-spellcheck">
@@ -413,10 +415,10 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">废纸篓自动清理</span>
-                                    <span class="settings-row-desc">按最后一次编辑时间计算，超过保留期限的废纸篓笔记与待办会被自动永久删除，此操作无法撤销</span>
+                                    <span class="settings-row-desc">按最后一次编辑时间计算，超过保留期限的废纸篓笔记与待办将被永久删除，此操作无法撤销</span>
                                 </div>
                                 <select class="settings-select" id="setting-trash-retention">
-                                    <option value="0">永不自动清理</option>
+                                    <option value="0">不自动清理</option>
                                     <option value="10">保留 10 天</option>
                                     <option value="30">保留 30 天</option>
                                     <option value="60">保留 60 天</option>
@@ -448,7 +450,7 @@
                             <div class="settings-row settings-row-modern-only">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">禁用标签页</span>
-                                    <span class="settings-row-desc">把工作区顶部的标签页整条收起；标签仍然保留，关掉这个开关就回来（默认开启）</span>
+                                    <span class="settings-row-desc">收起工作区顶部的整条标签栏；已打开的标签仍然保留，关闭本开关即恢复显示（默认开启）</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-tabs-disabled">
@@ -466,14 +468,14 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">缩放比例<span class="settings-value" id="ui-scale-value">100%</span></span>
-                                    <span class="settings-row-desc">整体放大或缩小主窗口界面（直接调 Chromium 缩放），改完立即生效；窗口的最小尺寸会按同一比例跟着变，弹窗与小本本各自按固定尺寸排版，不跟着缩放</span>
+                                    <span class="settings-row-desc">按比例缩放主窗口界面（直接调整 Chromium 缩放），修改后立即生效；窗口最小尺寸按同一比例换算，弹窗与小本本按各自的固定尺寸排版，不随此项缩放</span>
                                 </div>
                                 <div class="settings-slider" id="ui-scale-slider">
                                     <div class="slider-track">
                                         <div class="slider-fill" aria-hidden="true"></div>
                                         <div class="slider-thumb" aria-hidden="true"></div>
                                         <input type="range" class="slider-range" id="setting-ui-scale" min="0" max="4" step="1"
-                                               value="2" aria-label="界面尺寸" aria-describedby="ui-scale-ticks">
+                                               value="2" aria-label="缩放比例" aria-describedby="ui-scale-ticks">
                                     </div>
                                     <div class="slider-ticks" id="ui-scale-ticks">
                                         <button type="button" class="slider-tick" data-value="0">小<span class="slider-tick-value">80%</span></button>
@@ -487,11 +489,11 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">自定义比例</span>
-                                    <span class="settings-row-desc">上面五档之外的尺寸在这里填（50 ~ 200 的整数百分比），回车或点「应用」生效；生效后会弹窗问是否保留，十秒内没有回应就回到默认的 100%</span>
+                                    <span class="settings-row-desc">填写五档之外的比例（50 ~ 200 的整数百分比），回车或点「应用」生效；生效后弹窗确认是否保留，未确认则恢复为默认的 100%</span>
                                 </div>
                                 <div class="settings-scale-custom">
                                     <input type="text" class="settings-number-input" id="ui-scale-custom" inputmode="numeric"
-                                           maxlength="3" placeholder="50 ~ 200" spellcheck="false" aria-label="自定义界面尺寸（百分比）">
+                                           maxlength="3" placeholder="50 ~ 200" spellcheck="false" aria-label="自定义缩放比例（百分比）">
                                     <span class="settings-number-suffix">%</span>
                                     <button class="settings-btn primary" id="btn-ui-scale-custom">应用</button>
                                 </div>
@@ -503,7 +505,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">界面风格</span>
-                                    <span class="settings-row-desc">默认风格沿用当前配色</span>
+                                    <span class="settings-row-desc">「默认风格」沿用当前配色；「Alom」使用另一套配色方案</span>
                                 </div>
                                 <select class="settings-select" id="setting-theme-style">
                                     <option value="default">默认风格</option>
@@ -550,7 +552,7 @@
                                 <input type="color" class="accent-color-input" id="accent-color-input" value="#58a6ff" title="打开系统取色器">
                                 <input type="text" class="accent-hex-input" id="accent-hex-input" spellcheck="false" maxlength="7" placeholder="#58A6FF" aria-label="十六进制颜色值">
                                 <button class="settings-btn primary" id="btn-accent-apply">应用</button>
-                                <span class="accent-custom-hint">支持 #RRGGBB 或 #RGB，留空则跟随主题</span>
+                                <span class="accent-custom-hint">支持 #RRGGBB 或 #RGB；留空则跟随主题</span>
                             </div>
 
                             <div class="accent-preview">
@@ -568,7 +570,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">左上角应用名</span>
-                                    <span class="settings-row-desc">标题栏左上角「EsprinNemo」的文字颜色，弹窗标题栏同步生效</span>
+                                    <span class="settings-row-desc">标题栏左上角「EsprinNemo」的文字颜色；弹窗标题栏同步生效</span>
                                 </div>
                                 <select class="settings-select" id="setting-brand-color">
                                     <option value="brand">品牌色</option>
@@ -631,14 +633,14 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">启用 AI 助手</span>
-                                    <span class="settings-row-desc">关闭后隐藏标题栏入口与对话面板，并停掉正在生成的回答；下方配置会原样保留，重新打开即恢复</span>
+                                    <span class="settings-row-desc">关闭后隐藏标题栏入口与对话面板，并中止正在生成的回答；下方配置原样保留，重新开启即恢复</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-ai-enabled">
                                     <span class="slider"></span>
                                 </label>
                             </div>
-                            <div class="settings-row-desc ai-status hidden" id="ai-disabled-hint">AI 功能已关闭，界面中不再显示任何 AI 入口。</div>
+                            <div class="settings-row-desc ai-status hidden" id="ai-disabled-hint">AI 助手已关闭：界面中不再显示任何 AI 入口。</div>
                         </div>
 
                         <div class="settings-section ai-config-section">
@@ -646,21 +648,21 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">API 站点</span>
-                                    <span class="settings-row-desc">兼容 OpenAI 协议的服务地址，可写到版本号一级（如 https://api.openai.com/v1），也可直接填写完整的 /chat/completions 地址</span>
+                                    <span class="settings-row-desc">兼容 OpenAI 协议的服务地址，可填到版本号一级（如 https://api.openai.com/v1），也可直接填写完整的 /chat/completions 地址</span>
                                 </div>
                                 <div class="ai-input-stack">
                                     <input type="text" class="settings-input mono" id="setting-ai-baseurl" spellcheck="false" placeholder="https://api.example.com/v1">
                                     <div class="ai-quick-fill">
                                         <span class="ai-quick-fill-label">快捷填入</span>
                                         <button class="ai-quick-chip" data-url="https://api.deepseek.com" title="https://api.deepseek.com">DeepSeek</button>
-                                        <button class="ai-quick-chip" data-url="http://localhost:11434" title="http://localhost:11434（Ollama 本地服务，密钥可留空）">Ollama</button>
+                                        <button class="ai-quick-chip" data-url="http://localhost:11434" title="http://localhost:11434（Ollama 本地服务，API Key 可留空）">Ollama</button>
                                     </div>
                                 </div>
                             </div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">API Key</span>
-                                    <span class="settings-row-desc">由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不会随 config.json 被复制或分享；输入后回车即保存，本地服务（如 Ollama）可留空</span>
+                                    <span class="settings-row-desc">由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不随 config.json 复制或分享；输入后回车即保存，本地服务（如 Ollama）可留空</span>
                                 </div>
                                 <div class="ai-input-stack">
                                     <div class="ai-input-group">
@@ -676,7 +678,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">模型</span>
-                                    <span class="settings-row-desc">填写模型名称，或用右侧按钮从站点拉取可选模型</span>
+                                    <span class="settings-row-desc">填写模型名称，也可从站点拉取可用模型列表</span>
                                 </div>
                                 <div class="ai-input-group">
                                     <input type="text" class="settings-input mono" id="setting-ai-model" spellcheck="false" placeholder="gpt-4o-mini" list="ai-model-list">
@@ -687,7 +689,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">连接测试</span>
-                                    <span class="settings-row-desc">用当前配置发送一条极短的对话请求，确认站点、KEY 与模型都能正常工作</span>
+                                    <span class="settings-row-desc">用当前配置发送一条最短的对话请求，验证站点、API Key 与模型均可用</span>
                                 </div>
                                 <div class="settings-actions">
                                     <button class="settings-btn primary" id="btn-ai-test">测试连接</button>
@@ -701,7 +703,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">默认附带范围</span>
-                                    <span class="settings-row-desc">提问时默认把哪些笔记发给 AI；在对话面板顶部还可以临时切换</span>
+                                    <span class="settings-row-desc">提问时默认附带哪些笔记；在对话面板顶部可临时切换</span>
                                 </div>
                                 <select class="settings-select" id="setting-ai-scope">
                                     <option value="current">仅当前笔记</option>
@@ -712,16 +714,16 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">单次最多附带笔记</span>
-                                    <span class="settings-row-desc">选择“全部笔记”时最多带上多少篇（按置顶与最近修改排序），1–100 之间</span>
+                                    <span class="settings-row-desc">「全部笔记」范围内最多附带的篇数（按置顶与最近修改排序），取值 1 ~ 100</span>
                                 </div>
                                 <input type="number" class="settings-input short" id="setting-ai-maxnotes" min="1" max="100" step="1">
                             </div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">系统提示词</span>
-                                    <span class="settings-row-desc">留空则使用内置提示词；填写后用于约束 AI 的身份与回答风格</span>
+                                    <span class="settings-row-desc">留空使用内置提示词；填写后用于约束 AI 的身份与回答风格</span>
                                 </div>
-                                <textarea class="settings-input textarea" id="setting-ai-system" spellcheck="false" rows="3" placeholder="例如：你是我的笔记整理助手，回答尽量分成要点列出。"></textarea>
+                                <textarea class="settings-input textarea" id="setting-ai-system" spellcheck="false" rows="3" placeholder="例如：作为笔记整理助手，回答按要点分条列出。"></textarea>
                             </div>
                         </div>
                     </div>
@@ -733,7 +735,7 @@
                             <div class="settings-row" id="setting-data-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">数据存放位置</span>
-                                    <span class="settings-row-desc">笔记（notes/）与待办（todos/）都是自带头部元数据的 Markdown 文件，连同偏好配置（config.json）一起保存在该目录中</span>
+                                    <span class="settings-row-desc">笔记（notes/）与待办（todos/）均为自带头部元数据的 Markdown 文件，连同偏好配置（config.json）一并保存在该目录中</span>
                                     <span class="settings-path">
                                         <span id="setting-data-dir-text">读取中…</span>
                                         <span class="settings-path-tag" id="setting-data-dir-tag">默认位置</span>
@@ -741,13 +743,111 @@
                                 </div>
                                 <div class="settings-actions">
                                     <button class="settings-btn" id="btn-data-open" title="在文件管理器中打开数据目录">打开文件夹</button>
-                                    <button class="settings-btn" id="btn-data-reset" title="改回默认数据目录" disabled>恢复默认</button>
+                                    <button class="settings-btn" id="btn-data-reset" title="恢复为默认数据目录" disabled>恢复默认</button>
                                     <button class="settings-btn primary" id="btn-data-change" title="选择新的数据存放位置">更改位置</button>
                                 </div>
                             </div>
                             <div class="settings-row-desc" id="data-dir-status">
-                                更改位置后会询问是否把现有数据一并迁移；切换即时生效，无需重启应用。
+                                更改位置时会询问是否迁移现有数据；切换即时生效，无需重启应用。
                             </div>
+                        </div>
+
+                        <div class="settings-section">
+                            <div class="settings-section-title">自建同步</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">启用自建同步</span>
+                                    <span class="settings-row-desc">使用自建同步服务端（EsprinServer.py）在多台设备之间同步：同步按操作日志进行，删除同样记为一条操作并重放，因此不会出现删除后被其他设备恢复的情况；关闭后仅收起下方配置，已填写的地址与令牌原样保留</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-sync-enabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row-desc sync-status hidden" id="sync-disabled-hint">自建同步已关闭：不会拉取也不会推送任何内容。</div>
+                        </div>
+
+                        <div class="settings-section sync-config-section">
+                            <div class="settings-section-title">服务器</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">服务器地址</span>
+                                    <span class="settings-row-desc">同步服务端的地址与端口（以 http / https 开头），可用「测试连接」验证连通性</span>
+                                </div>
+                                <input type="text" class="settings-input mono" id="setting-sync-url" spellcheck="false" placeholder="http://127.0.0.1:8686">
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">服务端项目</span>
+                                    <span class="settings-row-desc">服务端为独立发布的项目，仓库地址：https://github.com/TheOninesixY/EsprinServer（应用内附带的 server/EsprinServer.py 出自该仓库；源码、部署说明与更新见仓库）</span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-sync-repo" title="在系统浏览器中打开 EsprinServer 项目主页（https://github.com/TheOninesixY/EsprinServer）">打开项目主页</button>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">访问令牌</span>
+                                    <span class="settings-row-desc">在服务端管理页面（服务器地址加 /admin）创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
+                                </div>
+                                <div class="sync-input-stack">
+                                    <div class="sync-input-group">
+                                        <input type="password" class="settings-input mono" id="setting-sync-token" spellcheck="false" placeholder="令牌" autocomplete="off">
+                                        <button class="settings-btn icon-only" id="btn-sync-token-toggle" title="显示 / 隐藏输入的令牌">
+                                            <span class="ms-icon xs">visibility</span>
+                                        </button>
+                                        <button class="settings-btn hidden" id="btn-sync-token-clear" title="清除已保存的令牌">清除</button>
+                                    </div>
+                                    <span class="sync-hint" id="sync-token-hint">尚未保存令牌</span>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">设备名</span>
+                                    <span class="settings-row-desc">仅用于在服务端日志中区分改动的来源设备（设备另有自动生成的 id）；可留空</span>
+                                </div>
+                                <input type="text" class="settings-input mono" id="setting-sync-device" spellcheck="false" placeholder="例如：台式机">
+                            </div>
+                        </div>
+
+                        <div class="settings-section sync-config-section">
+                            <div class="settings-section-title">同步</div>
+                            <div class="settings-row" id="setting-sync-autosync-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">自动同步</span>
+                                    <span class="settings-row-desc">按间隔自动执行「拉取远端操作 → 重放 → 推送本地改动」；「自定义」可填写秒数或分钟数（5 秒 ~ 24 小时）。本地保存与删除即时推送，不依赖此间隔</span>
+                                </div>
+                                <div class="sync-input-stack">
+                                    <select class="settings-select" id="setting-sync-autosync">
+                                        <option value="off">不自动同步</option>
+                                        <option value="5s">每 5 秒</option>
+                                        <option value="1m">每 1 分钟</option>
+                                        <option value="5m">每 5 分钟</option>
+                                        <option value="startup">每次启动应用时</option>
+                                        <option value="custom">自定义…</option>
+                                    </select>
+                                    <div class="sync-interval-group hidden" id="setting-sync-autosync-custom-row">
+                                        <input type="number" class="settings-input short mono" id="setting-sync-autosync-value" min="5" step="1" title="按右侧的单位填写，5 秒 ~ 24 小时">
+                                        <select class="settings-select" id="setting-sync-autosync-unit">
+                                            <option value="second">秒</option>
+                                            <option value="minute">分钟</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">操作</span>
+                                    <span class="settings-row-desc">「立即同步」按当前设置同步一次；「首次接入」用于首次配置或服务端已有数据时：先将服务端日志完整重放到本地（以服务端为准，包含删除），再推送服务端不存在的本地文件</span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-sync-diagnose" title="生成诊断报告（服务端状态、待推送操作与接下来的重放计划）并打开">诊断</button>
+                                    <button class="settings-btn" id="btn-sync-test">测试连接</button>
+                                    <button class="settings-btn" id="btn-sync-import">首次接入</button>
+                                    <button class="settings-btn primary" id="btn-sync-now">立即同步</button>
+                                </div>
+                            </div>
+                            <div class="settings-row-desc sync-status" id="sync-status">正在读取配置…</div>
                         </div>
                     </div>
 
@@ -758,7 +858,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">开机时自动启动</span>
-                                    <span class="settings-row-desc">把 EsprinNemo 登记到系统的登录启动项：登录后自动启动并打开主窗口；另可开启下方的「显示托盘图标」，从托盘图标随时唤回主窗口或退出</span>
+                                    <span class="settings-row-desc">将 EsprinNemo 登记到系统登录启动项：登录后自动启动并打开主窗口；可配合「显示托盘图标」，从托盘图标唤回主窗口或退出</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-auto-launch">
@@ -773,7 +873,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">显示托盘图标</span>
-                                    <span class="settings-row-desc">在任务栏通知区域显示 EsprinNemo 图标：右键图标可打开主窗口 / 小本本、新建笔记、新建待办或进入设置；左键单击则直接把主窗口唤回前台</span>
+                                    <span class="settings-row-desc">在任务栏通知区域显示 EsprinNemo 图标：右键菜单可打开主窗口 / 小本本、新建笔记、新建待办或进入设置；左键单击将主窗口唤回前台</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-tray-enabled">
@@ -791,7 +891,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">自动检查并下载更新</span>
-                                    <span class="settings-row-desc">启动后自动向更新源检查新版本，发现新版本时在后台下载安装包；下载完成后会弹窗询问是否立即重启安装（弹窗里的「永不提醒」可以一次性关掉本项），不会在不经确认的情况下替换应用</span>
+                                    <span class="settings-row-desc">启动后自动检查新版本，发现新版本时在后台下载安装包；下载完成后弹窗询问是否立即重启安装（弹窗中的「永不提醒」可关闭本项），未经确认不会替换应用</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-auto-update">
@@ -802,7 +902,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">使用 gh-proxy 加速</span>
-                                    <span class="settings-row-desc">检查更新与下载安装包时先经 gh-proxy 公共代理转发，直连 GitHub 慢或不通时能明显快一些；代理不可用（或返回的内容不对）时自动回落直连</span>
+                                    <span class="settings-row-desc">检查更新与下载安装包时先经 gh-proxy 公共代理转发，可缓解直连 GitHub 缓慢或不通的问题；代理不可用或响应异常时自动回落直连</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-gh-proxy">
@@ -910,6 +1010,7 @@
     <script src="./scripts/editor.js"></script>
     <script src="./scripts/settings.js"></script>
     <script src="./scripts/data_location.js"></script>
+    <script src="./scripts/sync_server.js"></script>
     <script src="./scripts/tray.js"></script>
     <script src="./scripts/auto_launch.js"></script>
     <script src="./scripts/update.js"></script>
