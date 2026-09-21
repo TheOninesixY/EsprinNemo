@@ -112,10 +112,11 @@ function autoSyncIntervalMs(config) {
   return Number.isFinite(seconds) ? seconds * 1000 : 0;
 }
 
-// 参数是否齐到可以同步：地址必填，令牌可以不填（服务端允许匿名时）
+// 参数是否齐到可以同步：地址与访问令牌都是必需项（服务端对 /sync 一律要求凭据）
 function validateConfig(config) {
   if (!config.enabled) return { error: '自建同步尚未启用，请先在「设置 → 数据与存储」中打开' };
   if (!config.url) return { error: '请先填写同步服务器地址（以 http:// 或 https:// 开头）' };
+  if (!store.status().hasKey) return { error: '请先填写访问令牌（令牌在服务端管理后台 /admin 创建）' };
   return {};
 }
 

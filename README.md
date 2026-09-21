@@ -362,6 +362,7 @@ python EsprinServer.py --selftest
 - 日志：`<data>/journal.log`，一行一条操作（JSON Lines，append-only）；将日志从头重放一遍即为全部数据
 - 设置页「数据与存储 → 自建同步 → 服务端项目」的「打开项目主页」可在系统浏览器中打开该仓库
 - 令牌：在管理后台（见下）中创建与保存；同时兼容启动参数 `--token` 与环境变量 `ESPRIN_TOKEN`
+- 鉴权：`/sync/*` 一律要求凭据——客户端的访问令牌（`Authorization: Bearer`）或管理后台的登录会话；未携带凭据的请求一律返回 401，服务端未配置任何凭据时也只是拒绝并提示先去 `/admin` 建立凭据
 - 接口（同步）：`GET /sync/health`（不需要令牌，用于区分「地址错」与「令牌错」）、`GET /sync/ops?since=&limit=`、`POST /sync/ops`、`GET /sync/state`、`GET /sync/file?path=`
 - 幂等：每条操作带 `opId`，客户端重试时重复提交不会重复写入日志
 - 路径安全：只接受数据目录内的相对路径，`..`、绝对路径一律拒绝

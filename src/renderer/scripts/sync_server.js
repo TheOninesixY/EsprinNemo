@@ -170,7 +170,7 @@ function applySyncTokenStatus(status) {
     const hint = document.getElementById('sync-token-hint');
     if (hint) {
         if (!State.syncTokenSaved) {
-            hint.textContent = '尚未保存令牌：服务端以 --token 启动时，此处填写同一令牌。';
+            hint.textContent = '尚未保存令牌：服务端一律要求凭据，先在管理后台 /admin 创建访问令牌再填入。';
         } else if (State.syncTokenStrong) {
             hint.textContent = '已保存到系统密钥链（内存与磁盘上均为密文）。';
         } else {
@@ -216,7 +216,7 @@ async function commitSyncTokenFromForm() {
 async function clearSyncToken() {
     const confirmed = await showConfirm('清除已保存的同步令牌？', {
         title: '清除同步令牌',
-        detail: '清除后需重新填写令牌才能同步；服务器地址、设备名与自动同步设置不受影响。服务端未启用令牌时可留空。',
+        detail: '清除后需重新填写令牌才能同步；服务器地址、设备名与自动同步设置不受影响。'
         confirmLabel: '清除',
         danger: true
     });
@@ -347,8 +347,7 @@ async function testSyncConnection() {
             return;
         }
         setSyncStatus(`连接正常：${result.server} v${result.version}，最新序号 ${result.latestSeq}，`
-            + `服务端已有 ${result.fileCount} 个文件${result.deletedCount ? `、${result.deletedCount} 条删除记录` : ''}。`
-            + `${result.authRequired ? '' : '（服务端未启用令牌）'}`, 'ok');
+            + `服务端已有 ${result.fileCount} 个文件${result.deletedCount ? `、${result.deletedCount} 条删除记录` : ''}。`, 'ok');
         showToast('同步服务器连接正常');
     } catch (err) {
         console.error('测试同步连接失败:', err);
