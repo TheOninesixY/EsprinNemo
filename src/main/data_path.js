@@ -10,8 +10,10 @@ const DATA_DIR_ARG = '--esprin-nemo-data-dir=';
 // （见 src/win_installer/installer.nsh）读写的同一个文件。
 const DEFAULT_APP_DIR_NAME = 'esprin_nemo';
 const DATA_PATH_FILE_NAME = 'data_path.json';
-// 便携版的运行时目录名（Chromium profile：缓存 / Cookie / GPU 缓存 / 崩溃转储等）
+// 需要独立 Chromium profile 的两种运行方式各自的目录名
+// （profile：缓存 / Cookie / GPU 缓存 / 崩溃转储等）
 const USER_DATA_DIR_NAME = 'user_data';
+const DEV_USER_DATA_DIR_NAME = 'dev_user_data';
 
 function getApp(appLike = null) {
   if (appLike) return appLike;
@@ -110,14 +112,31 @@ function getLocationFile(appLike = null) {
   return configDir ? path.join(configDir, DATA_PATH_FILE_NAME) : null;
 }
 
-/* 便携版的运行时目录：Chromium 的 profile 放在程序目录下的 user_data/。
-   Electron 默认把 userData 放在 %APPDATA%\<产品名>，而其中的缓存、Cookie、GPU 缓存、
-   崩溃转储等都是实打实的写入——「便携版不写 %APPDATA%」若只覆盖应用自己的数据文件，
-   浏览器内核留下的那堆东西依然是系统盘上的痕迹（还会与安装版共用同一个 userData）。
-   非便携版返回 null，调用方保持 Electron 的默认位置。 */
-function getPortableUserDataDir() {
+/* 需要自己一份 Chromium profile 的运行方式（便携版、开发运行）对应的 userData 目录；
+   其余运行方式返回 null，调用方保持 Electron 的默认位置。
+
+   便携版：默认的 %APPDATA%\<产品名> 里的缓存、Cookie、GPU 缓存、崩溃转储都是实打实的写入，
+   「便携版不写 %APPDATA%」若只覆盖应用自己的数据文件，系统盘上照样会留下这一大堆，
+   还会与安装版共用同一个 profile。
+
+   开发运行：默认的 userData 与安装版完全相同，连带共用同一把单实例锁——
+   安装版还开着（缩在托盘里）时，`bun start` 会老老实实把「再次启动」交给安装版，
+   于是开发窗口一个都开不出来，现象就是「bun start 没有窗口，只有去点托盘才出来」。
+   与数据目录、API Key 一样，开发运行这部分也单独一份，两者互不干扰。 */
+function getIsolatedUserDataDir(appLike = null) {
   const portable = resolvePortableDir();
-  return portable ? path.join(portable, USER_DATA_DIR_NAME) : null;
+  if (portable) return path.join(portable, USER_DATA_DIR_NAME);
+  if (!isDevRun(appLike)) return null;
+  /* 开发运行的隔离目录不是硬要求（便携版才是）：建不出来 / 写不进去时老老实实退回默认 profile。
+     默认 profile 大不了与安装版共用，而指一个写不进去的目录会让 Chromium 直接起不来 */
+  const configDir = getAppDataConfigDir(appLike);
+  if (!configDir) return null;
+  const dir = path.join(configDir, DEV_USER_DATA_DIR_NAME);
+  if (!ensureDirUsable(dir)) {
+    console.warn('[Esprin Nemo] 开发运行的独立运行时目录不可用，沿用默认 profile:', dir);
+    return null;
+  }
+  return dir;
 }
 
 // 记录里的路径统一以正斜杠保存：安装向导（NSIS）不擅长转义反斜杠，这样两边都能安全读写
@@ -384,7 +403,7 @@ module.exports = {
   getConfigDir,
   getAppDataConfigDir,
   getLocationFile,
-  getPortableUserDataDir,
+  getIsolatedUserDataDir,
   getDefaultDataDir,
   writeFileAtomic,
   writeStoredDataDir,

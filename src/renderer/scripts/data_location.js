@@ -108,6 +108,8 @@ function adoptDataDir(dir, options = {}) {
         themeStyle: State.themeStyle,
         accentColor: State.accentColor,
         cornerRadius: State.cornerRadius,
+        // 界面尺寸（缩放）也属于外观偏好：新位置没有配置时沿用当前的缩放比例
+        uiScale: State.uiScale,
         spellcheck: State.spellcheck,
         // 界面布局同样属于偏好：新位置没有配置时沿用当前位置的布局
         uiMode: State.uiMode,
@@ -135,6 +137,7 @@ function adoptDataDir(dir, options = {}) {
         State.themeStyle = saved.themeStyle;
         State.accentColor = saved.accentColor;
         State.cornerRadius = saved.cornerRadius;
+        State.uiScale = saved.uiScale;
         State.spellcheck = saved.spellcheck;
         State.uiMode = saved.uiMode;
         State.tabsDisabled = saved.tabsDisabled === true;
@@ -153,6 +156,7 @@ function adoptDataDir(dir, options = {}) {
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
         State.cornerRadius = prefs.cornerRadius;
+        State.uiScale = prefs.uiScale;
         State.spellcheck = prefs.spellcheck;
         State.uiMode = prefs.uiMode;
         State.tabsDisabled = prefs.tabsDisabled === true;
@@ -200,6 +204,7 @@ function adoptDataDir(dir, options = {}) {
     applyTheme();
     applyThemeStyle();
     applyCornerRadius();
+    applyUiScale();
     applySpellcheck();
     applyFonts();
     applySidebarCollapsed();
@@ -209,6 +214,7 @@ function adoptDataDir(dir, options = {}) {
     syncAccentControls();
     syncThemeStyleSelect();
     syncCornerRadiusControl();
+    syncUiScaleControl();
     syncTrashRetentionSelect();
     syncAiSettingsUI();
     syncUiModeUI();

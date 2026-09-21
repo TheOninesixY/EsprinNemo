@@ -17,6 +17,8 @@ window.onload = () => {
     State.accentColor = normalizeAccentColor(saved.accentColor);
     State.brandColor = normalizeBrandColor(saved.brandColor);
     State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
+    // 界面尺寸（缩放比例）：首屏已由 boot.js 按配置缩放，这里只接管后续的读写
+    State.uiScale = normalizeUiScale(saved.uiScale);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
     // 界面布局（经典 / 现代，默认现代）：现代布局不排标题栏，标签页移到工作区顶部
     State.uiMode = normalizeUiMode(saved.uiMode);
@@ -74,6 +76,7 @@ window.onload = () => {
     initAccentColor();
     initBrandColor();
     initCornerRadius();
+    initUiScale();
     applySpellcheck();
     initFonts();
     applySidebarCollapsed();

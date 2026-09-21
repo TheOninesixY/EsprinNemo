@@ -94,6 +94,19 @@
     font-weight: 500;
     color: var(--text-primary);
 }
+/* 行内当前值（例如界面尺寸的 125%）：跟在行标题后面，随设置即时变化 */
+.settings-value {
+    margin-left: 8px;
+    padding: 1px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-body);
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    font-weight: 500;
+    /* 数字等宽：拖动滑块时徽标宽度不跟着跳 */
+    font-variant-numeric: tabular-nums;
+}
 .settings-row-desc {
     font-size: 12px;
     color: var(--text-secondary);
@@ -319,26 +332,27 @@
     color: var(--text-primary);
 }
 
-/* 圆角尺度滑块（四档）：轨道左侧已选部分用主题色填充，档位文字可点选。
+/* 自绘滑块（圆角尺度 / 界面尺寸共用）：轨道左侧已选部分用主题色填充，档位文字可点选。
    进度条与滑块都是自绘元素（原生 range 透明叠在上面只负责交互），
    因此落档时滑块会滑到新位置、进度条同步长过去；拖动时取消补间保持跟手，
    档位文字在此期间保持不变，松手吸附到最近档位后才更新高亮。 */
-.radius-slider {
+.settings-slider {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 4px;
     width: 220px;
-    /* --radius-pos：滑块位置比例 0~1；--radius-fill：已选进度比例，均由 syncCornerRadiusControl 写入 */
-    --radius-pos: 0;
-    --radius-fill: 0%;
+    /* --slider-pos：滑块位置比例 0~1；--slider-fill：已选进度比例，
+       均由 scripts/appearance.js 的 setSliderPosition 写入 */
+    --slider-pos: 0;
+    --slider-fill: 0%;
 }
-.radius-track {
+.slider-track {
     position: relative;
     height: 18px;
 }
 /* 轨道底线：居中 4px 圆头 */
-.radius-track::before {
+.slider-track::before {
     content: "";
     position: absolute;
     left: 0;
@@ -349,22 +363,22 @@
     border-radius: var(--radius-pill);
     background: var(--border-color);
 }
-.radius-fill {
+.slider-fill {
     position: absolute;
     left: 0;
     top: 50%;
     height: 4px;
-    width: var(--radius-fill);
+    width: var(--slider-fill);
     transform: translateY(-50%);
     border-radius: var(--radius-pill);
     background: var(--accent);
     transition: width .22s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.radius-thumb {
+.slider-thumb {
     position: absolute;
     top: 50%;
     /* 位置用比例算：两端正好留出滑块半径，与原生 range 的行程一致 */
-    left: calc(var(--radius-pos) * (100% - 14px));
+    left: calc(var(--slider-pos) * (100% - 14px));
     width: 14px;
     height: 14px;
     margin-top: -7px;
@@ -377,16 +391,16 @@
     pointer-events: none;
     transition: left .22s cubic-bezier(0.22, 0.61, 0.36, 1), transform .12s;
 }
-.radius-track:hover .radius-thumb {
+.slider-track:hover .slider-thumb {
     transform: scale(1.12);
 }
 /* 正在拖动：取消补间，滑块跟手而不滞后 */
-.radius-slider.is-dragging .radius-thumb,
-.radius-slider.is-dragging .radius-fill {
+.settings-slider.is-dragging .slider-thumb,
+.settings-slider.is-dragging .slider-fill {
     transition: none;
 }
 /* 原生 range：整体透明叠在轨道上，只提供拖动 / 点击 / 键盘操作 */
-.radius-range {
+.slider-range {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -397,11 +411,11 @@
     background: transparent;
     cursor: pointer;
 }
-.radius-range::-webkit-slider-runnable-track {
+.slider-range::-webkit-slider-runnable-track {
     height: 100%;
     background: transparent;
 }
-.radius-range::-webkit-slider-thumb {
+.slider-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
     width: 14px;
@@ -410,11 +424,15 @@
     border: none;
     box-shadow: none;
 }
-.radius-ticks {
+.slider-ticks {
     display: flex;
     justify-content: space-between;
 }
-.radius-tick {
+.slider-tick {
+    /* 竖排：档位名在上、数值在下（圆角尺度只有档位名，排出来与单行一样） */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     padding: 0;
     background: transparent;
     color: var(--text-muted);
@@ -424,10 +442,55 @@
     cursor: pointer;
     transition: color .15s;
 }
-.radius-tick:hover { color: var(--text-primary); }
-.radius-tick.active {
+.slider-tick:hover { color: var(--text-primary); }
+.slider-tick.active {
     color: var(--accent);
     font-weight: 600;
+}
+/* 档位下面的数值（界面尺寸用）：字号更小、颜色更淡，选中时跟着变成主题色 */
+.slider-tick-value {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
+}
+.slider-tick.active .slider-tick-value {
+    color: var(--accent);
+    opacity: 1;
+}
+
+/* 界面尺寸的「自定义比例」：数字输入框 + 「%」+ 应用按钮 */
+.settings-scale-custom {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.settings-number-input {
+    width: 84px;
+    padding: 6px 10px;
+    background: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    text-align: center;
+    /* 数字等宽：输入 88 与 111 时字距不跟着跳 */
+    font-variant-numeric: tabular-nums;
+    user-select: text;
+    transition: border-color .15s;
+}
+.settings-number-input::placeholder {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+.settings-number-input:hover { border-color: var(--text-muted); }
+.settings-number-input:focus { border-color: var(--accent); }
+.settings-number-suffix {
+    font-size: 12px;
+    color: var(--text-muted);
 }
 .font-preview {
     font-family: var(--font-doc);

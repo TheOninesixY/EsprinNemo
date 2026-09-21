@@ -189,7 +189,8 @@ html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .workspace-tabs {
    只在编辑器打开时出现（:has 判定编辑器顶栏有没有被收起）；经典布局下不显示。
    位置与侧边栏收起与否无关——顶栏里不再另备一枚，免得收起侧边栏时「返回」
    在两处之间跳（那一枚带文字的老长相已随这次改动去掉）。
-   标签栏被「禁用标签页」整条收起时，这一格正好落在编辑器顶栏上，由顶栏让出 40px（见下面那段）。 */
+   标签栏被「禁用标签页」整条收起时，这一格正好落在编辑器顶栏上，由顶栏让出 40px（见下面那段）。
+   图标也跟着标签页走：标签页开着时是首页图标，「禁用标签页」时回到返回箭头（见下面「返回」的两枚图标）。 */
 /* 「返回」占下的那一格：标签栏左端的 padding-left、标签栏左端的遮罩（见上面「标签栏两端的遮罩」）
    与「禁用标签页」时编辑器顶栏让出的那一格，三处都跟着这一个值走，不再各写一遍 */
 html.modern-layout {
@@ -197,6 +198,20 @@ html.modern-layout {
 }
 .tabs-back {
     display: none;
+}
+/* 「返回」的两枚图标（同一枚按钮里各一个，同时只显示一个）：
+   现代布局开着标签页时它钉在标签栏最左端，标签栏已经在手边、再往前退一步只剩「回到首页」，
+   因此换成首页图标；「禁用标签页」时它落在编辑器顶栏那一格上，仍用原来的返回箭头。
+   这一档全交给 CSS：html 上的两个类名首屏前就已落定（见 boot.js），
+   图标随类名一起换，不必等脚本起来，也就没有「先画箭头再翻成首页」那一下 */
+.tabs-back .tabs-back-icon-home {
+    display: none;
+}
+html.modern-layout:not(.tabs-disabled) .tabs-back .tabs-back-icon-back {
+    display: none;
+}
+html.modern-layout:not(.tabs-disabled) .tabs-back .tabs-back-icon-home {
+    display: inline-flex;
 }
 html.modern-layout .tabs-back {
     display: flex;

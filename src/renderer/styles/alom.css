@@ -119,6 +119,14 @@
 :root.light[data-theme-style="alom"] .tab-item.active {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
 }
+/* 拖动排序中的标签（见 base.css 的 .tab-item.is-dragging）：投影再抬高一档。
+   Alom 的 .tab-item.active 选择器更具体，不在这里补一条就会盖掉拖动时的「抬起」观感 */
+:root[data-theme-style="alom"] .tab-item.is-dragging {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+:root.light[data-theme-style="alom"] .tab-item.is-dragging {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
 
 /* ===== 卡片类容器：去硬边框，改用柔和投影 ===== */
 :root[data-theme-style="alom"] .settings-row,

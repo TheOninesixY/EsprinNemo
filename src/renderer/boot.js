@@ -1,5 +1,5 @@
-/* 首屏引导：渲染进程共享依赖 + 在首次绘制前同步应用主题与字体，杜绝闪烁 */
-const { ipcRenderer } = require('electron');
+/* 首屏引导：渲染进程共享依赖 + 在首次绘制前同步应用主题、字体与界面尺寸，杜绝闪烁 */
+const { ipcRenderer, webFrame } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -12,6 +12,25 @@ const MODERN_LAYOUT_CLASS = 'modern-layout';
 // 现代布局里「禁用标签页」的状态类：同样挂在 <html> 上，首个渲染帧前就要落定，
 // 免得先画出一整条标签页再收起（见 styles/mode.css 与 scripts/mode.js）。
 const TABS_DISABLED_CLASS = 'tabs-disabled';
+
+/* 界面尺寸（缩放比例）：直接落到 Chromium 缩放上（webFrame.setZoomFactor），1 为 100%。
+   取值范围 50%~200%（见 scripts/appearance.js 的自定义输入框）。
+
+   取值规则写在引导脚本里而不是 appearance.js：本文件先于页面其余脚本执行，
+   首屏就能按最终比例排版，不会先按 100% 画一遍再整屏缩放；
+   normalizeUiScale 也被设置页与配置文件读写复用，几处用的是同一套取值。 */
+const UI_SCALE_MIN = 0.5;
+const UI_SCALE_MAX = 2;
+const UI_SCALE_DEFAULT = 1;
+
+// 取值整理：非数字回落到 100%，超出范围夹到两端，并对齐到 1% 的整数倍
+//（按整数百分比换算，避开浮点误差，免得存出 1.1000000000000001 这类值）
+function normalizeUiScale(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return UI_SCALE_DEFAULT;
+    const clamped = Math.min(Math.max(num, UI_SCALE_MIN), UI_SCALE_MAX);
+    return Math.round(clamped * 100) / 100;
+}
 
 // 便携版运行标记：主进程判断后通过 --esprin-nemo-portable 告知（见 src/main/updater.js），
 // 环境变量作为兜底。便携版每次启动都会解压到临时目录，没有稳定的可升级目标，
@@ -53,6 +72,7 @@ try {
     let themeStyle = 'default';
     let brandColor = 'brand';
     let cornerRadius = 'default';
+    let uiScale = 1;
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config && config.theme) theme = config.theme;
@@ -61,6 +81,7 @@ try {
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
         if (config && typeof config.brandColor === 'string') brandColor = config.brandColor;
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
+        if (config && config.uiScale !== undefined) uiScale = config.uiScale;
 
         // 侧边栏收起状态也在这里落定：首屏直接按收起态绘制，
         // 否则会先画出一整个展开的侧边栏，再补播一次收起动效。
@@ -81,6 +102,10 @@ try {
             }
         }
     }
+
+    // 界面尺寸：无论配置里有没有这一项都显式设置一次——Chromium 会按页面来源记住缩放，
+    // 上一轮遗留的比例不能盖过配置（用户把 150% 调回 100% 后重启，界面必须真的回到 100%）
+    webFrame.setZoomFactor(normalizeUiScale(uiScale));
 
     // 'system' 由这里折算成实际明暗色：样式表只认 light / dark
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);

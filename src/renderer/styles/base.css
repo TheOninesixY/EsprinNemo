@@ -199,6 +199,22 @@ input, textarea, select {
     color: var(--text-primary);
     font-weight: 500;
 }
+/* 拖动排序中的标签：抬起来一层（底色 + 阴影），跟着指针左右移动（见 scripts/render.js 的标签栏拖动排序）。
+   过渡全部关掉，否则跟手时会有迟滞；换位时其余标签让位由布局自身完成，不需要动画 */
+.tab-item.is-dragging {
+    z-index: 5;
+    background-color: var(--bg-elevated);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    transition: none;
+}
+/* 拖动期间整条标签栏都是抓手光标：指针掠过别的标签时不该又变回小手 */
+.tab-item.is-dragging,
+.titlebar-tabs.is-dragging .tab-item,
+.workspace-tabs.is-dragging .tab-item {
+    cursor: grabbing;
+}
 .tab-item .tab-title {
     flex: 1;
     min-width: 0;

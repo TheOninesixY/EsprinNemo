@@ -1,9 +1,11 @@
 /* 动效层：进场动画与换肤交叉淡入。只负责「动」，不改变任何静默状态下的外观——
    抽掉本文件的 <link>（或系统开启「减少动态效果」），界面回到原来的静态样子。
 
-   为什么只有进场动画：界面的显示 / 隐藏统一走 .hidden（display: none !important，
+   为什么基本都是进场动画：界面的显示 / 隐藏统一走 .hidden（display: none !important，
    见 base.css），元素一旦不再渲染，退场动画就没有播放的机会——要做退场得先在 JS 里
    把元素留到动画结束再摘掉，代价与风险都不小；而这里要的效果只是「不生硬」，进场足够。
+   唯一的例外是标签栏：它本来就是整段重建出来的，「留下来播完再摘掉」由 JS 自己兜着
+   （见下面第 7 节与 scripts/render.js 的 playTabCloseFlyAway），关标签于是也能有退场。
 
    时长与曲线统一取 tokens.css 的 --motion-* / --ease-* 令牌：进场用 --motion-slow
    （0.26s）让位移看得出来，纯透明度用 --motion-base（0.18s）。
@@ -128,7 +130,76 @@ html.appearance-fading *::after {
     animation: fadeIn var(--motion-slow) var(--ease-out);
 }
 
-/* ---------- 6. 动效偏好 ---------- */
+/* ---------- 6. 新开标签：从左边滑入 ---------- */
+
+/* 新开的标签从左边滑进来：类名由 scripts/render.js 在重画时按「栏里多出来的那个 id」挂上
+   （切布局不算，那时两栏的差会把整排标签都算成新开的）。
+   标签的槽位是当场就位的（排在它前面的那些不等它），所以这里的位移只是「从哪儿冒出来」——
+   向左偏一点、同时淡入，看得出是从左边过来的就够了；和下面「关闭」那一段是一对，一进一出。 */
+@keyframes tabSlideIn {
+    from { opacity: 0; transform: translateX(-12px); }
+}
+.tab-item.is-sliding-in {
+    animation: tabSlideIn var(--motion-slow) var(--ease-out);
+}
+
+/* ---------- 7. 关闭标签：滑出窗口 ---------- */
+
+/* 关标签时，JS 把标签「复印」一份挂到 body 上再播动画（见 scripts/render.js 的
+   playTabCloseFlyAway）：固定定位在原标签的位置、沿用它的尺寸，于是脱离了标签栏的
+   overflow 裁剪，能整块滑到窗口之外——留在栏里的话只会被栏口切掉一角。
+   位置与尺寸由 JS 逐像素写死（都是量出来的），这里只管「怎么动」；
+   forwards 是为了让最后一帧（已滑走、已透明）停在原地直到 animationend 摘除节点，
+   否则动画结束那一刻会闪回起始态。
+
+   「补空位」那一段不在这里：它要带着「等飞出去的那个走完」的延迟起步，是 JS 按两段时间
+   排出来的（Web Animations，见 scripts/render.js 的 applyTabCloseShift），写在那边更好读。 */
+
+/* 向上：直接挂 body、固定定位——它要飞出窗口上沿，必须脱开标签栏那层裁剪。 */
+.tab-item.is-flying-up {
+    position: fixed;
+    margin: 0;
+    /* 盖过标签栏所在的标题栏（z-index: 100，见 base.css），又低于各种浮层
+       （下拉 300 / 确认框与提示 400，见 dropdown.css / overlays.css） */
+    z-index: 200;
+    /* 复印件只是画面：别去接指针，否则它会挡住它飞过的那一片标题栏 */
+    pointer-events: none;
+    animation: tabFlyAway var(--motion-slow) var(--ease-standard) forwards;
+}
+/* 一路加速向上（--ease-standard 是「起步慢、收尾快」的那条曲线，正好是「被抽走」的观感）。
+   标签栏本来就贴着窗口顶部，这段位移很短，所以前半程保持不透明，让它先走完再淡掉；
+   末尾再收小一点，避免最后那一下看着像被硬裁掉。 */
+@keyframes tabFlyAway {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    55% { opacity: 1; }
+    to { opacity: 0; transform: translateY(calc(-1 * var(--tab-fly-distance, 48px))) scale(0.9); }
+}
+
+/* 向左：关掉的是栏里仅剩的那一个标签时走这一条（关完标签栏就空了，向上飞走没有下文）。
+   这一份方向相反——要留在标签栏里，而复印件本身不受栏那层 overflow 约束，于是先套一个
+   与标签栏等大的裁剪框（位置由 JS 摆好，见 buildTabFlyClip）：它向左滑出栏左端的部分
+   直接被裁掉，不会飘到栏外面去。滑程 --tab-slide-distance 由 JS 给出（就是它自己那一格宽）。
+   透明度比位移先掉完：前 30% 不动，接着在滑行途中淡到看不见，被裁到的时候已经淡了。 */
+.tab-fly-clip {
+    position: fixed;
+    overflow: hidden;
+    z-index: 200;
+    pointer-events: none;
+}
+.tab-item.is-flying-left {
+    position: absolute;
+    margin: 0;
+    pointer-events: none;
+    animation: tabSlideAway var(--motion-slow) var(--ease-standard) forwards;
+}
+@keyframes tabSlideAway {
+    from { opacity: 1; transform: translateX(0); }
+    30% { opacity: 1; }
+    75% { opacity: 0; }
+    to { opacity: 0; transform: translateX(calc(-1 * var(--tab-slide-distance, 120px))); }
+}
+
+/* ---------- 8. 动效偏好 ---------- */
 
 /* 系统开启「减少动态效果」时，本文件的动画全部停掉
    （基础过渡与图标按压缩放的降级在 base.css，两边合起来才是完整的降级）。
@@ -146,6 +217,9 @@ html.appearance-fading *::after {
     #empty-state,
     #empty-state > .ms-icon,
     #notes-list-box.list-enter > *,
+    .tab-item.is-sliding-in,
+    .tab-item.is-flying-up,
+    .tab-item.is-flying-left,
     .dialog-container,
     .note-container {
         animation: none !important;

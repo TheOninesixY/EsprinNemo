@@ -23,6 +23,9 @@ const State = {
     brandColor: 'brand',
     // 圆角尺度：square（方）/ slight（微圆角）/ default（默认）/ large（大）
     cornerRadius: 'default',
+    // 界面尺寸（缩放比例）：1 为 100%，直接改 Chromium 缩放，只作用于主窗口
+    //（取值规则见 boot.js 的 UI_SCALE_*，应用见 scripts/appearance.js）
+    uiScale: 1,
     spellcheck: false,
     // 界面布局：modern（现代布局：不排标题栏，标签页移到工作区顶部，见 scripts/mode.js）
     // / classic（经典布局：标题栏与标签页照旧）；现代布局是默认布局

@@ -148,6 +148,9 @@ function openSettingsTab() {
 }
 
 function closeTab(noteId) {
+    // 先播退场动效再改状态：此刻标签还在栏里，它现在的位置就是动画的起点
+    // （见 render.js 的 playTabCloseFlyAway）
+    playTabCloseFlyAway(noteId);
     State.openNoteIds = State.openNoteIds.filter(id => id !== noteId);
     if (State.activeNoteId === noteId) {
         State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;

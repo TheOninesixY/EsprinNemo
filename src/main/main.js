@@ -7,8 +7,8 @@ const {
   ensureDataDir,
   ensureDirUsable,
   getDefaultDataDir,
+  getIsolatedUserDataDir,
   getLocationFile,
-  getPortableUserDataDir,
   getStartupBlocker,
   isDevRun,
   isPortableRun: isPortableDataRun,
@@ -43,31 +43,32 @@ const IS_PORTABLE_RUN = isPortableRun();
 const IS_PORTABLE_DATA_RUN = isPortableDataRun();
 const DATA_DIR_LOCKED_MESSAGE = '当前为开发运行（bun start），数据固定存放在项目内的 data/ 目录，无法更改数据存放位置。';
 
-/* 便携版：把 Chromium 的 profile（缓存 / Cookie / GPU 缓存 / 崩溃转储 / 日志）也挪进程序目录。
-   它默认落在 %APPDATA%\<产品名> 下，而这些都是实打实的写入——「便携版不写 %APPDATA%」
-   若只覆盖应用自己的数据文件，系统盘上照样会留下这一大堆，还会与安装版共用同一个 profile。
+/* 便携版与开发运行各自用一份 Chromium profile（缓存 / Cookie / GPU 缓存 / 崩溃转储 / 日志，
+   见 data_path.js 的 getIsolatedUserDataDir）：便携版是为了不写 %APPDATA%，
+   开发运行则是为了不与安装版共用同一把单实例锁（共用时，安装版还开着的情况下
+   bun start 会把启动交给安装版，开发窗口一个都开不出来）。
    必须在 app ready 之前设置，也要早于单实例锁（锁文件就在这个目录里）。 */
-const PORTABLE_USER_DATA_DIR = getPortableUserDataDir();
-if (PORTABLE_USER_DATA_DIR) {
+const ISOLATED_USER_DATA_DIR = getIsolatedUserDataDir();
+if (ISOLATED_USER_DATA_DIR) {
   try {
-    // 程序目录不可写时这里会失败：交给启动检查弹窗说明，但路径照旧指过去，
-    // 让 Chromium 写不进去也不去碰 %APPDATA%
-    fs.mkdirSync(PORTABLE_USER_DATA_DIR, { recursive: true });
+    // 目录建不出来时（便携版程序目录只读、开发运行下配置目录不可写）这里会失败：
+    // 便携版由启动检查弹窗说明；开发运行在取目录时就已经退回默认 profile 了（见 data_path.js）
+    fs.mkdirSync(ISOLATED_USER_DATA_DIR, { recursive: true });
   } catch (error) {
-    console.warn('[Esprin Nemo] 创建便携版运行时目录失败:', error.message);
+    console.warn('[Esprin Nemo] 创建独立运行时目录失败:', error.message);
   }
 
   for (const name of ['userData', 'sessionData', 'crashDumps']) {
     try {
       // 崩溃转储单独起一个子目录，不把转储文件混在 profile 根目录里
-      app.setPath(name, name === 'crashDumps' ? path.join(PORTABLE_USER_DATA_DIR, 'Crashpad') : PORTABLE_USER_DATA_DIR);
+      app.setPath(name, name === 'crashDumps' ? path.join(ISOLATED_USER_DATA_DIR, 'Crashpad') : ISOLATED_USER_DATA_DIR);
     } catch (error) {
       // 个别 Electron 版本没有 sessionData 这一项，其余路径照常设置
       console.warn(`[Esprin Nemo] 设置 ${name} 路径失败:`, error.message);
     }
   }
   try {
-    app.setAppLogsPath(path.join(PORTABLE_USER_DATA_DIR, 'logs'));
+    app.setAppLogsPath(path.join(ISOLATED_USER_DATA_DIR, 'logs'));
   } catch (error) {
     console.warn('[Esprin Nemo] 设置日志目录失败:', error.message);
   }
@@ -461,6 +462,15 @@ ipcMain.handle('window:toggle-fullscreen', (event) => {
   return next;
 });
 
+/* 界面尺寸（Chromium 缩放）变更：最小尺寸按同一比例换算。
+   缩放由渲染进程直接落在页面上（见 src/renderer/boot.js），主进程只需跟着调最小尺寸。 */
+ipcMain.handle('window:ui-scale', (event, scale) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) return;
+  const size = scaleMinWindowSize(Number(scale));
+  win.setMinimumSize(size.width, size.height);
+});
+
 // 系统字体列表：渲染进程可通过 Local Font Access API 直接获取，这里作为兜底
 let cachedSystemFonts = null;
 ipcMain.handle('fonts:list', () => {
@@ -588,6 +598,25 @@ ipcMain.handle('data:open-dir', async () => {
 const WINDOW_MIN_WIDTH = 860;
 const WINDOW_MIN_HEIGHT = 600;
 
+/* 界面尺寸（Chromium 缩放比例，1 = 100%）：窗口里的 CSS 视口 = 窗口尺寸 ÷ 缩放比例，
+   界面放到 200% 时，860px 宽的最小窗口只剩 430px 可用，正好会撞上上面那条防线。
+   因此最小尺寸按同一比例一起放大（缩小界面时也允许把窗口拖得更小）。
+   取值范围与渲染进程一致，见 src/renderer/boot.js 的 UI_SCALE_*。 */
+function resolveUiScale() {
+  const raw = Number(readUserConfig().uiScale);
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  return Math.min(Math.max(raw, 0.5), 2);
+}
+
+// 最小尺寸按缩放比例换算：比例非法时按 100% 处理
+function scaleMinWindowSize(scale) {
+  const factor = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  return {
+    width: Math.round(WINDOW_MIN_WIDTH * factor),
+    height: Math.round(WINDOW_MIN_HEIGHT * factor)
+  };
+}
+
 /* 便携版写不进数据目录时的说明文案：把「哪里写不进去」与「怎么恢复」都写清楚，
    用户不必去翻文档。三种原因都会给出「重新选择路径」这条出路。 */
 function dataDirBlockerDialog(blocker) {
@@ -712,6 +741,15 @@ function abortStartup(blocker) {
   app.quit();
 }
 
+/* 主窗口的显示时机：正常情况下等 ready-to-show——首帧画完再显示，不会先闪一下白底。
+   但 ready-to-show 依赖渲染进程真的交出第一帧：软件渲染 / 远程桌面 / GPU 进程重启，
+   或首帧只画了底色还没画内容时，这个事件可能一直不来，窗口就永远不显示——
+   现象正是「应用在跑、托盘图标也在，就是没有窗口，只有去点托盘才出来」。
+   因此再备两条兜底：页面加载完成后再显示一次、以及最多等 REVEAL_FALLBACK_MS。
+   走兜底时打一条 warn，方便在终端里看出到底是哪条路把窗口显示出来的。 */
+const REVEAL_DELAY = 90;
+const REVEAL_FALLBACK_MS = 2500;
+
 function createWindow() {
   Menu.setApplicationMenu(null);
 
@@ -726,11 +764,15 @@ function createWindow() {
     style: resolveThemeStyle()
   }).backgroundColor;
 
+  // 界面尺寸（缩放）在渲染进程里落定（见 src/renderer/boot.js），
+  // 这里只按同一比例把窗口的最小尺寸一起放大
+  const minSize = scaleMinWindowSize(resolveUiScale());
+
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    minWidth: WINDOW_MIN_WIDTH,
-    minHeight: WINDOW_MIN_HEIGHT,
+    minWidth: minSize.width,
+    minHeight: minSize.height,
     frame: false,
     show: false,
     autoHideMenuBar: true,
@@ -751,8 +793,25 @@ function createWindow() {
     }
   });
 
-  win.once('ready-to-show', () => {
+  let revealed = false;
+  const reveal = (reason) => {
+    if (revealed || win.isDestroyed()) return;
+    revealed = true;
+    if (reason !== 'ready-to-show') {
+      console.warn(`[Esprin Nemo] ready-to-show 没有来到，已按「${reason}」显示主窗口`);
+    }
     win.show();
+  };
+  win.once('ready-to-show', () => reveal('ready-to-show'));
+  // 兜底一：页面加载完成（主进程收不到首帧时，这一条通常能接住）
+  win.webContents.once('did-finish-load', () => setTimeout(() => reveal('did-finish-load'), REVEAL_DELAY));
+  // 兜底二：页面卡在加载中时也不至于一直没有窗口
+  const revealTimer = setTimeout(() => reveal('超时'), REVEAL_FALLBACK_MS);
+  win.once('closed', () => clearTimeout(revealTimer));
+
+  // 渲染进程崩了的话窗口同样会停在「没显示」：留下一条能查的线索
+  win.webContents.on('render-process-gone', (event, details) => {
+    console.error('[Esprin Nemo] 主窗口渲染进程已退出:', details && details.reason);
   });
 
   // 关闭主窗口：托盘开启时一律收进托盘（图标就是重新打开界面的入口）；
@@ -790,7 +849,17 @@ function createWindow() {
 // 单实例锁：数据是磁盘上的一组文件，两个实例并发写入会互相覆盖，
 // 因此后启动的实例直接退出，并由既有实例把窗口带到前台。
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
-if (!hasSingleInstanceLock) app.quit();
+if (!hasSingleInstanceLock) {
+  /* 已有实例在运行（托盘里那个就是它）：它会在 second-instance 里把窗口带到前台。
+     这里用 exit 而不是 quit——quit 要先走完「关闭所有窗口」那一套流程，在 app ready 之前
+     调用时压不住进程，会留下一份既没有窗口、也没有托盘的残影：开发时看到的就是
+     「bun start 跑了，但没有窗口」，而唯一的界面入口只能去托盘的既有实例里找。 */
+  console.warn('[Esprin Nemo] 已有实例在运行（单实例锁被占用），本次启动已交给它，进程退出');
+  app.exit(0);
+}
+
+// 启动是否已经走到「窗口已创建」：second-instance 据此判断该自己去开窗口还是等启动流程
+let startupReady = false;
 
 // 单实例锁的既有实例被再次启动时：把已有的主窗口带到前台。
 // 主窗口此前被收起（小本本仍在运行或应用已缩进托盘）时，
@@ -798,11 +867,26 @@ if (!hasSingleInstanceLock) app.quit();
 app.on('second-instance', () => {
   // 正在退出（例如安装更新时）就不要再开窗口了
   if (isQuitting) return;
+  /* 启动流程还没走完（窗口尚未创建）：接下来那一步自然会把它显示出来，
+     这里再调一次 showMainWindow 只会另开一扇窗口 */
+  if (!startupReady) return;
   // 主窗口确实不在了（例如已被销毁）时重新创建，同样不启动新进程
   showMainWindow();
 });
 
+/* 启动步骤的隔错包装：把「接上某个入口」这类步骤单独包起来，一步失败不影响其余步骤，
+   更不会影响到最后的窗口创建（说明见 whenReady 里那段）。 */
+function runStartupStep(label, run) {
+  try {
+    return run();
+  } catch (error) {
+    console.error(`[Esprin Nemo] 启动步骤「${label}」失败:`, error);
+    return null;
+  }
+}
+
 app.whenReady().then(async () => {
+  // 没拿到单实例锁时上面已经直接退出了，这里不会再走到
   if (!hasSingleInstanceLock) return;
 
   // 便携版无法写入数据目录（只读位置、无权限等）：不退回 %APPDATA%，先弹窗告知；
@@ -858,27 +942,53 @@ app.whenReady().then(async () => {
   registerTrayIpc();
   setupTray();
 
-  // 开机自启：设置页开关 + 按配置落定系统启动项（默认关闭）
-  registerAutoLaunchIpc();
-  configureAutoLaunch({ getConfig: readUserConfig });
+  /* 从这里到窗口创建之间的每一步都只是「把某个入口接上」，彼此独立：任何一步抛错都不该
+     连累后面，尤其是最后的 createWindow()——窗口没出来时，用户看到的是
+     「应用在跑、托盘图标也在，就是没有窗口」，而错误只留在终端里。
+     因此逐步隔开：出错记一条 console.error，其余照常进行（见 runStartupStep）。 */
+  runStartupStep('开机自启', () => {
+    // 设置页开关 + 按配置落定系统启动项（默认关闭）
+    registerAutoLaunchIpc();
+    configureAutoLaunch({ getConfig: readUserConfig });
+  });
 
-  // 配置目录搬家时（便携版的配置目录就是便携版所在目录）先把旧位置 %APPDATA%/esprin_nemo
-  // 下的密钥文件搬过来，用户不必重新填一遍 API Key
-  adoptLegacyKeyFile();
-  // 旧版把 API Key 明文写在 config.json 里：在窗口创建前先收进系统密钥链并从配置中抹掉，
-  // 这样渲染进程读到的配置里不会再出现明文密钥
-  migrateApiKeyFromConfig(path.join(resolveDataDir(), 'config.json'));
+  runStartupStep('API Key 迁移', () => {
+    // 配置目录搬家时（便携版的配置目录就是便携版所在目录）先把旧位置 %APPDATA%/esprin_nemo
+    // 下的密钥文件搬过来，用户不必重新填一遍 API Key
+    adoptLegacyKeyFile();
+    // 旧版把 API Key 明文写在 config.json 里：在窗口创建前先收进系统密钥链并从配置中抹掉，
+    // 这样渲染进程读到的配置里不会再出现明文密钥
+    migrateApiKeyFromConfig(path.join(resolveDataDir(), 'config.json'));
+  });
+
   // AI 助手：对话代理与模型列表
-  registerAiIpc();
+  runStartupStep('AI 助手', () => registerAiIpc());
 
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换
-  registerUiDefaults();
+  runStartupStep('界面默认值', () => registerUiDefaults());
 
   // 应用更新：IPC 通道 + 启动后与定时的自动检查（默认开启）。
   // 便携版没有可升级的目标，更新功能与相关设置整体不启用。
-  if (!IS_PORTABLE_RUN) registerUpdateIpc();
+  if (!IS_PORTABLE_RUN) runStartupStep('应用更新', () => registerUpdateIpc());
 
-  createWindow();
+  // 启动信息：终端里能一眼看出这一轮是哪个实例、数据落在哪——
+  // 「托盘里那个到底是本次启动的，还是上一轮留下的」正是这条日志要回答的问题
+  runStartupStep('启动信息', () => {
+    const flavor = IS_PORTABLE_DATA_RUN ? '便携版' : (IS_DEV_RUN ? '开发运行' : '安装版');
+    console.log(`[Esprin Nemo] 启动：${flavor}，数据目录 ${resolveDataDir()}`);
+  });
+
+  /* 主窗口是整个应用唯一的正式界面，单独包一层：真开不出来时用系统弹窗说明原因并退出，
+     而不是留下一个只有托盘、点不出窗口的进程（托盘那侧也拿不到可显示的窗口）。 */
+  try {
+    createWindow();
+  } catch (error) {
+    console.error('[Esprin Nemo] 创建主窗口失败:', error);
+    dialog.showErrorBox('Esprin Nemo 无法打开窗口', `创建主窗口时出错：\n${(error && error.message) || error}`);
+    app.exit(1);
+    return;
+  }
+  startupReady = true;
   if (!IS_PORTABLE_RUN) scheduleAutoChecks();
 });
 

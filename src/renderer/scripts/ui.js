@@ -88,6 +88,9 @@ async function showConfirm(message, options = {}) {
             title: options.title || '确认操作',
             message,
             detail: options.detail || '',
+            // 自动关闭时长（毫秒）：到点没回应按「取消」处理。
+            // 设置类改动用它做超时回退（见 appearance.js 的自定义界面尺寸）
+            timeoutMs: options.timeoutMs || 0,
             buttons: [
                 { id: 'cancel', label: options.cancelLabel || '取消', cancel: true },
                 { id: 'confirm', label: options.confirmLabel || '确定', variant: options.danger ? 'danger' : 'primary' }

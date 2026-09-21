@@ -92,6 +92,12 @@
             word-break: break-word;
             user-select: text;
         }
+        /* 自动关闭倒计时（仅 timeoutMs 有值时出现）：到点由主进程替我们收掉窗口 */
+        .dialog-countdown {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }
 
         .dialog-field {
             display: flex;
@@ -236,6 +242,7 @@
                 <div class="dialog-text">
                     <div class="dialog-message" id="dialog-message"></div>
                     <div class="dialog-detail hidden" id="dialog-detail"></div>
+                    <div class="dialog-countdown hidden" id="dialog-countdown"></div>
                 </div>
             </div>
 
@@ -261,6 +268,7 @@
         const iconEl = document.getElementById('dialog-icon');
         const messageEl = document.getElementById('dialog-message');
         const detailEl = document.getElementById('dialog-detail');
+        const countdownEl = document.getElementById('dialog-countdown');
         const fieldEl = document.getElementById('dialog-field');
         const fieldLabelEl = document.getElementById('dialog-field-label');
         const inputEl = document.getElementById('dialog-input');
@@ -278,6 +286,7 @@
         let choiceEls = [];
         let selectedChoices = new Set();
         let responded = false;
+        let countdownTimer = null;
 
         // 用纯文本填充，避免消息内容被当作 HTML 解析
         function setText(el, text) {
@@ -341,6 +350,21 @@
             syncChoices();
         }
 
+        // 自动关闭倒计时：到点由主进程按「取消」收掉窗口（见 main/dialog_window.js 的 armTimeout）。
+        // 这里只把剩余秒数摆在明处，免得弹窗在用户眼前自己消失、看不出发生了什么
+        function startCountdown() {
+            const total = Number(options && options.timeoutMs) || 0;
+            if (total <= 0) return;
+            const deadline = Date.now() + total;
+            const tick = () => {
+                const remain = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                setText(countdownEl, `${remain} 秒后将自动关闭`);
+                if (remain > 0) countdownTimer = setTimeout(tick, 250);
+            };
+            countdownEl.classList.remove('hidden');
+            tick();
+        }
+
         function render(data) {
             setText(titleEl, data.title || '提示');
             setText(messageEl, data.message);
@@ -379,6 +403,10 @@
         function respond(index, dismissed) {
             if (responded || !options) return;
             responded = true;
+            if (countdownTimer) {
+                clearTimeout(countdownTimer);
+                countdownTimer = null;
+            }
             const button = options.buttons[index] || options.buttons[options.cancelIndex] || options.buttons[0];
             ipcRenderer.send('dialog:respond', {
                 id: button ? button.id : null,
@@ -445,10 +473,12 @@
             if (!options) {
                 options = {
                     title: '', message: '无法加载弹窗内容', detail: '', type: 'error', icon: 'error',
-                    buttons: [{ id: 'ok', label: '确定', variant: 'primary' }], defaultIndex: 0, cancelIndex: 0, input: null, checkbox: null
+                    buttons: [{ id: 'ok', label: '确定', variant: 'primary' }], defaultIndex: 0, cancelIndex: 0,
+                    input: null, checkbox: null, timeoutMs: 0
                 };
             }
             render(options);
+            startCountdown();
             requestResize();
             // 图标字体加载完成后高度可能变化，再量一次
             if (document.fonts && document.fonts.ready) {

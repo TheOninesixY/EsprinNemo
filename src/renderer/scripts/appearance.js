@@ -209,15 +209,7 @@ function normalizeCornerRadius(value) {
     return CORNER_RADIUS_VALUES.includes(value) ? value : 'default';
 }
 
-/* 圆角尺度滑块：0 纯方 / 1 微圆角 / 2 默认 / 3 大圆，档位与 CORNER_RADIUS_VALUES 的下标一一对应。
-   原生 range 只提供交互（拖动 / 点轨道 / 方向键），轨道、进度条与滑块都是自绘元素，
-   位置写进 CSS 变量由 transition 补间，因此能做出"滑过去"的动效。 */
-
-// 指针按住滑动时使用的步长：连续跟手，不吸附整档
-const RADIUS_SLIDER_STEP = '0.01';
-
-// 是否正被指针按住滑动：滑动期间只跟手、不落档，松手后再吸附到最近的档位
-let radiusSliderDragging = false;
+/* 圆角尺度滑块：0 纯方 / 1 微圆角 / 2 默认 / 3 大圆，档位与 CORNER_RADIUS_VALUES 的下标一一对应。 */
 
 function cornerRadiusIndex(value) {
     return CORNER_RADIUS_VALUES.indexOf(normalizeCornerRadius(value));
@@ -227,23 +219,84 @@ function applyCornerRadius() {
     document.documentElement.dataset.radius = normalizeCornerRadius(State.cornerRadius);
 }
 
+/* 自绘滑块（styles/settings.css 的 .settings-slider）：原生 range 只提供交互
+   （拖动 / 点轨道 / 方向键），轨道、进度条与滑块都是自绘元素，位置写进 CSS 变量
+   由 transition 补间，因此能做出「滑过去」的动效。圆角尺度与界面尺寸共用这套交互。 */
+
+// 指针按住滑动时使用的步长：连续跟手，不吸附整档
+const SLIDER_DRAG_STEP = '0.01';
+
 // 把 0~1 的比例写进自绘滑块与进度条（非整档的比例就是滑动中的过渡位置）
-function setRadiusSliderPosition(ratio) {
-    const slider = document.getElementById('radius-slider');
+function setSliderPosition(slider, ratio) {
     if (!slider) return;
     const clamped = Math.min(Math.max(ratio, 0), 1);
-    slider.style.setProperty('--radius-pos', clamped.toFixed(4));
-    slider.style.setProperty('--radius-fill', (clamped * 100).toFixed(2) + '%');
+    slider.style.setProperty('--slider-pos', clamped.toFixed(4));
+    slider.style.setProperty('--slider-fill', (clamped * 100).toFixed(2) + '%');
 }
 
-// 档位文字高亮：始终跟随当前档位，滑动过程中也不变
-function markCornerRadiusTicks() {
-    const current = normalizeCornerRadius(State.cornerRadius);
-    document.querySelectorAll('#radius-ticks .radius-tick').forEach((tick) => {
-        const active = tick.dataset.radius === current;
+// 档位文字高亮：始终跟随当前档位，滑动过程中也不变（各档的 data-value 与设置值同域）
+function markSliderTicks(slider, current) {
+    if (!slider) return;
+    slider.querySelectorAll('.slider-tick').forEach((tick) => {
+        const active = tick.dataset.value === String(current);
         tick.classList.toggle('active', active);
         tick.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
+}
+
+/* 滑块交互：按住期间取消整档吸附——滑块连续跟手、设置值与档位文字保持不变；
+   松手（含在窗口外松开、窗口失焦）后恢复整档并吸附到最近的档位。
+
+   onCommit 拿到的是原生 range 的原始值：点轨道 / 方向键时是一个整档，
+   滑动松手时是滑动中的小数，点档位文字时则是该档的 data-value。 */
+function initSliderControl({ sliderId, inputId, restStep, ratioOf, onCommit }) {
+    const slider = document.getElementById(sliderId);
+    const input = document.getElementById(inputId);
+    if (!slider || !input) return;
+
+    let dragging = false;
+
+    input.oninput = (event) => {
+        // 指针按住滑动中：只让滑块跟手，不落档（落档交给松手时的吸附）
+        if (dragging) {
+            setSliderPosition(slider, ratioOf(Number(event.target.value)));
+            return;
+        }
+        // 点轨道 / 方向键：range 的当前值就是一个整档
+        onCommit(event.target.value);
+    };
+
+    input.addEventListener('pointerdown', () => {
+        dragging = true;
+        // 滑动期间按连续值上报（鼠标移多少走多少），松手时再回到整档
+        input.step = SLIDER_DRAG_STEP;
+        slider.classList.add('is-dragging');
+    });
+
+    const endDrag = () => {
+        if (!dragging) return;
+        dragging = false;
+        // 先恢复整档与补间，再落档：这一步的位置变化就是「滑到最近档位」的动效
+        input.step = restStep;
+        slider.classList.remove('is-dragging');
+        onCommit(input.value);
+    };
+
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+    // 在窗口外松开鼠标时收不到 pointerup：失焦同样按松手处理，免得多动几下时"没落档"
+    window.addEventListener('blur', endDrag);
+
+    // 直接点档位文字同样可跳到该档
+    slider.querySelectorAll('.slider-tick').forEach((tick) => {
+        tick.onclick = () => onCommit(tick.dataset.value);
+    });
+}
+
+// 把滑块上的任意值（含滑动中的小数）四舍五入到最近的档位
+function radiusSliderStopValue(value) {
+    const index = Math.min(Math.max(Math.round(Number(value)), 0), CORNER_RADIUS_VALUES.length - 1);
+    return CORNER_RADIUS_VALUES[index];
 }
 
 // 滑块位置、已选进度与档位文字高亮都按当前档位刷新
@@ -252,8 +305,9 @@ function syncCornerRadiusControl() {
     const index = cornerRadiusIndex(current);
     const input = document.getElementById('setting-radius');
     if (input) input.value = String(index);
-    setRadiusSliderPosition(index / (CORNER_RADIUS_VALUES.length - 1));
-    markCornerRadiusTicks();
+    const slider = document.getElementById('radius-slider');
+    setSliderPosition(slider, index / (CORNER_RADIUS_VALUES.length - 1));
+    markSliderTicks(slider, current);
 }
 
 // 切换圆角尺度：即时生效并写入 config.json（与主题风格、明暗主题互不影响）
@@ -266,62 +320,200 @@ function setCornerRadius(value) {
     syncScratchpadAppearance();
 }
 
-// 把滑块上的任意值（含滑动中的小数）四舍五入到最近的档位
-function radiusSliderStopValue(value) {
-    const index = Math.min(Math.max(Math.round(Number(value)), 0), CORNER_RADIUS_VALUES.length - 1);
-    return CORNER_RADIUS_VALUES[index];
-}
-
-/* 指针滑动：按住期间取消整档吸附——滑块连续跟手、圆角与档位文字保持不变，
-   松手后自动吸附到最近的档位并应用；此时 is-dragging 已移除，滑块会带补间滑过去。 */
-function initRadiusSliderDrag() {
-    const slider = document.getElementById('radius-slider');
-    const input = document.getElementById('setting-radius');
-    if (!slider || !input) return;
-
-    input.addEventListener('pointerdown', () => {
-        radiusSliderDragging = true;
-        // 滑动期间按连续值上报（鼠标移多少走多少），松手时再回到整档
-        input.step = RADIUS_SLIDER_STEP;
-        slider.classList.add('is-dragging');
-    });
-
-    const endDrag = () => {
-        if (!radiusSliderDragging) return;
-        radiusSliderDragging = false;
-        const nearest = radiusSliderStopValue(input.value);
-        // 先恢复整档与补间，再应用档位：这一步的位置变化就是"滑到最近档位"的动效
-        input.step = '1';
-        slider.classList.remove('is-dragging');
-        setCornerRadius(nearest);
-    };
-
-    window.addEventListener('pointerup', endDrag);
-    window.addEventListener('pointercancel', endDrag);
-    // 在窗口外松开鼠标时收不到 pointerup：失焦同样按松手处理，免得多动几下时"没落档"
-    window.addEventListener('blur', endDrag);
-}
-
 function initCornerRadius() {
-    const input = document.getElementById('setting-radius');
-    if (input) {
-        input.oninput = (event) => {
-            // 指针按住滑动中：只让滑块跟手，不设置档位（落档交给松手时的吸附）
-            if (radiusSliderDragging) {
-                setRadiusSliderPosition(Number(event.target.value) / (CORNER_RADIUS_VALUES.length - 1));
-                return;
-            }
-            // 点轨道 / 方向键：range 的值就是档位下标
-            setCornerRadius(CORNER_RADIUS_VALUES[Number(event.target.value)] || 'default');
-        };
-        initRadiusSliderDrag();
-    }
-    // 直接点档位文字同样可跳到该档
-    document.querySelectorAll('#radius-ticks .radius-tick').forEach((tick) => {
-        tick.onclick = () => setCornerRadius(tick.dataset.radius);
+    initSliderControl({
+        sliderId: 'radius-slider',
+        inputId: 'setting-radius',
+        // 松手后回到整档：档位下标是整数
+        restStep: '1',
+        // range 的值就是档位下标（拖动中是小数），换算成 0~1 的滑块位置
+        ratioOf: (value) => value / (CORNER_RADIUS_VALUES.length - 1),
+        // 落档：数值来自 range（下标，可能是拖动中的小数），文字来自档位按钮（档位名）
+        onCommit: (raw) => {
+            const index = Number(raw);
+            setCornerRadius(Number.isFinite(index) ? radiusSliderStopValue(index) : raw);
+        }
     });
     applyCornerRadius();
     syncCornerRadiusControl();
+}
+
+/* 界面尺寸（缩放比例）：直接改 Chromium 缩放（webFrame.setZoomFactor），
+   取值规则与首屏应用都在 boot.js 的 UI_SCALE_*（那片脚本先于本文件执行）。
+
+   只作用于主窗口：弹窗要按内容量好高度再改窗口大小，小本本按固定尺寸停靠在屏幕角落，
+   这两扇窗口跟着缩放的话，各自的尺寸换算都得按比例重算一遍。 */
+
+// 五个档位（数值即缩放比例，档位文字见 main.html 的 #ui-scale-ticks）：
+// 小 80% / 中 90% / 默认 100% / 大 110% / 超大 120%，与圆角尺度一样只给整档
+const UI_SCALE_STOPS = [0.8, 0.9, 1, 1.1, 1.2];
+
+// 自定义比例的输入范围（百分比）：沿用 boot.js 的缩放范围
+const UI_SCALE_CUSTOM_LABEL = `${Math.round(UI_SCALE_MIN * 100)} ~ ${Math.round(UI_SCALE_MAX * 100)}`;
+
+// 自定义比例的确认窗口停留时长：到点没有回应就回到默认，
+// 免得界面停在一个用户没点头认可的比例上
+const UI_SCALE_CUSTOM_CONFIRM_MS = 10000;
+
+// 离当前值最近的档位下标：整档自然是自己，自定义比例就近落位（此时档位文字不会高亮）
+function nearestUiScaleStopIndex(value) {
+    const current = normalizeUiScale(value);
+    return UI_SCALE_STOPS.reduce((best, stop, index) => (
+        Math.abs(stop - current) < Math.abs(UI_SCALE_STOPS[best] - current) ? index : best
+    ), 0);
+}
+
+// 当前值是否正好落在某个整档上（自定义比例不算）
+function isUiScaleStop(value) {
+    const current = normalizeUiScale(value);
+    return UI_SCALE_STOPS.some((stop) => Math.abs(stop - current) < 0.0001);
+}
+
+// 档位下标 → 0~1 的滑块位置（拖动中是小数，滑块也就连续跟手）
+function uiScaleRatio(index) {
+    return Number(index) / (UI_SCALE_STOPS.length - 1);
+}
+
+// 把滑块上的任意值（含滑动中的小数）四舍五入到最近的档位，换算成缩放比例
+function uiScaleSliderStopValue(value) {
+    const index = Math.min(Math.max(Math.round(Number(value)), 0), UI_SCALE_STOPS.length - 1);
+    return UI_SCALE_STOPS[index];
+}
+
+function applyUiScale() {
+    const scale = normalizeUiScale(State.uiScale);
+    try {
+        webFrame.setZoomFactor(scale);
+    } catch (err) {
+        console.error('应用界面尺寸失败:', err);
+    }
+    // 界面放大后，同一扇窗口里的可用宽度按比例变小，窗口的最小尺寸也要跟着变
+    //（由主进程换算，见 src/main/main.js；主窗口还没就绪时这次通知会被忽略，无副作用）
+    ipcRenderer.invoke('window:ui-scale', scale).catch(() => {});
+}
+
+// 自定义比例输入框：只在「当前值不是整档」时写回数字，其余时候留空
+function syncUiScaleCustomInput(current) {
+    const el = document.getElementById('ui-scale-custom');
+    if (!el) return;
+    // 用户正在里面输入时不动它：同步也可能由别处触发（拖滑块、切换数据目录）
+    if (document.activeElement === el) return;
+    el.value = isUiScaleStop(current) ? '' : String(Math.round(current * 100));
+}
+
+// 滑块位置、进度条、百分比徽标、档位文字高亮与自定义输入框都按当前缩放刷新
+function syncUiScaleControl() {
+    const current = normalizeUiScale(State.uiScale);
+    const slider = document.getElementById('ui-scale-slider');
+    const input = document.getElementById('setting-ui-scale');
+    const readout = document.getElementById('ui-scale-value');
+    // 原生 range 的值是档位下标；自定义比例没有对应档位，就近落位且不高亮任何档位文字（-1 谁都对不上）
+    if (input) input.value = String(nearestUiScaleStopIndex(current));
+    if (readout) readout.textContent = Math.round(current * 100) + '%';
+    setSliderPosition(slider, uiScaleRatio(nearestUiScaleStopIndex(current)));
+    markSliderTicks(slider, isUiScaleStop(current) ? nearestUiScaleStopIndex(current) : -1);
+    syncUiScaleCustomInput(current);
+}
+
+// 应用并刷新界面，但不写配置：自定义比例要先让用户看到效果，确认之后才落盘
+function previewUiScale(value) {
+    State.uiScale = normalizeUiScale(value);
+    applyUiScale();
+    syncUiScaleControl();
+}
+
+// 切换界面尺寸：即时生效并写入 config.json（取值整理会夹到范围内、对齐到整数百分比）
+function setUiScale(value) {
+    previewUiScale(value);
+    saveConfig();
+}
+
+/* 自定义比例：输入 50~200 之间的整数百分比。
+   先把输入值套到界面上（用户能直接看到效果），再弹窗问是否保留；
+   点「保持」才写进配置，点「回到默认」或十秒内没有回应都回到默认的 100%——
+   自定义比例是这五档之外的尺寸，回退时按默认处理最不容易让人找不回原样。 */
+async function commitCustomUiScale() {
+    const el = document.getElementById('ui-scale-custom');
+    if (!el) return;
+
+    const text = el.value.trim();
+    const raw = Number(text);
+    if (!text || !Number.isFinite(raw)) {
+        showToast(`请输入 ${UI_SCALE_CUSTOM_LABEL} 之间的数字`);
+        syncUiScaleCustomInput(normalizeUiScale(State.uiScale));
+        return;
+    }
+
+    // 夹到范围内并取整：输入 320 按 200% 处理，输入 133.6 按 134% 处理
+    const percent = Math.min(Math.max(Math.round(raw), Math.round(UI_SCALE_MIN * 100)), Math.round(UI_SCALE_MAX * 100));
+    el.value = String(percent);
+
+    // 与当前值相同时不必再确认（这一档本来就该是当前状态）
+    if (percent === Math.round(normalizeUiScale(State.uiScale) * 100)) {
+        setUiScale(percent / 100);
+        return;
+    }
+
+    previewUiScale(percent / 100);
+
+    const seconds = Math.round(UI_SCALE_CUSTOM_CONFIRM_MS / 1000);
+    const keep = await showConfirm(`保留界面尺寸 ${percent}%？`, {
+        title: '保持更改',
+        detail: `界面已经按 ${percent}% 缩放，确认之后才会写进设置：\n`
+            + `· 点「保持」：沿用 ${percent}%；\n`
+            + `· 点「回到默认」或 ${seconds} 秒内没有回应：回到默认的 100%。`,
+        confirmLabel: '保持',
+        cancelLabel: '回到默认',
+        // 弹窗自带倒计时，到点自动按「取消」处理（见 main/dialog_window.js）
+        timeoutMs: UI_SCALE_CUSTOM_CONFIRM_MS
+    });
+
+    if (keep) {
+        setUiScale(percent / 100);
+        // 输入框里可能还留着刚才那个数字（它正被聚焦时同步会跳过它），这里显式对齐一次
+        el.value = isUiScaleStop(percent / 100) ? '' : String(percent);
+        showToast(`界面尺寸已设为 ${percent}%`);
+        return;
+    }
+    setUiScale(UI_SCALE_DEFAULT);
+    el.value = '';
+    showToast('界面尺寸已回到默认 100%');
+}
+
+// 自定义比例输入框：回车与「应用」都能提交，输入期间只保留数字
+function initUiScaleCustomInput() {
+    const el = document.getElementById('ui-scale-custom');
+    const button = document.getElementById('btn-ui-scale-custom');
+    if (el) {
+        el.oninput = () => {
+            const digits = el.value.replace(/[^0-9]/g, '').slice(0, 3);
+            if (digits !== el.value) el.value = digits;
+        };
+        el.onkeydown = (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            commitCustomUiScale();
+        };
+    }
+    if (button) button.onclick = () => commitCustomUiScale();
+}
+
+function initUiScale() {
+    initSliderControl({
+        sliderId: 'ui-scale-slider',
+        inputId: 'setting-ui-scale',
+        // 松手后回到整档：档位下标是整数
+        restStep: '1',
+        // range 的值就是档位下标（拖动中是小数），换算成 0~1 的滑块位置
+        ratioOf: uiScaleRatio,
+        // 落档：数值来自 range 与档位按钮，都是档位下标
+        onCommit: (raw) => setUiScale(uiScaleSliderStopValue(raw))
+    });
+    initUiScaleCustomInput();
+    // 首屏已由 boot.js 缩放过一次，这里再落一次即可（取值相同，不会二次跳动），
+    // 同时把窗口最小尺寸同步给主进程——数据目录切换后缩放比例可能已经变了
+    applyUiScale();
+    syncUiScaleControl();
 }
 
 function initTheme() {

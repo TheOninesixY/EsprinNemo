@@ -790,7 +790,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', uiScale: 1, spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -914,6 +914,8 @@ function loadData() {
         accentColor: normalizeAccentColor(config.accentColor),
         brandColor: normalizeBrandColor(config.brandColor),
         cornerRadius: normalizeCornerRadius(config.cornerRadius),
+        // 界面尺寸（缩放比例）：非法值回落到 100%，与设置页滑块同一套取值
+        uiScale: normalizeUiScale(config.uiScale),
         spellcheck: !!config.spellcheck,
         // 界面布局：旧配置里没有该字段（或存着旧值）时即为现代布局
         uiMode: normalizeUiMode(config.uiMode),
@@ -964,6 +966,8 @@ function saveConfig() {
             accentColor: normalizeAccentColor(State.accentColor),
             brandColor: normalizeBrandColor(State.brandColor),
             cornerRadius: normalizeCornerRadius(State.cornerRadius),
+            // 界面尺寸（缩放比例，默认 100%）：渲染进程启动时据它调 Chromium 缩放
+            uiScale: normalizeUiScale(State.uiScale),
             spellcheck: State.spellcheck,
             // 界面布局（默认现代）：只接受 classic / modern，脏数据回退为现代布局
             // （normalizeUiMode 还认旧值 line / notab / minimal 与 standard，见 scripts/state.js）

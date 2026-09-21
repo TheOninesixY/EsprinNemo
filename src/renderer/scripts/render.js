@@ -311,8 +311,24 @@ function renderTags() {
 
 // 标签页的落点随布局走：经典布局在标题栏里（#titlebar-tabs），现代布局在工作区顶部那一行
 // （#workspace-tabs，见 main.html 与 styles/mode.css）。两个容器都在，渲染时只往当前布局的那个里写
+const TAB_CONTAINER_IDS = ['titlebar-tabs', 'workspace-tabs'];
+
 function tabsContainerId() {
     return isModernLayout() ? 'workspace-tabs' : 'titlebar-tabs';
+}
+
+// 此刻栏里已经有的标签 id：两个容器都收——重画只写当前布局的那一个，而切布局时新栏里是空的，
+// 只比对当前栏会把整排标签都错当成新开的（见 renderTabs 里挂 tabSlideIn 的那一处）
+function renderedTabIds() {
+    const ids = new Set();
+    TAB_CONTAINER_IDS.forEach(containerId => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.querySelectorAll('.tab-item').forEach(el => {
+            if (el.dataset.tabId) ids.add(el.dataset.tabId);
+        });
+    });
+    return ids;
 }
 
 /* 标签栏两端的渐隐：标签排不下时两端淡出去，替藏起来的滚动条把「还能往哪边滚」提示出来
@@ -324,6 +340,8 @@ function tabsContainerId() {
    ResizeObserver 一并接住，省得在那些地方各补一次调用。 */
 const TABS_FADE_RIGHT_CLASS = 'tabs-fade-right';
 const TABS_FADE_LEFT_CLASS = 'tabs-fade-left';
+// 新开标签的滑入类名（样式见 styles/motion.css 的 tabSlideIn）：只挂在这一下新冒出来的那个上
+const TAB_SLIDE_IN_CLASS = 'is-sliding-in';
 // 已绑过监听的容器（两个容器各绑一次，不必每次渲染都重建闭包）
 const tabsFadeObserved = new WeakSet();
 
@@ -373,12 +391,29 @@ function renderTabs() {
     if (renderSignatures.tabs === signature) return;
     renderSignatures.tabs = signature;
 
+    // 拖动排序途中若被别处触发的重画打断（例如自动保存顺手 renderApp），先收掉拖动状态：
+    // 下面的 innerHTML 会把被拖的元素换成新的，留着的摆位与落位逻辑就对不上了
+    if (tabsDrag) stopTabsDrag();
+
+    // 重画之前把栏里已有的标签收一份：建完对不上的就是这一下新开出来的（见下面挂的滑入）
+    const knownTabIds = renderedTabIds();
+    // 这一次重画里有没有新标签：它和补空位是冲突的（见 applyTabCloseShift）
+    let openedTab = false;
+
     tabsContainer.innerHTML = '';
 
     State.openNoteIds.forEach(id => {
         const isActive = id === State.activeNoteId;
         const tab = document.createElement('div');
         tab.className = `tab-item ${isActive ? 'active' : ''}`;
+        // 拖动排序后要按 DOM 的实际顺序回写 State.openNoteIds，标签得记住自己是谁
+        tab.dataset.tabId = id;
+        // 刚刚开出来的那个从左边滑进来（样式见 styles/motion.css），
+        // 同一个 id 重新打开也算——栏里那会儿已经没有它了
+        if (!knownTabIds.has(id)) {
+            tab.classList.add(TAB_SLIDE_IN_CLASS);
+            openedTab = true;
+        }
 
         if (id === 'settings') {
             tab.innerHTML = `
@@ -404,8 +439,23 @@ function renderTabs() {
 
         tab.addEventListener('click', (e) => {
             if (e.target.closest('.tab-close-btn')) return;
+            // 拖动落位后紧跟的那一次 click 忽略掉：此时指针正好在被拖的标签上，
+            // 不拦的话「拖一下就把这个标签置为当前」，与浏览器标签栏的行为不一致
+            if (tabsDragSwallowClick) {
+                tabsDragSwallowClick = false;
+                return;
+            }
             State.activeNoteId = id;
             renderApp();
+        });
+
+        // 拖动排序：按住左键横向拖动即换位（见下面的「标签栏的拖动排序」）。
+        // 与点击共用同一套事件，位移超过阈值才当成拖动，因此点击切标签不受影响
+        tab.addEventListener('pointerdown', (event) => {
+            // 只认左键（中键留给「关闭标签」）；点在关闭按钮上也不该开始拖
+            if (event.button !== 0) return;
+            if (event.target.closest('.tab-close-btn')) return;
+            startTabsDrag(event, tab);
         });
 
         // 中键关闭标签：拦截 mousedown 以阻止 Chromium 的自动滚动，再在 auxclick 中关闭
@@ -429,10 +479,393 @@ function renderTabs() {
         tabsContainer.appendChild(tab);
     });
 
+    // 刚关掉一个标签的话，先把它右边那些被重画提前挪过去的标签摆回原位：它们要等标签
+    // 飞走了才补位，补位的过程就挂在这一次摆位上（见上面的「关闭标签的两段动效」）
+    applyTabCloseShift(openedTab);
+
     // 标签全部挂完后判定一次：新建标签、关标签、切布局都要重新看右端还需不需要淡
     // （读 scrollWidth 会强制同步一次布局，这里拿到的就是刚排好的宽度）
     updateTabsFade(tabsContainer);
 }
+
+/* ---------------- 关闭标签的两段动效 ----------------
+
+   关掉一个标签是连着两下的：先让被关的那个整块退场，等它走开，右边的标签再滑过去把空位
+   补上。两段都由 notes.js 的 closeTab 触发——关闭的入口都收在那一个函数里，而它总是先于
+   renderApp 被调用，此刻标签还在栏里、位置还量得出来。
+
+   —— 第一段：退场 ——
+
+   常规是向上滑出窗口上沿；关掉的若是栏里仅剩的那一个标签（关完标签栏就空了，向上飞
+   没有下文），换成向左滑走。
+
+   标签是整段重建出来的（上面 renderTabs 里的 innerHTML = ''），被关掉的那个节点一换掉
+   就没有播动画的机会，所以要在重画之前先把它的样子「复印」一份出来。
+
+   复印件挂在 body 上，而不是留在标签栏里：标签栏是 overflow 裁剪的（两端渐隐、横向滚动
+   都依赖它），留在原地只能看见标签被栏口切掉一块，看不出「滑走」。复印件用固定定位摆在
+   与原标签逐像素重合的位置、沿用原标签量出来的尺寸，因此长相与它一模一样，又不受任何
+   裁剪约束，可以一直滑到窗口上沿之外或向左滑走（动画本身在 styles/motion.css）。
+
+   —— 第二段：补空位 ——
+
+   重画是按新排布建的，空位在那一刻就已经合上了，容不下「先停一下再补」。因此关标签时
+   顺手记下每个标签当时的位置，重画之后把因此左移的那些先平移回原位，等第一段走完再
+   放进过渡滑到新位置——空位于是能一直撑到标签退场（见 applyTabCloseShift）。 */
+
+// 两段动效的时长，与 tokens.css 的 --motion-slow / --motion-base 同档。样式那边只管
+// 「怎么动」，这里要用数值排出先后（第二段延迟多久起步），并算出兜底收尾的时刻
+const TAB_FLY_DURATION_MS = 260;
+const TAB_SHIFT_DURATION_MS = 180;
+// 兜底收尾的余量：正常路径靠 animationend 与过渡自己走完，这一条只防「动画被节流、
+// 事件没送到」而把残影或错位留在界面上
+const TAB_ANIM_SLACK_MS = 140;
+// 滑出窗口上沿后再多走一点，免得正好停在边界上看着像「没走干净」
+const TAB_FLY_OVERSHOOT = 12;
+// 两种退场方式（样式见 styles/motion.css）：常规的整块滑出窗口上沿；关掉的若是栏里
+// 仅剩的那一个（关完标签栏就空了）则改往左滑走——它右边没有标签来补位，向上飞没下文
+const TAB_FLY_UP_CLASS = 'is-flying-up';
+const TAB_FLY_LEFT_CLASS = 'is-flying-left';
+
+// 关标签时留下的那份排布：紧接着的那次标签栏重建据此补空位，用完即弃
+let tabCloseShift = null;
+
+function playTabCloseFlyAway(tabId) {
+    const tabsContainer = document.getElementById(tabsContainerId());
+    if (!tabsContainer) return;
+    // 只在当前布局的这一栏里找：另一个容器是空的（见 tabsContainerId 的说明）
+    const tabs = Array.from(tabsContainer.children);
+    const tab = tabs.find(el => el.dataset.tabId === tabId);
+    if (!tab) return;
+    // 关的是栏里仅剩的那一个：标签个数按当前这一栏数，与用户看到的那一排一致
+    const isOnlyTab = tabs.length === 1;
+
+    /* 位置必须趁动 DOM 之前一次量完：摘掉这个标签会让右半边当场合上来，之后再量拿到的
+       就是「已经补过位」的坐标，算不出任何位移，补空位那一步于是什么都不做
+       （这份记录给 applyTabCloseShift 用）。所以先量、再摘。 */
+    const rect = tab.getBoundingClientRect();
+    const lefts = new Map(tabs.filter(el => el.dataset.tabId)
+        .map(el => [el.dataset.tabId, el.getBoundingClientRect().left]));
+
+    const ghost = tab.cloneNode(true);
+    // 复印件是新的一份、会从头重播它身上的动画类（新标签的滑入就是其中一个）：先摘掉，
+    // 飞出去那支动画才轮得到
+    ghost.classList.remove(TAB_SLIDE_IN_CLASS);
+    // 先摘掉栏里那个：随后的 renderApp 反正会重建整栏，这样即便某条关闭路径漏了重画，
+    // 也不会出现两个一样的标签
+    tab.remove();
+
+    // 系统开启「减少动态效果」时直接收场：样式那边虽然也会把动画关掉，但那样元素要等
+    // 兜底计时器才消失，不如根本不生成。第二段一并省掉——整条链路都属于动效
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // 量不出尺寸说明标签栏正被收起（一个标签都没有，或设置里禁用了标签页），不必摆这一下
+    if (!rect.width || !rect.height) return;
+
+    // 记下这份排布：紧接着的那次重建据此把右边的标签摆回原位，等飞出去的走完再补空位
+    // （记录里也有被关掉的那个，它在新排布里已经不存在，对不上就跳过）
+    tabCloseShift = { at: performance.now(), lefts };
+
+    ghost.classList.add(isOnlyTab ? TAB_FLY_LEFT_CLASS : TAB_FLY_UP_CLASS);
+    /* 坐标以谁为参照，两条路不一样：
+       向上飞的那一份直接挂 body，量到的视口坐标就是它要的，参照点因此取视口原点；
+       往左滑的那一份夹进与标签栏等大的裁剪框里（见 buildTabFlyClip），得换算成相对
+       标签栏左上角的偏移。参照点弄错的话，复印件会被摆到窗口左上角去。 */
+    const barRect = isOnlyTab ? tabsContainer.getBoundingClientRect() : { left: 0, top: 0 };
+    const clip = isOnlyTab ? buildTabFlyClip(barRect) : null;
+    const originLeft = rect.left - barRect.left;
+    const originTop = rect.top - barRect.top;
+    ghost.style.left = `${originLeft}px`;
+    ghost.style.top = `${originTop}px`;
+    ghost.style.width = `${rect.width}px`;
+    ghost.style.height = `${rect.height}px`;
+    if (isOnlyTab) {
+        /* 滑程就是它自己那一格宽：栏里只剩它一个，左边本没有别的标签可让，这一段滑行
+           会滑到栏的左端之外——超出部分由裁剪框直接不画，不会飘到栏外面去 */
+        ghost.style.setProperty('--tab-slide-distance', `${rect.width}px`);
+    } else {
+        // 滑到标签顶边越过窗口上沿为止：两种布局的标签栏高度不同（现代布局的在工作区顶部），
+        // 距离按量到的位置算，CSS 那边不写死
+        ghost.style.setProperty('--tab-fly-distance', `${rect.top + rect.height + TAB_FLY_OVERSHOOT}px`);
+    }
+    (clip || document.body).appendChild(ghost);
+
+    let dismissed = false;
+    const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        // 往左滑的那一份外面还套着裁剪框，得连框一起摘掉
+        (clip || ghost).remove();
+    };
+    ghost.addEventListener('animationend', dismiss, { once: true });
+    setTimeout(dismiss, TAB_FLY_DURATION_MS + TAB_ANIM_SLACK_MS);
+}
+
+/* 往左滑的那一份复印件得留在标签栏里面，于是给它套一个与标签栏等大的裁剪框：
+   复印件是固定定位的，本来不受标签栏那层 overflow 裁剪约束，不套就会飘到栏外面去
+   （栏里只剩它一个时，它左侧根本没有余量）。框按量到的位置直接插在 body 上，
+   尺寸给出后由调用方把复印件塞进去。 */
+function buildTabFlyClip(barRect) {
+    const clip = document.createElement('div');
+    clip.className = 'tab-fly-clip';
+    clip.style.left = `${barRect.left}px`;
+    clip.style.top = `${barRect.top}px`;
+    clip.style.width = `${barRect.width}px`;
+    clip.style.height = `${barRect.height}px`;
+    document.body.appendChild(clip);
+    return clip;
+}
+
+/* 关闭标签后的补空位：把刚才因为重画而提前挪过去的那些标签摆回原位，等被关的那个飞走
+   之后再滑到新位置。只有确实左移了的标签需要补偿——关闭位置左边的标签本来就没动。
+
+   由 renderTabs 在每次重建之后调用，并把「这一次重画里有没有新开的标签」交给它。
+   位移用 transform：它既不改布局（标签栏的宽度、滚动位置都跟着这一次重画走，不必救），
+   也不改命中区域（指针看到哪儿就点到哪儿）。
+
+   这一段用 Web Animations 而不是 CSS 过渡：停住的那一段也要交给动画自己。关键帧的起点
+   是明写的，节点刚建出来就直接落在正确位置上；换成 CSS 过渡就得先写一次 transform 当
+   起点、再强制刷一次布局把它定下来（过渡只看「变化之前的样子」，那份样式没被计算过就
+   补间不起来），一不小心标签就瞬移到位、只剩下复印件在那儿飞。 */
+function applyTabCloseShift(hasNewTab) {
+    const shift = tabCloseShift;
+    tabCloseShift = null;
+    if (!shift) return;
+    // 同一次重画里又关又开：新标签要占的正是那块空位，撑住它只会让新标签和右移的那些
+    // 叠在一起，直接按最终排布落位（新标签自己的滑入照旧）
+    if (hasNewTab) return;
+    // 关标签那条路上的重画都发生在同一个任务里（见 notes.js 的 closeTab），隔了这么久
+    // 说明这一次重建与它无关，记下的位置早已不作数
+    if (performance.now() - shift.at > 250) return;
+
+    const tabsContainer = document.getElementById(tabsContainerId());
+    if (!tabsContainer) return;
+
+    // 缓动沿用样式里的 --ease-out：动效改由 JS 排，曲线仍归 tokens.css 说了算
+    const easing = tabShiftEasing();
+    const shifts = [];
+    tabsContainer.querySelectorAll('.tab-item').forEach(el => {
+        const from = shift.lefts.get(el.dataset.tabId);
+        if (from === undefined) return;
+        const distance = from - el.getBoundingClientRect().left;
+        // 没挪动（关闭位置左边的标签，或者挪动量小到看不出来）就不补偿。留 1px 容差是因为
+        // 排布上的小数差、以及「滚到底时关标签」（内容变短，容器跟着回滚，新旧位置正好抵掉）
+        // 都会算出零头，不值得白挂一层动画
+        if (distance < 1) return;
+        shifts.push(el.animate(
+            [{ transform: `translateX(${distance}px)` }, { transform: 'translateX(0)' }],
+            {
+                duration: TAB_SHIFT_DURATION_MS,
+                // 延迟就是第一段的时长：标签在原地停到复印件飞走，这才起步补位。
+                // fill: 'both' 让它在延迟这段时间里也按起点摆着，空位因此一直撑得住
+                delay: TAB_FLY_DURATION_MS,
+                easing,
+                fill: 'both'
+            }
+        ));
+    });
+    if (!shifts.length) return;
+
+    // 收尾即撤掉动画：终点就是元素本来的样子，撤掉前后看不出差别，界面上却少背一层
+    // 动画效果（悬停底色一类的过渡也跟着回来）
+    let settled = false;
+    const settle = () => {
+        if (settled) return;
+        settled = true;
+        shifts.forEach(shiftAnim => {
+            shiftAnim.onfinish = null;
+            shiftAnim.cancel();
+        });
+        // 顺带重新判一次两端渐隐——补位用的位移会算进 scrollWidth
+        if (tabsContainer.isConnected) updateTabsFade(tabsContainer);
+    };
+    shifts.forEach(shiftAnim => { shiftAnim.onfinish = settle; });
+    // 兜底：动画没跑完（窗口被隐藏时会被节流）也要把效果撤掉
+    setTimeout(settle, TAB_FLY_DURATION_MS + TAB_SHIFT_DURATION_MS + TAB_ANIM_SLACK_MS);
+}
+
+// 补位用的缓动曲线（见 applyTabCloseShift）：令牌被改成 animate 认不出的写法时退回字面量，
+// 免得在这里抛错、把关闭标签这条路上的重画带崩
+function tabShiftEasing() {
+    const value = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim();
+    return /^cubic-bezier\(/.test(value) ? value : 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+}
+
+/* ---------------- 标签栏的拖动排序 ----------------
+   按住标签左右拖动，标签跟着指针走，松手后按落定的位置重排标签栏——顺序就是
+   State.openNoteIds 的顺序，与 Ctrl+Tab 的切换次序同源（两个容器都适用）。
+
+   用指针事件而不是 HTML5 拖放：标签要连续跟手，且拖动中会真的把节点插到新位置，
+   这样「空位」由标签自己占着、其余标签跟着让位，观感与浏览器标签栏一致。
+   与点击共用同一套事件：位移超过 TAB_DRAG_THRESHOLD 才算拖动，否则照旧当成切标签。 */
+
+// 位移超过这么多像素才算拖动：按下时手抖一下不该变成拖动
+const TAB_DRAG_THRESHOLD = 4;
+// 指针进入标签栏两端这么多像素内开始自动横向滚动（标签多到一屏放不下时用得上）
+const TAB_DRAG_EDGE = 28;
+// 自动滚动每帧推进的像素
+const TAB_DRAG_SCROLL_STEP = 8;
+
+// 拖动状态：同一时刻只可能有一个标签在被拖，因此整体只留这一份
+let tabsDrag = null;
+// 自动滚动的 rAF 句柄
+let tabsDragFrame = 0;
+// 刚拖完的那一下 click 要吞掉（见 renderTabs 里的 click 处理）；
+// 每次 pointerdown 都重置，即使某次 click 没发生也不会一直卡住
+let tabsDragSwallowClick = false;
+
+function startTabsDrag(event, tab) {
+    if (tabsDrag) return;
+    const container = tab.parentElement;
+    if (!container) return;
+    tabsDragSwallowClick = false;
+
+    const rect = tab.getBoundingClientRect();
+    tabsDrag = {
+        tab,
+        container,
+        // 抓取点在标签内的偏移：拖动中标签的左边缘始终摆在「指针位置 - 这个偏移」上
+        grabOffset: event.clientX - rect.left,
+        startX: event.clientX,
+        startY: event.clientY,
+        pointerX: event.clientX,
+        moved: false,
+        // 自动滚动的方向：-1 向左、1 向右、0 不滚
+        edgeDir: 0
+    };
+
+    window.addEventListener('pointermove', onTabsDragMove);
+    window.addEventListener('pointerup', onTabsDragEnd);
+    window.addEventListener('pointercancel', onTabsDragCancel);
+    // 在窗口外松开鼠标收不到 pointerup：失焦同样按取消处理，免得留个拖到一半的标签
+    window.addEventListener('blur', onTabsDragCancel);
+}
+
+function onTabsDragMove(event) {
+    if (!tabsDrag) return;
+
+    if (!tabsDrag.moved) {
+        const dx = event.clientX - tabsDrag.startX;
+        const dy = event.clientY - tabsDrag.startY;
+        if (Math.abs(dx) < TAB_DRAG_THRESHOLD && Math.abs(dy) < TAB_DRAG_THRESHOLD) return;
+        tabsDrag.moved = true;
+        tabsDrag.tab.classList.add('is-dragging');
+        // 整条标签栏一起换成抓手光标：指针掠过别的标签时不该又变回小手
+        tabsDrag.container.classList.add('is-dragging');
+    }
+    event.preventDefault();
+    tabsDrag.pointerX = event.clientX;
+
+    updateTabsAutoScroll();
+    moveDraggedTab();
+    placeDraggedTab();
+}
+
+// 指针落在标签栏两端时开始（或继续）自动滚动
+function updateTabsAutoScroll() {
+    const { container, pointerX } = tabsDrag;
+    const rect = container.getBoundingClientRect();
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    // 已经滚到那一端就不必再滚，否则指针停在边缘会一直空转
+    let dir = 0;
+    if (pointerX < rect.left + TAB_DRAG_EDGE && container.scrollLeft > 0) dir = -1;
+    else if (pointerX > rect.right - TAB_DRAG_EDGE && container.scrollLeft < maxScroll - 1) dir = 1;
+    if (dir === tabsDrag.edgeDir) return;
+    tabsDrag.edgeDir = dir;
+    if (dir) scheduleTabsAutoScroll();
+}
+
+/* 自动滚动用 rAF 循环推进，而不是跟着 pointermove 走：指针停在边缘不动时不会再有
+   pointermove，只有循环才能把被挡住的那几个标签一直滚出来。每帧滚一小段后重新
+   排位、重新摆位，被拖标签因此始终跟着指针。 */
+function scheduleTabsAutoScroll() {
+    if (tabsDragFrame) return;
+    tabsDragFrame = requestAnimationFrame(() => {
+        tabsDragFrame = 0;
+        if (!tabsDrag || !tabsDrag.edgeDir) return;
+        tabsDrag.container.scrollLeft += tabsDrag.edgeDir * TAB_DRAG_SCROLL_STEP;
+        moveDraggedTab();
+        placeDraggedTab();
+        // 滚到那一端后方向会归零，循环随之停下
+        updateTabsAutoScroll();
+        if (tabsDrag && tabsDrag.edgeDir) scheduleTabsAutoScroll();
+    });
+}
+
+/* 把被拖标签插到指针落点上：找出第一个「中心仍在指针右侧」的标签，插到它前面；
+   没有这样的标签就排到最后。每次跨过一个邻居才换一次位，落点因此稳定不抖。
+   已经在目标位置时不动它——反复搬动同一个节点会让其余标签来回跳。 */
+function moveDraggedTab() {
+    const { container, tab, pointerX } = tabsDrag;
+    const others = Array.from(container.querySelectorAll('.tab-item')).filter(el => el !== tab);
+    const next = others.find(el => {
+        const rect = el.getBoundingClientRect();
+        return pointerX < rect.left + rect.width / 2;
+    });
+
+    if (next) {
+        if (next.previousElementSibling !== tab) container.insertBefore(tab, next);
+        return;
+    }
+    if (container.lastElementChild !== tab) container.appendChild(tab);
+}
+
+// 让被拖标签的左边缘跟着指针：先清掉 transform 读一次布局位置（上一步可能刚换过位、
+// 或容器刚滚过），再按新位置算偏移。标签栏里最多十来个标签，每帧这一次读写可以忽略
+function placeDraggedTab() {
+    const { tab, pointerX, grabOffset } = tabsDrag;
+    tab.style.transform = '';
+    const layoutLeft = tab.getBoundingClientRect().left;
+    tab.style.transform = `translateX(${pointerX - grabOffset - layoutLeft}px)`;
+}
+
+function onTabsDragEnd() {
+    if (!tabsDrag) return;
+    const { container, moved } = tabsDrag;
+    if (!moved) {
+        // 没到阈值：这一下是点击，切标签交给 click 那条路
+        stopTabsDrag();
+        return;
+    }
+
+    // 拖动中 DOM 已经排成了最终顺序，直接按它回写状态即可
+    State.openNoteIds = Array.from(container.querySelectorAll('.tab-item'))
+        .map(el => el.dataset.tabId)
+        .filter(id => id);
+    tabsDragSwallowClick = true;
+    stopTabsDrag();
+    // 手动换过位的 DOM 与状态已经一致，重画一次让标签与渐隐都回到干净状态
+    forceRenderTabs();
+}
+
+// 取消（指针被系统打断、窗口失焦）：顺序原样恢复
+function onTabsDragCancel() {
+    if (!tabsDrag) return;
+    stopTabsDrag();
+    forceRenderTabs();
+}
+
+function stopTabsDrag() {
+    if (!tabsDrag) return;
+    window.removeEventListener('pointermove', onTabsDragMove);
+    window.removeEventListener('pointerup', onTabsDragEnd);
+    window.removeEventListener('pointercancel', onTabsDragCancel);
+    window.removeEventListener('blur', onTabsDragCancel);
+    if (tabsDragFrame) {
+        cancelAnimationFrame(tabsDragFrame);
+        tabsDragFrame = 0;
+    }
+    tabsDrag.tab.classList.remove('is-dragging');
+    tabsDrag.tab.style.transform = '';
+    tabsDrag.container.classList.remove('is-dragging');
+    tabsDrag = null;
+}
+
+// 拖动排序全程没碰状态、签名自然没变，重画前先把签名清掉，否则会被当成「没变化」跳过
+function forceRenderTabs() {
+    renderSignatures.tabs = null;
+    renderTabs();
+}
+
 // 列表卡片只展示首行摘要，先截断再转义，避免长文档每次都做整篇转义
 const PREVIEW_MAX_LENGTH = 120;
 

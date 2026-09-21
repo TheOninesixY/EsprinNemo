@@ -17,6 +17,8 @@ const MAX_WIDTH = 640;
 const MIN_HEIGHT = 150;
 // 高度上限，与 dialog.html 里的 MAX_CONTENT_HEIGHT 保持一致
 const MAX_HEIGHT = 720;
+// 自动关闭时长的上限（毫秒）：防止误传一个极大的值把弹窗钉在屏幕上
+const MAX_TIMEOUT = 120000;
 // 显示前等待渲染进程回传内容高度的时间，避免出现"先小后大"的尺寸跳动
 const REVEAL_DELAY = 90;
 
@@ -149,7 +151,9 @@ function normalizeOptions(raw) {
     cancelIndex,
     cancelId: buttons[cancelIndex].id,
     input,
-    checkbox: normalizeCheckbox(source.checkbox)
+    checkbox: normalizeCheckbox(source.checkbox),
+    // 自动关闭时长：0 表示一直等用户回应（与 requestResize 高度估算里的倒计时行对应）
+    timeoutMs: clamp(Math.round(Number(source.timeoutMs) || 0), 0, MAX_TIMEOUT)
   };
 }
 
@@ -174,7 +178,7 @@ function estimateHeight(options) {
     headHeight += 6 + clamp(detailLines, 1, 8) * DETAIL_LINE;
   }
 
-  const rows = [headHeight];
+  const rows = [headHeight + (options.timeoutMs ? 6 + DETAIL_LINE : 0)];
   if (options.input) {
     let fieldHeight = INPUT_FIELD;
     if (options.input.choices.length) {
@@ -226,11 +230,27 @@ function revealDialog(entry) {
   centerOver(entry.win, entry.owner);
   entry.win.show();
   entry.win.focus();
+  armTimeout(entry);
+}
+
+/* 自动关闭（timeoutMs）：给「改了要确认、超时就回退」这类设置用（见 renderer 的自定义界面尺寸）。
+   计时从窗口真正显示开始：用户此时能看见它和它自己的倒计时，到点没回应就按取消处理。 */
+function armTimeout(entry) {
+  const ms = entry.options.timeoutMs;
+  if (!ms || entry.timeoutTimer) return;
+  entry.timeoutTimer = setTimeout(() => {
+    entry.timeoutTimer = null;
+    finishDialog(entry, canceledResult(entry));
+  }, ms);
 }
 
 function finishDialog(entry, result) {
   if (entry.settled) return;
   entry.settled = true;
+  if (entry.timeoutTimer) {
+    clearTimeout(entry.timeoutTimer);
+    entry.timeoutTimer = null;
+  }
   entries.delete(entry.wsId);
   if (entry.owner && entry.onOwnerClosed) {
     entry.owner.removeListener('closed', entry.onOwnerClosed);
@@ -278,6 +298,7 @@ function showDialogWindow(owner, rawOptions) {
       resolve,
       settled: false,
       revealed: false,
+      timeoutTimer: null,
       onOwnerClosed: null
     };
     entries.set(entry.wsId, entry);
