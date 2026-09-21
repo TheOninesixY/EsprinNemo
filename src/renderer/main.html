@@ -208,8 +208,12 @@
                     <button class="btn-new-note" id="btn-empty-new">新建</button>
                 </div>
 
-                <!-- Workspace Topbar -->
-                <div class="editor-topbar" id="editor-topbar">
+                <!-- Workspace Topbar。编辑器整块（顶栏 / 工具栏 / 标题 / 正文 / 状态栏）首屏先按住不排：
+                     启动时一个标签也没开，这些东西本就该是收起的，等脚本渲染出当前条目再放开
+                     （见 scripts/render.js 的 renderWorkspace）。不先按住的话，首屏在脚本起来之前
+                     它们是排着的：工作区此刻只看得见空状态，而浮在空状态之上的标签栏「返回」
+                     （z-index 12，无标签时那一行自己收起）会先冒出一枚「返回首页」。 -->
+                <div class="editor-topbar hidden" id="editor-topbar">
                     <!-- 顶栏里不再有「返回」：退回笔记列表统一走标签栏最左端那一枚
                          （#btn-tabs-back，见上），侧边栏收起时也不换地方（见 styles/mode.css） -->
                     <div class="editor-meta">
@@ -239,7 +243,7 @@
                 </div>
 
                 <!-- Formatting Toolbar -->
-                <div class="editor-toolbar" id="editor-toolbar">
+                <div class="editor-toolbar hidden" id="editor-toolbar">
                     <button class="fmt-btn" data-fmt="bold" title="加粗">B</button>
                     <button class="fmt-btn" data-fmt="italic" style="font-style: italic;" title="斜体">I</button>
                     <div class="fmt-divider"></div>
@@ -256,12 +260,12 @@
                 </div>
 
                 <!-- Note Title Input -->
-                <div class="editor-title-area">
+                <div class="editor-title-area hidden">
                     <input type="text" class="editor-title-input" id="input-note-title" placeholder="无标题笔记...">
                 </div>
 
                 <!-- Editor & Preview Body -->
-                <div class="editor-content-area">
+                <div class="editor-content-area hidden">
                     <div class="editor-pane" id="editor-pane">
                         <textarea class="editor-textarea" id="textarea-note-content" placeholder="输入 Markdown 内容..." spellcheck="false"></textarea>
                     </div>
@@ -271,7 +275,7 @@
                 </div>
 
                 <!-- Footer Status -->
-                <footer class="editor-footer">
+                <footer class="editor-footer hidden">
                     <div class="editor-footer-left">
                         <span id="save-status">就绪</span>
                         <span id="stat-last-edit">修改于 刚刚</span>
@@ -765,6 +769,21 @@
                                 </label>
                             </div>
                             <div class="settings-row-desc sync-status hidden" id="sync-disabled-hint">自建同步已关闭：不会拉取也不会推送任何内容。</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">设备 ID</span>
+                                    <span class="settings-row-desc">本机自动生成的标识：每条同步操作都带着它，用来在服务端日志里分辨是哪个设备改的；在服务端管理页创建令牌时填进「绑定设备」，该令牌提交的改动就都记在这个设备名下。它由主进程生成一次后固定，保存在配置目录的 sync_state.json，与是否启用同步无关</span>
+                                </div>
+                                <div class="sync-input-stack">
+                                    <div class="sync-input-group">
+                                        <input type="text" class="settings-input mono sync-device-id" id="setting-sync-device-id" readonly spellcheck="false" placeholder="尚未生成">
+                                        <button class="settings-btn icon-only" id="btn-sync-device-id-copy" title="复制设备 ID">
+                                            <span class="ms-icon xs">content_copy</span>
+                                        </button>
+                                    </div>
+                                    <span class="sync-hint" id="sync-device-id-hint">只读；复制后可在服务端绑定到访问令牌</span>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="settings-section sync-config-section">
@@ -788,7 +807,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">访问令牌</span>
-                                    <span class="settings-row-desc">在服务端管理页面（服务器地址加 /admin）创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
+                                    <span class="settings-row-desc">在服务端管理页面（服务器地址根路径）创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
                                 </div>
                                 <div class="sync-input-stack">
                                     <div class="sync-input-group">
@@ -804,7 +823,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">设备名</span>
-                                    <span class="settings-row-desc">仅用于在服务端日志中区分改动的来源设备（设备另有自动生成的 id）；可留空</span>
+                                    <span class="settings-row-desc">仅用于在服务端日志中区分改动的来源设备（设备另有自动生成的 id，见上方「自建同步 → 设备 ID」）；可留空</span>
                                 </div>
                                 <input type="text" class="settings-input mono" id="setting-sync-device" spellcheck="false" placeholder="例如：台式机">
                             </div>

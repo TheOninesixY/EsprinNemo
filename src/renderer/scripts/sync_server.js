@@ -131,6 +131,7 @@ function applySyncStatus(status) {
     if (!status) return;
     syncServerStatus = status;
     State.syncTokenSaved = !!status.hasToken;
+    applySyncDeviceId(status);
 
     if (status.lastError) setSyncStatus(`同步失败：${status.lastError}`, 'error');
     else setSyncStatus(describeSyncState());
@@ -153,6 +154,34 @@ async function syncSyncAutoSetting() {
     }
 }
 
+/* ---------------- 设备 ID ---------------- */
+
+/* 设备 ID 由主进程生成一次并固定下来（保存在配置目录的 sync_state.json），
+   每条操作的 opId 里都带着它；在服务端创建令牌时填进「绑定设备」即可把该令牌的写入记在这台设备名下。
+   这里只做展示与复制：它本身不含任何凭据，也不参与鉴权。 */
+function applySyncDeviceId(status) {
+    const input = document.getElementById('setting-sync-device-id');
+    if (!input || !status) return;
+    if (typeof status.deviceId !== 'string' || !status.deviceId) return;
+    input.value = status.deviceId;
+}
+
+function copySyncDeviceId() {
+    const input = document.getElementById('setting-sync-device-id');
+    const value = input ? input.value.trim() : '';
+    if (!value) {
+        showToast('设备 ID 尚未生成，请稍后再试');
+        return;
+    }
+    try {
+        require('electron').clipboard.writeText(value);
+        showToast('已复制设备 ID');
+    } catch (err) {
+        console.error('复制设备 ID 失败:', err);
+        showToast('复制失败');
+    }
+}
+
 /* ---------------- 访问令牌：只经主进程进出 ---------------- */
 
 function applySyncTokenStatus(status) {
@@ -170,7 +199,7 @@ function applySyncTokenStatus(status) {
     const hint = document.getElementById('sync-token-hint');
     if (hint) {
         if (!State.syncTokenSaved) {
-            hint.textContent = '尚未保存令牌：服务端一律要求凭据，先在管理后台 /admin 创建访问令牌再填入。';
+            hint.textContent = '尚未保存令牌：服务端一律要求凭据，先在服务端管理页创建访问令牌再填入（浏览器打开服务器地址即是）。';
         } else if (State.syncTokenStrong) {
             hint.textContent = '已保存到系统密钥链（内存与磁盘上均为密文）。';
         } else {
@@ -556,6 +585,9 @@ function initSyncServerSettings() {
 
     const repoBtn = document.getElementById('btn-sync-repo');
     if (repoBtn) repoBtn.onclick = openSyncServerRepo;
+
+    const deviceIdCopyBtn = document.getElementById('btn-sync-device-id-copy');
+    if (deviceIdCopyBtn) deviceIdCopyBtn.onclick = copySyncDeviceId;
 
     /* 主进程重放完远端操作、改动了本地文件：重新载入一次，界面才会看到别的设备改过的内容。
        先落盘再重载——被覆盖的可能是编辑器里正在改的那一篇 */

@@ -186,10 +186,12 @@ html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .workspace-tabs {
    并且只留图标（文字交给 title 提示）：自己一层盖在标签栏左端让出来的那一格上
    （标签栏的 padding-left 从 8px 涨到 40px），两者共用同一条过渡——
    编辑器打开时图标从左侧滑入、标签同时向右让位，关掉编辑器时原路滑出。
-   只在编辑器打开时出现（:has 判定编辑器顶栏有没有被收起）；经典布局下不显示。
+   出现与否有两道判定（见下面那条规则）：编辑器得开着，并且按钮要站的那一格得真有东西——
+   标签页开着时它钉在标签栏最左端，标签栏一个标签都没有时会整条收起（见上面那条 :empty），
+   按钮便不该单独留在空状态上方（首屏在脚本渲染出第一个标签之前正是这个样子）；
+   「禁用标签页」时它落在编辑器顶栏那一格上，那一档只看编辑器。经典布局下不显示。
    位置与侧边栏收起与否无关——顶栏里不再另备一枚，免得收起侧边栏时「返回」
    在两处之间跳（那一枚带文字的老长相已随这次改动去掉）。
-   标签栏被「禁用标签页」整条收起时，这一格正好落在编辑器顶栏上，由顶栏让出 40px（见下面那段）。
    图标也跟着标签页走：标签页开着时是首页图标，「禁用标签页」时回到返回箭头（见下面「返回」的两枚图标）。 */
 /* 「返回」占下的那一格：标签栏左端的 padding-left、标签栏左端的遮罩（见上面「标签栏两端的遮罩」）
    与「禁用标签页」时编辑器顶栏让出的那一格，三处都跟着这一个值走，不再各写一遍 */
@@ -240,8 +242,16 @@ html.modern-layout .tabs-back:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
 }
-/* 编辑器打开：图标滑入，标签栏左端同时让出那一格 */
-html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .tabs-back {
+/* 编辑器打开：图标滑入，标签栏左端同时让出那一格。
+   两档的判定不一样，因为按钮的落点本来就分两处：
+   —— 标签页开着时它钉在标签栏最左端，因此除了「编辑器开着」，还要「栏里确实排着标签」：
+   一个标签都没有时那一行整条收起（见上面那条 :empty），按钮跟着一起不排，
+   否则空状态上方会孤零零浮出一枚「返回首页」（首屏在脚本渲染出第一个标签之前就是这样，
+   那时工作区只排着空状态，编辑器区块的显隐还没轮到脚本接管）。
+   —— 「禁用标签页」时它落在编辑器顶栏那一格上（标签栏整条不排，标签本身仍留在 DOM 里），
+   与标签栏排没排出来无关，只看编辑器开着没有。 */
+html.modern-layout:not(.tabs-disabled) .workspace:has(#editor-topbar:not(.hidden)):has(#workspace-tabs:not(:empty)) .tabs-back,
+html.modern-layout.tabs-disabled .workspace:has(#editor-topbar:not(.hidden)) .tabs-back {
     opacity: 1;
     transform: none;
     pointer-events: auto;

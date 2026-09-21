@@ -37,6 +37,16 @@
     color: var(--text-muted);
 }
 
+/* 设备 ID：只读展示 + 复制。值本身很短（dev-xxxxxx），不用占地址那样的宽度 */
+.settings-input.sync-device-id {
+    width: 150px;
+    color: var(--text-secondary);
+    cursor: text;
+}
+.settings-input.sync-device-id:focus {
+    border-color: var(--border-color);
+}
+
 /* 状态行：正常为说明文字，成功 / 失败时着色 */
 .sync-status[data-tone='ok'] {
     color: var(--accent);

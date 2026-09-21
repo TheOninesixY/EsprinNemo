@@ -362,18 +362,18 @@ python EsprinServer.py --selftest
 - 日志：`<data>/journal.log`，一行一条操作（JSON Lines，append-only）；将日志从头重放一遍即为全部数据
 - 设置页「数据与存储 → 自建同步 → 服务端项目」的「打开项目主页」可在系统浏览器中打开该仓库
 - 令牌：在管理后台（见下）中创建与保存；同时兼容启动参数 `--token` 与环境变量 `ESPRIN_TOKEN`
-- 鉴权：`/sync/*` 一律要求凭据——客户端的访问令牌（`Authorization: Bearer`）或管理后台的登录会话；未携带凭据的请求一律返回 401，服务端未配置任何凭据时也只是拒绝并提示先去 `/admin` 建立凭据
+- 鉴权：`/sync/*` 一律要求凭据——客户端的访问令牌（`Authorization: Bearer`）或管理后台的登录会话；未携带凭据的请求一律返回 401，服务端未配置任何凭据时也只是拒绝并提示先去根路径的管理页建立凭据
 - 接口（同步）：`GET /sync/health`（不需要令牌，用于区分「地址错」与「令牌错」）、`GET /sync/ops?since=&limit=`、`POST /sync/ops`、`GET /sync/state`、`GET /sync/file?path=`
 - 幂等：每条操作带 `opId`，客户端重试时重复提交不会重复写入日志
 - 路径安全：只接受数据目录内的相对路径，`..`、绝对路径一律拒绝
 
 ### 管理后台
 
-启动后在浏览器中打开「服务器地址 + `/admin`」（例如 `http://192.168.1.10:8686/admin`；根路径 `/` 仅返回一句说明，不做其他处理）。管理页面是仓库 `manager/` 目录下的三个静态文件（`index.html`、`app.css`、`app.js`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。
+启动后在浏览器中打开「服务器地址 + `/`」（例如 `http://192.168.1.10:8686/`；服务端只托管这一个页面与 `/sync` 同步接口，不再提供网页版客户端）。管理页面是仓库 `manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。
 
 - **首次打开**引导设置管理密码（至少 8 位），随后进入管理面板；密码以 PBKDF2-HMAC-SHA256（20 万次迭代 + 随机盐）存为摘要写入 `<data>/admin.json`，不可反推原文，后续登录在同一页面完成
 - **令牌**：支持新建、改名、重置（生成新明文，旧明文立即失效）、停用 / 启用与删除；明文仅在创建或重置时显示一次，服务端只保存 HMAC-SHA256 摘要（密钥为 `admin.json` 中的随机密钥）
-- **设备绑定**：创建令牌时可指定设备（例如 `dev-office`）。绑定后，以该令牌提交的操作均记为该设备，客户端自报的设备名无法覆盖，便于在令牌泄露时定位写入来源
+- **设备绑定**：创建令牌时可指定设备（例如 `dev-office`；填客户端「设置 → 数据与存储 → 自建同步」里显示的设备 ID 即可）。绑定后，以该令牌提交的操作均记为该设备，客户端自报的设备名无法覆盖，便于在令牌泄露时定位写入来源
 - **最近使用**：每个令牌记录最近使用时间与客户端自报的设备 id，可在面板中直接查看，便于核对令牌的实际使用情况
 - **会话**：登录态仅保存在服务端内存中（默认 12 小时），Cookie 为 `HttpOnly` + `SameSite=Lax`；修改密码会使所有已登录会话立即失效；登录失败限速为同一 IP 60 秒内 10 次
 - 未登录时仅可见「是否已设密码」，令牌列表与增删改操作均需登录；管理页面为一组普通静态文件，不依赖外部资源，也不联网
@@ -382,18 +382,19 @@ python EsprinServer.py --selftest
 
 | 地址 | 说明 |
 | --- | --- |
-| `GET /admin` | 管理页面（`/admin/*` 是它的静态资源：样式、脚本、字体） |
-| `GET /admin/api/status` | 是否已设密码、当前是否已登录（页面靠它决定显示哪一屏） |
-| `GET /admin/api/tokens` | 令牌列表（不含摘要，需登录） |
-| `POST /admin/api/setup-password` | 首次设置管理密码（已设过则拒绝） |
-| `POST /admin/api/login` / `logout` | 登录与退出（登录态保存在内存中，Cookie 为 HttpOnly） |
-| `POST /admin/api/password` | 修改管理密码（会让其他会话立即失效） |
-| `POST /admin/api/tokens` | 新建令牌（明文只在这个响应里返回一次） |
-| `POST /admin/api/tokens/update` | 改名、改绑定设备、停用 / 启用 |
-| `POST /admin/api/tokens/rotate` | 重置令牌（旧的立即失效，返回新的明文） |
-| `POST /admin/api/tokens/delete` | 删除令牌 |
+| `GET /` | 管理页面（`/index.html` 同效；`/app.css`、`/app.js`、`/favicon.png`、`/fonts/*` 是它的静态资源） |
+| `GET /api/status` | 是否已设密码、当前是否已登录（页面靠它决定显示哪一屏） |
+| `GET /api/tokens` | 令牌列表（不含摘要，需登录） |
+| `POST /api/setup-password` | 首次设置管理密码（已设过则拒绝） |
+| `POST /api/login` / `logout` | 登录与退出（登录态保存在内存中，Cookie 为 HttpOnly） |
+| `POST /api/password` | 修改管理密码（会让其他会话立即失效） |
+| `POST /api/tokens` | 新建令牌（明文只在这个响应里返回一次） |
+| `POST /api/tokens/update` | 改名、改绑定设备、停用 / 启用 |
+| `POST /api/tokens/rotate` | 重置令牌（旧的立即失效，返回新的明文） |
+| `POST /api/tokens/delete` | 删除令牌 |
 | `GET /sync/*` | 同步接口（见上一节），与管理页互不相干 |
-| `GET /` | 根路径仅返回一句说明，不占用为页面 |
+| `GET /health` | 服务端状态 JSON（含 `passwordSet` / `tokenCount` 与两处接口前缀） |
+| `GET /admin` | 旧地址，302 跳转到 `/` |
 
 文件：
 
@@ -412,11 +413,13 @@ python EsprinServer.py --selftest
 | --- | --- |
 | `syncServer.enabled` | 总开关，默认关闭；未填写地址时不会发起任何请求 |
 | `syncServer.url` | 服务端地址（如 `http://127.0.0.1:8686`） |
-| `syncServer.device` | 设备名，仅用于在日志中分辨改动来源设备（设备 id 由主进程生成） |
+| `syncServer.device` | 设备名，仅用于在日志中分辨改动来源设备（设备 ID 由主进程生成，可在设置页查看与复制） |
 | `syncServer.autoSync` | `off`（默认）/ `5s` / `1m` / `5m` / `startup`（每次启动应用时）/ `custom`（自定义） |
 | `syncServer.autoSyncSeconds` | `custom` 生效的间隔秒数（5 ~ 86400 的整数，界面中可按秒或分钟填写） |
 | `syncServer.lastSyncAt` / `lastSyncSummary` | 上次同步的时刻与结果摘要，仅用于设置页展示 |
-| 令牌 | 不写入配置文件：在服务端管理后台（服务器地址 + `/admin`）创建，填入「访问令牌」后加密保存到系统密钥链（安装版 `%APPDATA%\esprin_nemo\sync_token.bin`，便携版在便携版目录下，开发运行另用 `sync_token.dev.bin`）；服务端仅使用 `--token` 时也可直接填写 |
+| 令牌 | 不写入配置文件：在服务端管理页（服务器地址 + `/`）创建，填入「访问令牌」后加密保存到系统密钥链（安装版 `%APPDATA%\esprin_nemo\sync_token.bin`，便携版在便携版目录下，开发运行另用 `sync_token.dev.bin`）；服务端仅使用 `--token` 时也可直接填写 |
+
+设备 ID 由主进程生成一次后固定下来（形如 `dev-a1b2c3`），可在「设置 → 数据与存储 → 自建同步 → 设备 ID」查看并一键复制（只读，不参与鉴权）；服务端创建令牌时把该值填进「绑定设备」，该令牌提交的改动就都记在这台设备名下。它与是否启用同步无关，保存在配置目录的 `sync_state.json`，不随 `config.json` 复制或分享。
 
 本地工作文件均位于应用配置目录，不在数据目录内，避免被同步流程处理：
 

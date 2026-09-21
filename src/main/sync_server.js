@@ -27,7 +27,7 @@ const STATE_VERSION = 1;
 // 请求超时：拉取与状态查询是轻量请求，推送可能带上多篇笔记
 const REQUEST_TIMEOUT_MS = 15000;
 const PUSH_TIMEOUT_MS = 60000;
-// 服务端的同步接口前缀：所有同步请求都挂在它下面（管理页在 /admin，与此无关）
+// 服务端的同步接口前缀：所有同步请求都挂在它下面（管理页在根路径 /，与此无关）
 const SYNC_PATH = '/sync';
 // 一次拉取多少条、一次推送多少条
 const PAGE_LIMIT = 500;
@@ -116,7 +116,7 @@ function autoSyncIntervalMs(config) {
 function validateConfig(config) {
   if (!config.enabled) return { error: '自建同步尚未启用，请先在「设置 → 数据与存储」中打开' };
   if (!config.url) return { error: '请先填写同步服务器地址（以 http:// 或 https:// 开头）' };
-  if (!store.status().hasKey) return { error: '请先填写访问令牌（令牌在服务端管理后台 /admin 创建）' };
+  if (!store.status().hasKey) return { error: '请先填写访问令牌（在服务端管理页创建：浏览器打开服务器地址即是）' };
   return {};
 }
 

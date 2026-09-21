@@ -819,7 +819,7 @@ function normalizeAutoSyncSeconds(value) {
 
 /* 自建同步配置规范化：容忍缺失/脏数据。
    注意这里没有令牌：令牌由主进程存进系统密钥链，不随 config.json 落盘、也不进入渲染进程；
-   设备 id（deviceId）同样不在配置里——它由主进程生成并保存在配置目录的 sync_state.json。
+   设备 id（deviceId）同样不在配置里——它由主进程生成并保存在配置目录的 sync_state.json，可在设置页「自建同步 → 设备 ID」里查看与复制。
    lastSyncAt / lastSyncSummary 是上一次同步留下的记录，供设置页展示。 */
 function normalizeSyncServerConfig(raw) {
     const source = (raw && typeof raw === 'object') ? raw : {};
