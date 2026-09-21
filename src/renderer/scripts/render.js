@@ -193,7 +193,7 @@ function renderCounts() {
     document.getElementById('count-todos').textContent = activeTodoCount;
     document.getElementById('count-pinned').textContent = pinnedCount;
     document.getElementById('count-trash').textContent = trashedCount;
-    document.getElementById('sidebar-stat').textContent = `共 ${activeNoteCount} 篇笔记 · ${activeTodoCount} 项待办`;
+    document.getElementById('sidebar-stat').textContent = `${activeNoteCount} 篇笔记 · ${activeTodoCount} 项待办`;
 
     sidebarNavItems.forEach(el => {
         const f = el.getAttribute('data-filter');
@@ -204,6 +204,9 @@ function renderCounts() {
     // 「清空」按钮只在废纸篓视图出现，一次清空笔记与待办
     const clearBtn = document.getElementById('btn-empty-trash');
     clearBtn.classList.toggle('hidden', State.currentFilter !== 'trash');
+    // 「导入文件」按钮跟随同一处判断，但方向相反：它在废纸篓视图下藏起来
+    // （往废纸篓里导入没有意义），其余视图都排在底栏设置按钮左边
+    document.getElementById('btn-import-note').classList.toggle('hidden', State.currentFilter === 'trash');
     document.getElementById('panel-category-title').textContent = panelCategoryTitle(State.currentFilter);
 }
 
@@ -1072,7 +1075,7 @@ function renderWorkspace() {
         titleArea.classList.add('hidden');
         contentArea.classList.add('hidden');
         footer.classList.add('hidden');
-        updateAiContextHint();
+        updateAiScopeOptions();
         return;
     }
 
@@ -1156,6 +1159,6 @@ function renderWorkspace() {
     renderMarkdown();
     updateStats();
     updateViewModeUI();
-    // 切换条目后，AI 面板的“附带笔记”提示要跟着变
-    updateAiContextHint();
+    // 切换条目后，AI 面板里那条下拉的「附带当前笔记：<笔记名>」要跟着变
+    updateAiScopeOptions();
 }

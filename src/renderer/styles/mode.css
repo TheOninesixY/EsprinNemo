@@ -304,6 +304,9 @@ html.modern-layout .notes-panel-header .search-box,
 html.modern-layout .notes-panel-header .dropdown,
 html.modern-layout .settings-sidebar .settings-back,
 html.modern-layout .settings-sidebar .settings-nav-item,
+/* 「新建」这一整组（本体 + 悬停滑出的副本）都算控件：副本是外挂在本体旁边的，
+   整组一起抠出来，两部分之间的间隔才不会落进拖动区里被当成窗口把手 */
+html.modern-layout .sidebar-action-wrap .sidebar-new-split,
 html.modern-layout .sidebar-action-wrap .btn-sidebar-new {
     -webkit-app-region: no-drag;
 }
@@ -440,7 +443,11 @@ html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .emp
    应用名与「新建」按钮并排一行：名字在左靠边，按钮顶到最右边、收成一个正方形只留加号。
    字号、字重与颜色跟标题栏里的那份保持一致，颜色同样由设置页的「应用名颜色」决定。
    现代布局里应用名只是展示、不可点击（退到笔记列表改由标签栏最左端的「返回」承担），
-   因此没有悬停 / 按下反馈；这一行里按钮之外的留白都可用于拖动窗口。 */
+   因此没有悬停 / 按下反馈；这一行里按钮之外的留白都可用于拖动窗口。
+
+   「新建」在这一布局下不再弹菜单（菜单里那三项各有去处：新建笔记与新建待办就是下面这两份按钮，
+   导入文件搬到了底栏、设在设置按钮左边，见 main.html）。它改成一枚中性图标按钮：
+   悬停时从旁边「复制」出第二份，一份新建笔记、一份新建待办，两枚都不再铺主题色。 */
 .sidebar-brand {
     display: none;
     font-family: 'Mohave', var(--font-sans);
@@ -469,24 +476,54 @@ html.modern-layout .sidebar-action-wrap {
     gap: 8px;
     padding: 8px;
 }
-/* 「新建」按钮收成正方形：不再撑满侧边栏宽度，也不跟名字抢空间 */
+/* 「新建」这一组收成正方形：按钮不再撑满侧边栏宽度，也不跟名字抢空间。
+   两枚按钮的底色与文字色都取下面这两个变量，好让「整组被悬停」（褪成中性浅灰）
+   与「指针正落在这枚上」（再深一档）叠在一起时各就各位，不必靠选择器权重去压 */
+html.modern-layout .sidebar-action-wrap .sidebar-new-split {
+    --split-btn-bg: var(--accent);
+    --split-btn-fg: var(--accent-fg);
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+/* 平时还是原来那副样子：主题色底 + 一个加号（悬停时才褪成灰色、换成新建文档的图标，
+   见下面「新建的两份」那一段） */
 html.modern-layout .sidebar-action-wrap .btn-sidebar-new {
     flex-shrink: 0;
     width: 28px;
     height: 28px;
     gap: 0;
     padding: 0;
+    background-color: var(--split-btn-bg);
+    color: var(--split-btn-fg);
+    /* opacity 固定为 1：基础样式里那条 .btn-sidebar-new:hover 的淡出在灰色底上看不出，
+       留着反而会让指针底下这一枚比旁边那一枚还淡 */
+    opacity: 1;
+    transition: background-color var(--motion-base) var(--ease-out),
+                color var(--motion-base) var(--ease-out),
+                opacity 0.15s,
+                transform 0.1s;
 }
-/* 方形按钮里只留加号，文字「新建」交给 title 提示 */
+/* 方形按钮里只留图标，文字「新建」交给 title 提示 */
 html.modern-layout .sidebar-action-wrap .nav-text {
     display: none;
 }
-/* 加号平时是绝对定位在按钮左内侧、透明的（经典布局收起侧边栏时才淡入），
-   这里让它回到常规流中：按钮本身就是居中排布，加号自然落在正中间 */
+/* 加号与「新建文档」两枚图标叠在按钮正中：都不占排版，按钮尺寸恒定，
+   悬停时只做一次交叉淡入淡出，不会有谁把谁挤偏 */
+html.modern-layout .sidebar-action-wrap .btn-new-note-icon,
+html.modern-layout .sidebar-action-wrap .btn-new-note-icon-doc {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity var(--motion-base) var(--ease-out);
+}
 html.modern-layout .sidebar-action-wrap .btn-new-note-icon {
-    position: static;
-    transform: none;
     opacity: 1;
+}
+html.modern-layout .sidebar-action-wrap .btn-new-note-icon-doc {
+    display: inline-flex;
+    opacity: 0;
 }
 /* 收起态侧边栏只剩一条窄条：应用名跟着一起隐藏，方形按钮在窄条里居中 */
 html.sidebar-collapsed .sidebar .sidebar-brand {
@@ -494,6 +531,105 @@ html.sidebar-collapsed .sidebar .sidebar-brand {
 }
 html.sidebar-collapsed .sidebar .sidebar-action-wrap {
     justify-content: center;
+}
+
+/* ---------------- 「新建」的两份：悬停复制 ----------------
+   现代布局下「新建」不再弹菜单：本体（右 / 上那份）新建笔记，
+   悬停时从它旁边滑出的副本（左 / 下那份）新建待办（点击处理见 scripts/events.js）。
+   悬停这一组时是三件事同一拍发生：
+     1. 本体的主题色底褪成中性浅灰、文字提亮（下面那两个变量换一档）；
+     2. 本体上的加号淡出、「新建文档」的图标淡入——这一枚的身份从「新建」变成明确的「新建笔记」；
+     3. 副本从本体旁边滑出来，带的是侧边栏里「待办」那一枚图标，身份是「新建待办」。
+   指针真正落在哪一枚上，那一枚的底色再深一档（--item-active），组内两枚都能看出「点的是它」。
+   副本平时在排版里完全不占位（宽 / 高为 0 + overflow: hidden，连图标一起裁掉），
+   悬停或键盘聚焦时才长出来：
+     展开态——副本排在本体左边（order: -1），只长宽，间隔挂在它的 margin-right 上；
+     收起态——整组改成竖排，副本换到本体下方（order: 1），只长高，间隔挂在 margin-top 上。
+   两种情况下本体都不挪位（这一行右对齐 / 居中，长出来的那一截只往左或往下伸），
+   鼠标停在原处时脚下始终是同一枚按钮，不会因为副本滑出来就点到别的东西上；
+   两份之间的间隔由外层 .sidebar-new-split 自己撑住（它连着两份一起算悬停区），
+   鼠标从本体移到副本的途中因此不会掉出去、把副本又收回去。
+   图标另给一个反向位移：副本往哪边长，图标就从哪边推出来，滑动因此看得见来路。 */
+html.modern-layout .sidebar-action-wrap .sidebar-new-split:hover,
+html.modern-layout .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) {
+    --split-btn-bg: var(--item-hover);
+    --split-btn-fg: var(--text-primary);
+}
+html.modern-layout .sidebar-action-wrap .sidebar-new-split:hover .btn-new-note-icon,
+html.modern-layout .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) .btn-new-note-icon {
+    opacity: 0;
+}
+html.modern-layout .sidebar-action-wrap .sidebar-new-split:hover .btn-new-note-icon-doc,
+html.modern-layout .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) .btn-new-note-icon-doc {
+    opacity: 1;
+}
+/* 指针真正落在哪一枚上，那一枚再深一档：这两个变量写在按钮自己身上，
+   压过它从 .sidebar-new-split 继承来的那一份（元素自身的声明总是赢过继承值） */
+html.modern-layout .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new:hover {
+    --split-btn-bg: var(--item-active);
+    --split-btn-fg: var(--text-primary);
+}
+html.modern-layout .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new-extra {
+    /* 副本平时在排版里不占位：0 宽 + 裁掉溢出，里面的图标不会先探出头来。
+       它只在整组被悬停时露面，底色一上来就是中性的浅灰（上面那条 :hover 再深一档） */
+    display: flex;
+    order: -1;
+    width: 0;
+    height: 28px;
+    margin-right: 0;
+    --split-btn-bg: var(--item-hover);
+    --split-btn-fg: var(--text-primary);
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: width var(--motion-base) var(--ease-out),
+                height var(--motion-base) var(--ease-out),
+                margin-right var(--motion-base) var(--ease-out),
+                margin-top var(--motion-base) var(--ease-out),
+                opacity var(--motion-base) var(--ease-out);
+}
+html.modern-layout .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new-extra .ms-icon {
+    transform: translateX(10px);
+    transition: transform var(--motion-base) var(--ease-out);
+}
+html.modern-layout:not(.sidebar-collapsed) .sidebar-action-wrap .sidebar-new-split:hover .btn-sidebar-new-extra,
+html.modern-layout:not(.sidebar-collapsed) .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) .btn-sidebar-new-extra {
+    width: 28px;
+    margin-right: 6px;
+    opacity: 1;
+    pointer-events: auto;
+}
+html.modern-layout:not(.sidebar-collapsed) .sidebar-action-wrap .sidebar-new-split:hover .btn-sidebar-new-extra .ms-icon,
+html.modern-layout:not(.sidebar-collapsed) .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) .btn-sidebar-new-extra .ms-icon {
+    transform: none;
+}
+/* 收起态：窄条里横排不下两份，整组改成竖排——本体在上、副本在下，收起时只长高，
+   下面那一列（筛选 / 底栏）跟着往下让一点，等鼠标移开再合回去。
+   副本在这里用 order: 1 送到本体之后（标记里副本排在本体前面，展开态靠 order: -1 排到左边），
+   于是本体照旧停在鼠标底下，往下长出来的只是副本 */
+html.modern-layout.sidebar-collapsed .sidebar-new-split {
+    flex-direction: column;
+    align-items: center;
+}
+html.modern-layout.sidebar-collapsed .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new-extra {
+    order: 1;
+    width: 28px;
+    height: 0;
+    margin-right: 0;
+}
+html.modern-layout.sidebar-collapsed .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new-extra .ms-icon {
+    transform: translateY(-10px);
+}
+html.modern-layout.sidebar-collapsed .sidebar-action-wrap .sidebar-new-split:hover .btn-sidebar-new-extra,
+html.modern-layout.sidebar-collapsed .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) .btn-sidebar-new-extra {
+    height: 28px;
+    margin-top: 4px;
+    opacity: 1;
+    pointer-events: auto;
+}
+html.modern-layout.sidebar-collapsed .sidebar-action-wrap .sidebar-new-split:hover .btn-sidebar-new-extra .ms-icon,
+html.modern-layout.sidebar-collapsed .sidebar-action-wrap .sidebar-new-split:has(:focus-visible) .btn-sidebar-new-extra .ms-icon {
+    transform: none;
 }
 
 /* ---------------- 设置页里的「禁用标签页」 ----------------

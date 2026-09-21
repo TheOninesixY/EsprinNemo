@@ -19,9 +19,19 @@ function setupEvents() {
     const tabsBack = document.getElementById('btn-tabs-back');
     if (tabsBack) tabsBack.onclick = leaveActiveItem;
 
-    // 两个「新建」入口都展开同一个菜单：新建笔记 / 新建待办
-    document.getElementById('btn-new-note').onclick = (e) => toggleNewItemMenu(e.currentTarget);
+    // 侧边栏顶部的「新建」：现代布局下不再弹菜单，本体直接新建笔记，
+    // 悬停时滑出的副本（#btn-new-todo，见 main.html 与 styles/mode.css）新建待办；
+    // 经典布局侧边栏只有这一个入口，照旧展开「新建笔记 / 新建待办 / 导入文件」菜单。
+    document.getElementById('btn-new-note').onclick = (e) => {
+        if (isModernLayout()) createNewNote();
+        else toggleNewItemMenu(e.currentTarget);
+    };
+    document.getElementById('btn-new-todo').onclick = () => createNewTodo();
+    // 空状态里的「新建」不在侧边栏、没有可复制的余地，仍走那套菜单
     document.getElementById('btn-empty-new').onclick = (e) => toggleNewItemMenu(e.currentTarget);
+    // 导入文件：从「新建」菜单里搬出来独立成按钮，固定在底栏设置按钮左边
+    // （废纸篓视图下由 renderCounts 藏起来，见 scripts/render.js）
+    document.getElementById('btn-import-note').onclick = () => importNoteFiles();
     document.getElementById('btn-toggle-sidebar').onclick = toggleSidebarCollapsed;
 
     document.getElementById('input-note-title').oninput = autoSaveActiveItem;

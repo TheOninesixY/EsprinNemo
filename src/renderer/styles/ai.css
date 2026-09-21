@@ -398,46 +398,47 @@
     padding: 10px 12px 12px 12px;
     border-top: 1px solid var(--border-color);
 }
-.ai-input {
+/* 输入框这一层「字段」：边框、底色与圆角挂在它身上，正文与内部那条底栏各占一行。
+   发送按钮因此落在输入框内部的右下角，附带范围那条下拉落在左下角；
+   底栏排在正文下方而不是叠在正文上，所以输入框内部滚动时正文不会钻到按钮底下。 */
+.ai-input-wrap {
+    display: flex;
+    flex-direction: column;
     width: 100%;
-    min-height: 62px;
-    max-height: 170px;
-    padding: 8px 10px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: var(--bg-body);
     color: var(--text-primary);
+    transition: border-color 0.15s;
+}
+.ai-input-wrap:focus-within {
+    border-color: var(--accent);
+}
+.ai-input {
+    width: 100%;
+    min-height: 62px;
+    max-height: 170px;
+    padding: 8px 10px 4px 10px;
+    background: transparent;
     font-family: inherit;
     font-size: 12.5px;
     line-height: 1.6;
     resize: none;
     user-select: text;
-    transition: border-color 0.15s;
-}
-.ai-input:focus {
-    border-color: var(--accent);
 }
 .ai-composer-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    /* 贴在输入框内沿：左边与正文的左内边距对齐，右边与底边各留一点余量 */
+    padding: 0 6px 6px 10px;
 }
-.ai-composer-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
+/* 附带范围下拉（自绘下拉的外层见 styles/dropdown.css）：笔记名可能很长，
+   所以它得会缩——缩到放不下时由触发器里的 .dropdown-label 显示省略号 */
+.ai-composer-bar .dropdown {
+    flex: 0 1 auto;
     min-width: 0;
-}
-.ai-context-hint {
-    flex: 1;
-    min-width: 0;
-    font-size: 11px;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 .ai-composer-actions {
     display: flex;
@@ -445,27 +446,34 @@
     gap: 6px;
     flex-shrink: 0;
 }
+/* 发送按钮：只留一枚图标、不带按钮底色，颜色用主题色（--accent 跟随品牌色设置）。
+   尺寸与旁边的附件按钮一致，停在这一行的右端 */
 .ai-send-btn {
+    width: 28px;
     height: 28px;
-    padding: 0 14px;
+    padding: 0;
     border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-size: 12px;
-    font-weight: 500;
-    transition: opacity 0.15s;
+    color: var(--accent);
+    transition: color 0.15s, opacity 0.15s;
+}
+.ai-send-btn .ms-icon {
+    font-size: 20px;
 }
 .ai-send-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    opacity: 0.75;
 }
+/* 不可发送时（输入框空着）淡淡地留在原地：颜色仍是主题色，只是褪下去一档 */
 .ai-send-btn:disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
 }
-/* 停止按钮：次要样式，与发送按钮区分开 */
+/* 停止按钮：占的是同一个位置，换成中性色以便与「发送」区分开 */
 #btn-ai-stop {
-    background: var(--item-active);
+    color: var(--text-secondary);
+}
+#btn-ai-stop:hover:not(:disabled) {
     color: var(--text-primary);
+    opacity: 1;
 }
 
 /* 5. 附件：待发送条、缩略图与消息里的附件卡片 */
@@ -541,7 +549,7 @@
     outline: 2px dashed var(--accent);
     outline-offset: -6px;
 }
-.ai-panel.drop-active .ai-input {
+.ai-panel.drop-active .ai-input-wrap {
     border-color: var(--accent);
 }
 

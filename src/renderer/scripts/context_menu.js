@@ -170,10 +170,15 @@ document.getElementById('new-item-menu').onclick = (e) => {
     else if (action === 'import-note') importNoteFiles();
 };
 
-// 点击菜单以外的地方收起两个菜单；点触发按钮本身交由按钮的点击处理切换
+// 点击菜单以外的地方收起两个菜单；点触发按钮本身交由按钮的点击处理切换。
+// 现代布局下侧边栏的「新建」不再开菜单（它自己就是「新建笔记」，见 scripts/events.js），
+// 因此只有空状态那一个（以及经典布局下侧边栏那一个）算触发按钮——
+// 否则空状态菜单开着时点侧边栏的「新建」，菜单赖着不收、还顺手新建了一篇
 window.addEventListener('click', (e) => {
     if (!e.target.closest('#note-context-menu')) hideContextMenu();
-    if (!e.target.closest('#new-item-menu') && !e.target.closest('#btn-new-note') && !e.target.closest('#btn-empty-new')) {
+    const isNewMenuTrigger = !!e.target.closest('#btn-empty-new')
+        || (!isModernLayout() && !!e.target.closest('#btn-new-note'));
+    if (!e.target.closest('#new-item-menu') && !isNewMenuTrigger) {
         hideNewItemMenu();
     }
 });

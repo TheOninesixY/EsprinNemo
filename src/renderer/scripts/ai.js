@@ -431,27 +431,47 @@ function updateAiPanelHeader() {
     }
 }
 
-// 输入框下方：本次提问会附带哪些笔记
-function updateAiContextHint() {
-    const hint = document.getElementById('ai-context-hint');
-    if (!hint) return;
+/* 输入框里那条下拉：附带范围的选项文字与可选项都跟着「当前打开的笔记」走。
+   开着笔记时第一项写作「附带当前笔记：<笔记名>」；没有打开的笔记时这一项直接收起来，
+   下拉里只剩「附带全部笔记 / 不附带笔记」。
 
-    if (State.aiScope === 'none') {
-        hint.textContent = '不附带笔记';
-        return;
+   收起时范围会临时让给「不附带笔记」——取不到笔记时这两项效果完全一样（都拿不到上下文），
+   但用户的偏好还得记着：等重新打开笔记，范围自动回到「附带当前笔记」（标记见下）。
+   用户自己动手改过范围就作数，标记随之清掉，不再自动改回去。 */
+let aiScopeParkedForMissingNote = false;
+
+function updateAiScopeOptions() {
+    const select = document.getElementById('ai-scope-select');
+    if (!select) return;
+
+    const item = getActiveItem();
+    const currentOption = select.querySelector('option[value="current"]');
+
+    if (item) {
+        const label = `附带当前笔记：${itemDisplayTitle(item)}`;
+        if (!currentOption) {
+            const option = document.createElement('option');
+            option.value = 'current';
+            option.textContent = label;
+            select.insertBefore(option, select.firstElementChild);
+        } else if (currentOption.textContent !== label) {
+            // 改的是选项文字：自绘下拉的触发器与菜单都跟着这个原生 select 走（见 scripts/dropdown.js）
+            currentOption.textContent = label;
+        }
+        if (aiScopeParkedForMissingNote) {
+            aiScopeParkedForMissingNote = false;
+            State.aiScope = 'current';
+        }
+    } else if (currentOption) {
+        currentOption.remove();
+        if (State.aiScope === 'current') {
+            aiScopeParkedForMissingNote = true;
+            State.aiScope = 'none';
+        }
     }
-    if (State.aiScope === 'current') {
-        const item = getActiveItem();
-        hint.textContent = item ? `附带：${itemDisplayTitle(item)}` : '当前没有打开的内容';
-        return;
-    }
-    // 只为了这一句提示，不必真的组装一次上下文：
-    // collectAiContextNotes 会先给整个笔记库排序再截断，而最终条数就是「未删除笔记数与上限取小」，
-    // 直接数一遍即可。updateAiContextHint 在每次界面刷新时都会走到这里。
-    const maxNotes = Math.max(1, Number(State.ai && State.ai.maxNotes) || 10);
-    const available = State.notes.reduce((total, note) => total + (note.isTrashed ? 0 : 1), 0);
-    const count = Math.min(maxNotes, available);
-    hint.textContent = count ? `附带 ${count} 篇笔记` : '没有可附带的笔记';
+
+    // 原生 select 是自绘下拉的数据源：把范围同步过去，触发器上的文字随之刷新
+    if (select.value !== State.aiScope) select.value = State.aiScope;
 }
 
 function updateAiComposerState() {
@@ -561,7 +581,7 @@ function setAiPanelOpen(open) {
     }
 
     updateAiPanelHeader();
-    updateAiContextHint();
+    updateAiScopeOptions();
     updateAiComposerState();
     renderAiMessages();
     renderAiChatList();
@@ -749,7 +769,7 @@ async function requestAiAnswer(chat, messages) {
     renderAiMessages();
     renderAiChatList();
     updateAiComposerState();
-    updateAiContextHint();
+    updateAiScopeOptions();
 
     if (!result || !result.ok || !target) return null;
     return { toolCalls };
@@ -911,7 +931,9 @@ function initAiPanel() {
         scopeSelect.value = State.aiScope;
         scopeSelect.onchange = (event) => {
             State.aiScope = normalizeAiScope(event.target.value);
-            updateAiContextHint();
+            // 用户自己挑过范围就不再自动改回去（见 updateAiScopeOptions）
+            aiScopeParkedForMissingNote = false;
+            updateAiScopeOptions();
         };
     }
 
@@ -947,6 +969,6 @@ function initAiPanel() {
     });
 
     updateAiPanelHeader();
-    updateAiContextHint();
+    updateAiScopeOptions();
     updateAiComposerState();
 }

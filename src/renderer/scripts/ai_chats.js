@@ -154,7 +154,7 @@ function newAiConversation() {
     closeAiDrawer();
     renderAiMessages();
     renderAiChatList();
-    updateAiContextHint();
+    updateAiScopeOptions();
     updateAiComposerState();
     focusAiInput();
     return activeAiConversation();
@@ -171,7 +171,7 @@ function switchAiConversation(id) {
     closeAiDrawer();
     renderAiMessages();
     renderAiChatList();
-    updateAiContextHint();
+    updateAiScopeOptions();
     updateAiComposerState();
     focusAiInput();
 }
@@ -208,7 +208,7 @@ async function deleteAiConversation(id) {
     saveConfig();
     renderAiMessages();
     renderAiChatList();
-    updateAiContextHint();
+    updateAiScopeOptions();
     updateAiComposerState();
     showToast('已删除对话');
 }

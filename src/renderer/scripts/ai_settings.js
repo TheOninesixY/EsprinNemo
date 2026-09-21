@@ -158,11 +158,11 @@ function readAiConfigFromForm() {
     });
 }
 
-// 配置变化后统一刷新：状态行、面板标题里的模型名、上下文提示
+// 配置变化后统一刷新：状态行、面板标题里的模型名、面板里的附带范围下拉
 function refreshAiConfigViews() {
     setAiStatus(describeAiConfigState());
     updateAiPanelHeader();
-    updateAiContextHint();
+    updateAiScopeOptions();
 }
 
 function syncAiSettingsUI() {
