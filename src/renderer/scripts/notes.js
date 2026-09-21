@@ -405,6 +405,66 @@ async function clearTrash() {
     showToast('已清空废纸篓');
 }
 
+/* ---------------- 文件夹 ---------------- */
+
+// 重命名只改文件夹名与条目上的 folder 字段，笔记文件与正文保持原样
+async function renameFolder(folder) {
+    const name = await showPrompt('请输入新的文件夹名称', {
+        title: '重命名文件夹',
+        detail: '文件夹中的笔记与待办会一并跟随新名称，内容本身不变。',
+        icon: 'edit',
+        placeholder: '文件夹名称...',
+        value: folder,
+        confirmLabel: '重命名'
+    });
+    if (name === null) return;
+    if (!name) {
+        showToast('重命名失败：文件夹名称不能为空');
+        return;
+    }
+    if (name === folder) return;
+    if (State.folders.includes(name)) {
+        showToast('重命名失败：同名文件夹已存在');
+        return;
+    }
+
+    State.folders = State.folders.map(f => (f === folder ? name : f));
+    [...State.notes, ...State.todos].forEach(entry => {
+        if (entry.folder !== folder) return;
+        entry.folder = name;
+        saveItem(entry);
+    });
+    // 正停在该文件夹的视图跟着换到新名字上，否则筛选条件会指向一个已不存在的文件夹
+    if (State.currentFilter === `folder:${folder}`) State.currentFilter = `folder:${name}`;
+    saveConfig();
+    renderApp();
+    showToast(`已重命名为「${name}」`);
+}
+
+// 删除文件夹：其中的笔记与待办移回「默认」，条目本身与正文不删除
+async function deleteFolder(folder) {
+    const confirmed = await showConfirm(`删除文件夹“${folder}”？`, {
+        title: '删除文件夹',
+        detail: '该文件夹中的笔记与待办将移入“默认”文件夹，内容本身不会被删除。',
+        type: 'warning',
+        icon: 'delete',
+        confirmLabel: '删除',
+        danger: true
+    });
+    if (!confirmed) return;
+
+    State.folders = State.folders.filter(f => f !== folder);
+    // 文件夹下的笔记与待办移回“默认”，需要连同元数据一起写回各自文件
+    [...State.notes, ...State.todos].forEach(entry => {
+        if (entry.folder !== folder) return;
+        entry.folder = '默认';
+        saveItem(entry);
+    });
+    if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
+    saveConfig();
+    renderApp();
+}
+
 /* ---------------- 废纸篓自动清理 ---------------- */
 
 // 依据「最后一次编辑时间」判断是否过期：超过保留天数的废纸篓笔记与待办会被永久删除。

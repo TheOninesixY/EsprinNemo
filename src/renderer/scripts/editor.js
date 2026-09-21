@@ -200,7 +200,9 @@ function formatMarkdown(type) {
 // - 光标处：插入一个缩进单位
 // - 选中多行：整块缩进
 // - Shift+Tab：减少缩进
-const INDENT_UNIT = '    ';
+// 缩进单位是真正的制表符（\t），不是空格：源文件里存的就是缩进符号本身，
+// 显示宽度由样式里的 tab-size 决定（见 styles/editor.css 的 .editor-textarea）
+const INDENT_UNIT = '\t';
 
 function handleContentTab(e) {
     const textarea = document.getElementById('textarea-note-content');

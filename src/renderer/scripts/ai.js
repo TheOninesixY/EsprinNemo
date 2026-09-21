@@ -416,6 +416,13 @@ function scheduleAiStreamRender() {
         const items = container.querySelectorAll('.ai-msg-content');
         const el = items[items.length - 1];
         if (!el) return;
+
+        // 用户正在消息区里拖选时不重写正文：这里按增量覆盖一次 textContent，
+        // 选区就没了，回答还在流式输出时怎么拖都选不住。
+        // 返回不等丢内容——下一个增量还会调进来，流结束时还会走一次完整渲染
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && container.contains(selection.anchorNode)) return;
+
         el.textContent = msg.content;
         container.scrollTop = container.scrollHeight;
     }, AI_STREAM_RENDER_INTERVAL_MS);

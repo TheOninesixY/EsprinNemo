@@ -11,7 +11,7 @@
 //   sync_state.json   本次同步位置：服务器地址、设备 id、已应用到第几号 seq
 //   sync_outbox.json  还没推上去的操作（原子写，推成功后按 opId 移除）
 //   sync_token.bin    访问令牌，交给系统密钥链（见 secret_store.js）
-const { app, ipcMain } = require('electron');
+const { app, ipcMain, dialog, BrowserWindow, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -524,6 +524,292 @@ function applyOneOp(op, applied) {
   }
 }
 
+/* ---------------- 文件日志（journal.log） ----------------
+
+   服务端的全部数据就是那一份 append-only 的操作日志（见开头的模型说明）。这一节把日志当成
+   「一份可以离线使用的普通文件」来处理，与服务端在不在线无关：
+
+     * 导入（journal:import-file）：把日志重放到本地数据目录，等价于「以这份日志为准还原数据」——
+       日志里写过的文件按内容还原，标记为删除的路径在本地同样删除，日志没提到的文件保持原样。
+     * 转文件夹（journal:export-folder）：把日志的最终状态摊成一个目录树，不动本地数据目录。
+
+   两件事都只读日志文件本身：不推进「已应用到第几号」，也不往待推送队列里塞任何东西，
+   因此导入不会被当成一次同步，导出也不会把服务端已有的内容又推一遍回去。 */
+
+// 读取上限：日志是文本，整份读进内存逐行解析，超过这个大小就直接说读不了
+const JOURNAL_MAX_BYTES = 64 * 1024 * 1024;
+// 同一份日志（路径、大小、修改时间都没变）只解析一次：
+//「先看概览、再确认导入」会读两遍，第二次直接命中缓存
+let parsedJournalCache = null;
+
+function formatBytes(bytes) {
+  const size = Number(bytes) || 0;
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
+/* 逐行解析日志。服务端写的是 JSON Lines，一行一条
+   {seq, opId, device, time, op, path, data, encoding, hash}。
+   这里只认「操作类型与路径都合法」的行；空行、被截断的半行、别处的 JSON 只计数不中断，
+   一份被中途打断的日志因此仍然能导入它前面那些完整的操作。 */
+function parseJournalText(text) {
+  const entries = [];
+  const devices = new Set();
+  let invalid = 0;
+  let latestSeq = 0;
+
+  const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    let raw = null;
+    try {
+      raw = JSON.parse(trimmed);
+    } catch (error) {
+      invalid += 1;
+      continue;
+    }
+
+    const record = raw && typeof raw === 'object' ? raw : null;
+    const kind = record ? record.op : '';
+    const relative = record ? normalizeRelative(record.path) : '';
+    const hasPayload = kind !== 'put' || typeof record.data === 'string';
+    if (!record || !relative || (kind !== 'put' && kind !== 'del') || !hasPayload) {
+      invalid += 1;
+      continue;
+    }
+
+    const seq = Number(record.seq) || 0;
+    if (seq > latestSeq) latestSeq = seq;
+    if (record.device) devices.add(String(record.device));
+    entries.push({ ...record, seq, path: relative, op: kind });
+  }
+
+  return { entries, invalid, latestSeq, devices: [...devices] };
+}
+
+/* 文件里的顺序就是序号顺序（服务端只会往后追加）。只有每一行都带序号时才按序号重排，
+   这样两段日志（例如手工拼接的两份备份）也能按正确的次序重放。 */
+function orderJournalEntries(entries) {
+  const list = entries.slice();
+  if (!list.length || list.some((entry) => !(entry.seq > 0))) return list;
+  return list.sort((a, b) => a.seq - b.seq);
+}
+
+// 重放到底时每个路径是什么：同一路径后出现的操作覆盖先前的，del 表示这条路最终不存在
+function journalFinalState(entries) {
+  const final = new Map();
+  for (const entry of entries) {
+    if (entry.op === 'del') final.delete(entry.path);
+    else final.set(entry.path, entry);
+  }
+  return final;
+}
+
+// 读取并解析一份日志；结果按「路径 + 大小 + 修改时间」缓存一份
+function readJournalFile(filePath, { reload = false } = {}) {
+  if (!filePath || typeof filePath !== 'string') return { ok: false, error: '请先选择一份日志文件' };
+
+  let file = '';
+  try {
+    file = path.resolve(filePath);
+  } catch (error) {
+    return { ok: false, error: '日志文件路径不合法' };
+  }
+
+  let stat = null;
+  try {
+    stat = fs.statSync(file);
+  } catch (error) {
+    return { ok: false, error: `读不到这个文件：${error.message}` };
+  }
+  if (!stat.isFile()) return { ok: false, error: '所选路径不是一个文件' };
+  if (stat.size > JOURNAL_MAX_BYTES) {
+    return { ok: false, error: `日志太大（${formatBytes(stat.size)}），超过 ${formatBytes(JOURNAL_MAX_BYTES)} 的读取上限` };
+  }
+
+  if (!reload && parsedJournalCache
+    && parsedJournalCache.file === file
+    && parsedJournalCache.size === stat.size
+    && parsedJournalCache.mtimeMs === stat.mtimeMs) {
+    return { ...parsedJournalCache.parsed, file, size: stat.size, cached: true };
+  }
+
+  let text = '';
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch (error) {
+    return { ok: false, error: `读取日志失败：${error.message}` };
+  }
+
+  const parsed = parseJournalText(text);
+  if (!parsed.entries.length) {
+    return {
+      ok: false,
+      error: parsed.invalid
+        ? '这个文件里没有可用的操作：每行应当是一条 JSON 操作记录（是不是选错了文件？）'
+        : '这个文件是空的'
+    };
+  }
+
+  parsedJournalCache = { file, size: stat.size, mtimeMs: stat.mtimeMs, parsed };
+  return { ...parsed, file, size: stat.size, cached: false };
+}
+
+// 概览：先看清楚要导入 / 导出的是什么，再决定动不动手
+function inspectJournal(filePath) {
+  const parsed = readJournalFile(filePath);
+  if (!parsed.ok) return parsed;
+
+  const final = journalFinalState(orderJournalEntries(parsed.entries));
+  let contentBytes = 0;
+  final.forEach((entry) => { contentBytes += decodeOpPayload(entry).length; });
+
+  const puts = parsed.entries.filter((entry) => entry.op === 'put').length;
+  return {
+    ok: true,
+    file: parsed.file,
+    fileName: path.basename(parsed.file),
+    size: parsed.size,
+    ops: parsed.entries.length,
+    puts,
+    dels: parsed.entries.length - puts,
+    files: final.size,
+    contentBytes,
+    invalid: parsed.invalid,
+    latestSeq: parsed.latestSeq,
+    // 只回一份预览：日志可能有几千个路径，界面不需要完整清单
+    samplePaths: [...final.keys()].sort().slice(0, 12),
+    devices: parsed.devices,
+    cached: parsed.cached
+  };
+}
+
+/* 逐条重放：put 原子写入（临时文件 + rename），del 删文件。
+   本地本来就不存在的删除只记一次「跳过」——与同步重放同一条规矩：删除不会反过来产生写入。 */
+function applyJournalEntries(entries, rootDir) {
+  const applied = { written: 0, deleted: 0, skipped: 0, errors: [] };
+
+  for (const entry of entries) {
+    const target = path.join(rootDir, ...entry.path.split('/'));
+    if (entry.op === 'del') {
+      if (!fs.existsSync(target)) {
+        applied.skipped += 1;
+        continue;
+      }
+      try {
+        fs.unlinkSync(target);
+        applied.deleted += 1;
+      } catch (error) {
+        applied.errors.push(`${entry.path}：${error.message}`);
+      }
+      continue;
+    }
+
+    if (writeFileAtomicBuffer(target, decodeOpPayload(entry))) applied.written += 1;
+    else applied.errors.push(`${entry.path}：写入失败`);
+  }
+
+  return applied;
+}
+
+// 导入：把日志重放到本地数据目录（调用方在收到结果后重新载入界面数据）
+function importJournalFile(payload = {}) {
+  const parsed = readJournalFile(payload.filePath);
+  if (!parsed.ok) return parsed;
+
+  const root = resolveDataDir();
+  if (!root) return { ok: false, error: '数据目录不可用，无法导入' };
+
+  const entries = orderJournalEntries(parsed.entries);
+  const applied = applyJournalEntries(entries, root);
+  // 解析结果用完就放：导入可能刚把整份日志读进过内存
+  parsedJournalCache = null;
+  const failed = applied.errors.length;
+  const summary = `导入完成：写入 ${applied.written} 个文件，删除 ${applied.deleted} 个，跳过 ${applied.skipped} 个`
+    + (failed ? `，失败 ${failed} 个` : '');
+
+  return {
+    ok: true,
+    fileName: path.basename(parsed.file),
+    ops: entries.length,
+    written: applied.written,
+    deleted: applied.deleted,
+    skipped: applied.skipped,
+    errors: applied.errors.slice(0, 10),
+    summary
+  };
+}
+
+// 路径是否落在某个目录内（含自身）：用于拒绝把导出目标放进数据目录
+function isSameOrInside(target, parent) {
+  if (!target || !parent) return false;
+  const normalize = (value) => {
+    const resolved = path.resolve(String(value));
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+  };
+  const child = normalize(target);
+  const root = normalize(parent);
+  return child === root || child.startsWith(root.endsWith(path.sep) ? root : `${root}${path.sep}`);
+}
+
+// 转文件夹：把日志的最终状态按相对路径原样摊到目标目录下，不碰本地数据目录
+function exportJournalToFolder(payload = {}) {
+  const parsed = readJournalFile(payload.filePath);
+  if (!parsed.ok) return parsed;
+
+  const rawTarget = String(payload.targetDir || '');
+  if (!rawTarget) return { ok: false, error: '请先选择要导出到的文件夹' };
+
+  let target = '';
+  try {
+    target = path.resolve(rawTarget);
+  } catch (error) {
+    return { ok: false, error: '导出目录不合法' };
+  }
+
+  const dataRoot = resolveDataDir();
+  if (dataRoot && isSameOrInside(target, dataRoot)) {
+    return { ok: false, error: '导出目录不能位于数据目录内：导出的文件会被当成数据，混进同步里' };
+  }
+
+  try {
+    fs.mkdirSync(target, { recursive: true });
+  } catch (error) {
+    return { ok: false, error: `无法创建导出目录：${error.message}` };
+  }
+
+  const final = journalFinalState(orderJournalEntries(parsed.entries));
+  // 解析结果用完就放：导出可能刚把整份日志读进过内存
+  parsedJournalCache = null;
+  const errors = [];
+  let files = 0;
+  let bytes = 0;
+
+  for (const [relative, entry] of final) {
+    const buffer = decodeOpPayload(entry);
+    if (writeFileAtomicBuffer(path.join(target, ...relative.split('/')), buffer)) {
+      files += 1;
+      bytes += buffer.length;
+    } else {
+      errors.push(`${relative}：写入失败`);
+    }
+  }
+
+  return {
+    ok: true,
+    targetDir: target,
+    journalFile: path.basename(parsed.file),
+    ops: parsed.entries.length,
+    files,
+    bytes,
+    errors: errors.slice(0, 10),
+    summary: `已把《${path.basename(parsed.file)}》摊成 ${files} 个文件（${formatBytes(bytes)}）`
+  };
+}
+
 /* 拉取前先对一次「服务端日志身份」。
    服务端换了数据目录、或日志被清空重建时，seq 会从头开始；客户端若还拿着旧的
    「已应用到第几号」，就会一直从那个号码往后拉——服务端最新序号比它还小，于是永远拉到空，
@@ -993,6 +1279,68 @@ function registerSyncIpc() {
     if (!config.enabled || !config.url) return;
     queueLocalChange('del', relative);
   });
+
+  registerJournalIpc();
+}
+
+/* ---------------- 文件日志的 IPC ----------------
+
+   两个选择框都从主进程弹出（渲染进程拿不到任意路径的读写权），
+   读取与写盘也都在主进程：日志里可能含 config.json 这类敏感内容，路径与内容不必回传渲染进程。 */
+
+function ownerWindow(event) {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return win && !win.isDestroyed() ? win : null;
+}
+
+async function showOpenDialogFor(event, options) {
+  const parent = ownerWindow(event);
+  return parent ? dialog.showOpenDialog(parent, options) : dialog.showOpenDialog(options);
+}
+
+function registerJournalIpc() {
+  ipcMain.handle('journal:pick-file', async (event) => {
+    const result = await showOpenDialogFor(event, {
+      title: '选择服务端的日志文件（journal.log）',
+      buttonLabel: '选择日志',
+      properties: ['openFile'],
+      filters: [
+        { name: '日志文件（journal.log）', extensions: ['log', 'jsonl', 'ndjson', 'txt'] },
+        { name: '所有文件', extensions: ['*'] }
+      ]
+    });
+    if (result.canceled || !result.filePaths.length) return { canceled: true, path: '' };
+    return { canceled: false, path: result.filePaths[0] };
+  });
+
+  ipcMain.handle('journal:pick-folder', async (event) => {
+    const result = await showOpenDialogFor(event, {
+      title: '选择导出到的文件夹',
+      buttonLabel: '导出到这里',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    if (result.canceled || !result.filePaths.length) return { canceled: true, dir: '' };
+    return { canceled: false, dir: result.filePaths[0] };
+  });
+
+  // 概览：看清要导入 / 导出的是什么，此时还不动任何文件
+  ipcMain.handle('journal:inspect', (event, payload) => inspectJournal(payload && payload.filePath));
+
+  // 导入：把日志重放到本地数据目录（渲染进程收到结果后会重新载入界面数据）
+  ipcMain.handle('journal:import-file', (event, payload) => importJournalFile(payload || {}));
+
+  // 转文件夹：把日志的最终状态摊成一个目录树，导出成功后在文件管理器里打开它
+  ipcMain.handle('journal:export-folder', (event, payload) => {
+    const result = exportJournalToFolder(payload || {});
+    if (result.ok && shell) {
+      try {
+        Promise.resolve(shell.openPath(result.targetDir)).catch(() => {});
+      } catch (error) {
+        // 打不开文件夹不影响导出结果：状态行里已经写了导出到哪儿
+      }
+    }
+    return result;
+  });
 }
 
 module.exports = {
@@ -1003,5 +1351,10 @@ module.exports = {
   decideApply,
   normalizeRelative,
   mergeOutboxOp,
-  hashBytes
+  hashBytes,
+  parseJournalText,
+  orderJournalEntries,
+  journalFinalState,
+  applyJournalEntries,
+  isSameOrInside
 };

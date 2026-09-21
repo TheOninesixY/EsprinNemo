@@ -112,7 +112,41 @@ const marked = {
         // 5. 分割线
         text = text.replace(/^(?:---|\*\*\*|___)\s*$/gm, '<hr>');
 
-        // 6. 引用块解析（支持多行连续引用）
+        // 6. 表格解析：表头行 + 分隔行（用 : 决定该列对齐）+ 若干表体行
+        // 以「分隔行」为成立条件，正文里零星出现的竖线因此不会被误判成表格；
+        // 行首行尾的竖线可有可无，两种写法都兼容
+        text = text.replace(
+            /(^[ \t]*\|?[^\r\n|]*(?:\|[^\r\n|]*)+[ \t]*\|?[ \t]*\r?\n)(^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)+\|?[ \t]*\r?\n)((?:^[ \t]*\|?[^\r\n|]*(?:\|[^\r\n|]*)+[ \t]*\|?[ \t]*(?:\r?\n|$))*)/gm,
+            (block, headerRow, dividerRow, bodyRows) => {
+                // 去掉首尾竖线后按 | 切列
+                const splitCells = (row) => row
+                    .trim()
+                    .replace(/^\||\|$/g, '')
+                    .split('|')
+                    .map(cell => cell.trim());
+                const aligns = splitCells(dividerRow).map(spec => {
+                    const left = spec.startsWith(':');
+                    const right = spec.endsWith(':');
+                    if (left && right) return 'center';
+                    if (right) return 'right';
+                    if (left) return 'left';
+                    return '';
+                });
+                const alignStyle = (index) => (aligns[index] ? ` style="text-align: ${aligns[index]}"` : '');
+                const head = splitCells(headerRow)
+                    .map((cell, i) => `<th${alignStyle(i)}>${cell}</th>`)
+                    .join('');
+                const body = bodyRows
+                    .split(/\r?\n/)
+                    .filter(row => row.trim())
+                    .map(row => `<tr>${splitCells(row).map((cell, i) => `<td${alignStyle(i)}>${cell}</td>`).join('')}</tr>`)
+                    .join('');
+                // 外层容器负责窄屏横向滚动；前后补空行，避免表格被并进相邻段落
+                return `\n\n<div class="md-table-wrap"><table><thead><tr>${head}</tr></thead>${body ? `<tbody>${body}</tbody>` : ''}</table></div>\n\n`;
+            }
+        );
+
+        // 7. 引用块解析（支持多行连续引用）
         text = text.replace(/(?:^&gt; ?[^\r\n]*(?:\r?\n|$))+/gm, (block) => {
             const inner = block
                 .split(/\r?\n/)
@@ -122,7 +156,7 @@ const marked = {
             return `<blockquote><p>${inner}</p></blockquote>\n`;
         });
 
-        // 7. 任务清单与普通列表项
+        // 8. 任务清单与普通列表项
         text = text.replace(/^- \[ \] (.*)$/gm, '<li class="task-item"><input type="checkbox" disabled> $1</li>');
         text = text.replace(/^- \[x\] (.*)$/gm, '<li class="task-item"><input type="checkbox" checked disabled> $1</li>');
         text = text.replace(/^[-*+] (.*)$/gm, '<li>$1</li>');
@@ -132,7 +166,7 @@ const marked = {
         text = text.replace(/(?:<li class="ordered">.*?<\/li>\s*)+/g, '<ol>$&</ol>');
         text = text.replace(/(?:<li>.*?<\/li>\s*|<li class="task-item">.*?<\/li>\s*)+/g, '<ul>$&</ul>');
 
-        // 8. 粗体、斜体、删除线与链接
+        // 9. 粗体、斜体、删除线与链接
         text = text
             .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -150,7 +184,7 @@ const marked = {
                     : label;
             });
 
-        // 9. 段落与换行处理
+        // 10. 段落与换行处理
         // 让代码块占位符独占段落，保证还原后不与其他文本挤在同一个 <p> 内
         text = text.replace(/[ \t]*@@ESPRINCODEBLOCK(\d+)@@[ \t]*/g, (match, idx) => `\n\n@@ESPRINCODEBLOCK${idx}@@\n\n`);
         const paragraphs = text.split(/(?:\r?\n){2,}/);
@@ -168,7 +202,7 @@ const marked = {
             return `<p>${p.replace(/\r?\n/g, '<br>')}</p>`;
         }).filter(Boolean).join('\n');
 
-        // 10. 恢复行内代码与代码块
+        // 11. 恢复行内代码与代码块
         // 使用函数式替换，避免代码内容中的 $& $1 等被当作替换模式解析
         inlineCodes.forEach((code, idx) => {
             text = text.replace(INLINE_CODE_TOKEN(idx), () => code);

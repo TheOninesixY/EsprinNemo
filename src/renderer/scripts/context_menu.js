@@ -1,5 +1,6 @@
 /* 条目右键菜单与「新建」菜单：
    右键菜单按条目类型与状态（普通 / 废纸篓中）动态生成；
+   文件夹另有一套右键菜单（重命名 / 删除），见文件末尾；
    新建菜单用于选择新建笔记、新建待办，或把本地的 .md / .txt 文件导入为笔记。 */
 
 let contextItemId = null;
@@ -45,6 +46,7 @@ function contextMenuItems(item) {
 function showContextMenu(x, y, itemId) {
     const item = getItemById(itemId);
     if (!item) return;
+    hideFolderContextMenu();
     contextItemId = itemId;
 
     const menu = document.getElementById('note-context-menu');
@@ -100,6 +102,59 @@ document.getElementById('note-context-menu').onclick = (e) => {
         purgeItem(contextItemId);
     }
     hideContextMenu();
+};
+
+/* 文件夹右键菜单：重命名与删除。
+   「默认」是条目没有归属时的落脚点，既不能改名也不能删除，因此不为它开菜单 */
+function showFolderContextMenu(x, y, folder) {
+    if (folder === '默认') return;
+    hideContextMenu();
+
+    const menu = document.getElementById('folder-context-menu');
+    menu.innerHTML = '';
+    [
+        { action: 'rename-folder', icon: 'edit', label: '重命名文件夹' },
+        { action: 'delete-folder', icon: 'delete', label: '删除文件夹', danger: true }
+    ].forEach(entry => {
+        const el = document.createElement('div');
+        el.className = `context-menu-item${entry.danger ? ' danger' : ''}`;
+        el.dataset.action = entry.action;
+
+        const icon = document.createElement('span');
+        icon.className = 'ms-icon sm';
+        icon.textContent = entry.icon;
+
+        const label = document.createElement('span');
+        label.textContent = entry.label;
+
+        el.append(icon, label);
+        menu.appendChild(el);
+    });
+
+    menu.dataset.folder = folder;
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.classList.remove('hidden');
+
+    const rect = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - rect.width - 4))}px`;
+    menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - rect.height - 4))}px`;
+}
+
+function hideFolderContextMenu() {
+    document.getElementById('folder-context-menu').classList.add('hidden');
+}
+
+document.getElementById('folder-context-menu').onclick = (e) => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    // 文件夹名随菜单内容一起记在元素上，每次重建时覆盖
+    const folder = e.currentTarget.dataset.folder;
+    const action = target.getAttribute('data-action');
+    hideFolderContextMenu();
+    if (!folder) return;
+    if (action === 'rename-folder') renameFolder(folder);
+    else if (action === 'delete-folder') deleteFolder(folder);
 };
 
 /* 新建菜单：侧边栏顶部的「新建」与空状态按钮共用，用于新建笔记 / 待办，或导入现成的文件。
@@ -176,6 +231,7 @@ document.getElementById('new-item-menu').onclick = (e) => {
 // 否则空状态菜单开着时点侧边栏的「新建」，菜单赖着不收、还顺手新建了一篇
 window.addEventListener('click', (e) => {
     if (!e.target.closest('#note-context-menu')) hideContextMenu();
+    if (!e.target.closest('#folder-context-menu')) hideFolderContextMenu();
     const isNewMenuTrigger = !!e.target.closest('#btn-empty-new')
         || (!isModernLayout() && !!e.target.closest('#btn-new-note'));
     if (!e.target.closest('#new-item-menu') && !isNewMenuTrigger) {

@@ -160,7 +160,9 @@
                 </div>
 
                 <!-- Footer Status & Trash Management
-                     收起态下本区域改为纵向排布：设置按钮在上，展开按钮在下 -->
+                     概览文字在左，图标组贴右缘：清空废纸篓 / 导入文件排在设置左侧（靠 DOM 顺序），
+                     推手是概览文字的 margin-right: auto（见 styles/sidebar.css）；
+                     收起态下本区域改为纵向排布，图标自上而下同序 -->
                 <div class="sidebar-bottom">
                     <span id="sidebar-stat" class="nav-text">共 0 篇笔记</span>
                     <button class="btn-clear-trash hidden" id="btn-empty-trash" title="彻底清空废纸篓">
@@ -792,6 +794,29 @@
                         </div>
 
                         <div class="settings-section">
+                            <div class="settings-section-title">文件日志</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">导入文件日志</span>
+                                    <span class="settings-row-desc">选择一份服务端日志（journal.log，一行一条 put / del 操作）并重放到本地数据目录：日志里写过的文件按内容还原，标记为删除的路径在本地同样删除，日志没提到的文件保持原样。导入不改变同步进度、不推送任何内容；若日志里含 config.json，本机偏好设置也会随之变成日志里的那一份</span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-journal-import">选择日志…</button>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">文件日志转为文件夹</span>
+                                    <span class="settings-row-desc">把日志的最终状态摊成一个目录树（notes/、todos/、ai_chats/… 与数据目录同构；被删除过的路径不会出现），用来看内容、留档，或直接把这棵目录树选成数据存放位置。导出只写你选中的那个文件夹，本地数据目录不受影响</span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-journal-export">导出为文件夹…</button>
+                                </div>
+                            </div>
+                            <div class="settings-row-desc sync-status" id="journal-status">日志文件可以在服务端管理页的「数据与日志」里下载：登录后点「下载日志」。</div>
+                        </div>
+
+                        <div class="settings-section">
                             <div class="settings-section-title">自建同步</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
@@ -1035,6 +1060,9 @@
     <!-- Item Context Menu（菜单项按条目类型与状态动态生成） -->
     <div class="context-menu hidden" id="note-context-menu"></div>
 
+    <!-- Folder Context Menu（重命名 / 删除，文件夹条目右键弹出） -->
+    <div class="context-menu hidden" id="folder-context-menu"></div>
+
     <!-- New Item Menu（点侧边栏顶部「新建」或空状态按钮后展开：新建笔记 / 新建待办）
          外观直接复用下拉菜单的一套（见 styles/dropdown.css），位置由 scripts/context_menu.js 计算 -->
     <div class="dropdown-menu new-item-menu hidden" id="new-item-menu"></div>
@@ -1064,6 +1092,7 @@
     <script src="./scripts/settings.js"></script>
     <script src="./scripts/data_location.js"></script>
     <script src="./scripts/sync_server.js"></script>
+    <script src="./scripts/journal_file.js"></script>
     <script src="./scripts/tray.js"></script>
     <script src="./scripts/auto_launch.js"></script>
     <script src="./scripts/update.js"></script>

@@ -343,7 +343,15 @@
     border-style: dashed;
     color: var(--text-muted);
 }
-.ai-msg-content {
+/* 回复正文要能用鼠标拖选：全局重置（styles/base.css 里的 *）把所有元素都写成了
+   user-select: none，而这个属性不继承——子节点只认自己那一层，不会从父节点顺回 text。
+   因此正文得连同它内部的 Markdown 节点（<p> / <li> / <code> 等）一起放行，
+   否则只有提问那种直接写在正文里的纯文本能选，带标签的回答整块都选不中。
+   Agent 卡片里的步骤摘要与详情同理 */
+.ai-msg-content,
+.ai-msg-content *,
+.ai-step-label,
+.ai-step-detail {
     user-select: text;
     cursor: text;
 }

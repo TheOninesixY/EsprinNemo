@@ -96,6 +96,7 @@ window.onload = () => {
     syncTrashRetentionSelect();
     refreshDataDirInfo();
     initSyncServerSettings();
+    initJournalFileSettings();
     initUpdateSettings();
     initTraySettings();
     initAutoLaunchSettings();

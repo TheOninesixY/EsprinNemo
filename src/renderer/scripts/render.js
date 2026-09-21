@@ -227,44 +227,18 @@ function renderFolders() {
                 <span class="ms-icon sm">folder</span>
                 <span class="nav-text">${escapeHTML(folder)}</span>
             </div>
-            ${folder !== '默认' ? `
-                <button class="btn-del-folder" title="删除文件夹">
-                    <span class="ms-icon xs">close</span>
-                </button>
-            ` : ''}
         `;
 
-        item.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-del-folder')) return;
+        item.addEventListener('click', () => {
             State.currentFilter = `folder:${folder}`;
             renderApp();
         });
 
-        const delBtn = item.querySelector('.btn-del-folder');
-        if (delBtn) {
-            delBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const confirmed = await showConfirm(`删除文件夹“${folder}”？`, {
-                    title: '删除文件夹',
-                    detail: '该文件夹中的笔记与待办将移入“默认”文件夹，内容本身不会被删除。',
-                    type: 'warning',
-                    icon: 'delete',
-                    confirmLabel: '删除',
-                    danger: true
-                });
-                if (!confirmed) return;
-                State.folders = State.folders.filter(f => f !== folder);
-                // 文件夹下的笔记与待办移回“默认”，需要连同元数据一起写回各自文件
-                [...State.notes, ...State.todos].forEach(entry => {
-                    if (entry.folder !== folder) return;
-                    entry.folder = '默认';
-                    saveItem(entry);
-                });
-                if (State.currentFilter === `folder:${folder}`) State.currentFilter = 'all';
-                saveConfig();
-                renderApp();
-            });
-        }
+        // 改名与删除统一收进右键菜单，条目上不再挂删除按钮
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showFolderContextMenu(e.clientX, e.clientY, folder);
+        });
 
         container.appendChild(item);
     });
