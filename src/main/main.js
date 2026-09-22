@@ -995,7 +995,8 @@ app.whenReady().then(async () => {
   // 自建同步：测试连接 / 立即同步 / 首次接入 / 诊断（令牌不经过渲染进程）
   runStartupStep('自建同步', () => registerSyncIpc());
 
-  // 自动同步：按设置里的间隔拉取并重放远端操作、推送本地改动
+  // 自建同步的自动同步：每轮启动先同步一次（与「自动同步」设置无关），
+  // 之后按设置里的间隔拉取并重放远端操作、推送本地改动
   runStartupStep('自建同步自动同步', () => applyAutoSyncRuntime());
 
   // 全局界面默认值：关闭 Chromium 默认焦点描边与 Tab 键焦点切换

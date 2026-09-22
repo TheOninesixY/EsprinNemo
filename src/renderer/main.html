@@ -761,7 +761,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">启用自建同步</span>
-                                    <span class="settings-row-desc">使用自建同步服务端（EsprinServer.py）在多台设备之间同步：同步按操作日志进行，删除同样记为一条操作并重放，因此不会出现删除后被其他设备恢复的情况；关闭后仅收起下方配置，已填写的地址与令牌原样保留</span>
+                                    <span class="settings-row-desc">使用自建同步服务端（EsprinServer.py）在多台设备之间同步：同步按操作日志进行，删除同样记为一条操作并重放，因此不会出现删除后被其他设备恢复的情况；开启后每次启动应用都会同步一次（与下方「自动同步」的设置无关，启动时本机最可能落后）；关闭后仅收起下方配置，已填写的地址与令牌原样保留</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-sync-enabled">
@@ -834,7 +834,7 @@
                             <div class="settings-row" id="setting-sync-autosync-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">自动同步</span>
-                                    <span class="settings-row-desc">按间隔自动执行「拉取远端操作 → 重放 → 推送本地改动」；「自定义」可填写秒数或分钟数（5 秒 ~ 24 小时）。本地保存与删除即时推送，不依赖此间隔</span>
+                                    <span class="settings-row-desc">按间隔自动执行「拉取远端操作 → 重放 → 推送本地改动」；「自定义」可填写秒数或分钟数（5 秒 ~ 24 小时）。这里只决定「多久跑一次」：启用自建同步后每次启动应用都会同步一次，本地保存与删除也即时推送，都不受此设置影响</span>
                                 </div>
                                 <div class="sync-input-stack">
                                     <select class="settings-select" id="setting-sync-autosync">
@@ -842,7 +842,6 @@
                                         <option value="5s">每 5 秒</option>
                                         <option value="1m">每 1 分钟</option>
                                         <option value="5m">每 5 分钟</option>
-                                        <option value="startup">每次启动应用时</option>
                                         <option value="custom">自定义…</option>
                                     </select>
                                     <div class="sync-interval-group hidden" id="setting-sync-autosync-custom-row">

@@ -52,7 +52,8 @@ const State = {
         enabled: false,
         url: '',
         device: '',
-        // 自动同步：off / 5s / 1m / 5m / startup / custom（custom 用 autoSyncSeconds）
+        // 自动同步：off / 5s / 1m / 5m / custom（custom 用 autoSyncSeconds）；
+        // 开启同步后每次启动应用都会同步一次，与这里选了什么无关
         autoSync: 'off',
         autoSyncSeconds: 60,
         lastSyncAt: 0,

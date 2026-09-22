@@ -35,8 +35,10 @@ const MAX_OPS_PER_PUSH = 200;
 // 本地改动攒一下再推，避免每敲一个字就发一次请求
 const PUSH_DEBOUNCE_MS = 800;
 
-// 自动同步的预设（与渲染进程的设置项保持一致）
-const AUTO_SYNC_PRESETS = { off: 0, '5s': 5, '1m': 60, '5m': 300, startup: 0 };
+/* 自动同步的预设（与渲染进程的设置项保持一致）：值是「定时同步」的间隔秒数，0 表示不定时。
+   这里没有「每次启动应用时」这一项：只要同步开着，每次应用启动都会同步一次，
+   启动同步是总开关本身的行为，不归「自动同步」管（见 applyAutoSyncRuntime）。 */
+const AUTO_SYNC_PRESETS = { off: 0, '5s': 5, '1m': 60, '5m': 300 };
 const AUTO_SYNC_VALUES = Object.keys(AUTO_SYNC_PRESETS).concat('custom');
 const AUTO_SYNC_MIN_SECONDS = 5;
 const AUTO_SYNC_MAX_SECONDS = 24 * 60 * 60;
@@ -59,6 +61,8 @@ let lastError = '';
 // 自动同步的定时器
 let autoTimer = null;
 let autoFirstTimer = null;
+// 本轮启动的同步是否已经排上：设置变更会重建定时器，但「启动同步」每轮只排一次
+let startupSyncScheduled = false;
 // outbox 推送的防抖定时器
 let pushTimer = null;
 let opCounter = 0;
@@ -105,7 +109,7 @@ function readSyncConfig() {
   };
 }
 
-// 自动同步的间隔（毫秒）：0 表示不定时（关闭，或只按「每次启动应用时」）
+// 自动同步的间隔（毫秒）：0 表示不定时（关闭，只靠启动时同步一次与本地改动的即时推送）
 function autoSyncIntervalMs(config) {
   if (config.autoSync === 'custom') return clampAutoSyncSeconds(config.autoSyncSeconds) * 1000;
   const seconds = AUTO_SYNC_PRESETS[config.autoSync];
@@ -750,7 +754,8 @@ function syncStatus() {
     autoSync: config.autoSync,
     autoSyncSeconds: config.autoSyncSeconds,
     intervalMs,
-    startupSync: config.autoSync === 'startup',
+    // 只要启用且地址、令牌齐全，每次启动应用都会同步一次：与「自动同步」选了什么无关
+    startupSync: !validateConfig(config).error,
     active: !!autoTimer || !!autoFirstTimer,
     lastSeq: state.lastSeq,
     lastSyncAt: state.lastSyncAt,
@@ -770,16 +775,20 @@ async function autoSync(reason) {
   return result;
 }
 
-// 按当前配置重建自动同步的定时器（启动时、设置变更后各调一次）
+/* 按当前配置重建自动同步的定时器（启动时、设置变更后各调一次）。两件事互相独立：
+   - 启动同步：只要同步开着、地址与令牌齐全，每次应用启动都同步一次——与「自动同步」选了什么
+     无关（启动时正是本机最可能落后的时候）。设置变更也会走这里，所以用 startupSyncScheduled
+     保证每轮启动只排一次，改间隔 / 改地址不会顺带多同步几次。
+   - 定时同步：按用户选的间隔反复执行。 */
 function applyAutoSyncRuntime() {
   clearAutoSyncRuntime();
 
   const config = readSyncConfig();
   if (validateConfig(config).error) return;
 
-  if (config.autoSync === 'startup') {
+  if (!startupSyncScheduled) {
+    startupSyncScheduled = true;
     autoFirstTimer = setTimeout(() => { autoSync('启动'); }, AUTO_FIRST_SYNC_DELAY_MS);
-    return;
   }
 
   const intervalMs = autoSyncIntervalMs(config);

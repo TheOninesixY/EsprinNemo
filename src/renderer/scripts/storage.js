@@ -803,8 +803,9 @@ function normalizeAiConfig(raw) {
 }
 
 /* 自建同步的自动同步间隔：预设（秒）与自定义秒数的范围，
-   取值与 src/main/sync_server.js 的 AUTO_SYNC_* 保持一致。 */
-const SYNC_AUTO_SYNC_PRESETS = { off: 0, '5s': 5, '1m': 60, '5m': 300, startup: 0 };
+   取值与 src/main/sync_server.js 的 AUTO_SYNC_* 保持一致。
+   没有「每次启动应用时」这一项：只要同步开着，每次启动都会同步一次，与自动同步的设置无关。 */
+const SYNC_AUTO_SYNC_PRESETS = { off: 0, '5s': 5, '1m': 60, '5m': 300 };
 const SYNC_AUTO_SYNC_VALUES = Object.keys(SYNC_AUTO_SYNC_PRESETS).concat('custom');
 const SYNC_AUTO_SYNC_MIN_SECONDS = 5;
 const SYNC_AUTO_SYNC_MAX_SECONDS = 24 * 60 * 60;
@@ -831,7 +832,7 @@ function normalizeSyncServerConfig(raw) {
         url: pick('url').replace(/\/+$/, ''),
         // 设备名：只用于在日志里分辨是哪台机器改的
         device: pick('device'),
-        // 自动同步：off / 5s / 1m / 5m / startup / custom
+        // 自动同步：off / 5s / 1m / 5m / custom（off 只是不定时，启动时仍会同步一次）
         autoSync: SYNC_AUTO_SYNC_VALUES.includes(source.autoSync) ? source.autoSync : 'off',
         autoSyncSeconds: normalizeAutoSyncSeconds(source.autoSyncSeconds),
         lastSyncAt: Number.isFinite(lastSyncAt) && lastSyncAt > 0 ? lastSyncAt : 0,

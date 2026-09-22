@@ -52,10 +52,10 @@ function formatSyncInterval(seconds) {
 
 function describeSyncAutoSetting() {
     const config = syncConfig();
-    if (config.autoSync === 'startup') return '每次启动应用时同步一次';
     if (config.autoSync === 'custom') return `每 ${formatSyncInterval(config.autoSyncSeconds)}`;
     const seconds = SYNC_AUTO_SYNC_PRESETS[config.autoSync];
-    return seconds > 0 ? `每 ${formatSyncInterval(seconds)}` : '已关闭';
+    // 「不自动同步」只是不定时跑：每次启动应用仍会同步一次，本地保存与删除也即时推送
+    return seconds > 0 ? `每 ${formatSyncInterval(seconds)}` : '不定时（每次启动仍同步一次）';
 }
 
 function readSyncAutoSelection() {
@@ -245,7 +245,7 @@ async function commitSyncTokenFromForm() {
 async function clearSyncToken() {
     const confirmed = await showConfirm('清除已保存的同步令牌？', {
         title: '清除同步令牌',
-        detail: '清除后需重新填写令牌才能同步；服务器地址、设备名与自动同步设置不受影响。'
+        detail: '清除后需重新填写令牌才能同步；服务器地址、设备名与自动同步设置不受影响。',
         confirmLabel: '清除',
         danger: true
     });
