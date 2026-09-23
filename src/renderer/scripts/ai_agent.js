@@ -320,7 +320,7 @@ function runCreateNote(args) {
 
     const now = Date.now();
     const note = {
-        id: generateUniqueItemId(),
+        id: generateUniqueItemId('note'),
         title: typeof args.title === 'string' ? args.title.trim() : '',
         content,
         folder,

@@ -50,16 +50,23 @@ function generateNoteId() {
     return result;
 }
 
-// 生成唯一的条目 id：笔记与待办共用同一套标签页编号空间，
-// 因此内存两侧与磁盘上的 notes/、todos/ 文件都要避开。
-function generateUniqueItemId() {
+// 这个 id 是不是还有人在用：内存里的条目与磁盘上的 notes/、todos/ 文件都算
+// （笔记与待办共用同一套 id 空间，两边的文件都要避开）
+function itemIdTaken(id) {
+    if (!id) return true;
+    if (State.notes.some(n => n.id === id) || State.todos.some(t => t.id === id)) return true;
+    return fs.existsSync(path.join(NOTES_DIR, `${id}.md`)) || fs.existsSync(path.join(TODOS_DIR, `${id}.md`));
+}
+
+// 生成唯一的条目 id：优先用服务端回收池里腾出来的 ID（被删掉的那一条腾出的 ID
+// 会重新落到新建的条目上，池子在 scripts/sync_server.js 里维护），
+// 池子空或者候选不巧本机还在用就退回随机 ID。
+function generateUniqueItemId(kind) {
+    const recycled = typeof takeRecycledItemId === 'function' ? takeRecycledItemId(kind) : '';
+    if (recycled && !itemIdTaken(recycled)) return recycled;
+
     let id = generateNoteId();
-    while (State.notes.some(n => n.id === id)
-        || State.todos.some(t => t.id === id)
-        || fs.existsSync(path.join(NOTES_DIR, `${id}.md`))
-        || fs.existsSync(path.join(TODOS_DIR, `${id}.md`))) {
-        id = generateNoteId();
-    }
+    while (itemIdTaken(id)) id = generateNoteId();
     return id;
 }
 
@@ -170,6 +177,8 @@ function notifyRemoteDelete(filePath) {
         if (!relative || isStaleTempFile(relative) || relative.endsWith('.bak')) return;
         // 删除同样是一条操作：它会被记进待推送队列，而不是让别的设备把文件补回来
         ipcRenderer.send('sync:remove', { path: relative });
+        // 彻底删除之后，这个 ID 本地立刻就能再用：下一次新建的条目会直接用它
+        if (typeof releaseRecycledItemId === 'function') releaseRecycledItemId(relative);
     } catch (err) {
         // 同上
     }

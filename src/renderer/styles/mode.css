@@ -280,18 +280,19 @@ html.modern-layout.tabs-disabled .notes-panel-header {
    只由 .editor-meta / .editor-actions 这两块子区域承担，整条 .editor-topbar 不参与）、
    笔记列表顶部搜索栏那一行（搜索框与排序之外的部分）、
    工作区顶部的标签栏与标签之外的留白（见上面那段）、
-   设置页的标题区与分类侧边栏（留白部分）、空状态的工作区（见下面的 .empty-drag-surface）、
-   AI 面板顶部那条空白（见下面 .ai-panel-drag-strip）与面板顶栏，以及侧边栏「新建」周围的留白。
+   设置页顶端的拖动空白（见下面那段）与分类侧边栏（留白部分）、空状态的工作区
+   （见下面的 .empty-drag-surface）、AI 面板顶部那条空白（见下面 .ai-panel-drag-strip）
+   与面板顶栏，以及侧边栏「新建」周围的留白。
    这些区域里的控件单独标回 no-drag，点击行为不受影响。
 
    一条硬约束：拖动区一律不能伸到悬浮按钮下面——两者重叠时按钮的点击会被拖动区吞掉，
-   表现就是「右上角那排按钮点不动」。因此与按钮同处一行的标签栏、以及从窗口上沿开始滚动的
-   设置内容区各自让出右侧 280px（即悬浮按钮组的宽度），面板顶部那条空白与空状态的拖动层
+   表现就是「右上角那排按钮点不动」。因此与按钮同处一行的标签栏、以及设置页顶端那条
+   拖动空白各自让出右侧 280px（即悬浮按钮组的宽度），面板顶部那条空白与空状态的拖动层
    也都在按钮之外截断。（编辑器顶栏排在标签栏下面一行，与按钮没有重叠，不必让。） */
 html.modern-layout .editor-meta,
 html.modern-layout .editor-actions,
 html.modern-layout .notes-panel-header,
-html.modern-layout .settings-header,
+html.modern-layout .settings-drag-band,
 html.modern-layout .settings-sidebar,
 html.modern-layout .sidebar-action-wrap {
     -webkit-app-region: drag;
@@ -344,16 +345,42 @@ html.modern-layout .empty-drag-surface {
    编辑器顶栏已经排到标签栏下面一行，与按钮再无纵向重叠，不必再空出 280px——
    它只把左右内边距各收到 8px（见下），那排「编辑 / 分屏 / 预览」（以及待办才有的完成开关）
    因此能一直排到工作区右沿。
-   设置内容区仍要让出走廊：它是从窗口上沿开始滚动的，滚到顶时第一屏就落在按钮下面。 */
+   设置页顶端的拖动空白同样落在按钮那一行的投影里，也照旧让出走廊（见下面那段）。 */
+
+/* 设置页顶端的拖动空白：现代布局下没有标题栏，设置页又整屏铺开，原先靠标题区充当抓手
+   （见上面那段），而标题区是内容区的一部分，一滚动就跟着滚走，之后整页没有能拖的地方。
+   这条空白把抓手固定下来：.settings-view 改成两行两列的网格，分类侧边栏照旧占满左列，
+   右列上边是它、下面是内容区。
+   高度取内容区上方的留白（--settings-top-inset，见 styles/settings.css）：静止时那一带
+   本来就是空白，观感不变；内容因此不再顶到窗口上沿，滚出去的内容止步于这条空白下方。
+   与悬浮按钮组之间照例让出走廊（见上面「一条硬约束」）。 */
+html.modern-layout .settings-view {
+    display: grid;
+    /* 左列宽度由分类侧边栏自己那份 width: 210px 撑开，这里不再写一遍 */
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: var(--settings-top-inset) minmax(0, 1fr);
+}
+html.modern-layout .settings-sidebar {
+    grid-column: 1;
+    grid-row: 1 / -1;
+}
+html.modern-layout .settings-drag-band {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    margin-right: 280px;
+    -webkit-app-region: drag;
+}
+/* 全屏时窗口按钮不显示（见 base.css），走廊收窄到工具按钮组那么宽 */
+html.modern-layout body.is-fullscreen .settings-drag-band {
+    margin-right: 146px;
+}
+/* 内容区紧接在这条空白下方，右侧一段仍落在悬浮按钮组的投影里，照旧让出走廊 */
 html.modern-layout .settings-view .settings-content {
-    /* 上内边距挪到标题区（见下）：标题区本身就是拖动区，
-       这样从窗口顶部开始就能拖，而不是只有下面那一条文字带 */
+    grid-column: 2;
+    grid-row: 2;
     padding-top: 0;
     padding-right: 280px;
-}
-html.modern-layout .settings-view .settings-header {
-    /* 接过内容区原本的 32px 上内边距：视觉效果不变，但这块空白现在归标题区，可以拖动窗口 */
-    padding-top: 32px;
 }
 /* 编辑器顶栏的左右内边距都收到 8px：右侧那组控件（视图切换，以及仅待办可见的完成开关）
    与上面标签栏的内边距对齐（标签栏最右那个标签同样停在右沿 8px 处），

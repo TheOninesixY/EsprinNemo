@@ -429,14 +429,19 @@
                     <nav class="settings-nav" id="settings-nav" aria-label="设置分类"></nav>
                 </aside>
 
-                <!-- 设置内容区：面板与侧边栏条目通过 data-settings-panel 一一对应 -->
+                <!-- 内容区上方的拖动空白：现代布局下设置页不收标题栏，而内容又会一路顶到窗口
+                     上沿——能拖窗口的那一条留白因此必须不参与滚动，样式见 styles/mode.css -->
+                <div class="settings-drag-band" aria-hidden="true"></div>
+
+                <!-- 设置内容区：面板与侧边栏条目通过 data-settings-panel 一一对应。
+                     顶端的标题与描述跟着当前分类走（见 scripts/settings.js） -->
                 <div class="settings-content">
                     <div class="settings-header">
                         <div class="settings-title">
                             <span class="ms-icon md">settings</span>
-                            <span>设置</span>
+                            <span id="settings-header-text">设置</span>
                         </div>
-                        <div class="settings-desc">管理 EsprinNemo 的偏好设置与编辑器行为</div>
+                        <div class="settings-desc" id="settings-header-desc">管理 EsprinNemo 的偏好设置与编辑器行为</div>
                     </div>
 
                     <!-- 分类：编辑器与文本 -->
@@ -469,12 +474,12 @@
                         </div>
                     </div>
 
-                    <!-- 分类：外观与主题色 -->
+                    <!-- 分类：外观（界面 / 主题 / 主题色 / 字体四个分区） -->
                     <div class="settings-panel hidden" data-settings-panel="appearance">
-                        <!-- 界面布局（默认现代布局）：原先单独一个分类，现收成一个下拉放进这里。
-                             选择只切 <html> 上的类名，其余排布全由 styles/mode.css 承担 -->
+                        <!-- 分区一：界面 —— 布局、缩放与圆角改的都是「这张界面长什么样」。
+                             布局只切 <html> 上的类名，其余排布全由 styles/mode.css 承担 -->
                         <div class="settings-section">
-                            <div class="settings-section-title">界面布局</div>
+                            <div class="settings-section-title">界面</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">布局风格</span>
@@ -498,17 +503,17 @@
                                     <span class="slider"></span>
                                 </label>
                             </div>
-                        </div>
 
-                        <!-- 界面尺寸：直接改 Chromium 缩放（应用见 scripts/appearance.js）。
-                             滑块与圆角尺度共用一套自绘交互（.settings-slider）：五档整体跟手拖动，
-                             松手后吸附到最近的档位，也可直接点档位文字；
-                             档位之外的尺寸走下面的输入框，输完由弹窗确认（十秒没回应回到默认） -->
-                        <div class="settings-section">
-                            <div class="settings-section-title">界面尺寸</div>
+                            <!-- 缩放比例：直接改 Chromium 缩放（应用见 scripts/appearance.js）。
+                                 滑块与圆角尺度共用一套自绘交互（.settings-slider）：整体跟手拖动，
+                                 松手后吸附到最近的档位，也可直接点档位文字；
+                                 五档之外的尺寸走下面折叠着的「自定义比例」 -->
                             <div class="settings-row">
                                 <div class="settings-row-info">
-                                    <span class="settings-row-label">缩放比例<span class="settings-value" id="ui-scale-value">100%</span></span>
+                                    <span class="settings-row-label">缩放比例<span class="settings-value" id="ui-scale-value">100%</span>
+                                        <button type="button" class="settings-inline-toggle" id="btn-ui-scale-custom-toggle"
+                                                aria-expanded="false" aria-controls="ui-scale-custom-row" title="输入五档之外的比例">自定义</button>
+                                    </span>
                                     <span class="settings-row-desc">按比例缩放主窗口界面（直接调整 Chromium 缩放），修改后立即生效；窗口最小尺寸按同一比例换算，弹窗与小本本按各自的固定尺寸排版，不随此项缩放</span>
                                 </div>
                                 <div class="settings-slider" id="ui-scale-slider">
@@ -527,10 +532,13 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="settings-row">
+                            <!-- 自定义比例：五档之外的尺寸收成一行，点上面那枚「自定义」才展开
+                                 （见 styles/settings.css 的 .settings-row-sub）；
+                                 生效与回退规则见 scripts/appearance.js 的 commitCustomUiScale -->
+                            <div class="settings-row settings-row-sub hidden" id="ui-scale-custom-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">自定义比例</span>
-                                    <span class="settings-row-desc">填写五档之外的比例（50 ~ 200 的整数百分比），回车或点「应用」生效；生效后弹窗确认是否保留，未确认则恢复为默认的 100%</span>
+                                    <span class="settings-row-desc">填写 50 ~ 200 的整数百分比，回车或点「应用」生效；生效后弹窗确认是否保留，未确认则恢复为默认的 100%</span>
                                 </div>
                                 <div class="settings-scale-custom">
                                     <input type="text" class="settings-number-input" id="ui-scale-custom" inputmode="numeric"
@@ -539,32 +547,13 @@
                                     <button class="settings-btn primary" id="btn-ui-scale-custom">应用</button>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">主题风格</div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">界面风格</span>
-                                    <span class="settings-row-desc">「默认风格」沿用当前配色；「Alom」使用另一套配色方案</span>
-                                </div>
-                                <select class="settings-select" id="setting-theme-style">
-                                    <option value="default">默认风格</option>
-                                    <option value="alom">Alom</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="settings-section">
-                            <div class="settings-section-title">圆角</div>
+                            <!-- 圆角尺度：与缩放共用同一套自绘滑块（四档，档位文字即档位名） -->
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">圆角尺度</span>
                                     <span class="settings-row-desc">卡片、按钮、输入框、标签与开关的圆角大小</span>
                                 </div>
-                                <!-- 四档滑块：拖动时连续跟手、松手后自动吸附到最近的档位，也可直接点档位文字。
-                                     轨道、进度与滑块都是自绘元素（.settings-slider，见 styles/settings.css），
-                                     落档时会滑到新位置；原生 range 透明叠在上面，只负责拖动、点击与键盘操作 -->
                                 <div class="settings-slider" id="radius-slider">
                                     <div class="slider-track">
                                         <div class="slider-fill" aria-hidden="true"></div>
@@ -582,6 +571,45 @@
                             </div>
                         </div>
 
+                        <!-- 分区二：主题 —— 明暗、风格与应用名颜色同属一套配色体系，收在一处；
+                             明暗模式的标题栏按钮与这里的下拉互相同步（见 scripts/appearance.js） -->
+                        <div class="settings-section">
+                            <div class="settings-section-title">主题</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">明暗模式</span>
+                                    <span class="settings-row-desc">浅色 / 深色，或跟随系统设置自动切换；标题栏的主题按钮与这里同步</span>
+                                </div>
+                                <select class="settings-select" id="setting-theme-mode">
+                                    <option value="system">跟随系统</option>
+                                    <option value="light">浅色</option>
+                                    <option value="dark">深色</option>
+                                </select>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">界面风格</span>
+                                    <span class="settings-row-desc">选择界面风格</span>
+                                </div>
+                                <select class="settings-select" id="setting-theme-style">
+                                    <option value="default">默认风格</option>
+                                    <option value="alom">Alom</option>
+                                </select>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">左上角应用名</span>
+                                    <span class="settings-row-desc">标题栏左上角「EsprinNemo」的文字颜色；弹窗标题栏同步生效</span>
+                                </div>
+                                <select class="settings-select" id="setting-brand-color">
+                                    <option value="brand">品牌色</option>
+                                    <option value="mono">黑 / 白（跟随明暗）</option>
+                                    <option value="accent">跟随主题色</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 分区三：主题色 —— 预设、自定义与预览放在一处，改完立刻看得到效果 -->
                         <div class="settings-section">
                             <div class="settings-section-title">主题色</div>
 
@@ -606,24 +634,7 @@
                             </div>
                         </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">应用名颜色</div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">左上角应用名</span>
-                                    <span class="settings-row-desc">标题栏左上角「EsprinNemo」的文字颜色；弹窗标题栏同步生效</span>
-                                </div>
-                                <select class="settings-select" id="setting-brand-color">
-                                    <option value="brand">品牌色</option>
-                                    <option value="mono">黑 / 白（跟随明暗）</option>
-                                    <option value="accent">跟随主题色</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 分类：字体 -->
-                    <div class="settings-panel hidden" data-settings-panel="fonts">
+                        <!-- 分区四：字体 —— 界面与文档各选西文 / CJK，两两共用同一份系统字体列表 -->
                         <div class="settings-section">
                             <div class="settings-section-title">字体</div>
                             <div class="settings-row-desc" id="font-list-status">正在读取本机字体列表…</div>
@@ -791,10 +802,9 @@
                             <div class="settings-row-desc" id="data-dir-status">
                                 更改位置时会询问是否迁移现有数据；切换即时生效，无需重启应用。
                             </div>
-                        </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">文件日志</div>
+                            <!-- 文件日志：导入 / 导出都直接读写本机数据目录，与本机存储是同一件事的两面，
+                                 因此并入同一个分区，不再单列一个标题 -->
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">导入文件日志</span>
@@ -847,7 +857,7 @@
                         </div>
 
                         <div class="settings-section sync-config-section">
-                            <div class="settings-section-title">服务器</div>
+                            <div class="settings-section-title">服务器与同步</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">服务器地址</span>
@@ -887,10 +897,9 @@
                                 </div>
                                 <input type="text" class="settings-input mono" id="setting-sync-device" spellcheck="false" placeholder="例如：台式机">
                             </div>
-                        </div>
 
-                        <div class="settings-section sync-config-section">
-                            <div class="settings-section-title">同步</div>
+                            <!-- 自动同步与同步操作：与上面的服务器、令牌同属一份同步配置，
+                                 因此并入同一个分区（整体显隐仍由 .sync-config-section 控制） -->
                             <div class="settings-row" id="setting-sync-autosync-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">自动同步</span>
@@ -929,10 +938,11 @@
                         </div>
                     </div>
 
-                    <!-- 分类：系统与托盘 -->
+                    <!-- 分类：系统（启动与托盘 / 更新与版本） -->
                     <div class="settings-panel hidden" data-settings-panel="system">
+                        <!-- 分区一：启动与托盘 —— 两个开关说的都是「应用怎么在系统里待着」 -->
                         <div class="settings-section">
-                            <div class="settings-section-title">开机自启</div>
+                            <div class="settings-section-title">启动与托盘</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">开机时自动启动</span>
@@ -944,10 +954,7 @@
                                 </label>
                             </div>
                             <div class="settings-row-desc" id="auto-launch-status">正在读取开机自启状态…</div>
-                        </div>
 
-                        <div class="settings-section">
-                            <div class="settings-section-title">系统托盘</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">显示托盘图标</span>
@@ -960,11 +967,9 @@
                             </div>
                             <div class="settings-row-desc" id="tray-status">正在读取托盘状态…</div>
                         </div>
-                    </div>
 
-                    <!-- 分类：更新 -->
-                    <div class="settings-panel hidden" data-settings-panel="update">
-                        <div class="settings-section">
+                        <!-- 更新与版本：并入「系统」分类；便携版整块摘掉（见 scripts/update.js） -->
+                        <div class="settings-section settings-update-block">
                             <div class="settings-section-title">自动更新</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
@@ -1014,7 +1019,7 @@
                             </div>
                         </div>
 
-                        <div class="settings-section hidden" id="update-notes-section">
+                        <div class="settings-section settings-update-block hidden" id="update-notes-section">
                             <div class="settings-section-title">新版本说明</div>
                             <div class="update-notes">
                                 <div class="update-notes-head">
@@ -1026,7 +1031,7 @@
                             </div>
                         </div>
 
-                        <div class="settings-section">
+                        <div class="settings-section settings-update-block">
                             <div class="settings-section-title">版本信息</div>
                             <!-- 版本号下面一行展示项目地址（这里原本放的是「更新源」） -->
                             <div class="settings-row">
@@ -1041,7 +1046,7 @@
                         </div>
 
                         <!-- 当前版本说明：取自更新源上 tag 等于当前版本的那条 release，同样按 Markdown 渲染 -->
-                        <div class="settings-section">
+                        <div class="settings-section settings-update-block">
                             <div class="settings-section-title">当前版本说明</div>
                             <div class="update-notes">
                                 <div class="update-notes-head">

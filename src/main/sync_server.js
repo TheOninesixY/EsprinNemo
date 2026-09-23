@@ -34,6 +34,8 @@ const PAGE_LIMIT = 500;
 const MAX_OPS_PER_PUSH = 200;
 // 本地改动攒一下再推，避免每敲一个字就发一次请求
 const PUSH_DEBOUNCE_MS = 800;
+// 一次领几个可复用 ID：多领一两个，连着新建也能用上；领了没用上的会在服务端超时回到池子
+const RECYCLE_CLAIM_COUNT = 2;
 
 /* 自动同步的预设（与渲染进程的设置项保持一致）：值是「定时同步」的间隔秒数，0 表示不定时。
    这里没有「每次启动应用时」这一项：只要同步开着，每次应用启动都会同步一次，
@@ -178,7 +180,10 @@ function makeDeviceId() {
    - 设备 id 生成一次后固定下来，它同时出现在每条操作的 opId 里，便于事后分辨是谁改的。 */
 function readState() {
   const url = readSyncConfig().url;
-  const empty = { version: STATE_VERSION, url, deviceId: '', journalId: '', lastSeq: 0, lastSyncAt: 0, lastSyncSummary: '' };
+  const empty = {
+    version: STATE_VERSION, url, deviceId: '', journalId: '', lastSeq: 0,
+    lastSyncAt: 0, lastSyncSummary: '', selfPushed: []
+  };
   const file = stateFilePath();
   if (!file || !fs.existsSync(file)) return empty;
 
@@ -200,7 +205,13 @@ function readState() {
     journalId: sameTarget && typeof parsed.journalId === 'string' ? parsed.journalId : '',
     lastSeq: sameTarget && Number.isFinite(Number(parsed.lastSeq)) ? Math.max(0, Math.round(Number(parsed.lastSeq))) : 0,
     lastSyncAt: Number(parsed.lastSyncAt) || 0,
-    lastSyncSummary: typeof parsed.lastSyncSummary === 'string' ? parsed.lastSyncSummary : ''
+    lastSyncSummary: typeof parsed.lastSyncSummary === 'string' ? parsed.lastSyncSummary : '',
+    // 本机推上去、服务端已受理的操作序号（重放时跳过它们，见 applyOneOp）
+    selfPushed: sameTarget && Array.isArray(parsed.selfPushed)
+      ? parsed.selfPushed
+        .map((value) => Math.round(Number(value)))
+        .filter((value) => Number.isFinite(value) && value > 0)
+      : []
   };
   return state;
 }
@@ -221,6 +232,25 @@ function saveState(patch = {}) {
   cachedState = state;
   writeJsonAtomic(stateFilePath(), state);
   return state;
+}
+
+/* 本机推上去、服务端已受理的操作序号。两处用到：
+   - 重放时跳过它们：本机对这些路径的改动早就落盘了，再应用一遍只会把后来的内容冲掉
+     （最典型的是「彻底删掉一个条目，又用它的 ID 新建」——那条删除会把自己新建的条目删掉）；
+   - 拉取游标已经越过的就没必要留着：服务端不会再把它发下来。 */
+function rememberSelfPushed(seqs) {
+  const state = currentState();
+  const merged = new Set(state.selfPushed || []);
+  seqs.forEach((seq) => {
+    const value = Math.round(Number(seq) || 0);
+    if (value > 0) merged.add(value);
+  });
+  saveState({ selfPushed: [...merged].filter((seq) => seq > (state.lastSeq || 0)).sort((a, b) => a - b) });
+}
+
+function isSelfPushed(seq) {
+  const value = Math.round(Number(seq) || 0);
+  return value > 0 && (currentState().selfPushed || []).includes(value);
 }
 
 // 还没推上去的操作。数组顺序即提交顺序，同路径的旧操作在入队时就被合并掉了。
@@ -408,6 +438,8 @@ async function pushOutbox() {
 
   let pushed = 0;
   let remaining = readOutbox().length;
+  // 这一批里有没有删除被服务端收下：有的话回收池可能多了一个 ID，要叫界面补领
+  let freedIds = false;
 
   while (remaining > 0) {
     const ops = readOutbox().slice(0, MAX_OPS_PER_PUSH);
@@ -422,6 +454,11 @@ async function pushOutbox() {
         .filter((item) => item && !item.error && item.opId)
         .map((item) => item.opId)
     );
+    // 服务端受理的序号记下来：重放时跳过这些操作（见 applyOneOp）
+    rememberSelfPushed((result.data.accepted || [])
+      .filter((item) => item && !item.error && Number(item.seq) > 0)
+      .map((item) => Number(item.seq)));
+    if (ops.some((op) => op.op === 'del' && accepted.has(op.opId))) freedIds = true;
     // 服务端没接受的（内容过大、路径不合法）也一并丢掉：留着重试也不会成功，
     // 反而会把队列堵死，挡住后面正常的操作
     const rejected = (result.data.accepted || []).filter((item) => item && item.error);
@@ -437,7 +474,38 @@ async function pushOutbox() {
   }
 
   lastError = '';
+  // 刚推上去的删除把那个 ID 交回了服务端的回收池：叫界面补领一批可复用 ID
+  if (freedIds) sendToRenderer('sync:pushed', { pushed, remaining });
   return { ok: true, pushed, remaining };
+}
+
+/* 可复用 ID：条目被删除后，它的 ID 会回到服务端的回收池（删除记录仍留着，别处的老副本不会被推回来）。
+   新建条目时向服务端领几个来用——被删掉的那一条腾出来的 ID 会重新落到新建的条目上。
+   服务端会把领走的 ID 占住一小会儿，所以两台设备同时新建也不会撞到同一个。 */
+async function claimRecycledIds({ count = RECYCLE_CLAIM_COUNT, kind = '' } = {}) {
+  const checked = validateConfig(readSyncConfig());
+  if (checked.error) return { ok: false, error: checked.error };
+
+  const state = currentState();
+  const wanted = Math.max(1, Math.round(Number(count) || 1));
+  const result = await apiRequest('POST', `${SYNC_PATH}/ids/claim`, {
+    body: {
+      device: state.deviceId,
+      kind: kind === 'notes' || kind === 'todos' ? kind : '',
+      count: wanted,
+      // 只领「本机已经重放过那条删除」的 ID：否则新建好的条目会被自己还没拉到的删除擦掉
+      since: state.lastSeq
+    },
+    timeoutMs: 8000
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  return {
+    ok: true,
+    ids: Array.isArray(result.data.ids) ? result.data.ids : [],
+    // 池子里还有，只是本机的序号还没跟上：先同步一次再来领
+    pending: Number(result.data.pending) || 0
+  };
 }
 
 /* ---------------- 重放（服务端 → 本地） ---------------- */
@@ -471,6 +539,11 @@ function writeFileAtomicBuffer(file, buffer) {
 function applyOneOp(op, applied) {
   const relative = normalizeRelative(op && op.path);
   if (!relative || !op || (op.op !== 'put' && op.op !== 'del')) return;
+
+  /* 本机自己推上去的操作不必再应用一遍：本地早就落盘了。
+     彻底删掉一个条目、又用回收的 ID 新建之后，本机很可能还没拉到自己那条删除，
+     重放它就会把刚新建的条目删掉——这条跳过就是为此。 */
+  if (isSelfPushed(op.seq)) return;
 
   const outbox = readOutbox();
   const pending = outbox.find((item) => item.path === relative) || null;
@@ -828,7 +901,8 @@ async function ensureJournalIdentity() {
   const seqRewound = !idChanged && remoteLatest < state.lastSeq;
 
   if (idChanged || seqRewound) {
-    saveState({ journalId: remoteId, lastSeq: 0 });
+    // 换了日志（序号另起一套）：自推的旧序号跟着作废
+    saveState({ journalId: remoteId, lastSeq: 0, selfPushed: [] });
     console.warn('[Esprin Nemo] 服务端日志已更换，同步序号已归零，将重新全量重放');
     return { ok: true, reset: true, remoteId };
   }
@@ -854,7 +928,11 @@ async function pullOps({ full = false } = {}) {
       if (seq > since) since = seq;
     }
 
-    state = saveState({ lastSeq: since });
+    state = saveState({
+      lastSeq: since,
+      // 游标已经越过这些操作：服务端不会再发下来，自推记录可以丢掉
+      selfPushed: (state.selfPushed || []).filter((seq) => seq > since)
+    });
     if (!ops.length || !result.data.hasMore) break;
   }
 
@@ -1253,6 +1331,9 @@ function registerSyncIpc() {
   });
 
   ipcMain.handle('sync:now', () => syncNow({ reason: '手动' }));
+
+  // 新建条目时领可复用的 ID：被删掉的条目腾出来的 ID 会重新用起来
+  ipcMain.handle('sync:claim-ids', (event, payload) => claimRecycledIds(payload || {}));
 
   // 首次接入：先把服务端日志重放到本地，再把本地独有的文件推上去
   ipcMain.handle('sync:import-local', (event) => importLocal({ sender: event.sender }));

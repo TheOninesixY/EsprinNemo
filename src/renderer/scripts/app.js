@@ -77,6 +77,7 @@ window.onload = () => {
     // 原生下拉菜单统一换成自绘（select 与 datalist）：放在其余初始化之前，后续对 select.value 的赋值都能同步显示
     initCustomDropdowns();
     initTheme();
+    initThemeMode();
     initThemeStyle();
     initAccentColor();
     initBrandColor();

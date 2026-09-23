@@ -41,7 +41,7 @@ function createNoteFromScratchpad(title, content) {
     const now = Date.now();
 
     const note = {
-        id: generateUniqueItemId(),
+        id: generateUniqueItemId('note'),
         title: (typeof title === 'string' ? title.trim() : '') || scratchpadFallbackTitle(text),
         content: text,
         folder: defaults.folder,

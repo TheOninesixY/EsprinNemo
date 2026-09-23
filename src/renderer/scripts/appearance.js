@@ -74,6 +74,37 @@ function getEffectiveTheme() {
     return State.theme;
 }
 
+/* 明暗模式：跟随系统 / 浅色 / 深色（config.json 的 theme）。
+   标题栏的主题按钮与设置里的下拉是同一份状态：按钮循环切换、下拉直接指定，
+   两处都落到 State.theme，因此改了哪一边，另一边都会立即同步。 */
+
+const THEME_MODE_VALUES = ['system', 'light', 'dark'];
+
+function normalizeThemeMode(value) {
+    return THEME_MODE_VALUES.includes(value) ? value : 'system';
+}
+
+// 把当前明暗模式写回下拉；存在性判断保证小本本等没有该控件的页面也不会报错
+function syncThemeModeSelect() {
+    const select = document.getElementById('setting-theme-mode');
+    if (select) select.value = normalizeThemeMode(State.theme);
+}
+
+// 从设置里切换明暗模式：应用 → 刷新下拉 → 写配置（与标题栏按钮同一套结果）
+function setThemeMode(value) {
+    State.theme = normalizeThemeMode(value);
+    applyTheme();
+    syncThemeModeSelect();
+    saveConfig();
+}
+
+function initThemeMode() {
+    const select = document.getElementById('setting-theme-mode');
+    if (select) select.onchange = (event) => setThemeMode(event.target.value);
+    // 首屏已由 initTheme 应用过一次，这里只对齐控件
+    syncThemeModeSelect();
+}
+
 function applyTheme() {
     // 启动时的首次应用不算「切换」（此时界面还没画出来），不做交叉淡入
     if (themeAppliedOnce) beginAppearanceFade();
@@ -102,6 +133,8 @@ function applyTheme() {
         if (themeBtn) themeBtn.title = '主题：深色模式（点击切换到跟随系统）';
     }
 
+    // 设置里的「明暗模式」下拉跟着标题栏按钮一起走（函数声明在后方，可直接调用）
+    syncThemeModeSelect();
     syncScratchpadAppearance();
 }
 
@@ -412,6 +445,8 @@ function syncUiScaleControl() {
     if (readout) readout.textContent = Math.round(current * 100) + '%';
     setSliderPosition(slider, uiScaleRatio(nearestUiScaleStopIndex(current)));
     markSliderTicks(slider, isUiScaleStop(current) ? nearestUiScaleStopIndex(current) : -1);
+    // 不在整档上（自定义比例）时展开输入行，用户一进来就看得到那个值
+    if (!isUiScaleStop(current)) setUiScaleCustomOpen(true);
     syncUiScaleCustomInput(current);
 }
 
@@ -480,6 +515,31 @@ async function commitCustomUiScale() {
     showToast('缩放比例已恢复为默认 100%');
 }
 
+/* 自定义比例：平时收在「缩放比例」那一行的「自定义」按钮后面，点开才展开输入行；
+   当前值不在整档上（配置里存着 113% 这类尺寸）时默认展开，
+   否则用户进来会看不到自己设的值。展开状态不落盘：它只是这一屏的展开 / 收起。 */
+
+function setUiScaleCustomOpen(open) {
+    const row = document.getElementById('ui-scale-custom-row');
+    if (row) row.classList.toggle('hidden', !open);
+    const toggle = document.getElementById('btn-ui-scale-custom-toggle');
+    if (toggle) {
+        toggle.classList.toggle('active', !!open);
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+}
+
+function toggleUiScaleCustomRow() {
+    const row = document.getElementById('ui-scale-custom-row');
+    const open = !!row && row.classList.contains('hidden');
+    setUiScaleCustomOpen(open);
+    // 展开后直接落焦到输入框，省得再点一下
+    if (open) {
+        const input = document.getElementById('ui-scale-custom');
+        if (input) input.focus();
+    }
+}
+
 // 自定义比例输入框：回车与「应用」都能提交，输入期间只保留数字
 function initUiScaleCustomInput() {
     const el = document.getElementById('ui-scale-custom');
@@ -496,6 +556,8 @@ function initUiScaleCustomInput() {
         };
     }
     if (button) button.onclick = () => commitCustomUiScale();
+    const toggle = document.getElementById('btn-ui-scale-custom-toggle');
+    if (toggle) toggle.onclick = () => toggleUiScaleCustomRow();
 }
 
 function initUiScale() {

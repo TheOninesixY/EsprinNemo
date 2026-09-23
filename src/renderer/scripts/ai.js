@@ -899,7 +899,7 @@ function saveAiAnswerAsNote(content) {
     const now = Date.now();
 
     const note = {
-        id: generateUniqueItemId(),
+        id: generateUniqueItemId('note'),
         title: `AI 回答 · ${formatDate(now)}`,
         content,
         folder: defaults.folder,

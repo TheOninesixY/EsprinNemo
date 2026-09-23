@@ -182,6 +182,83 @@ function copySyncDeviceId() {
     }
 }
 
+/* ---------------- 可复用 ID ---------------- */
+
+/* 条目被删除后，它的 ID 会回到服务端的回收池；新建条目时优先取用，
+   于是「删掉的那一条腾出来的 ID」会重新落到新建的条目上（见 storage.js 的 generateUniqueItemId）。
+   生成 ID 是同步调用，不能每次都去等网络，所以这里先领一两个存着，
+   服务端会把领走的占住一小会儿，两台设备同时新建也不会撞到同一个 ID。 */
+const RECYCLE_CLAIM_COUNT = 2;
+// 服务端领回来的可复用 ID
+let recycledIdPool = [];
+// 本机刚彻底删掉的条目腾出来的 ID：最优先（服务端那边随后也会把它收进回收池）
+let locallyFreedIds = [];
+let recycledRefillPending = false;
+
+async function refillRecycledIds(kind = '', retry = true) {
+    if (!isSyncEnabled() || recycledRefillPending) return;
+    recycledRefillPending = true;
+    try {
+        // 服务端认的是 notes / todos（空表示两种都收），这里把条目类型换算过去
+        const wanted = kind === 'todo' ? 'todos' : (kind === 'note' ? 'notes' : '');
+        const claim = () => ipcRenderer.invoke('sync:claim-ids', { count: RECYCLE_CLAIM_COUNT, kind: wanted });
+
+        let result = await claim();
+        // 池子里有 ID，但本机还没重放过对应的删除：先同步一次（把删除拉下来），再领一遍就有了
+        if (result && result.ok && !result.ids.length && result.pending && retry) {
+            const synced = await ipcRenderer.invoke('sync:now');
+            if (synced && synced.ok) result = await claim();
+        }
+        if (!result || !result.ok) return;
+
+        const ids = (Array.isArray(result.ids) ? result.ids : [])
+            // 服务端可能给出本机还在用着的 ID（本地那一条还没被删掉）：丢掉，别拿它去建新条目
+            .filter((item) => item && item.id && !itemIdTaken(String(item.id)))
+            .map((item) => ({ id: String(item.id), kind: String(item.kind || '') }));
+        // 领到新的就换上；服务端这次没有可发的，手里那几个先留着（它们在服务端仍然被占着）
+        if (ids.length) recycledIdPool = ids;
+    } catch (err) {
+        console.error('领取可复用 ID 失败:', err);
+    } finally {
+        recycledRefillPending = false;
+    }
+}
+
+// 本地彻底删掉一个条目：它腾出来的 ID 立刻就能再用（服务端那边随后会把它收进回收池）。
+// 直接记在本地这份清单里——下一次新建就用它，不必等一次同步往返（生成 ID 是同步调用，等不了网络）。
+function releaseRecycledItemId(relative) {
+    const match = /^(notes|todos)\/([A-Za-z0-9_-]{1,64})\.md$/.exec(String(relative || ''));
+    if (!match) return;
+    const entry = { id: match[2], kind: match[1] };
+    locallyFreedIds = [entry].concat(locallyFreedIds.filter((item) => item.id !== entry.id));
+}
+
+// 从一份清单里取一个 ID：优先同类型，没有同类型就取队首；取走即从清单里移除
+function takePoolId(list, prefix) {
+    if (!list.length) return '';
+    const sameKind = list.findIndex((item) => item.kind === prefix);
+    const entry = list.splice(sameKind === -1 ? 0 : sameKind, 1)[0];
+    return entry ? String(entry.id) : '';
+}
+
+// 取一个回收来的 ID：优先同类型（笔记的给笔记、待办的给待办），没有就退而求其次
+function takeRecycledItemId(kind) {
+    const prefix = kind === 'todo' ? 'todos' : 'notes';
+    // 本机刚彻底删掉的那几个最优先：本地确信那一条已经删干净了
+    const local = takePoolId(locallyFreedIds, prefix);
+    if (local) return local;
+
+    if (!recycledIdPool.length) {
+        // 手里没存货：先补一批（这一次新建先按老办法随机生成，不在这里顺带做一次同步）
+        refillRecycledIds(kind, false).catch(() => {});
+        return '';
+    }
+    const id = takePoolId(recycledIdPool, prefix);
+    // 池子见底就顺手补一批，下一次新建仍然能拿到回收的 ID
+    if (!recycledIdPool.length) refillRecycledIds(kind).catch(() => {});
+    return id;
+}
+
 /* ---------------- 访问令牌：只经主进程进出 ---------------- */
 
 function applySyncTokenStatus(status) {
@@ -313,6 +390,8 @@ function syncSyncServerSettingsUI() {
     applySyncEnabledState();
     refreshSyncTokenStatus();
     refreshSyncStatus();
+    // 先把可复用的 ID 领一批，之后新建条目就能用上被删掉的那一条腾出来的 ID
+    refillRecycledIds().catch(() => {});
 }
 
 // 总开关状态落到界面上：配置区一起显隐
@@ -597,6 +676,12 @@ function initSyncServerSettings() {
         flushActiveAiChatSave();
         adoptDataDir(DATA_DIR, { message: payload.summary || `已从服务器同步 ${payload.count} 处改动` });
         refreshSyncStatus();
+        refillRecycledIds().catch(() => {});
+    });
+
+    /* 本地改动推上去之后：这一批里可能有删除（它的 ID 进了服务端的回收池），顺手补一批 */
+    ipcRenderer.on('sync:pushed', () => {
+        refillRecycledIds().catch(() => {});
     });
 
     syncSyncServerSettingsUI();

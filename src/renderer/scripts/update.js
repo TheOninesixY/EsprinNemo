@@ -15,7 +15,7 @@
    发布页里的内容（包括 <script>）只会以纯文本形式出现，不会被当成 HTML 执行。
 
    便携版没有更新功能（主进程不注册更新 IPC，也不做自动检查），因此这里整体跳过：
-   设置分类与面板都不显示，也不绑定任何事件。 */
+   「系统」分类里的更新分区会被整块摘掉，也不绑定任何事件。 */
 
 // 主进程最近一次上报的更新状态（字段与 main/updater.js 的 snapshot 一一对应）
 let updateState = {
@@ -168,7 +168,7 @@ function renderCurrentReleaseNotes() {
 }
 
 function renderUpdateUI() {
-    // 便携版没有更新功能：分类与面板都已摘掉，不再改动任何界面
+    // 便携版没有更新功能：更新分区已整块摘掉，不再改动任何界面
     if (IS_PORTABLE_RUN) return;
 
     const toggle = updateEl('setting-auto-update');
@@ -396,12 +396,9 @@ function handleUpdateStatePush(payload) {
     }
 }
 
-// 便携版：把「更新与版本」的设置项（导航条目与面板）从界面上摘掉
+// 便携版：把「系统」分类里的更新与版本分区（自动更新 / 新版本说明 / 版本信息 / 当前版本说明）从界面上摘掉
 function removeUpdateSettingsUI() {
-    const navItem = document.querySelector('#settings-nav [data-settings-target="update"]');
-    if (navItem) navItem.remove();
-    const panel = document.querySelector('#settings-view [data-settings-panel="update"]');
-    if (panel) panel.remove();
+    document.querySelectorAll('#settings-view .settings-update-block').forEach((block) => block.remove());
 }
 
 function initUpdateSettings() {

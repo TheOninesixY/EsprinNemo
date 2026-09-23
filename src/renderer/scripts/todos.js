@@ -14,7 +14,7 @@ function newTodoDefaults() {
 function createNewTodo() {
     const defaults = newTodoDefaults();
     const newTodo = {
-        id: generateUniqueItemId(),
+        id: generateUniqueItemId('todo'),
         title: '',
         content: '',
         folder: defaults.folder,

@@ -13,7 +13,7 @@ function newNoteDefaults() {
 function createNewNote() {
     const defaults = newNoteDefaults();
     const newNote = {
-        id: generateUniqueItemId(),
+        id: generateUniqueItemId('note'),
         title: '',
         content: '',
         folder: defaults.folder,
@@ -67,7 +67,7 @@ function buildImportedNote(filePath) {
     const metaTags = meta ? readNoteMetaTags(meta.tags) : [];
 
     return {
-        id: generateUniqueItemId(),
+        id: generateUniqueItemId('note'),
         // 标题优先级：文件内注释 > 文件名 > 正文首个非空行
         title: (meta ? readNoteMetaString(meta.title) : '') || importTitleFromPath(filePath) || deriveNoteTitle(content),
         content,
