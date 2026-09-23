@@ -140,30 +140,16 @@ function buildAiAgentToolPayload() {
 }
 
 function syncAiAgentToggle() {
-    const toggle = document.getElementById('ai-agent-mode');
-    if (toggle) toggle.checked = isAiAgentMode();
-    const hint = document.getElementById('ai-agent-hint');
-    if (hint) {
-        hint.textContent = isAiAgentMode() ? '可修改笔记' : '仅回答问题';
-        hint.dataset.on = isAiAgentMode() ? '1' : '';
-    }
+    const toggle = document.getElementById('ai-agent-toggle');
+    if (!toggle) return;
+    // 外观沿用标题栏 AI 助手按钮那一套：开启时挂 .active，颜色与底色由 .btn-action-icon.active 给
+    const on = isAiAgentMode();
+    toggle.classList.toggle('active', on);
+    toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
 
-async function toggleAiAgentMode(enabled) {
-    if (enabled) {
-        const confirmed = await showConfirm('开启 Agent 模式？', {
-            title: 'Agent 模式',
-            detail: '开启后 AI 可以直接新建与修改你的笔记：正文、标题、文件夹、标签、置顶，以及把笔记移入废纸篓。\n'
-                + '每一步操作都会在对话里列出，并带「撤销」按钮；移入废纸篓前仍会单独向你确认。',
-            icon: 'smart_toy',
-            confirmLabel: '开启'
-        });
-        if (!confirmed) {
-            syncAiAgentToggle();
-            return;
-        }
-    }
-
+// 直接切换开关，不再弹确认框；开启后的风险提示由输入区上方的说明与每次操作的「撤销」按钮承担
+function toggleAiAgentMode(enabled) {
     State.ai = normalizeAiConfig({ ...State.ai, agentMode: !!enabled });
     flushAiConfigSave();
     syncAiAgentToggle();
@@ -562,11 +548,9 @@ async function executeAiAgentTool(name, rawArguments) {
 // ---------- 初始化 ----------
 
 function initAiAgent() {
-    const toggle = document.getElementById('ai-agent-mode');
+    const toggle = document.getElementById('ai-agent-toggle');
     if (!toggle) return;
 
-    toggle.onchange = (event) => {
-        toggleAiAgentMode(event.target.checked);
-    };
+    toggle.onclick = () => toggleAiAgentMode(!isAiAgentMode());
     syncAiAgentToggle();
 }

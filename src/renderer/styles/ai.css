@@ -407,8 +407,8 @@
     border-top: 1px solid var(--border-color);
 }
 /* 输入框这一层「字段」：边框、底色与圆角挂在它身上，正文与内部那条底栏各占一行。
-   发送按钮因此落在输入框内部的右下角，附带范围那条下拉落在左下角；
-   底栏排在正文下方而不是叠在正文上，所以输入框内部滚动时正文不会钻到按钮底下。 */
+   底栏排在正文下方而不是叠在正文上，所以输入框内部滚动时正文不会钻到按钮底下；
+   底栏左端是附带范围下拉，右端依次是 Agent 模式开关、附件与发送按钮。 */
 .ai-input-wrap {
     display: flex;
     flex-direction: column;
@@ -437,17 +437,26 @@
 .ai-composer-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    /* 靠左排：下拉留在左端，右端按钮组由下拉的 auto 外边距顶到最右缘。
+       不能用 space-between / center——那会把下拉推到正中，与左端空出一大段 */
+    justify-content: flex-start;
+    /* 下拉与右端按钮组之间不靠 gap 留白，而由下拉右侧那唯一的 auto 外边距撑开；
+       gap 只作为两侧的最小间距兜底 */
+    gap: 6px;
     /* 贴在输入框内沿：左边与正文的左内边距对齐，右边与底边各留一点余量 */
     padding: 0 6px 6px 10px;
 }
 /* 附带范围下拉（自绘下拉的外层见 styles/dropdown.css）：笔记名可能很长，
-   所以它得会缩——缩到放不下时由触发器里的 .dropdown-label 显示省略号 */
+   所以它得会缩——缩到放不下时由触发器里的 .dropdown-label 显示省略号。
+   它右侧的 auto 外边距负责把右端按钮组（Agent 开关 / 附件 / 发送）顶到最右缘，
+   是全栏唯一的弹性空档；按钮组上不再加第二个 auto，两个 auto 会互相抢空间 */
 .ai-composer-bar .dropdown {
     flex: 0 1 auto;
     min-width: 0;
+    margin-right: auto;
 }
+/* 右端按钮组：Agent 模式开关、附件、发送（停止）依次排列，贴在最右缘，
+   自身不吃弹性空间，推开它的空档由左侧 .dropdown 的 auto 外边距负责 */
 .ai-composer-actions {
     display: flex;
     align-items: center;
@@ -560,89 +569,21 @@
 .ai-panel.drop-active .ai-input-wrap {
     border-color: var(--accent);
 }
-
-/* 6. Agent 模式开关与附件按钮：同一行的左右两端（附件按钮贴在发送按钮下方） */
-.ai-composer-tools {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-}
-.ai-composer-tools .ai-agent-row {
-    min-width: 0;
-}
-.ai-composer-tools .ai-agent-hint {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.ai-composer-tools .btn-action-icon {
-    flex-shrink: 0;
-    /* 与发送按钮同高，视觉上贴在它下方 */
+端是附带范围下拉，右端依次是 Agent 模式开关、附件、发送三
+/* 6. 底栏：左起 Agent 模式开关、附带范围下拉，右端是附件与发送两枚按钮。
+   开关与附件都走 .btn-action-icon（与标题栏的 AI 助手按钮同一套），
+   与发送按钮同尺寸；开关开启时由 .btn-action-icon.active 点亮，不必另写样式。 */
+.ai-composer-bar .btn-action-icon {
     width: 28px;
     height: 28px;
-}
-.ai-agent-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    user-select: none;
-}
-.ai-agent-switch {
-    position: relative;
-    display: inline-block;
-    width: 30px;
-    height: 17px;
     flex-shrink: 0;
 }
-.ai-agent-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-.ai-agent-slider {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--border-color);
-    border-radius: var(--radius-pill);
-    transition: background-color 0.2s;
-}
-.ai-agent-slider:before {
-    content: "";
-    position: absolute;
-    width: 13px;
-    height: 13px;
-    left: 2px;
-    bottom: 2px;
-    background-color: white;
-    border-radius: var(--radius-knob);
-    transition: transform 0.2s;
-}
-.ai-agent-switch input:checked + .ai-agent-slider {
-    background-color: var(--accent);
-}
-.ai-agent-switch input:checked + .ai-agent-slider:before {
-    transform: translateX(13px);
-}
-.ai-agent-label {
-    font-size: 11.5px;
-    color: var(--text-secondary);
-    transition: color 0.15s;
-}
-.ai-agent-hint {
-    font-size: 10.5px;
-    color: var(--text-muted);
-}
-/* 开启后整行点亮，避免"忘了自己开着 Agent 模式" */
-.ai-agent-row:has(input:checked) .ai-agent-label {
-    color: var(--accent);
-}
-.ai-agent-hint[data-on='1'] {
-    color: var(--accent);
+.ai-composer-bar .ai-scope-select {
+    /* 触发器继承了原生 select 的 flex-shrink: 0，这里放开，
+       笔记名过长时才能收缩、由 .dropdown-label 出省略号。
+       位置完全交给外层 .dropdown 决定，这里不再加任何 auto / 负外边距 */
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 /* Agent 操作卡片：一轮工具调用与它们的执行结果 */

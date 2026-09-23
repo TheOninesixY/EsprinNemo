@@ -44,7 +44,7 @@
             <div class="titlebar-actions">
                 <!-- AI 助手：右侧问答面板（需先在设置中配置站点与模型） -->
                 <button class="btn-action-icon" id="btn-ai-assistant" title="AI 助手">
-                    <span class="ms-icon sm">smart_toy</span>
+                    <span class="ms-icon sm">chat_bubble</span>
                 </button>
                 <!-- 小本本：屏幕右下角的便利贴小窗口（始终置顶） -->
                 <button class="btn-action-icon" id="btn-scratchpad" title="小本本">
@@ -320,7 +320,7 @@
                      高度与悬浮按钮组一致，同时也把面板顶栏让到按钮下方 -->
                 <div class="ai-panel-drag-strip" aria-hidden="true"></div>
                 <div class="ai-panel-header">
-                    <span class="ms-icon sm">smart_toy</span>
+                    <span class="ms-icon sm">chat_bubble</span>
                     <span class="ai-panel-title">AI 助手</span>
                     <span class="ai-panel-model" id="ai-panel-model">未配置模型</span>
                     <div class="ai-panel-spacer"></div>
@@ -374,8 +374,9 @@
                     <!-- 已选好、待发送的附件（图片缩略图 / 文件卡片） -->
                     <div class="ai-attach-strip hidden" id="ai-attachment-strip"></div>
                     <!-- 输入框与它内部的那条底栏共用一层「字段」容器：底栏排在正文下方（不是叠上去），
-                         这样输入框内部滚动时正文不会钻到按钮底下。发送按钮贴这一层的右下角，
-                         附带范围那条下拉贴左下角（样式见 styles/ai.css 的 .ai-input-wrap） -->
+                         这样输入框内部滚动时正文不会钻到按钮底下。
+                         底栏左端是附带范围下拉；右端依次是 Agent 模式开关、附件与发送按钮
+                         （样式见 styles/ai.css 的 .ai-input-wrap） -->
                     <div class="ai-input-wrap">
                         <textarea class="ai-input" id="ai-input" spellcheck="false" placeholder="问点关于笔记的问题…（可拖入或粘贴图片 / 文本文件）"></textarea>
                         <div class="ai-composer-bar">
@@ -387,6 +388,16 @@
                                 <option value="none">不附带笔记</option>
                             </select>
                             <div class="ai-composer-actions">
+                                <!-- Agent 模式：与标题栏的 AI 助手按钮同一套图标开关（点一下开、再点一下关），
+                                     开启时挂 .active 点亮成主题色；它排在附件按钮左边，与附件 / 发送同组 -->
+                                <button class="btn-action-icon" id="ai-agent-toggle" title="Agent 模式：开启后 AI 可以新建与修改笔记（正文、标题、文件夹、标签、置顶与废纸篓），每一步都能撤销" aria-pressed="false">
+                                    <!-- 机器人图标：Agent 模式的标识（原属 AI 助手，现随 Agent 模式走） -->
+                                    <span class="ms-icon sm">smart_toy</span>
+                                </button>
+                                <!-- 附件：排在发送按钮左边；只留一枚图标、不带按钮底色 -->
+                                <button class="btn-action-icon" id="btn-ai-attach" title="添加图片或文本文件（也可直接拖入、粘贴）">
+                                    <span class="ms-icon sm">attach_file</span>
+                                </button>
                                 <!-- 两枚都只留图标、不带按钮底色：发送用主题色（--accent 跟随品牌色设置），
                                      停止用中性色，处在同一个位置时一眼能分出是哪一个 -->
                                 <button class="ai-send-btn hidden" id="btn-ai-stop" title="停止生成" aria-label="停止生成">
@@ -397,21 +408,6 @@
                                 </button>
                             </div>
                         </div>
-                    </div>
-                    <!-- 底部：左侧 Agent 模式开关，右侧附件按钮（贴在发送按钮正下方） -->
-                    <div class="ai-composer-tools">
-                        <!-- Agent 模式：打开后 AI 可以调用工具新建 / 修改笔记（每步都可在对话里撤销） -->
-                        <label class="ai-agent-row" title="开启后 AI 可以新建与修改笔记：正文、标题、文件夹、标签、置顶与废纸篓">
-                            <span class="ai-agent-switch">
-                                <input type="checkbox" id="ai-agent-mode">
-                                <span class="ai-agent-slider"></span>
-                            </span>
-                            <span class="ai-agent-label">Agent 模式</span>
-                            <span class="ai-agent-hint" id="ai-agent-hint">仅回答问题</span>
-                        </label>
-                        <button class="btn-action-icon" id="btn-ai-attach" title="添加图片或文本文件（也可直接拖入、粘贴）">
-                            <span class="ms-icon sm">attach_file</span>
-                        </button>
                     </div>
                 </div>
             </aside>

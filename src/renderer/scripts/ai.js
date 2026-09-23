@@ -338,7 +338,7 @@ function createAiMessageElement(msg, index, toolResults) {
     role.className = 'ai-msg-role';
     role.innerHTML = msg.role === 'user'
         ? '<span class="ms-icon xs">person</span><span>你</span>'
-        : '<span class="ms-icon xs">smart_toy</span><span>AI 助手</span>';
+        : '<span class="ms-icon xs">chat_bubble</span><span>AI 助手</span>';
     if (msg.role === 'user' && msg.contextLabel) {
         const meta = document.createElement('span');
         meta.className = 'ai-msg-context';
