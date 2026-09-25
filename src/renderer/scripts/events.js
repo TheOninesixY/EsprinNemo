@@ -319,8 +319,10 @@ function setupEvents() {
             searchInput.focus();
             return;
         }
-        // Ctrl+Tab / Ctrl+Shift+Tab 在打开的标签之间循环切换（编辑区里同样生效）
+        // Ctrl+Tab / Ctrl+Shift+Tab 在打开的标签之间循环切换（编辑区里同样生效）；
+        // 标签栏收起时（现代布局的「禁用标签页」）界面上没有标签次序可对照，快捷键一并停用
         if (key === 'tab') {
+            if (isTabsDisabled()) return;
             e.preventDefault();
             switchTabByStep(e.shiftKey ? -1 : 1);
             return;

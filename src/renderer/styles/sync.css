@@ -1,13 +1,16 @@
 /* 自建同步（设置 → 数据与存储）：输入堆叠、令牌提示与状态行。
    输入框与按钮沿用 settings.css / ai.css 里的通用类（.settings-input / .settings-btn）。 */
 
-/* 输入框与其下方的提示文字成一组，右对齐贴在行尾 */
+/* 输入框与其下方的提示文字成一组，右对齐贴在行尾。
+   宽度以控件那一列为上限（令牌输入框 260px 加图标 / 清除按钮）：提示可能是一整句
+   （未保存令牌时的那句有 50 多字），不限宽就会按整句的行宽把左侧说明挤成一条窄列 */
 .sync-input-stack {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 6px;
     flex-shrink: 0;
+    max-width: min(360px, 100%);
 }
 .sync-input-group {
     display: flex;
@@ -31,10 +34,13 @@
     font-size: 12px;
 }
 
-/* 令牌的保管状态：说明令牌存在哪里，不含任何令牌内容 */
+/* 令牌的保管状态：说明令牌存在哪里，不含任何令牌内容。
+   过长的提示在控件列内折行，仍贴着输入框右对齐 */
 .sync-hint {
     font-size: 11px;
     color: var(--text-muted);
+    text-align: right;
+    word-break: break-word;
 }
 
 /* 设备 ID：只读展示 + 复制。值本身很短（dev-xxxxxx），不用占地址那样的宽度 */

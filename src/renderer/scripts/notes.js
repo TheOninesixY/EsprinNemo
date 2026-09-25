@@ -160,7 +160,8 @@ function closeTab(noteId) {
 /* Ctrl+Tab / Ctrl+Shift+Tab：在标签栏里循环切换（顺序就是标签栏里看得见的先后顺序，
    设置页也是一个标签，同样参与循环）。只剩一个标签时无事可做；
    当前没有激活标签（例如刚从编辑退回列表）时，往后走取第一个、往前走取最后一个，
-   与浏览器的习惯一致。 */
+   与浏览器的习惯一致。标签栏收起时（现代布局的「禁用标签页」）没有可对照的次序，
+   快捷键在 scripts/events.js 里一并停用。 */
 function switchTabByStep(step) {
     const ids = State.openNoteIds;
     if (ids.length < 2) return;

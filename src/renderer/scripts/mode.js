@@ -22,7 +22,7 @@ function applyUiMode() {
     const root = document.documentElement;
     root.classList.toggle(MODERN_LAYOUT_CLASS, isModernLayout());
     // 「禁用标签页」只属于现代布局：经典布局的标签页归标题栏所有，这一档不插手
-    root.classList.toggle(TABS_DISABLED_CLASS, isModernLayout() && State.tabsDisabled);
+    root.classList.toggle(TABS_DISABLED_CLASS, isTabsDisabled());
     syncNewButtonTitles();
 }
 

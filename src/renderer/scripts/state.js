@@ -120,6 +120,12 @@ function isModernLayout() {
     return State.uiMode === 'modern';
 }
 
+// 标签栏是否收起：现代布局下的「禁用标签页」开关（config.json 的 tabsDisabled）。
+// 经典布局的标签页归标题栏所有，这个开关在那里不生效
+function isTabsDisabled() {
+    return isModernLayout() && State.tabsDisabled === true;
+}
+
 // AI 提问时附带的笔记范围（config.json 中的 ai.scope 只接受这几个值）
 const AI_SCOPE_VALUES = ['current', 'all', 'none'];
 
