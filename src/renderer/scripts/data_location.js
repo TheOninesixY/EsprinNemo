@@ -192,6 +192,9 @@ function adoptDataDir(dir, options = {}) {
     // 不把上一个位置的对话带过去（避免迁移选择为“不迁移”时内容被悄悄带过去）。
     adoptAiChats(saved.aiChats);
 
+    // 换目录后条目对象全是新的，会话里的解密密钥随之作废（新位置的文件还没有解开过）
+    if (typeof clearSecretSession === 'function') clearSecretSession();
+
     State.notes = saved.notes;
     State.todos = Array.isArray(saved.todos) ? saved.todos : [];
     // 换目录后条目对象全是新的，重新标一遍类型

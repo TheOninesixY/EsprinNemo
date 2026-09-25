@@ -276,7 +276,7 @@ function applySyncTokenStatus(status) {
     const hint = document.getElementById('sync-token-hint');
     if (hint) {
         if (!State.syncTokenSaved) {
-            hint.textContent = '尚未保存令牌：服务端一律要求凭据，先在服务端管理页创建访问令牌再填入（浏览器打开服务器地址即是）。';
+            hint.textContent = '尚未保存令牌：服务端一律要求凭据，先在服务端管理页创建访问令牌再填入（服务器地址 + /admin）。';
         } else if (State.syncTokenStrong) {
             hint.textContent = '已保存到系统密钥链（内存与磁盘上均为密文）。';
         } else {

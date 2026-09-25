@@ -22,6 +22,9 @@ function createNewTodo() {
         isPinned: false,
         isTrashed: false,
         isDone: false,
+        // 秘密本：新建的待办既不隐藏也不加密
+        isHidden: false,
+        locked: false,
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
@@ -48,7 +51,8 @@ function createNewTodo() {
 // 因此废纸篓自动清理的计时始终按最后一次实际编辑算起。
 function toggleTodoDone(todoId) {
     const todo = State.todos.find(t => t.id === todoId);
-    if (!todo || todo.isTrashed) return;
+    // 废纸篓中与还没解锁的加密待办都是只读的，完成状态也无从切换
+    if (!todo || isReadOnlyItem(todo)) return;
     todo.isDone = !todo.isDone;
     saveTodo(todo);
     renderApp();

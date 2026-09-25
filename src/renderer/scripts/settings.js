@@ -10,6 +10,7 @@ const SETTINGS_CATEGORIES = [
     { id: 'editor', label: '编辑器', icon: 'edit_note', desc: '拼写检查、随口记（语音转文本）与废纸篓的清理策略' },
     { id: 'appearance', label: '外观', icon: 'palette', desc: '界面布局、缩放、主题与字体' },
     { id: 'ai', label: 'AI 助手', icon: 'chat_bubble', desc: '接口、密钥与提问上下文' },
+    { id: 'secret', label: '秘密本', icon: 'lock', desc: '隐藏或已加密的文档：隐藏的条目只在这里能找到' },
     { id: 'data', label: '数据与同步', icon: 'folder', desc: '本地数据目录、文件日志与自建同步' },
     { id: 'system', label: '系统', icon: 'dock_to_bottom', desc: '开机自启、托盘、更新与版本' }
 ];

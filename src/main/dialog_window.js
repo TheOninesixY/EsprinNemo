@@ -96,6 +96,8 @@ function normalizeInput(rawInput) {
     value: rawInput.value == null ? '' : String(rawInput.value),
     placeholder: rawInput.placeholder == null ? '' : String(rawInput.placeholder),
     label: rawInput.label == null ? '' : String(rawInput.label),
+    // 输入框类型：只认 password（口令输入），其余一律按普通文本框处理
+    type: rawInput.type === 'password' ? 'password' : 'text',
     choices,
     selected,
     multiple: rawInput.multiple !== false

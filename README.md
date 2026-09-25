@@ -380,57 +380,62 @@ python EsprinServer.py --host 0.0.0.0 --port 8686 --data ./esprin-data
 python EsprinServer.py --selftest
 ```
 
-- 日志：`<data>/journal.log`，一行一条操作（JSON Lines）；将日志从头重放一遍即为全部数据。追加写入，只有整理（彻底删除后 / 管理后台的「整理日志」）会重写它：已彻底删除条目的正文与历史被抹掉，只留一行删除标记，其余操作的序号不变
+- 数据布局：服务端支持多个账户，默认只有一个名为 `admin` 的内置账户（它也管理服务端）。每个账户一份独立的操作日志 `<data>/users/<账户 id>/journal.log`（一行一条操作，JSON Lines），把日志从头重放一遍即为该账户的全部数据。追加写入，只有整理（彻底删除后 / 管理后台的「整理日志」）会重写它：已彻底删除条目的正文与历史被抹掉，只留一行删除标记，其余操作的序号不变。旧版单账户布局（`<data>/admin.json` 与数据目录根下的日志、令牌）在首次启动时自动迁移：日志与令牌搬进 `<data>/users/admin/`，`admin.json` 里的密码摘要并入内置账户，原文件归档为 `admin.json.migrated`
 - 设置页「数据与存储 → 自建同步 → 服务端项目」的「打开项目主页」可在系统浏览器中打开该仓库
-- 令牌：在管理后台（见下）中创建与保存；同时兼容启动参数 `--token` 与环境变量 `ESPRIN_TOKEN`
-- 鉴权：`/sync/*` 一律要求凭据——客户端的访问令牌（`Authorization: Bearer`）或管理后台的登录会话；未携带凭据的请求一律返回 401，服务端未配置任何凭据时也只是拒绝并提示先去根路径的管理页建立凭据
-- 接口（同步）：`GET /sync/health`（不需要令牌，用于区分「地址错」与「令牌错」）、`GET /sync/ops?since=&limit=`、`POST /sync/ops`、`GET /sync/state`、`GET /sync/file?path=`、`GET /sync/ids?limit=`、`POST /sync/ids/claim`
+- 令牌：在管理后台（见下）中创建与保存，每个账户各有自己的一套；同时兼容启动参数 `--token` 与环境变量 `ESPRIN_TOKEN`（等同内置账户的一份令牌）
+- 鉴权：`/sync/*` 一律要求凭据——客户端的访问令牌（`Authorization: Bearer`）或账户登录会话；每份凭据只读写它所属账户的那一份日志，未携带凭据的请求一律返回 401
+- 接口（同步）：`GET /sync/health`（不需要凭据，用于区分「地址错」与「凭据错」；带凭据时会额外报出该账户的日志身份与账户名）、`GET /sync/ops?since=&limit=`、`POST /sync/ops`、`GET /sync/state`、`GET /sync/file?path=`、`GET /sync/ids?limit=`、`POST /sync/ids/claim`
 - 可复用 ID：`/sync/state` 里的 `recyclable` 是回收池的大小；`GET /sync/ids` 列出池子，`POST /sync/ids/claim`（`{device, kind, count, since}`）把最近删掉的几个 ID 占住并发给调用方，其中 `since` 是调用方「已应用到第几号」——其他设备只发序号已跟上的，发起删除的那一台可以不等（它本地那份早就删掉了），序号没跟上的用 `pending` 报回去
 - 幂等：每条操作带 `opId`，客户端重试时重复提交不会重复写入日志
 - 路径安全：只接受数据目录内的相对路径，`..`、绝对路径一律拒绝
 
 ### 管理后台
 
-启动后在浏览器中打开「服务器地址 + `/`」（例如 `http://192.168.1.10:8686/`；服务端只托管这一个页面与 `/sync` 同步接口，不再提供网页版客户端）。管理页面是仓库 `manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。
+启动后在浏览器中打开「服务器地址 + `/admin`」（例如 `http://192.168.1.10:8686/admin`）。根路径 `/` 留给网页版客户端（服务端托管仓库 `web/` 目录），管理后台与它分开挂在 `/admin` 下。管理页面是仓库 `manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。服务端可以供多个账户使用，各自的笔记与待办互不可见；面板上的「正在管理的账户」决定令牌与日志两节作用在哪个账户上。
 
-- **首次打开**引导设置管理密码（至少 8 位），随后进入管理面板；密码以 PBKDF2-HMAC-SHA256（20 万次迭代 + 随机盐）存为摘要写入 `<data>/admin.json`，不可反推原文，后续登录在同一页面完成
-- **令牌**：支持新建、改名、重置（生成新明文，旧明文立即失效）、停用 / 启用与删除；明文仅在创建或重置时显示一次，服务端只保存 HMAC-SHA256 摘要（密钥为 `admin.json` 中的随机密钥）
+- **账户**：服务端默认只有内置账户 `admin`，其余账户只能由管理员在面板的「账户」一节新建（账户名 1~32 个字符、不能重名，密码至少 8 位）。新建的账户是普通账户，只能登录网页版客户端同步自己的数据；勾选「管理员」后它也能进入管理面板。内置账户不可删除、不可停用、不可取消管理员、不可改名（它的名字同时是数据目录名），且至少保留一个账户
+- **首次打开**引导设置内置账户的密码（至少 8 位），随后进入管理面板；密码以 PBKDF2-HMAC-SHA256（20 万次迭代 + 随机盐）按账户各自存为摘要写入 `<data>/users.json`，不可反推原文，后续登录在同一页面完成（输入账户名 + 密码；本页只让管理员登录）
+- **令牌**：支持新建、改名、重置（生成新明文，旧明文立即失效）、停用 / 启用与删除；每个账户一套，建面板上先用「正在管理的账户」选中归属；明文仅在创建或重置时显示一次，服务端只保存 HMAC-SHA256 摘要（密钥为 `users.json` 中的随机密钥）
 - **设备绑定**：创建令牌时可指定设备（例如 `dev-office`；填客户端「设置 → 数据与存储 → 自建同步」里显示的设备 ID 即可）。绑定后，以该令牌提交的操作均记为该设备，客户端自报的设备名无法覆盖，便于在令牌泄露时定位写入来源
 - **最近使用**：每个令牌记录最近使用时间与客户端自报的设备 id，可在面板中直接查看，便于核对令牌的实际使用情况
-- **会话**：登录态仅保存在服务端内存中（默认 12 小时），Cookie 为 `HttpOnly` + `SameSite=Lax`；修改密码会使所有已登录会话立即失效；登录失败限速为同一 IP 60 秒内 10 次
-- **数据与日志**：面板末尾显示日志概览（操作数、存活文件、删除记录、最新序号、文件大小与最后写入时间），并可一键把整份 `journal.log` 下载下来（附件名形如 `esprin-journal-20260922-153000.log`）；未登录时这一节只显示「登录后可查看与下载日志」，概览与下载接口都返回 401
-- 未登录时仅可见「是否已设密码」，令牌列表与增删改操作均需登录；管理页面为一组普通静态文件，不依赖外部资源，也不联网
-
-地址与接口：
+- **会话**：登录态仅保存在服务端内存中（默认 12 小时），Cookie 为 `HttpOnly` + `SameSite=Lax`；改密码或管理员重设密码后该账户的已登录会话立即失效，停用或删除账户同样立即失效；登录失败限速为同一 IP 60 秒内 10 次
+- **数据与日志**：面板上的日志概览与下载都作用在「正在管理的账户」上（操作数、存活文件、删除记录、最新序号、文件大小与最后写入时间），下载得到的是该账户那份日志的附件（附件名形如 `esprin-journal-20260922-153000.log`）；未登录时这一节只显示「登录后可以查看与下载日志」，概览与下载接口都返回 401
+- 未登录时仅可见「是否已设密码」，账户列表、令牌列表与增删改操作均需管理员登录；管理页面为一组普通静态文件，不依赖外部资源，也不联网
 
 地址与接口：
 
 | 地址 | 说明 |
 | --- | --- |
-| `GET /` | 管理页面（`/index.html` 同效；`/app.css`、`/app.js`、`/favicon.png`、`/fonts/*` 是它的静态资源） |
-| `GET /api/status` | 是否已设密码、当前是否已登录（页面靠它决定显示哪一屏） |
-| `GET /api/tokens` | 令牌列表（不含摘要，需登录） |
-| `GET /api/journal` | 日志概览：操作数、存活文件数、删除记录数、最新序号与文件大小（需登录） |
-| `GET /api/journal/download` | 下载整份 `journal.log`（需登录；附件名为 `esprin-journal-<时间戳>.log`；日志还不存在时返回 404） |
-| `POST /api/setup-password` | 首次设置管理密码（已设过则拒绝） |
-| `POST /api/login` / `logout` | 登录与退出（登录态保存在内存中，Cookie 为 HttpOnly） |
-| `POST /api/password` | 修改管理密码（会让其他会话立即失效） |
-| `POST /api/tokens` | 新建令牌（明文只在这个响应里返回一次） |
-| `POST /api/tokens/update` | 改名、改绑定设备、停用 / 启用 |
-| `POST /api/tokens/rotate` | 重置令牌（旧的立即失效，返回新的明文） |
-| `POST /api/tokens/delete` | 删除令牌 |
+| `GET /` | 网页版客户端页面（`/index.html` 同效；`/styles/*`、`/scripts/*`、`/fonts/*`、`/favicon.png` 是它的静态资源） |
+| `GET /admin` | 管理页面（`/admin/index.html` 同效；`/admin/app.css`、`/admin/app.js`、`/admin/favicon.png`、`/admin/fonts/*` 是它的静态资源） |
+| `GET /admin/api/status` | 是否已设密码、当前登录的账户与它是不是管理员（页面靠它决定显示哪一屏） |
+| `GET /admin/api/users` | 账户列表：角色、启用状态、令牌数、创建与最近登录时间、各自的数据量（需管理员） |
+| `GET /admin/api/tokens?user=` | 指定账户的令牌列表（不含摘要，需管理员；`user` 缺省时是自己） |
+| `GET /admin/api/journal?user=` | 指定账户的日志概览：操作数、存活文件数、删除记录数、最新序号与文件大小（需管理员） |
+| `GET /admin/api/journal/download?user=` | 下载指定账户的整份 `journal.log`（需管理员；附件名为 `esprin-journal-<时间戳>.log`；日志还不存在时返回 404） |
+| `POST /admin/api/setup-password` | 首次设置内置账户的密码（已设过则拒绝） |
+| `POST /admin/api/login` / `logout` | 登录与退出（登录体为 `{name, password}`；带 `requireAdmin: true` 时非管理员账户会被拒，管理面板走这条）（登录态保存在内存中，Cookie 为 HttpOnly） |
+| `POST /admin/api/password` | 修改自己账户的密码（会让该账户其他会话立即失效） |
+| `POST /admin/api/users/create` | 新建账户（`{name, password, admin}`，需管理员） |
+| `POST /admin/api/users/update` | 改名 / 启用停用 / 授予或取消管理员（`{id, ...}`，需管理员；内置账户的前三项都不能改） |
+| `POST /admin/api/users/password` | 重设其他账户的密码（`{id, password}`，需管理员；该账户已登录的会话随即失效） |
+| `POST /admin/api/users/delete` | 删除账户，连同它的数据目录、令牌与会话（需管理员；内置账户不可删） |
+| `POST /admin/api/tokens` | 新建令牌（`{user, name, device}`，明文只在这个响应里返回一次） |
+| `POST /admin/api/tokens/update` | 改名、改绑定设备、停用 / 启用 |
+| `POST /admin/api/tokens/rotate` | 重置令牌（旧的立即失效，返回新的明文） |
+| `POST /admin/api/tokens/delete` | 删除令牌 |
 | `GET /sync/*` | 同步接口（见上一节），与管理页互不相干 |
-| `GET /health` | 服务端状态 JSON（含 `passwordSet` / `tokenCount` 与两处接口前缀） |
-| `GET /admin` | 旧地址，302 跳转到 `/` |
+| `GET /health` | 服务端状态 JSON（含 `passwordSet` / `tokenCount` / `accountCount` / `defaultAccount` 与三处入口前缀） |
 
 文件：
 
 | 文件 | 内容 |
 | --- | --- |
-| `journal.log` | 全部数据（put / del 操作日志；已彻底删除条目的正文不留在这里） |
-| `journal.id` | 日志身份，客户端靠它发现「服务端换了数据目录」并把序号归零重放 |
-| `admin.json` | 管理密码摘要与服务端密钥（`0600` 权限由系统决定，注意备好这两份文件） |
-| `tokens.json` | 令牌摘要、名称、绑定设备、启用状态与最近使用记录 |
+| `users.json` | 账户表（姓名、密码摘要、角色、状态）与服务端密钥 |
+| `users/<账户 id>/journal.log` | 该账户的全部数据（put / del 操作日志；已彻底删除条目的正文不留在这里） |
+| `users/<账户 id>/journal.id` | 该账户的日志身份，客户端靠它发现「服务端换了数据目录」并把序号归零重放 |
+| `users/<账户 id>/tokens.json` | 该账户的令牌摘要、名称、绑定设备、启用状态与最近使用记录 |
+| `admin.json.migrated` | 仅出现在从旧版单账户布局升级上来的数据目录里：原 `admin.json` 被移到这里归档，其中的密码摘要已并入内置账户且不再被读取 |
 
 ### 客户端
 
@@ -444,7 +449,7 @@ python EsprinServer.py --selftest
 | `syncServer.autoSync` | `off`（默认，只是不定时）/ `5s` / `1m` / `5m` / `custom`（自定义）；每次启动应用都会同步一次，与它无关（旧版的 `startup` 取值等同于 `off`） |
 | `syncServer.autoSyncSeconds` | `custom` 生效的间隔秒数（5 ~ 86400 的整数，界面中可按秒或分钟填写） |
 | `syncServer.lastSyncAt` / `lastSyncSummary` | 上次同步的时刻与结果摘要，仅用于设置页展示 |
-| 令牌 | 不写入配置文件：在服务端管理页（服务器地址 + `/`）创建，填入「访问令牌」后加密保存到系统密钥链（安装版 `%APPDATA%\esprin_nemo\sync_token.bin`，便携版在便携版目录下，开发运行另用 `sync_token.dev.bin`）；服务端仅使用 `--token` 时也可直接填写 |
+| 令牌 | 不写入配置文件：在服务端管理页（服务器地址 + `/admin`）创建，填入「访问令牌」后加密保存到系统密钥链（安装版 `%APPDATA%\esprin_nemo\sync_token.bin`，便携版在便携版目录下，开发运行另用 `sync_token.dev.bin`）；服务端仅使用 `--token` 时也可直接填写 |
 
 设备 ID 由主进程生成一次后固定下来（形如 `dev-a1b2c3`），可在「设置 → 数据与存储 → 自建同步 → 设备 ID」查看并一键复制（只读，不参与鉴权）；服务端创建令牌时把该值填进「绑定设备」，该令牌提交的改动就都记在这台设备名下。它与是否启用同步无关，保存在配置目录的 `sync_state.json`，不随 `config.json` 复制或分享。
 
@@ -662,7 +667,7 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 └── readme/                 # 文档配图
 ```
 
-自建同步服务端不在本仓库内，位于独立仓库 [TheOninesixY/EsprinServer](https://github.com/TheOninesixY/EsprinServer)，其目录包含 `EsprinServer.py`（日志与 HTTP API）、`manager/`（管理页面静态文件）与 `sync-selftest.js`（客户端同步逻辑自测）。
+自建同步服务端不在本仓库内，位于独立仓库 [TheOninesixY/EsprinServer](https://github.com/TheOninesixY/EsprinServer)，其目录包含 `EsprinServer.py`（日志与 HTTP API）、`web/`（网页版客户端，服务端在根路径托管）、`manager/`（管理页面静态文件，挂在 `/admin`）与 `sync-selftest.js`（客户端同步逻辑自测）。
 
 > 渲染进程按「经典脚本」方式拆分：`src/renderer/scripts/` 下的文件共享同一个全局作用域，`state.js`
 > 必须在其它脚本之前加载，`app.js` 负责在 `window.onload` 时启动应用。

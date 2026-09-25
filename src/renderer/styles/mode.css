@@ -502,6 +502,9 @@ html.modern-layout .sidebar-action-wrap {
     justify-content: space-between;
     gap: 8px;
     padding: 8px;
+    /* 横向内边距参与过渡：收起时它从 8px 补到 10px（见下方收起态），
+       与侧边栏宽度的收窄同一拍，按钮右缘因此连续左移，不会先跳一格再滑 */
+    transition: padding 0.18s ease;
 }
 /* 「新建」这一组收成正方形：按钮不再撑满侧边栏宽度，也不跟名字抢空间。
    两枚按钮的底色与文字色都取下面这两个变量，好让「整组被悬停」（褪成中性浅灰）
@@ -552,12 +555,18 @@ html.modern-layout .sidebar-action-wrap .btn-new-note-icon-doc {
     display: inline-flex;
     opacity: 0;
 }
-/* 收起态侧边栏只剩一条窄条：应用名跟着一起隐藏，方形按钮在窄条里居中 */
+/* 收起态侧边栏只剩一条窄条：应用名跟着一起隐藏 */
 html.sidebar-collapsed .sidebar .sidebar-brand {
     display: none;
 }
-html.sidebar-collapsed .sidebar .sidebar-action-wrap {
-    justify-content: center;
+/* 应用名让位后这一行只剩「新建」一枚，改成靠右对齐，而非居中：居中会让按钮在
+   收起态类名生效的那一帧，从 210px 宽的右缘被直接拽到中段，再随宽度收窄滑到终点，
+   看上去就是一次突兀的横向抽动；靠右则始终贴着右缘，收窄途中只是平稳左移。
+   横向内边距同时由 8px 补到 10px（参与过渡，见上），终点因此仍落在窄条正中：
+   48 - 10 - 28 = 10，与下方导航图标同一列 */
+html.modern-layout.sidebar-collapsed .sidebar .sidebar-action-wrap {
+    justify-content: flex-end;
+    padding: 8px 10px;
 }
 
 /* ---------------- 「新建」的两份：悬停复制 ----------------
@@ -614,6 +623,15 @@ html.modern-layout .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new-extr
                 margin-right var(--motion-base) var(--ease-out),
                 margin-top var(--motion-base) var(--ease-out),
                 opacity var(--motion-base) var(--ease-out);
+}
+/* 收起 / 展开切换的那一拍不给副本做宽高补间：此刻它不在悬停里（opacity 0，看不见），
+   而宽与高在两种状态间恰好互换（横排 0 宽 × 28 高 ↔ 竖排 28 宽 × 0 高），
+   补间等于把「换排布」画成一段可见位移——收起时竖排下高度由 28 补到 0，
+   会把下面一整列筛选图标顶下去 28px 再滑回来。
+   .text-fading 在收起与展开两个方向的切换期间都在（见 scripts/render.js），
+   借它先关掉过渡，副本瞬时换形；悬停滑出仍走自己的过渡（那时没有这个类） */
+html.modern-layout .sidebar.text-fading .sidebar-new-split .btn-sidebar-new-extra {
+    transition: none;
 }
 html.modern-layout .sidebar-action-wrap .sidebar-new-split .btn-sidebar-new-extra .ms-icon {
     transform: translateX(10px);

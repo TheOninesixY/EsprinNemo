@@ -40,6 +40,13 @@ function renderMarkdown(force = false) {
 
     const item = getActiveItem();
     const itemId = item ? item.id : null;
+    // 加密且未解锁的条目：正文还是密文，解析出来没有意义，预览直接留空
+    if (isSecretLocked(item)) {
+        lastPreviewNoteId = itemId;
+        lastPreviewContent = null;
+        document.getElementById('preview-content').innerHTML = '';
+        return;
+    }
     const content = item ? (item.content || '') : '';
 
     if (!force && itemId === lastPreviewNoteId && content === lastPreviewContent) return;
@@ -106,22 +113,26 @@ function updateStats() {
     const item = getActiveItem();
     if (!item) return;
 
-    const content = item.content || '';
+    const locked = isSecretLocked(item);
+    // 加密且未解锁的条目正文是密文：字数与字符数无从统计，用占位符代替
+    const content = locked ? '' : (item.content || '');
     if (item.id === lastStatsNoteId && content === lastStatsContent && item.updatedAt === lastStatsUpdatedAt) return;
     lastStatsNoteId = item.id;
     lastStatsContent = content;
     lastStatsUpdatedAt = item.updatedAt;
 
-    document.getElementById('stat-char-count').textContent = `字符: ${content.length}`;
-    document.getElementById('stat-word-count').textContent = `字数: ${countWords(content)}`;
+    document.getElementById('stat-char-count').textContent = locked ? '字符: —' : `字符: ${content.length}`;
+    document.getElementById('stat-word-count').textContent = locked ? '字数: —' : `字数: ${countWords(content)}`;
     document.getElementById('stat-last-edit').textContent = `修改于 ${formatDate(item.updatedAt)}`;
 }
 
-// 只读模式：废纸篓中的条目只能查看与导出，所有编辑入口统一在这里关闭
+// 只读模式：废纸篓中的条目与还差一道密码的加密条目只能查看与导出，所有编辑入口统一在这里关闭
 const READONLY_STATUS_TEXT = '只读 · 位于废纸篓';
+const LOCKED_STATUS_TEXT = '只读 · 正文已加密';
 
 function applyEditorReadOnly(item) {
     const readOnly = isReadOnlyItem(item);
+    const locked = isSecretLocked(item);
 
     const titleInput = document.getElementById('input-note-title');
     const contentInput = document.getElementById('textarea-note-content');
@@ -141,10 +152,27 @@ function applyEditorReadOnly(item) {
 
     const saveStatus = document.getElementById('save-status');
     if (readOnly) {
-        saveStatus.textContent = READONLY_STATUS_TEXT;
-    } else if (saveStatus.textContent === READONLY_STATUS_TEXT) {
+        saveStatus.textContent = locked ? LOCKED_STATUS_TEXT : READONLY_STATUS_TEXT;
+    } else if (saveStatus.textContent === READONLY_STATUS_TEXT || saveStatus.textContent === LOCKED_STATUS_TEXT) {
         saveStatus.textContent = '就绪';
     }
+}
+
+/* 加密且未解锁的条目：编辑区盖上锁面板，正文与统计一并让位给「输入密码」这一个动作。
+   其余情况（没设密码，或本轮已经解开）把面板收起，编辑区照常可用 */
+function applySecretLockUI(item) {
+    const overlay = document.getElementById('secret-lock-overlay');
+    if (!overlay) return;
+
+    const locked = isSecretLocked(item);
+    overlay.classList.toggle('hidden', !locked);
+    if (!locked) return;
+
+    const title = document.getElementById('secret-lock-title');
+    if (title) title.textContent = `《${itemDisplayTitle(item)}》的正文已加密`;
+
+    const unlockBtn = document.getElementById('btn-secret-unlock');
+    if (unlockBtn) unlockBtn.onclick = () => unlockItem(item.id);
 }
 
 function updateViewModeUI() {

@@ -371,6 +371,11 @@
                 return true;
             }
 
+            if (result && result.reason === 'locked') {
+                setStatus('笔记正文已加密，需在主窗口解锁后保存', 'error');
+                return false;
+            }
+
             setStatus(result && result.reason === 'readonly' ? '笔记在废纸篓中，无法保存' : '保存失败', 'error');
             return false;
         }
@@ -608,7 +613,7 @@
 
             const result = await ipcRenderer.invoke('scratchpad:bind', { noteId });
             if (!result || !result.ok || !result.note) {
-                setStatus('打开笔记失败', 'error');
+                setStatus(result && result.reason === 'locked' ? '笔记正文已加密，需在主窗口解锁后关联' : '打开笔记失败', 'error');
                 return;
             }
 

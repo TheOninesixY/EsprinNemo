@@ -136,6 +136,19 @@ async function showPrompt(message, options = {}) {
     return typeof result.value === 'string' ? result.value.trim() : '';
 }
 
+/* 口令输入：与 showPrompt 同一套用法，区别是输入框不回显明文（见 main/dialog_window.js 的 input.type）。
+   返回原样输入的内容（口令不去首尾空白，空格本身也可以是口令的一部分），取消返回 null。 */
+async function showPasswordPrompt(message, options = {}) {
+    const result = await runInputDialog(message, options, {
+        value: options.value || '',
+        placeholder: options.placeholder || '',
+        label: options.label || '',
+        type: 'password'
+    }, '输入密码');
+    if (!result || result.id !== 'confirm') return null;
+    return typeof result.value === 'string' ? result.value : '';
+}
+
 // 输入 + 已有候选项多选：返回 { value, selected }，取消返回 null
 async function showPromptWithChoices(message, options = {}) {
     const result = await runInputDialog(message, options, {

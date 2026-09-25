@@ -324,9 +324,12 @@ function registerScratchpadIpc() {
         bound: true
       };
     }
-    // 笔记已不存在（例如被删或数据目录换过）：退回未关联状态，内容按缓存保留
-    writeNoteState(state);
-    return { ...state, noteId: '', bound: false };
+    /* 笔记已不存在（例如被删或数据目录换过）：退回未关联状态，内容按缓存保留；
+       笔记还在但正文已加密（reason 为 locked）时不保留缓存里的正文副本 */
+    const keepContent = reply.reason !== 'locked';
+    const fallback = { ...state, content: keepContent ? state.content : '' };
+    writeNoteState(fallback);
+    return { ...fallback, noteId: '', bound: false };
   });
 
   // 缓存：未关联时的内容、或关联笔记的内容快照，保证重开窗口能回到离开时的样子
@@ -396,7 +399,11 @@ function registerScratchpadIpc() {
     const data = payload && typeof payload === 'object' ? payload : {};
     const noteId = typeof data.noteId === 'string' ? data.noteId.trim() : '';
 
-    writeNoteState({ noteId, title: data.title, content: data.content });
+    /* 已关联笔记时只记绑定关系，不缓存正文：正文的权威副本就在笔记文件里，
+       重开窗口会向主窗口重新取一次。缓存一份快照除了冗余，还会给「正文加密落盘」
+       留个例外——scratchpad.json 与笔记同在一个数据目录，缓存的却是明文。
+       未关联时内容只存在这份文件里，仍需整份存下 */
+    writeNoteState({ noteId, title: data.title, content: noteId ? '' : data.content });
     if (noteId) saveBoundNote(noteId, data.title, data.content);
   });
 

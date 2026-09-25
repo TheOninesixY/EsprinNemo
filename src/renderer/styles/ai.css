@@ -569,8 +569,7 @@
 .ai-panel.drop-active .ai-input-wrap {
     border-color: var(--accent);
 }
-端是附带范围下拉，右端依次是 Agent 模式开关、附件、发送三
-/* 6. 底栏：左起 Agent 模式开关、附带范围下拉，右端是附件与发送两枚按钮。
+/* 6. 底栏：左起附带范围下拉，右端是 Agent 模式开关、附件与发送两枚按钮。
    开关与附件都走 .btn-action-icon（与标题栏的 AI 助手按钮同一套），
    与发送按钮同尺寸；开关开启时由 .btn-action-icon.active 点亮，不必另写样式。 */
 .ai-composer-bar .btn-action-icon {

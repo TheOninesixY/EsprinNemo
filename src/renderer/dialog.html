@@ -382,6 +382,9 @@
 
             if (data.input) {
                 fieldEl.classList.remove('hidden');
+                // 口令输入（type: 'password'）同样走这个输入框，只是不显示明文
+                inputEl.type = data.input.type === 'password' ? 'password' : 'text';
+                inputEl.setAttribute('autocomplete', data.input.type === 'password' ? 'off' : 'on');
                 inputEl.value = data.input.value || '';
                 inputEl.placeholder = data.input.placeholder || '';
                 if (data.input.label) {

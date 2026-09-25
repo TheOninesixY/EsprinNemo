@@ -21,6 +21,8 @@
     <link rel="stylesheet" href="./styles/sync.css">
     <!-- 随口记：语音转文本（编辑器顶栏入口与聆听反馈条） -->
     <link rel="stylesheet" href="./styles/voice.css">
+    <!-- 秘密本：加密条目的锁面板与设置页「秘密本」列表 -->
+    <link rel="stylesheet" href="./styles/secret.css">
     <!-- Alom 风格：仅当 <html data-theme-style="alom"> 时生效 -->
     <link rel="stylesheet" href="./styles/alom.css">
     <!-- 圆角尺度：按设置中的选择把 --radius-* 令牌换算成最终圆角，需排在其它风格之后 -->
@@ -319,13 +321,21 @@
                     <input type="text" class="editor-title-input" id="input-note-title" placeholder="无标题笔记...">
                 </div>
 
-                <!-- Editor & Preview Body -->
+                <!-- 编辑器与预览 -->
                 <div class="editor-content-area hidden">
                     <div class="editor-pane" id="editor-pane">
                         <textarea class="editor-textarea" id="textarea-note-content" placeholder="输入 Markdown 内容..." spellcheck="false"></textarea>
                     </div>
                     <div class="preview-pane hidden" id="preview-pane">
                         <div class="markdown-body" id="preview-content"></div>
+                    </div>
+
+                    <!-- 加密条目的锁面板：盖在编辑区上，解锁前不展示正文（见 scripts/editor.js 的 applySecretLockUI） -->
+                    <div class="secret-lock-overlay hidden" id="secret-lock-overlay">
+                        <span class="ms-icon secret-lock-icon">lock</span>
+                        <div class="secret-lock-title" id="secret-lock-title">该文档的正文已加密</div>
+                        <div class="secret-lock-desc">正文以 AES-256-GCM 加密保存，输入密码后可在本次运行中查看与编辑。</div>
+                        <button class="settings-btn primary" id="btn-secret-unlock">输入密码</button>
                     </div>
                 </div>
 
@@ -840,6 +850,24 @@
                         </div>
                     </div>
 
+                    <!-- 分类：秘密本（隐藏与密码。隐藏的条目不出现在任何列表里，只在这里能找到） -->
+                    <div class="settings-panel hidden" data-settings-panel="secret">
+                        <div class="settings-section">
+                            <div class="settings-section-title">隐藏与加密的文档</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">秘密本</span>
+                                    <span class="settings-row-desc">在列表中右键一篇笔记或待办即可隐藏或设置密码。隐藏的条目不进入任何列表、搜索、统计、AI 提问范围与小本本，只能在这里找到；设置密码的条目正文以 AES-256-GCM 加密落盘，打开时需输入密码，标题、文件夹、标签与时间等元数据保持明文。密码不会被保存也无法找回，忘记后正文无法恢复</span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-secret-refresh" title="重新扫描隐藏与加密状态">刷新</button>
+                                </div>
+                            </div>
+                            <div class="secret-list" id="secret-list"></div>
+                            <div class="settings-row-desc sync-status" id="secret-status">正在读取隐藏与加密状态…</div>
+                        </div>
+                    </div>
+
                     <!-- 分类：数据与存储 -->
                     <div class="settings-panel hidden" data-settings-panel="data">
                         <div class="settings-section">
@@ -937,7 +965,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">访问令牌</span>
-                                    <span class="settings-row-desc">在服务端管理页面（服务器地址根路径）创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
+                                    <span class="settings-row-desc">在服务端管理页面（服务器地址 + /admin）创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows 为 DPAPI、macOS 为钥匙串、Linux 为 libsecret），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
                                 </div>
                                 <div class="sync-input-stack">
                                     <div class="sync-input-group">
@@ -1151,6 +1179,7 @@
     <script src="./scripts/ai_agent.js"></script>
     <script src="./scripts/ai.js"></script>
     <script src="./scripts/notes.js"></script>
+    <script src="./scripts/secret.js"></script>
     <script src="./scripts/todos.js"></script>
     <script src="./scripts/scratchpad.js"></script>
     <script src="./scripts/editor.js"></script>

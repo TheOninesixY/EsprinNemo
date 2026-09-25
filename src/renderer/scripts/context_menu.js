@@ -36,6 +36,26 @@ function contextMenuItems(item) {
             icon: item.isPinned ? 'keep_off' : 'push_pin',
             label: item.isPinned ? '取消置顶' : `置顶${label}`
         },
+        /* 秘密本：隐藏与密码。隐藏后条目不再出现在任何列表里，只能去「设置 → 秘密本」找回，
+           因此这里给出的入口在隐藏后仍然留着一个「取消隐藏」的提示（列表右键菜单虽已看不到它） */
+        {
+            action: 'hide',
+            icon: item.isHidden === true ? 'visibility' : 'visibility_off',
+            label: item.isHidden === true ? '取消隐藏' : '隐藏文档'
+        },
+        {
+            action: item.locked === true ? 'remove-password' : 'set-password',
+            icon: item.locked === true ? 'key_off' : 'lock',
+            label: item.locked === true ? '解除密码' : '设置密码'
+        }
+    );
+
+    // 已解锁的加密条目：再给一个马上重新上锁的入口（关闭应用同样会失去内存里的密钥）
+    if (item.locked === true && item.unlocked === true) {
+        items.push({ action: 'lock-now', icon: 'lock', label: '立即锁定' });
+    }
+
+    items.push(
         { action: 'export', icon: 'file_download', label: '导出 Markdown' },
         { action: 'delete', icon: 'delete', label: '移入废纸篓', danger: true }
     );
@@ -92,6 +112,14 @@ document.getElementById('note-context-menu').onclick = (e) => {
         toggleTodoDone(contextItemId);
     } else if (action === 'pin') {
         togglePin(contextItemId);
+    } else if (action === 'hide') {
+        toggleItemHidden(contextItemId);
+    } else if (action === 'set-password') {
+        setItemPassword(contextItemId);
+    } else if (action === 'remove-password') {
+        removeItemPassword(contextItemId);
+    } else if (action === 'lock-now') {
+        lockItemNow(contextItemId);
     } else if (action === 'export') {
         exportItemMarkdown(contextItemId);
     } else if (action === 'delete') {

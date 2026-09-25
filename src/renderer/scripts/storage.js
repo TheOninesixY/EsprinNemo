@@ -256,12 +256,22 @@ function serializeItemFile(item, extraLines = []) {
         formatNoteMetaLine('tags', Array.isArray(item.tags) ? item.tags : []),
         formatNoteMetaLine('isPinned', !!item.isPinned),
         formatNoteMetaLine('isTrashed', !!item.isTrashed),
+        // 秘密本：隐藏与加密状态。只在这两项确实成立时才写出对应行——
+        // 没用过秘密本的条目因此保持原有文件内容（省掉一次全量重写与随之而来的同步推送）；
+        // 解密用的盐与 IV 跟在密文里（见 scripts/secret.js 的信封），
+        // 元数据里只记「有没有加密」，文件一开头就能判断要不要先问密码
+        ...(item.isHidden === true ? [formatNoteMetaLine('isHidden', true)] : []),
+        ...(item.locked === true ? [formatNoteMetaLine('isLocked', true)] : []),
         ...extraLines,
         formatNoteMetaLine('createdAt', Number(item.createdAt) || Date.now()),
         formatNoteMetaLine('updatedAt', Number(item.updatedAt) || Date.now()),
         '-->'
     ].join('\n');
-    const content = String(item.content || '');
+    // 正文：带密码的条目在这里现做密文（见 scripts/secret.js 的 serializeSecretBody）。
+    // 任何保存路径都经这里取正文，明文因此不会落到磁盘上
+    const content = typeof serializeSecretBody === 'function'
+        ? serializeSecretBody(item)
+        : String(item.content || '');
     return content ? `${header}\n\n${content}` : `${header}\n`;
 }
 
@@ -421,6 +431,12 @@ function buildNoteFromFile(file, legacy) {
         tags: readNoteMetaTags(pick('tags')),
         isPinned: readNoteMetaBoolean(pick('isPinned'), false),
         isTrashed: readNoteMetaBoolean(pick('isTrashed'), false),
+        // 秘密本：隐藏状态按元数据取值；加密状态还要正文确实是一份信封才算数
+        // （元数据写着加密、正文却是明文的脏数据按未加密处理，免得把明文当成密文解不开）
+        isHidden: readNoteMetaBoolean(pick('isHidden'), false),
+        locked: readNoteMetaBoolean(meta.isLocked, false) && isSecretEnvelope(file.content),
+        // 会话内的解锁标记：从磁盘读到的条目一律是未解锁的
+        unlocked: false,
         createdAt,
         updatedAt: readNoteMetaNumber(meta.updatedAt, readNoteMetaNumber(fallback.updatedAt, Math.max(createdAt, statTime))),
         content: file.content
@@ -442,6 +458,10 @@ function buildTodoFromFile(file) {
         isPinned: readNoteMetaBoolean(meta.isPinned, false),
         isTrashed: readNoteMetaBoolean(meta.isTrashed, false),
         isDone: readNoteMetaBoolean(meta.isDone, false),
+        // 秘密本：与笔记同一套判定（见 buildNoteFromFile）
+        isHidden: readNoteMetaBoolean(meta.isHidden, false),
+        locked: readNoteMetaBoolean(meta.isLocked, false) && isSecretEnvelope(file.content),
+        unlocked: false,
         createdAt,
         updatedAt: readNoteMetaNumber(meta.updatedAt, Math.max(createdAt, statTime)),
         content: file.content
@@ -1129,6 +1149,8 @@ function saveNote(note) {
 // 删除笔记文件（元数据与正文同在一份文件，删掉即彻底移除），并同步丢弃写入缓存
 function deleteNoteFile(noteId) {
     savedNoteFiles.delete(noteId);
+    // 会话里若还留着这一条的密钥，随文件一起丢掉
+    if (typeof forgetSecretKey === 'function') forgetSecretKey(noteId);
     try {
         const notePath = path.join(NOTES_DIR, `${noteId}.md`);
         if (fs.existsSync(notePath)) {
@@ -1158,6 +1180,8 @@ function saveTodo(todo) {
 // 删除待办文件（元数据与正文同在一份文件，删掉即彻底移除），并同步丢弃写入缓存
 function deleteTodoFile(todoId) {
     savedTodoFiles.delete(todoId);
+    // 会话里若还留着这一条的密钥，随文件一起丢掉
+    if (typeof forgetSecretKey === 'function') forgetSecretKey(todoId);
     try {
         const todoPath = path.join(TODOS_DIR, `${todoId}.md`);
         if (fs.existsSync(todoPath)) {
@@ -1177,6 +1201,8 @@ function saveItem(item) {
 }
 
 function deleteItemFile(itemId) {
+    // 会话里若还留着这一条的密钥，随文件一起丢掉
+    if (typeof forgetSecretKey === 'function') forgetSecretKey(itemId);
     if (State.todos.some(todo => todo.id === itemId)) deleteTodoFile(itemId);
     else deleteNoteFile(itemId);
 }

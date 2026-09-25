@@ -20,6 +20,9 @@ function createNewNote() {
         tags: defaults.tags,
         isPinned: false,
         isTrashed: false,
+        // 秘密本：新建的条目既不隐藏也不加密
+        isHidden: false,
+        locked: false,
         createdAt: Date.now(),
         updatedAt: Date.now()
     };
@@ -76,6 +79,11 @@ function buildImportedNote(filePath) {
         // 导入等同新建一篇：不带置顶，也不进废纸篓
         isPinned: false,
         isTrashed: false,
+        /* 秘密本：注释里带着隐藏与加密状态（直接拷贝出来的笔记文件）时一并保留，
+           否则磁盘上的密文信封会被当成正文显示出来 */
+        isHidden: meta ? readNoteMetaBoolean(meta.isHidden, false) : false,
+        locked: meta ? (readNoteMetaBoolean(meta.isLocked, false) && isSecretEnvelope(content)) : false,
+        unlocked: false,
         createdAt: meta ? readNoteMetaNumber(meta.createdAt, now) : now,
         updatedAt: now
     };
@@ -249,9 +257,10 @@ function itemDisplayTitle(item) {
     return item.title || `未命名${itemKindLabel(item)}`;
 }
 
-// 废纸篓中的条目为只读：可查看与导出，但不能修改内容与元数据
+// 废纸篓中的条目为只读：可查看与导出，但不能修改内容与元数据；
+// 还差一道密码的加密条目同样只读（正文在内存里是密文，无从编辑）
 function isReadOnlyItem(item) {
-    return !!(item && item.isTrashed);
+    return !!(item && (item.isTrashed || isSecretLocked(item)));
 }
 
 // 待保存的编辑内容：记录目标条目，避免切换标签页后把草稿写进别的条目
@@ -343,12 +352,15 @@ function restoreFromTrash(itemId) {
 
 // 导出为 .md：笔记与待办共用一份实现（元数据内嵌在文件里，这里只导出标题与正文，
 // 与编辑器顶栏从前那个导出按钮做的事一致；入口在条目右键菜单里，废纸篓中的条目同样可导出）
-function exportItemMarkdown(itemId) {
+async function exportItemMarkdown(itemId) {
     // 正在编辑的条目可能还有没落盘的输入：先落盘再导出，免得导出的是上一次保存的内容
     if (State.activeNoteId === itemId) flushPendingSave();
 
     const item = getItemById(itemId);
     if (!item) return;
+
+    // 加密条目先要一道密码：导出的是明文正文，而不是磁盘上的密文信封
+    if (isSecretLocked(item) && !(await ensureItemRevealed(itemId))) return;
 
     const blob = new Blob([item.content || ''], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -547,9 +559,14 @@ function normalizeImportedItems(rawList, kind, usedIds = new Set()) {
             tags: Array.isArray(raw.tags) ? raw.tags.filter(tag => typeof tag === 'string' && tag.trim()) : [],
             isPinned: !!raw.isPinned,
             isTrashed: !!raw.isTrashed,
+            isHidden: !!raw.isHidden,
             createdAt: safeCreatedAt,
             updatedAt: Number.isFinite(updatedAt) ? Math.round(updatedAt) : safeCreatedAt
         };
+        // 秘密本：备份里的加密条目只在正文确实是一份信封时才算加密，
+        // 否则只留下「隐藏」这一项（免得把明文当成密文、打开时永远解不开）
+        item.locked = !!raw.locked && isSecretEnvelope(item.content);
+        item.unlocked = false;
         if (kind === 'todo') item.isDone = !!raw.isDone;
         items.push(item);
     });
@@ -571,7 +588,8 @@ const SEARCH_TEXT_CACHE = new WeakMap();
 
 function itemSearchText(item) {
     const title = typeof item.title === 'string' ? item.title : '';
-    const content = typeof item.content === 'string' ? item.content : '';
+    // 未解锁的加密条目只按标题匹配：内存里的正文是密文，拿它去匹配只会命中随机串
+    const content = isSecretLocked(item) ? '' : (typeof item.content === 'string' ? item.content : '');
     const cached = SEARCH_TEXT_CACHE.get(item);
     if (cached && cached.title === title && cached.content === content) return cached.text;
 
@@ -602,6 +620,8 @@ function getFilteredItems() {
     const consider = (item, isTodo) => {
         if (onlyNotes && isTodo) return;
         if (onlyTodos && !isTodo) return;
+        // 隐藏的条目不进任何视图：它们只在「设置 → 秘密本」里出现
+        if (isSecretHidden(item)) return;
 
         if (item.isTrashed) {
             if (!isTrashView) return;

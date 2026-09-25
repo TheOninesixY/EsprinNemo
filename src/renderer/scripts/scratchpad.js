@@ -2,10 +2,10 @@
    笔记数据的读写全部发生在主窗口（State + 磁盘），便利贴只负责显示与输入，
    两个窗口因此不会各存一份内容、互相覆盖。 */
 
-// 便利贴可打开 / 可关联的笔记：废纸篓中的笔记只读，不参与选择
+// 便利贴可打开 / 可关联的笔记：废纸篓、隐藏与加密的笔记都不参与选择
 function scratchpadNoteList() {
     return State.notes
-        .filter(note => !note.isTrashed)
+        .filter(note => !note.isTrashed && !isSecretHidden(note) && note.locked !== true)
         .map(note => ({
             id: note.id,
             title: note.title || '',
@@ -48,6 +48,9 @@ function createNoteFromScratchpad(title, content) {
         tags: defaults.tags,
         isPinned: false,
         isTrashed: false,
+        // 秘密本：小本本建出来的笔记既不隐藏也不加密
+        isHidden: false,
+        locked: false,
         createdAt: now,
         updatedAt: now
     };
@@ -65,6 +68,8 @@ function createNoteFromScratchpad(title, content) {
 function updateNoteFromScratchpad(noteId, title, content) {
     const note = State.notes.find(n => n.id === noteId);
     if (!note) return { ok: false, reason: 'missing' };
+    // 加密未解锁的笔记：小本本拿不到也写不了明文
+    if (isSecretLocked(note)) return { ok: false, reason: 'locked' };
     if (isReadOnlyItem(note)) return { ok: false, reason: 'readonly' };
 
     const isActive = State.activeNoteId === noteId;
@@ -95,6 +100,11 @@ ipcRenderer.on('scratchpad:get-note', (event, payload) => {
     const note = State.notes.find(n => n.id === data.noteId);
     if (!note) {
         replyToHost({ id: data.id, ok: false, reason: 'missing' });
+        return;
+    }
+    // 加密未解锁的笔记不给正文：取出来的是密文，写回界面没有意义
+    if (isSecretLocked(note)) {
+        replyToHost({ id: data.id, ok: false, reason: 'locked' });
         return;
     }
     replyToHost({

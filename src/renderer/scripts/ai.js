@@ -31,14 +31,16 @@ function collectAiContextNotes() {
 
     const maxNotes = Math.max(1, Number(State.ai && State.ai.maxNotes) || 10);
     if (State.aiScope === 'current') {
-        // 当前条目：正打开的笔记或待办
+        // 当前条目：正打开的笔记或待办；加密且未解锁时正文是密文，附上去没有意义
         const active = getActiveItem();
-        return active ? [active] : [];
+        return active && isSecretRevealed(active) ? [active] : [];
     }
 
-    // 全部笔记：置顶优先，再按最后修改时间由新到旧
+    /* 全部笔记：置顶优先，再按最后修改时间由新到旧。
+       隐藏的条目不进任何提问范围；设了密码的条目也不进——自动捎带一份加密正文给模型
+       与「给它加密码」的意图相背，需要时由用户在提问里指定当前条目 */
     return State.notes
-        .filter(note => !note.isTrashed)
+        .filter(note => !note.isTrashed && !isSecretHidden(note) && note.locked !== true)
         .sort((a, b) => (b.isPinned - a.isPinned) || ((b.updatedAt || 0) - (a.updatedAt || 0)))
         .slice(0, maxNotes);
 }
@@ -878,7 +880,7 @@ function insertAiAnswerToItem(content) {
         return;
     }
     if (isReadOnlyItem(item)) {
-        showToast('废纸篓中的内容为只读，无法写入');
+        showToast(isSecretLocked(item) ? '正文已加密：解锁后才能写入' : '废纸篓中的内容为只读，无法写入');
         return;
     }
 
@@ -906,6 +908,9 @@ function saveAiAnswerAsNote(content) {
         tags: defaults.tags,
         isPinned: false,
         isTrashed: false,
+        // 秘密本：AI 建出来的笔记既不隐藏也不加密
+        isHidden: false,
+        locked: false,
         createdAt: now,
         updatedAt: now
     };

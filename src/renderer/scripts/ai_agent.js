@@ -191,14 +191,18 @@ function findNoteById(id) {
     return State.notes.find(note => note.id === value) || null;
 }
 
-// 模型经常直接给标题，这里按 id 找不到时再按标题唯一匹配一次
+// 模型经常直接给标题，这里按 id 找不到时再按标题唯一匹配一次。
+// 隐藏与加了密码的条目不进这个兜底匹配（它们同样不在列表工具的结果里）
 function resolveAiAgentNote(rawId) {
     const direct = findNoteById(rawId);
     if (direct) return direct;
 
     const keyword = String(rawId || '').trim();
     if (!keyword) return null;
-    const matches = State.notes.filter(note => !note.isTrashed && (note.title || '').trim() === keyword);
+    const matches = State.notes.filter(note => !note.isTrashed
+        && !isSecretHidden(note)
+        && note.locked !== true
+        && (note.title || '').trim() === keyword);
     return matches.length === 1 ? matches[0] : null;
 }
 
@@ -255,7 +259,8 @@ function runListNotes(args) {
     const keyword = typeof args.keyword === 'string' ? args.keyword.trim().toLowerCase() : '';
     const limit = Math.min(Math.max(Number(args.limit) || 20, 1), AI_AGENT_LIST_LIMIT);
 
-    let notes = State.notes.filter(note => !note.isTrashed);
+    // 秘密本：隐藏的条目不对模型可见，设了密码的条目同样不进列表工具的结果
+    let notes = State.notes.filter(note => !note.isTrashed && !isSecretHidden(note) && note.locked !== true);
     if (folder) notes = notes.filter(note => (note.folder || '默认') === folder);
     if (tag) notes = notes.filter(note => Array.isArray(note.tags) && note.tags.includes(tag));
     if (keyword) {
@@ -284,6 +289,8 @@ function runListNotes(args) {
 function runReadNote(args) {
     const note = resolveAiAgentNote(args.id);
     if (!note) return toolFail(`没有找到笔记：${String(args.id || '').trim() || '（未提供 id）'}`);
+    // 加密码的条目正文在解锁前是密文，读出来只会是一串 base64
+    if (isSecretLocked(note)) return toolFail(`《${note.title || '未命名笔记'}》正文已加密，需要先在应用里解锁`);
 
     const content = String(note.content || '');
     const truncated = content.length > AI_AGENT_READ_CHAR_LIMIT;
@@ -313,6 +320,9 @@ function runCreateNote(args) {
         tags: normalizeTagList(args.tags),
         isPinned: !!args.pinned,
         isTrashed: false,
+        // 秘密本：AI 新建的笔记既不隐藏也不加密
+        isHidden: false,
+        locked: false,
         createdAt: now,
         updatedAt: now
     };
@@ -346,6 +356,7 @@ function runUpdateNoteContent(args) {
     const note = resolveAiAgentNote(args.id);
     if (!note) return toolFail(`没有找到笔记：${String(args.id || '').trim() || '（未提供 id）'}`);
     if (note.isTrashed) return toolFail(`《${note.title || '未命名笔记'}》在废纸篓中，请先恢复后再修改`);
+    if (isSecretLocked(note)) return toolFail(`《${note.title || '未命名笔记'}》正文已加密，需要先在应用里解锁`);
 
     const nextContent = typeof args.content === 'string' ? args.content : '';
     const mode = args.mode === 'append' ? 'append' : 'replace';
@@ -386,6 +397,7 @@ function runUpdateNoteMeta(args) {
     const note = resolveAiAgentNote(args.id);
     if (!note) return toolFail(`没有找到笔记：${String(args.id || '').trim() || '（未提供 id）'}`);
     if (note.isTrashed) return toolFail(`《${note.title || '未命名笔记'}》在废纸篓中，请先恢复后再修改`);
+    if (isSecretLocked(note)) return toolFail(`《${note.title || '未命名笔记'}》正文已加密，需要先在应用里解锁`);
 
     const before = {
         title: note.title || '',

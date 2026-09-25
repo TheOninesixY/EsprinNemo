@@ -166,12 +166,14 @@ function panelCategoryTitle(filter) {
 }
 
 function renderCounts() {
-    // 笔记与待办各统计一个「全部」；已置顶与废纸篓里两类混排，因此一并计入
+    // 笔记与待办各统计一个「全部」；已置顶与废纸篓里两类混排，因此一并计入。
+    // 隐藏的条目不进任何列表，也就不参与计数（它们只在设置页的秘密本里出现）
     let activeNoteCount = 0;
     let activeTodoCount = 0;
     let pinnedCount = 0;
     let trashedCount = 0;
     State.notes.forEach(note => {
+        if (isSecretHidden(note)) return;
         if (note.isTrashed) {
             trashedCount++;
         } else {
@@ -181,6 +183,7 @@ function renderCounts() {
     });
 
     State.todos.forEach(todo => {
+        if (isSecretHidden(todo)) return;
         if (todo.isTrashed) {
             trashedCount++;
         } else {
@@ -244,20 +247,20 @@ function renderFolders() {
     });
 }
 
-// 应用中已有的标签（仅统计未删除的笔记与待办），排序后供弹窗里的候选项列表使用
+// 应用中已有的标签（仅统计未删除且未隐藏的笔记与待办），排序后供弹窗里的候选项列表使用
 function getAllTags() {
     const tags = new Set();
-    [...State.notes, ...State.todos].filter(item => !item.isTrashed).forEach(item => {
+    [...State.notes, ...State.todos].filter(item => !item.isTrashed && !isSecretHidden(item)).forEach(item => {
         if (Array.isArray(item.tags)) item.tags.forEach(t => { if (t) tags.add(t); });
     });
     return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 }
 
 function renderTags() {
-    // 标签面板统计未删除的笔记与待办：两者共用同一个列表，标签过滤因此对两类都生效
+    // 标签面板统计未删除且未隐藏的笔记与待办：两者共用同一个列表，标签过滤因此对两类都生效
     const tagSet = new Set();
     [...State.notes, ...State.todos].forEach(item => {
-        if (item.isTrashed) return;
+        if (item.isTrashed || isSecretHidden(item)) return;
         if (Array.isArray(item.tags)) item.tags.forEach(t => { if (t) tagSet.add(t); });
     });
 
@@ -400,7 +403,9 @@ function renderTabs() {
     // 签名里带上模式：切模式后标签本身没变，也要换到另一个容器里重排一次
     const signature = `${State.uiMode}\u0001${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
         const item = id === 'settings' ? null : getItemById(id);
-        return `${id}\u0002${item ? (item.title || '') : ''}`;
+        // 加密状态（含本轮是否已解锁）跟着进签名：上锁 / 解锁后标题没变，图标也要换
+        const secret = item && item.locked === true ? (item.unlocked === true ? 2 : 1) : 0;
+        return `${id}\u0002${item ? (item.title || '') : ''}\u0002${secret}`;
     }).join('\u0001')}`;
     if (renderSignatures.tabs === signature) return;
     renderSignatures.tabs = signature;
@@ -440,10 +445,14 @@ function renderTabs() {
         } else {
             const item = getItemById(id);
             if (!item) return;
-            // 笔记与待办共用标签栏，用图标区分类型
+            // 笔记与待办共用标签栏，用图标区分类型；加密条目另带一个锁形标记
             const icon = isTodoItem(item) ? 'check_box' : 'description';
+            const secretIcon = item.locked === true
+                ? `<span class="ms-icon xs" style="opacity: 0.7;">${item.unlocked === true ? 'lock_open' : 'lock'}</span>`
+                : '';
             tab.innerHTML = `
                 <span class="ms-icon xs" style="opacity: 0.7;">${icon}</span>
+                ${secretIcon}
                 <span class="tab-title">${escapeHTML(itemDisplayTitle(item))}</span>
                 <button class="tab-close-btn" title="关闭标签">
                     <span class="ms-icon xs">close</span>
@@ -924,6 +933,9 @@ function buildNotePreviewText(raw) {
 const PREVIEW_TEXT_CACHE = new WeakMap();
 
 function notePreviewText(item) {
+    // 加密且未解锁的条目没有明文可展示：给一句固定文案，不把密文信封当成摘要
+    if (isSecretLocked(item)) return '已加密的正文';
+
     const raw = typeof item.content === 'string' ? item.content : '';
     const cached = PREVIEW_TEXT_CACHE.get(item);
     if (cached && cached.source === raw) return cached.text;
@@ -1008,6 +1020,7 @@ function createNoteCard(note) {
     card.innerHTML = `
         <div class="note-card-title">
             <span>${escapeHTML(note.title || '未命名笔记')}</span>
+            ${note.locked === true ? `<span class="ms-icon xs fill" style="color: var(--accent);">${note.unlocked === true ? 'lock_open' : 'lock'}</span>` : ''}
             ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
         </div>
         <div class="note-card-preview">${escapeHTML(notePreviewText(note))}</div>
@@ -1072,6 +1085,8 @@ function renderWorkspace() {
         // 并刷新识别语言与本机组件状态
         syncVoiceEntry(null);
         syncVoiceSettingsUI();
+        // 秘密本：隐藏与加密状态可能刚在别处改过，进设置页时重扫一遍
+        syncSecretSettingsUI();
         return;
     }
 
@@ -1112,7 +1127,8 @@ function renderWorkspace() {
         titleInput.value = item.title || '';
     }
     if (document.activeElement !== contentAreaInput) {
-        contentAreaInput.value = item.content || '';
+        // 加密且未解锁的条目：正文取出来的是密文信封，不往编辑器里放（由锁面板接手）
+        contentAreaInput.value = isSecretLocked(item) ? '' : (item.content || '');
     }
 
     const folderSelect = document.getElementById('editor-folder-select');
@@ -1177,6 +1193,8 @@ function renderWorkspace() {
     }
 
     applyEditorReadOnly(item);
+    // 加密条目：编辑区盖上锁面板，解锁按钮就摆在那里
+    applySecretLockUI(item);
     renderMarkdown();
     updateStats();
     updateViewModeUI();
