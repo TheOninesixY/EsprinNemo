@@ -35,4 +35,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 *.lock
 
+# 开发数据
 data/
+
+# Agent缓存
+
+.github/agent/tmp

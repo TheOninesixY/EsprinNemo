@@ -1,5 +1,15 @@
 /* 全局状态与常量 */
 
+/* 随口记（语音转文本）的识别语言。这一组值同时是系统识别引擎的语种标识
+   （Windows 桌面识别引擎按 CultureInfo 选取识别器），因此只接受这里列出的几项，
+   界面上的显示名见 scripts/voice_notes.js 的 VOICE_LANG_LABELS。 */
+const VOICE_LANGUAGE_VALUES = ['zh-CN', 'en-US', 'ja-JP'];
+const VOICE_DEFAULT_LANGUAGE = 'zh-CN';
+
+function normalizeVoiceLanguage(value) {
+    return VOICE_LANGUAGE_VALUES.includes(value) ? value : VOICE_DEFAULT_LANGUAGE;
+}
+
 // State Store
 const State = {
     notes: [],
@@ -84,6 +94,9 @@ const State = {
     aiPendingAttachments: [],
     // 本次会话提问时附带的笔记范围：默认取配置中的设置
     aiScope: 'current',
+    /* 随口记（语音转文本，随 config.json 一起落盘）：入口开关与识别语言。
+       识别由 Windows 自带的桌面识别引擎在本机完成，音频不出本机，没有联网档位 */
+    voice: { enabled: true, lang: VOICE_DEFAULT_LANGUAGE },
     autoSaveTimer: null,
     // MD 预览刷新的延时器：静默 1 秒后才刷新一次
     previewTimer: null

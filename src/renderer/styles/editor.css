@@ -47,17 +47,66 @@
     color: var(--text-primary);
 }
 
+/* 编辑器顶栏的标签行：标签排不下时这一行横向滚动，滚动条不画（与标签栏同源，
+   见 styles/base.css 的 .titlebar-tabs），改由两端渐隐提示「那一侧还有标签」；
+   指针停在这一行上滚轮也横向滚（见 scripts/render.js 的 bindTagsScroll）。
+   容器是「文件夹下拉与添加标签按钮」之间那个可收缩的 flex 项：min-width 归零后
+   超出部分落在这一格内部，右侧那份控件不会被标签顶出窗口 */
 .note-tags-container {
     display: flex;
     align-items: center;
     gap: 4px;
+    flex-shrink: 1;
+    min-width: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
+    /* 两端渐隐的宽度：脚本只在「那一侧确实还有被截断的标签」时挂上
+       .tags-fade-left / .tags-fade-right，0px 即不淡（判定与标签栏那一套同源）。
+       注册成 <length> 才能参与过渡，渐隐的出现 / 消失不是硬切 */
+    --tags-fade: 0px;
+    --tags-fade-left: 0px;
+    -webkit-mask-image: linear-gradient(to right,
+        transparent 0,
+        #000 var(--tags-fade-left),
+        #000 calc(100% - var(--tags-fade)),
+        transparent 100%);
+    mask-image: linear-gradient(to right,
+        transparent 0,
+        #000 var(--tags-fade-left),
+        #000 calc(100% - var(--tags-fade)),
+        transparent 100%);
+    transition: --tags-fade var(--motion-base) var(--ease-out),
+                --tags-fade-left var(--motion-base) var(--ease-out);
+}
+.note-tags-container::-webkit-scrollbar {
+    display: none;
+}
+.note-tags-container.tags-fade-left {
+    /* 与右端同一档宽度：两端淡出来的长度一致 */
+    --tags-fade-left: 24px;
+}
+.note-tags-container.tags-fade-right {
+    --tags-fade: 24px;
+}
+@property --tags-fade {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+@property --tags-fade-left {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
 }
 .editor-tag-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    /* 文字强制单行、整块不压缩：一个标签要么完整显示，要么被这一格裁掉后
+       由横向滚动带出来，不会折成两行把顶栏撑高 */
+    flex-shrink: 0;
+    white-space: nowrap;
     background: var(--item-hover);
     border: 1px solid var(--border-light);
     padding: 2px 6px;

@@ -7,7 +7,7 @@
 // 便携版没有更新功能：分类本身保留，由 scripts/update.js 把面板里的更新分区摘掉。
 // desc 是切到这个分类时写在设置页顶端的一句话，说明这一类管什么
 const SETTINGS_CATEGORIES = [
-    { id: 'editor', label: '编辑器', icon: 'edit_note', desc: '拼写检查与废纸篓的清理策略' },
+    { id: 'editor', label: '编辑器', icon: 'edit_note', desc: '拼写检查、随口记（语音转文本）与废纸篓的清理策略' },
     { id: 'appearance', label: '外观', icon: 'palette', desc: '界面布局、缩放、主题与字体' },
     { id: 'ai', label: 'AI 助手', icon: 'chat_bubble', desc: '接口、密钥与提问上下文' },
     { id: 'data', label: '数据与同步', icon: 'folder', desc: '本地数据目录、文件日志与自建同步' },

@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="./styles/ai.css">
     <!-- 自建同步：设置页「数据与存储」里的服务器与同步面板 -->
     <link rel="stylesheet" href="./styles/sync.css">
+    <!-- 随口记：语音转文本（编辑器顶栏入口与聆听反馈条） -->
+    <link rel="stylesheet" href="./styles/voice.css">
     <!-- Alom 风格：仅当 <html data-theme-style="alom"> 时生效 -->
     <link rel="stylesheet" href="./styles/alom.css">
     <!-- 圆角尺度：按设置中的选择把 --radius-* 令牌换算成最终圆角，需排在其它风格之后 -->
@@ -256,6 +258,14 @@
                          置顶 / 导出 / 移入废纸篓（废纸篓里的恢复 / 彻底删除）都在条目右键菜单里，
                          顶栏不再各留一个按钮（见 scripts/context_menu.js） -->
                     <div class="editor-actions">
+                        <!-- 随口记：语音转文本（识别结果插到光标处）。默认只用本机离线识别，
+                             组件状态与联网兜底开关在「设置 → 编辑器 → 随口记」，
+                             显隐与起停见 scripts/voice_notes.js -->
+                        <button class="btn-action-icon" id="btn-voice-dictate"
+                                title="随口记：语音转文本 (Ctrl+Shift+M)" aria-pressed="false">
+                            <span class="ms-icon sm">mic</span>
+                        </button>
+
                         <div class="editor-view-modes">
                             <button class="view-btn active" id="btn-mode-edit">编辑</button>
                             <button class="view-btn" id="btn-mode-split">分屏</button>
@@ -267,6 +277,24 @@
                             <span class="ms-icon sm">radio_button_unchecked</span>
                         </button>
                     </div>
+                </div>
+
+                <!-- 随口记的聆听反馈条：只在聆听过程中出现（识别结果直接进正文，这里只显示状态、
+                     实时片段与语言）。安静态整条不排，编辑器顶栏以下不留空档 -->
+                <div class="voice-bar hidden" id="voice-bar">
+                    <span class="voice-pulse" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span class="voice-state" id="voice-state"></span>
+                    <span class="voice-interim" id="voice-interim"></span>
+                    <div class="voice-spacer"></div>
+                    <select class="voice-lang" id="voice-lang-select" title="识别语言">
+                        <option value="zh-CN">普通话</option>
+                        <option value="en-US">英语</option>
+                        <option value="ja-JP">日语</option>
+                    </select>
+                    <button class="voice-stop" id="btn-voice-stop" title="停止聆听 (Esc)">
+                        <span class="ms-icon xs">stop_circle</span>
+                        <span>停止</span>
+                    </button>
                 </div>
 
                 <!-- Formatting Toolbar -->
@@ -466,6 +494,42 @@
                                     <option value="60">保留 60 天</option>
                                     <option value="365">保留 365 天</option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <!-- 分区二：随口记（语音转文本）。识别由 Windows 自带的桌面识别引擎完成，
+                             音频只进本机引擎、不出本机，也没有联网档位 -->
+                        <div class="settings-section">
+                            <div class="settings-section-title">随口记（语音转文本）</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">启用随口记</span>
+                                    <span class="settings-row-desc">在编辑器顶栏显示麦克风按钮（Ctrl+Shift+M）：识别结果按句插入光标处。关闭后入口与快捷键一并失效</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-voice-enabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">识别语言</span>
+                                    <span class="settings-row-desc">识别所用语言；系统需为该语言安装「语音识别」功能，否则随口记会拒绝启动并列出可用语言</span>
+                                </div>
+                                <select class="settings-select" id="setting-voice-lang">
+                                    <option value="zh-CN">普通话</option>
+                                    <option value="en-US">英语</option>
+                                    <option value="ja-JP">日语</option>
+                                </select>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">系统识别引擎</span>
+                                    <span class="settings-row-desc" id="voice-status">正在检测…</span>
+                                </div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn" id="btn-voice-check">重新检测</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1090,6 +1154,7 @@
     <script src="./scripts/todos.js"></script>
     <script src="./scripts/scratchpad.js"></script>
     <script src="./scripts/editor.js"></script>
+    <script src="./scripts/voice_notes.js"></script>
     <script src="./scripts/settings.js"></script>
     <script src="./scripts/data_location.js"></script>
     <script src="./scripts/sync_server.js"></script>

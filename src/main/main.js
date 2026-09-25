@@ -24,6 +24,7 @@ const { registerUiDefaults } = require('./ui_defaults.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
 const { configureSyncServer, registerSyncIpc, applyAutoSyncRuntime } = require('./sync_server.js');
+const { disposeSpeechWindows, registerSpeechIpc } = require('./speech_windows.js');
 const { configureUpdater, registerUpdateIpc, scheduleAutoChecks, isPortableRun, PORTABLE_ARG } = require('./updater.js');
 
 // 应用根目录：开发版是项目根目录，安装版是 app.asar 根。
@@ -945,8 +946,10 @@ app.whenReady().then(async () => {
     startupBlocked = false;
   }
 
-  // 权限白名单：只放行字体枚举（「设置 → 字体」里读取本机字体列表用），其余一律拒绝。
-  // 渲染进程开着 Node 集成，未使用的摄像头 / 麦克风 / 定位等权限没有必要开放。
+  /* 权限白名单：只放行字体枚举（「设置 → 字体」里读取本机字体列表用），其余一律拒绝。
+     渲染进程开着 Node 集成，未使用的摄像头 / 麦克风 / 定位等权限没有必要开放。
+     随口记的语音识别不在此列：音频由主进程拉起的系统识别引擎采集（见 speech_windows.js），
+     渲染进程既不取麦克风，也不经过 Chromium 的媒体权限。 */
   const ALLOWED_PERMISSIONS = new Set(['local-fonts']);
   try {
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
@@ -992,6 +995,9 @@ app.whenReady().then(async () => {
   // AI 助手：对话代理与模型列表
   runStartupStep('AI 助手', () => registerAiIpc());
 
+  // 随口记：系统语音识别（Windows 桌面离线识别引擎，见 speech_windows.js）
+  runStartupStep('系统语音识别', () => registerSpeechIpc());
+
   // 自建同步：测试连接 / 立即同步 / 首次接入 / 诊断（令牌不经过渲染进程）
   runStartupStep('自建同步', () => registerSyncIpc());
 
@@ -1030,6 +1036,8 @@ app.whenReady().then(async () => {
 // 应用开始退出（小本本也关闭后的退出、更新安装时的退出）后，就不再拦下主窗口的关闭
 app.on('before-quit', () => {
   isQuitting = true;
+  // 随口记的识别进程跟着一起收掉，别在系统里留下一个仍占着麦克风的 PowerShell
+  disposeSpeechWindows();
 });
 
 app.on('window-all-closed', () => {

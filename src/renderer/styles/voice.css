@@ -1,0 +1,116 @@
+/* 随口记：语音转文本。编辑器顶栏的入口按钮与聆听反馈条。
+   结构见 main.html，行为见 scripts/voice_notes.js */
+
+/* 入口按钮的三态：idle 沿用图标按钮的默认观感；
+   listening 点亮成主题色并换成停止图标；busy（检测本机组件中）压暗且不可点 */
+#btn-voice-dictate.active {
+    color: var(--accent);
+    background-color: var(--accent-bg);
+}
+#btn-voice-dictate.busy {
+    opacity: 0.45;
+}
+
+/* 聆听反馈条：排在编辑器顶栏与排版工具栏之间，只在聆听过程中占位。
+   识别结果直接写进正文，这一条只负责「在听 / 听到什么 / 换语言 / 停」 */
+.voice-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 16px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-editor);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 采集指示：三根竖条按先后相位起伏，代替音量条（不额外占用麦克风设备） */
+.voice-pulse {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--danger);
+}
+.voice-pulse i {
+    width: 2px;
+    height: 4px;
+    border-radius: 1px;
+    background: currentColor;
+    animation: voice-pulse 1s var(--ease-standard) infinite;
+}
+.voice-pulse i:nth-child(2) { animation-delay: 0.15s; }
+.voice-pulse i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes voice-pulse {
+    0%, 100% { height: 4px; opacity: 0.6; }
+    50% { height: 14px; opacity: 1; }
+}
+
+.voice-state {
+    flex-shrink: 0;
+    color: var(--text-primary);
+}
+
+/* 实时片段：尚未定稿的识别文字，压暗显示，定稿后才写进正文 */
+.voice-interim {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
+}
+
+.voice-spacer {
+    flex: 1;
+}
+
+/* 语言下拉：沿用应用内下拉的观感（升级成自绘下拉后，触发器继承同一个类名），
+   高度收到与这一条 34px 的横条相称 */
+.voice-lang {
+    flex-shrink: 0;
+    min-width: 96px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-body);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+}
+.voice-lang:hover {
+    color: var(--text-primary);
+}
+
+.voice-stop {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-body);
+    color: var(--text-secondary);
+    font-size: 12px;
+    transition: border-color 0.15s, color 0.15s;
+}
+.voice-stop:hover {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+/* 「减少动态效果」：起伏停掉，改成三根定高竖条（采集指示仍在，只是不再动） */
+@media (prefers-reduced-motion: reduce) {
+    .voice-pulse i {
+        animation: none;
+        height: 10px;
+        opacity: 1;
+    }
+}

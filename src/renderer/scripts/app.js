@@ -33,6 +33,8 @@ window.onload = () => {
     State.trayEnabled = saved.trayEnabled !== false;
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
+    // 随口记（语音转文本）：默认只走本机离线识别，联网要靠设置里的显式开关
+    State.voice = normalizeVoiceConfig(saved.voice);
     // API Key 只保留「是否已保存 + 保管方式」，明文始终留在主进程与系统密钥链里
     State.aiHasApiKey = !!(saved.aiKeyStatus && saved.aiKeyStatus.hasKey);
     State.aiKeyStorage = aiKeyStorageKind(saved.aiKeyStatus);
@@ -93,6 +95,8 @@ window.onload = () => {
     initAiAgent();
     initAiFiles();
     initAiPanel();
+    // 随口记：编辑器顶栏入口、聆听条与快捷键（设置项由设置页渲染时同步）
+    initVoiceNotes();
     setupEvents();
     syncTrashRetentionSelect();
     refreshDataDirInfo();

@@ -811,6 +811,16 @@ function normalizeAiConfig(raw) {
     };
 }
 
+/* 随口记（语音转文本）配置规范化：入口开关与识别语言。
+   识别只有一条通道——Windows 自带的桌面识别引擎，在本机完成，音频不出本机 */
+function normalizeVoiceConfig(raw) {
+    const source = (raw && typeof raw === 'object') ? raw : {};
+    return {
+        enabled: source.enabled === undefined ? true : !!source.enabled,
+        lang: normalizeVoiceLanguage(source.lang)
+    };
+}
+
 /* 自建同步的自动同步间隔：预设（秒）与自定义秒数的范围，
    取值与 src/main/sync_server.js 的 AUTO_SYNC_* 保持一致。
    没有「每次启动应用时」这一项：只要同步开着，每次启动都会同步一次，与自动同步的设置无关。 */
@@ -882,7 +892,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', uiScale: 1, spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, syncServer: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: '', brandColor: 'brand', cornerRadius: 'default', uiScale: 1, spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
 
     // 1. 读取应用配置 config.json（自定义文件夹列表也存在这里）
     try {
@@ -1025,6 +1035,8 @@ function loadData() {
         trayEnabled: config.trayEnabled !== false,
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
+        // 随口记（语音转文本）：入口、识别语言与联网兜底开关
+        voice: normalizeVoiceConfig(config.voice),
         // 自建同步：服务器地址与自动同步设置随数据目录走，令牌在系统密钥链里（不在这份配置中）
         syncServer: normalizeSyncServerConfig(config.syncServer),
         aiKeyStatus,
@@ -1082,7 +1094,9 @@ function saveConfig() {
             aiActiveChat: typeof State.aiActiveConversationId === 'string' ? State.aiActiveConversationId : '',
             folders: normalizeCustomFolders(State.folders),
             fonts: normalizeFonts(State.fonts),
-            ai: normalizeAiConfig(State.ai)
+            ai: normalizeAiConfig(State.ai),
+            // 随口记（语音转文本）：默认只走本机离线识别
+            voice: normalizeVoiceConfig(State.voice)
         };
 
         // 自建同步配置只在从磁盘载入过之后才写回（载入点见 app.js 与 data_location.js）：

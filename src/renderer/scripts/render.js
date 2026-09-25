@@ -286,6 +286,43 @@ function renderTags() {
     });
 }
 
+/* ---------------- 编辑器顶栏的标签行 ----------------
+   标签排不下时这一行横向滚动（滚动条藏起来，同标签栏），两端渐隐替藏起来的滚动条
+   提示「还能往哪边滚」——样式只对 #editor-tags-container 生效，见 styles/editor.css。
+   两个类名只在对应的那一侧「确实还有被截断的标签」时挂上：标签没排满、或已经滚到
+   那一端时摘掉，否则最边上的标签会被白白削掉一角。
+   容器宽度不只由窗口决定（侧边栏收起、AI 面板开合、切布局都会改动它），因此与标签栏
+   一样交给 ResizeObserver 接住，不在那些地方各补一次调用。 */
+const TAGS_FADE_RIGHT_CLASS = 'tags-fade-right';
+const TAGS_FADE_LEFT_CLASS = 'tags-fade-left';
+// 监听只绑一次：容器在页面里只有一个，且不会被替换
+let tagsScrollBound = false;
+
+function updateTagsFade(container) {
+    if (!container) return;
+    // 留 1px 容差：滚动位置的亚像素误差会让差值停在 0 附近
+    container.classList.toggle(TAGS_FADE_LEFT_CLASS, container.scrollLeft > 1);
+    const moreOnRight = container.scrollWidth - container.clientWidth - container.scrollLeft > 1;
+    container.classList.toggle(TAGS_FADE_RIGHT_CLASS, moreOnRight);
+}
+
+function bindTagsScroll(container) {
+    if (!container || tagsScrollBound) return;
+    tagsScrollBound = true;
+
+    // 滚轮纵向滚动这一行：指针停在标签上滚，横向跟着走（标签栏同款做法）。
+    // 标签没排满时不动它，把滚轮留给页面自己的滚动
+    container.addEventListener('wheel', (e) => {
+        if (container.scrollWidth <= container.clientWidth) return;
+        e.preventDefault();
+        container.scrollLeft += e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    }, { passive: false });
+
+    container.addEventListener('scroll', () => updateTagsFade(container), { passive: true });
+    // 容器被整条收起时（编辑器未打开）尺寸归零，这里跟着算出「两侧都没有内容」并摘掉类名
+    new ResizeObserver(() => updateTagsFade(container)).observe(container);
+}
+
 // 标签页的落点随布局走：经典布局在标题栏里（#titlebar-tabs），现代布局在工作区顶部那一行
 // （#workspace-tabs，见 main.html 与 styles/mode.css）。两个容器都在，渲染时只往当前布局的那个里写
 const TAB_CONTAINER_IDS = ['titlebar-tabs', 'workspace-tabs'];
@@ -1031,6 +1068,10 @@ function renderWorkspace() {
         syncUiModeUI();
         syncUpdateSettingsUI();
         applyAiPanelVisibility();
+        // 随口记：设置页也要收摊（聆听中进设置页时不能继续把结果插到旧条目上），
+        // 并刷新识别语言与本机组件状态
+        syncVoiceEntry(null);
+        syncVoiceSettingsUI();
         return;
     }
 
@@ -1050,6 +1091,8 @@ function renderWorkspace() {
         contentArea.classList.add('hidden');
         footer.classList.add('hidden');
         updateAiScopeOptions();
+        // 随口记没有可插入的落点时收起入口与聆听条
+        syncVoiceEntry(null);
         return;
     }
 
@@ -1117,7 +1160,11 @@ function renderWorkspace() {
             }
             tagsContainer.appendChild(chip);
         });
+        // 标签换了一批：两侧的渐隐要重新判（条数变少后右端可能不必再淡）
+        updateTagsFade(tagsContainer);
     }
+    // 滚动与两端渐隐的监听只需绑一次，余下的宽度变化由 ResizeObserver 接住
+    bindTagsScroll(tagsContainer);
 
     // 待办多一个完成状态开关，非待办条目下隐藏该按钮（顶栏右侧只剩它一个动作按钮）
     const doneBtn = document.getElementById('btn-todo-done');
@@ -1133,6 +1180,8 @@ function renderWorkspace() {
     renderMarkdown();
     updateStats();
     updateViewModeUI();
+    // 条目切换 / 只读状态变化后同步随口记的入口（聆听中切走条目会就此收摊）
+    syncVoiceEntry(item);
     // 切换条目后，AI 面板里那条下拉的「附带当前笔记：<笔记名>」要跟着变
     updateAiScopeOptions();
 }

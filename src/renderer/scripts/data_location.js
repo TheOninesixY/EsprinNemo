@@ -124,7 +124,9 @@ function adoptDataDir(dir, options = {}) {
         trayEnabled: State.trayEnabled !== false,
         // 应用名文字颜色（brand / mono / accent）同样属于偏好
         brandColor: State.brandColor,
-        fonts: { ...State.fonts }
+        fonts: { ...State.fonts },
+        // 随口记的入口、识别语言与联网兜底同属偏好（不是数据目录的内容）
+        voice: { ...State.voice }
     };
 
     setDataPaths(dir);
@@ -154,6 +156,8 @@ function adoptDataDir(dir, options = {}) {
         // AI 接口配置随数据目录走：新位置自带的配置（尤其是迁移过来的）优先
         State.ai = saved.ai;
         State.aiScope = State.ai.scope;
+        // 随口记：识别语言与联网兜底同样以新位置的配置为准
+        State.voice = saved.voice;
         /* 自建同步的服务器地址这类连接信息更像「这台机器连哪个同步服务」的偏好，而不是数据目录的内容：
            新位置的配置里带了地址就采用（迁移过来的数据），没带就沿用当前这份。令牌本就在系统密钥链里、
            与数据目录无关，地址跟着保持一致，才不会出现「切一次目录就少了一半配置」。
@@ -180,6 +184,7 @@ function adoptDataDir(dir, options = {}) {
         State.autoLaunch = prefs.autoLaunch;
         State.trayEnabled = prefs.trayEnabled;
         State.fonts = prefs.fonts;
+        State.voice = normalizeVoiceConfig(prefs.voice);
         saveConfig();
     }
 
