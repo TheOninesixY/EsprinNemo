@@ -29,7 +29,7 @@ const { spawn } = require('node:child_process');
 const { showDialogWindow } = require('./dialog_window.js');
 
 // 更新源：仓库的 Releases 里上传安装包即可被检查到（改仓库地址时改这里）
-const UPDATE_REPO = 'TheOninesixY/EsprinNemo';
+const UPDATE_REPO = 'EsprinProject/Nemo';
 // 项目地址：设置页「更新与版本」里作为信息展示，并可在系统浏览器中打开
 const REPO_URL = `https://github.com/${UPDATE_REPO}`;
 const RELEASE_PAGE_URL = `${REPO_URL}/releases`;
