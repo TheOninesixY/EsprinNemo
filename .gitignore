@@ -40,4 +40,4 @@ data/
 
 # Agent缓存
 
-.github/agent/tmp
+.github/agent/

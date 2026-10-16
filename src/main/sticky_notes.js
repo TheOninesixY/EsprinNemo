@@ -43,7 +43,7 @@ let resolveDataDir = () => '';
 let resolveConfig = () => ({});
 
 let getOwnerWindow = () => null;
-let iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+let iconPath = path.join(__dirname, '..', '..', require('../../package.json').icon);
 
 let handleWindowClosed = () => {};
 let ipcRegistered = false;
@@ -52,6 +52,10 @@ let quitting = false;
 
 let loadedDir = '';
 let items = [];
+
+function isStickyFeatureSupported() {
+  return process.platform === 'win32';
+}
 
 function configureStickyNotes({ getTheme, getStyle, getAccent, getRadius, getFonts, getDataDir, getConfig, getOwner, icon, onClosed } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
@@ -429,6 +433,7 @@ function showStickyNote(id) {
 }
 
 function closeStickyNote(id) {
+  if (!isStickyFeatureSupported()) return { ok: false, reason: 'disabled' };
   ensureLoaded();
   items = items.filter((entry) => entry.id !== id);
   writeState();
@@ -442,6 +447,7 @@ function closeStickyNote(id) {
 }
 
 function isStickyNoteOpen() {
+  if (!isStickyFeatureSupported()) return false;
   for (const win of windows.values()) {
     if (!win.isDestroyed() && win.isVisible()) return true;
   }
@@ -449,11 +455,13 @@ function isStickyNoteOpen() {
 }
 
 function listStickyNotes() {
+  if (!isStickyFeatureSupported()) return [];
   ensureLoaded();
   return items.map((item) => ({ id: item.id, title: String(item.title || '') }));
 }
 
 function revealStickyNote(id) {
+  if (!isStickyFeatureSupported()) return false;
   const item = findItem(id);
   if (!item) return false;
 
@@ -466,6 +474,7 @@ function revealStickyNote(id) {
 }
 
 function showAllStickyNotes() {
+  if (!isStickyFeatureSupported()) return 0;
 
   if (!readStickyConfig().enabled) return 0;
 
@@ -485,6 +494,7 @@ function showAllStickyNotes() {
 }
 
 function hideAllStickyNotes() {
+  if (!isStickyFeatureSupported()) return 0;
   let hidden = 0;
   windows.forEach((win, id) => {
     patchItem(id, { hidden: true });
@@ -497,6 +507,7 @@ function hideAllStickyNotes() {
 }
 
 function createStickyNote(payload = {}) {
+  if (!isStickyFeatureSupported()) return { ok: false, reason: 'disabled' };
   const config = readStickyConfig();
   if (!config.enabled) return { ok: false, reason: 'disabled' };
 
@@ -538,6 +549,7 @@ if (refId) {
 }
 
 function restoreStickyNotes() {
+  if (!isStickyFeatureSupported()) return 0;
   const config = readStickyConfig();
   if (!config.enabled) return 0;
 

@@ -1,9 +1,11 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const DATA_DIR_ARG = '--esprin-nemo-data-dir=';
 
 const DEFAULT_APP_DIR_NAME = 'esprin_nemo';
+const LINUX_APP_DIR_NAME = 'EsprinNemo';
 const DATA_PATH_FILE_NAME = 'data_path.json';
 
 const USER_DATA_DIR_NAME = 'user_data';
@@ -63,14 +65,38 @@ function getDataDirFromArgv(argv = process.argv) {
   return dir || null;
 }
 
-function getAppDataConfigDir(appLike = null) {
+function isLinuxPlatform() {
+  return process.platform === 'linux';
+}
+
+function getSystemDataHome(appLike = null) {
+  if (isLinuxPlatform()) {
+    const xdgDataHome = process.env.XDG_DATA_HOME;
+    if (typeof xdgDataHome === 'string' && xdgDataHome.trim() && path.isAbsolute(xdgDataHome.trim())) {
+      return path.resolve(xdgDataHome.trim());
+    }
+    try {
+      const home = os.homedir();
+      if (home) return path.join(home, '.local', 'share');
+    } catch (error) {
+
+    }
+    return null;
+  }
+
   const app = getApp(appLike);
   if (!app || typeof app.getPath !== 'function') return null;
   try {
-    return path.join(app.getPath('appData'), DEFAULT_APP_DIR_NAME);
+    return app.getPath('appData');
   } catch (error) {
     return null;
   }
+}
+
+function getAppDataConfigDir(appLike = null) {
+  const base = getSystemDataHome(appLike);
+  if (!base) return null;
+  return path.join(base, isLinuxPlatform() ? LINUX_APP_DIR_NAME : DEFAULT_APP_DIR_NAME);
 }
 
 function getConfigDir(appLike = null) {
@@ -214,8 +240,9 @@ function getDefaultDataDir(baseDir = __dirname, appLike = null) {
 
 if (isPortableRun()) return path.join(resolvePortableDir(), 'data');
   const app = getApp(appLike);
-  if (app && app.isPackaged && typeof app.getPath === 'function') {
-    return path.join(app.getPath('appData'), DEFAULT_APP_DIR_NAME, 'data');
+  if (app && app.isPackaged) {
+    const configDir = getAppDataConfigDir(appLike);
+    if (configDir) return path.join(configDir, 'data');
   }
   return path.join(baseDir || __dirname, 'data');
 }
@@ -308,9 +335,11 @@ const dir = getDataDir(baseDir, appLike);
 module.exports = {
   DATA_DIR_ARG,
   isDevRun,
+  isLinuxPlatform,
   isPortableRun,
   getConfigDir,
   getAppDataConfigDir,
+  getSystemDataHome,
   getLocationFile,
   getIsolatedUserDataDir,
   getDefaultDataDir,

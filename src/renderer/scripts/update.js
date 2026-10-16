@@ -65,7 +65,7 @@ function describeUpdateStatus(state) {
         case 'available':
 
             return state.update && state.update.hasAsset === false
-                ? `发现新版本 v${version}，但发布页中没有符合命名规则的安装包（文件名需含 setup 且以 .exe 结尾），请用「打开发布页」手动下载`
+                ? `发现新版本 v${version}，但发布页中没有符合命名规则的安装包（Windows 需为 Setup .exe，Linux 需为 .AppImage），请用「打开发布页」手动下载`
                 : `发现新版本 v${version}，可立即下载`;
         case 'downloading':
             return `正在下载 v${version}…`;

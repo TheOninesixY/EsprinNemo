@@ -41,6 +41,7 @@ let getItems = () => [];
 let onAction = () => {};
 
 function isSupported() {
+  if (process.platform !== 'win32') return false;
   return fs.existsSync(REG_EXE);
 }
 

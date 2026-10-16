@@ -1,13 +1,21 @@
 {
   "name": "esprin_nemo",
-  "version": "3.2.9",
+  "version": "3.3.1",
   "main": "src/main/main.js",
   "description": "Note, Nothing.",
   "icon": "src/assets/icon.png",
+  "svg_icon": "src/assets/icon.svg",
   "author": "TheOninesixY <oninesixy@qq.com>",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win"
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:all": "bun run build&&bun build:web&&bun build:sync",
+    "start:web": "bun scripts/web_server.js",
+    "build:web": "bun scripts/web_build.js",
+    "start:sync": "bun src/sync/server.js",
+    "build:sync": "bun scripts/sync_build.js"
   },
   "private": true,
   "devDependencies": {
@@ -19,7 +27,8 @@
     "productName": "Esprin Nemo",
     "icon": "src/assets/icon.png",
     "files": [
-      "src/"
+      "src/",
+      "!src/sync/**"
     ],
     "win": {
       "target": [
@@ -37,6 +46,15 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "uninstallDisplayName": "Esprin Nemo"
+    },
+    "linux":{
+      "target":[
+        "appimage"
+      ],
+      "artifactName": "EsprinNemo.v${version}.${ext}",
+      "category": "Utility",
+      "synopsis": "Note, Nothing.",
+      "maintainer": "TheOninesixY <oninesixy@qq.com>"
     },
     "directories": {
       "buildResources": "assets"

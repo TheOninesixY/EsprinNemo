@@ -101,7 +101,8 @@ function resolveStickyAssetPath(src) {
     }
     if (!DATA_DIR || !sticky || !sticky.refId) return src;
     const fullPath = path.join(itemAssetsDir(sticky.refId), src);
-    return 'file:///' + fullPath.replace(/\\/g, '/');
+    const normalized = fullPath.replace(/\\/g, '/');
+    return normalized.startsWith('//') ? `file:${normalized}` : `file:///${normalized.replace(/^\/+/, '')}`;
 }
 
 function renderPreview() {

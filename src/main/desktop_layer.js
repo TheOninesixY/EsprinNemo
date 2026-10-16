@@ -113,6 +113,7 @@ function setDesktopLevel(win) {
 
 function raiseAboveDesktop(win) {
   if (!win || win.isDestroyed()) return;
+  if (!isSupportedPlatform()) return;
   try {
     win.moveTop();
   } catch (error) {
@@ -122,6 +123,7 @@ function raiseAboveDesktop(win) {
 
 function keepDesktopLevel(win) {
   if (!win || win.isDestroyed()) return;
+  if (!isSupportedPlatform()) return;
 
   const pushDown = () => {
     if (win.isDestroyed()) return;

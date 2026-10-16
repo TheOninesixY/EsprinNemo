@@ -32,6 +32,7 @@ const PROGRESS_INTERVAL_MS = 300;
 
 const SETUP_SEGMENT_PATTERN = /(^|[.\s_\-])setup([.\s_\-]|$)/i;
 const EXE_FILE_PATTERN = /\.exe$/i;
+const APPIMAGE_FILE_PATTERN = /\.appimage$/i;
 
 const state = {
   status: 'idle',
@@ -98,12 +99,16 @@ function currentVersion() {
 
 const PORTABLE_ARG = '--esprin-nemo-portable';
 
+function isLinuxPlatform() {
+  return process.platform === 'linux';
+}
+
 function isPortableRun() {
   return !!(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR);
 }
 
 function canAutoInstall() {
-  return app.isPackaged && !isPortableRun();
+  return app.isPackaged && !isPortableRun() && !isLinuxPlatform();
 }
 
 function readConfigAutoUpdate() {
@@ -293,11 +298,13 @@ async function requestGithubJson(url, { allowNotFound = false } = {}) {
 
 function hasPackageExtension(name) {
   const lower = asString(name).toLowerCase();
-  return lower.endsWith('.exe');
+  return isLinuxPlatform() ? APPIMAGE_FILE_PATTERN.test(lower) : lower.endsWith('.exe');
 }
 
 function isPackageName(name) {
-  return EXE_FILE_PATTERN.test(asString(name)) && SETUP_SEGMENT_PATTERN.test(asString(name));
+  const value = asString(name);
+  if (isLinuxPlatform()) return APPIMAGE_FILE_PATTERN.test(value);
+  return EXE_FILE_PATTERN.test(value) && SETUP_SEGMENT_PATTERN.test(value);
 }
 
 function pickAsset(assets) {
@@ -433,6 +440,18 @@ function removeFileQuietly(target) {
   attempt(true);
 }
 
+function downloadDir() {
+  if (isLinuxPlatform()) {
+    try {
+      const dir = app.getPath('downloads');
+      if (dir) return dir;
+    } catch (error) {
+
+    }
+  }
+  return app.getPath('temp');
+}
+
 function downloadPackage(url, target, onProgress, redirects = 0) {
   return new Promise((resolve, reject) => {
 
@@ -509,15 +528,21 @@ function verifyPackage(target, expected, received, ext) {
   if (expected && received !== expected) {
     throw new Error(`安装包不完整（${received}/${expected} 字节）`);
   }
-  const head = Buffer.alloc(2);
+  const head = Buffer.alloc(4);
   const handle = fs.openSync(target, 'r');
   try {
-    fs.readSync(handle, head, 0, 2, 0);
+    fs.readSync(handle, head, 0, 4, 0);
   } finally {
     fs.closeSync(handle);
   }
-  if (ext === '.exe' && head.toString('ascii') !== 'MZ') {
+  if (ext === '.exe' && head.subarray(0, 2).toString('ascii') !== 'MZ') {
     throw new Error('下载到的文件不是有效的安装包');
+  }
+  if (APPIMAGE_FILE_PATTERN.test(ext) && head.toString('binary') !== '\x7fELF') {
+    throw new Error('下载到的文件不是有效的 AppImage');
+  }
+  if (APPIMAGE_FILE_PATTERN.test(ext)) {
+    fs.chmodSync(target, 0o755);
   }
 }
 
@@ -590,8 +615,8 @@ async function startDownload({ auto = false } = {}) {
     return { ok: false, error: state.error };
   }
 
-  const ext = path.extname(update.asset.name) || PACKAGE_EXTENSIONS[0];
-  const target = path.join(app.getPath('temp'), `EsprinNemo-Update-${update.version}${ext}`);
+  const ext = path.extname(update.asset.name) || (isLinuxPlatform() ? '.AppImage' : '.exe');
+  const target = path.join(downloadDir(), `EsprinNemo-Update-${update.version}${ext}`);
 
 const assetSize = update.asset.size || 0;
   if (assetSize && fs.existsSync(target)) {
@@ -708,7 +733,9 @@ async function promptInstallReady() {
     message: `Esprin Nemo ${version} 已下载完成`,
     detail: installable
       ? '重启应用即可完成安装：应用会先退出，安装完成后自动重新打开。'
-      : '当前为开发运行，不支持自动安装，请用下载好的安装包手动升级。',
+      : (isLinuxPlatform()
+        ? '当前系统不支持自动安装：请用文件管理器把下载好的 AppImage 放到你平时运行的位置并覆盖旧文件，再重新启动。'
+        : '当前为开发运行，不支持自动安装，请用下载好的安装包手动升级。'),
 
     checkbox: {
       label: '永不提醒（勾选后关闭本窗口，设置里的「自动检查并下载更新」会一并关闭）',

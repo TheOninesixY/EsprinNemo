@@ -6,13 +6,15 @@
 
 本地优先、离线可用的极简 Markdown 笔记应用。无账号体系，无云端托管，笔记以 `.md` 文件保存在本地数据目录，可被任意编辑器直接打开。
 
-网络功能仅有两项，且均需手动配置后才可能发起请求：可选的自建同步（配套 Python 服务端，以操作日志在设备之间同步，删除记录不会被其他设备重新生成）与内置的 AI 助手。两者均未配置时，应用不发起任何外部请求。语音转文本（随口记）不在此列：识别由 Windows 自带的桌面识别引擎在本机完成，音频不出本机，也不发起任何网络请求。
+网络功能仅有两项，且均需手动配置后才可能发起请求：可选的自建同步（配套 Python 服务端，以操作日志在设备之间同步，删除记录不会被其他设备重新生成）与内置的 AI 助手。两者均未配置时，应用不发起任何外部请求。语音转文本（随口记）不在此列：识别由 Windows 自带的桌面识别引擎在本机完成（因此仅在 Windows 上可用），音频不出本机，也不发起任何网络请求。
+
+桌面端支持 Windows 与 Linux：Windows 产出安装包与便携版，数据默认存放在 `%APPDATA%\esprin_nemo`；Linux 产出 AppImage，数据默认存放在 `~/.local/share/EsprinNemo`。
 
 | 资源 | 地址 |
 | --- | --- |
 | 下载与更新 | [GitHub Releases](https://github.com/EsprinProject/Nemo/releases) |
-| 同步服务端 | [EsprinProject/Sync](https://github.com/EsprinProject/Sync) |
-| 网页版客户端 | [EsprinProject/Web](https://github.com/EsprinProject/Web) |
+| 同步服务端 | 本仓库 [`src/sync/`](src/sync)（`bun run start:sync`，打包 `bun run build:sync`） |
+| 网页模式 | 同一套界面在浏览器里运行（`src/renderer/web_host.js`），命令见[网页版](#网页版) |
 
 ![主界面](readme/screenshot-3.0.1.png)
 
@@ -38,6 +40,7 @@
   - [团队笔记（共享）](#团队笔记共享)
 - [AI 助手](#ai-助手)
 - [应用更新](#应用更新)
+- [网页版](#网页版)
 - [项目结构](#项目结构)
 - [技术栈](#技术栈)
 - [许可与致谢](#许可与致谢)
@@ -149,6 +152,8 @@
 > **实现说明**：Electron 只有「置顶」没有「置底」，也没有桌面窗口类型（`type: 'desktop'` 仅 Linux 有效），因此置底走 Win32 的 `SetWindowPos(hwnd, HWND_BOTTOM, ...)`：主进程维护一个常驻的 Windows PowerShell 子进程（`src/main/desktop_layer.ps1`，与随口记同一套 `-EncodedCommand` 注入方式），在窗口显示、恢复、获得焦点与界面里的每一次按下后把句柄送过去压底，应用退出时一并收掉。之所以连「每次按下」都要补一次，是因为 Windows 上激活与层级分不开：点击已获焦点的窗口不再触发 `focus`，却照样会把它抬到最前。子进程起不来（非 Windows 或脚本不可用）时便利贴退化为普通的非置顶窗口，其余功能不受影响。
 >
 > 桌面右键菜单同样没有 Electron API，只能写注册表（见 `src/main/desktop_menu.js`），一共两棵键：菜单本身 `HKCU\Software\Classes\DesktopBackground\Shell\EsprinNemoStickies`，子项在 `HKCU\Software\Classes\EsprinNemoStickyMenu\shell\<动词>`，由 `ExtendedSubCommandsKey` 指过去。不用「`SubCommands` 留空 + 自己 `shell` 子键」那套，是因为菜单键的 `shell` 与标准动词共用命名空间，动词名容易踩到 `new`、`open` 这类保留名（同名时整棵子菜单展不开），因此动词名一律带序号前缀（`01-new` / `20-001-<id>`（显示）/ `30-001-<id>`（关闭）/ `90-show-all`）。重建走一次 `reg import`（先在 .reg 里删旧树、再写回当前清单）；菜单图标由应用自己的 PNG 在运行时拼成 ICO——shell 的 `Icon` 只认 .ico / exe / dll，而开发运行下 `process.execPath` 是 electron.exe，直接指过去只会得到 Electron 的默认图标。应用退出时删除整棵子树；卸载脚本另在 `src/win_installer/installer.nsh` 里补了一次删除，备应用被强杀后留下残项。菜单项点击时以参数（`--sticky-action=…`）启动应用，已在运行时由单实例锁交给它处理，不会把主窗口叫到前台。
+>
+> **Linux 上没有对应的接口**：「置底」依赖 Win32 的 `SetWindowPos`，桌面空白处右键的菜单依赖 Windows 注册表，两者都只在 Windows 上生效。Linux 下便利贴按上面的退化路径运行——以普通窗口显示（仍不进任务栏），桌面空白处右键不会出现「EsprinNemo 便利贴」菜单；贴上、显示、收起的入口仍在标题栏图钉按钮与托盘菜单里，其余功能不受影响，设置页也会就地说明这一点。系统字体列表与开机自启在 Linux 上各有平台实现（`/usr/share/fonts` 等目录、XDG autostart 的 `.desktop`），用法与 Windows 一致。
 
 ### 托盘与驻留后台
 
@@ -177,7 +182,7 @@
 
 默认关闭，可在「设置 → 数据与存储 → 自建同步」中开启；未填写服务器地址时不会发起任何请求。
 
-- **自建服务端**：配套服务端为独立仓库 [EsprinProject/Sync](https://github.com/EsprinProject/Sync)，主体是单个 Python 文件（`sync.py`，仅使用标准库）。数据以「操作日志」形式保存在服务端目录，将日志从头重放一遍即为全部数据
+- **自建服务端**：服务端在本仓库的 [`src/sync/`](src/sync)（Node/JavaScript，只用运行时自带模块；`bun run start:sync` 启动，`bun run build:sync` 打出 Windows exe 与无扩展名的可执行文件，网页端与管理页都内嵌在其中）。数据以「操作日志」形式保存在服务端目录，将日志从头重放一遍即为全部数据
 - **删除即删除**：每次保存与删除都会生成一条操作（put / del），服务端为每条操作分配全局递增序号并追加进日志；客户端只记录「已应用到第几号」，同步时拉取其后的操作并重放。删除是一条明确的 tombstone，重放结果与提交方一致，不会出现「A 删除的笔记被 B 依据本地缺文件重新补回」
 - **回收 ID**：条目被彻底删除后，服务端把它的路径留在删除记录里（老副本因此不会被推回来），同时把那个 ID 作为「可复用 ID」收进回收池；**删掉它的那台设备本地立刻就能把这个 ID 用在下一次新建上**（不必等同步往返，新建的条目直接就是同一个 ID）。服务端会给其他设备发放回收池里的 ID，领走的会被占住一会儿（条目落盘即释放，过期自动回到池子），两台设备同时新建不会撞到同一个 ID；只有「服务端见过那条删除」的设备才能领，所以不会出现刚用回收 ID 建的条目被自己还没拉到的删除又擦掉
 - **重放不回退**：本机自己推上去、服务端已受理的操作，在重放时会跳过（本地早就落盘了）——这正是「删掉一个条目、又用它的 ID 新建」之后，那条删除不会把新条目一起删掉的原因
@@ -234,7 +239,7 @@
 ### 环境要求
 
 - Node.js 与 bun
-- 当前仅面向 Windows：安装包（NSIS）与便携版均由 electron-builder 的 `win` 目标产出
+- Windows 与 Linux 均可运行：Windows 产出安装包（NSIS）与便携版（electron-builder 的 `win` 目标），Linux 产出 AppImage（`linux` 目标）。数据目录随之区分：Windows 为 `%APPDATA%\esprin_nemo`，Linux 为 `~/.local/share/EsprinNemo`（跟随 `XDG_DATA_HOME`）
 
 ### 安装与运行
 
@@ -249,7 +254,7 @@ bun start
 开发运行（`electron .`）完全绕过安装版 / 便携版的数据位置机制：
 
 - 数据固定为项目内的 `data/`，不读取也不写入 `data_path.json`，设置中的「数据存放位置」整行置灰，避免将正式记录写入开发时的临时位置
-- Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）单独存放于 `%APPDATA%\esprin_nemo\dev_user_data`。默认位置与安装版一致时会共用同一把单实例锁，安装版驻留托盘时执行 `bun start`，系统会把「再次启动」交给安装版，开发窗口无法创建；隔离后两者可同时运行，互不干扰
+- Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）单独存放于配置目录下的 `dev_user_data`（Windows 为 `%APPDATA%\esprin_nemo\dev_user_data`，Linux 为 `~/.local/share/EsprinNemo/dev_user_data`）。默认位置与安装版一致时会共用同一把单实例锁，安装版驻留托盘时执行 `bun start`，系统会把「再次启动」交给安装版，开发窗口无法创建；隔离后两者可同时运行，互不干扰
 
 ### 打包
 
@@ -257,20 +262,38 @@ bun start
 bun run build
 ```
 
-Windows 下由 electron-builder 生成向导式安装包（非一键安装），产物位于 `dist/`：
+`bun run build` 按当前平台构建（也可显式指定 `bun run build:win` / `bun run build:linux`），产物位于 `dist/`：
 
 | 产物 | 说明 |
 | --- | --- |
-| `dist/EsprinNemo.Setup.v<版本>.exe` | 安装包。可通过 `nsis.allowToChangeInstallationDirectory` 选择安装位置；首次安装时由 `src/win_installer/installer.nsh` 提供向导页选择数据存放位置。选择结果写入 `%APPDATA%\esprin_nemo\data_path.json`，该记录已存在时不再询问，此后可在「设置 → 数据存放位置」调整 |
-| `dist/EsprinNemo.Portable.v<版本>.exe` | 便携版。每次启动解压到临时目录运行，数据、配置与 Electron 运行时数据（`data/`、`data_path.json`、`user_data/`）均位于便携版 exe 所在目录，不写入 `%APPDATA%`。便携版没有稳定的升级目标，因此不做更新检查。所在目录不可写（只读位置、无权限）时不回退到 `%APPDATA%`，而是弹窗说明原因并提供「重新选择路径」 |
+| `dist/EsprinNemo.Setup.v<版本>.exe` | Windows 安装包。可通过 `nsis.allowToChangeInstallationDirectory` 选择安装位置；首次安装时由 `src/win_installer/installer.nsh` 提供向导页选择数据存放位置。选择结果写入 `%APPDATA%\esprin_nemo\data_path.json`，该记录已存在时不再询问，此后可在「设置 → 数据存放位置」调整 |
+| `dist/EsprinNemo.Portable.v<版本>.exe` | Windows 便携版。每次启动解压到临时目录运行，数据、配置与 Electron 运行时数据（`data/`、`data_path.json`、`user_data/`）均位于便携版 exe 所在目录，不写入 `%APPDATA%`。便携版没有稳定的升级目标，因此不做更新检查。所在目录不可写（只读位置、无权限）时不回退到 `%APPDATA%`，而是弹窗说明原因并提供「重新选择路径」 |
+| `dist/EsprinNemo.v<版本>.AppImage` | Linux 可执行镜像。免安装，`chmod +x` 后直接双击或命令行运行；数据默认存放在 `~/.local/share/EsprinNemo`（跟随 `XDG_DATA_HOME`），应用内仍可改用其他位置。没有安装向导，也就没有安装时的位置选择页；要放进应用菜单可自行放一份 `.desktop` 文件指向它 |
 
-打包实现细节见 [`src/win_installer/README.md`](src/win_installer/README.md)。
+打包实现细节见 [`src/win_installer/README.md`](src/win_installer/README.md)（Linux 侧不需要额外的安装脚本，electron-builder 直接产出 AppImage）。
+
+### 网页版
+
+网页版不是另一份界面，而是同一份渲染进程换一个宿主：`src/renderer/main.html`、`styles/`、`scripts/`、`fonts/` 全部原样复用，`src/renderer/web_host.js` 在浏览器里顶替 Electron 主进程。运行与打包命令见[网页版](#网页版)。
+
+自建同步也是同一套：`web_host.js` 会在浏览器里加载 `src/main/data_path.js`、`src/main/secret_store.js`、`src/main/sync_server.js`（开发服务器与 EsprinSync 直接提供这几个文件，单文件产物把源码内嵌进 `window.__esprinSources`），于是设置页里那块「自建同步」面板在网页版里跑的就是桌面端那份逻辑 —— 同一个操作日志协议、同一份待推送队列、同样的回收 ID 与诊断输出，区别只是本地副本落在浏览器的 IndexedDB / 本地存储里。
+
+- 网页版没有「数据存放位置」这一栏：数据在浏览器存储里，没有可切换的目录（设置页里那一行连同说明一起隐藏，桌面端不受影响）
+- 由 EsprinSync 托管时（浏览器打开 `http://服务器地址:端口/`），页面在脚本加载时探测一次 `/sync/health`：确认是 EsprinSync 就把 `syncServer.url` 填成当前地址并**强制打开自建同步**，同时隐藏设置里的「自建同步」整块 —— 这一份网页版的权威副本在服务端，没什么可配置的
+- 被托管的网页版要求先登录：没登录（本机还没有令牌）就挡一层登录框，可填账户名 + 密码（调 `/admin/api/tokens/generate` 换令牌），也可切到「改用访问令牌」；登录成功后立即同步一次并显示内容。之后打开本页会自动用本机保存的令牌同步，令牌失效或换了账户时再把登录框叫回来
+- 从别处打开的页面（包括单文件产物）不受这套约束：同步卡片照常显示，`syncServer.url` 需要自己填。服务端会返回 `src/main/*.js` 并带上 `Access-Control-Allow-Origin`，所以这类页面也连得上同一个服务端
+- **离线可用**：页面会登记一份离线缓存（[`src/renderer/sw.js`](src/renderer/sw.js)，`/sw.js`），把页面本身、脚本、样式、字体与 `src/main/*.js` 一起放进浏览器缓存 —— 设备断网、服务端崩了或被关机时，打开同一个地址仍能进到界面，数据来自浏览器里的本地副本；期间的新建、修改、删除都记进待推送队列（服务端那台上没写任何东西），等下次接上服务端时自动推送，拉取也会补上期间别人做的改动
+  - 服务端连不上时不再弹登录框（认不出凭据就不要拦着离线使用）；网络恢复时（`online` 事件）会自动重连、补推本地改动
+  - 浏览器只在 `https://` 或 `http://localhost` 下允许登记离线缓存，用局域网 IP + http 打开时这条不生效（浏览器限制，非本项目可控）
+  - 离线缓存只覆盖静态资源，`/sync`、`/admin`、`/health` 与带 `Authorization` 的请求一律直连网络，不会被缓存
+- 网页版没有系统密钥环，令牌以明文写在浏览器存储里（面板的「强保护」一栏据此为否）；权威副本在服务端，本地那份只是缓存
+- 团队笔记（共享）尚未移植到 JavaScript 服务端，`/sync/shares*` 返回 501，网页版与桌面端此刻都不可用
 
 ### 发布新版本
 
 1. 修改 `package.json` 的 `version`，并将本版说明写入 [`.github/releases.md`](.github/releases.md)
-2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 会在 `windows-latest` 上安装依赖、执行 `bun run build`，产物 `dist/*.exe` 随 tag `v<版本>` 发布到 GitHub Releases（Release 说明取自 `.github/releases.md`；该 tag 已存在时跳过，不重复发布）
-3. 旧版本应用的自动更新会检测到该 Release 并升级，见[应用更新](#应用更新)
+2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 分两个作业：`windows-latest` 上安装依赖、执行 `bun run build`，产物 `dist/*.exe` 随 tag `v<版本>` 发布到 GitHub Releases（Release 说明取自 `.github/releases.md`；该 tag 已存在时跳过，不重复发布）；随后 `ubuntu-latest` 上构建 AppImage 并以 `gh release upload` 附加到同一个 Release（Windows 作业被跳过时，Linux 作业也随之跳过）
+3. 旧版本应用的自动更新会检测到该 Release 并升级（Linux 上会把新 AppImage 下载到下载目录，由用户自行替换），见[应用更新](#应用更新)
 
 官网页面位于 [`.github/pages`](.github/pages)，由 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) 自动部署到 GitHub Pages（推送到 `main` 且页面文件有改动时触发，也可手动触发）。
 
@@ -368,11 +391,14 @@ AI 对话同样是一份对话一个文件（`ai_chats/<id>.json`，文件名即
 
 | 运行方式 | 位置记录文件 | 默认数据目录 |
 | --- | --- | --- |
-| 安装版 | `%APPDATA%\esprin_nemo\data_path.json` | `%APPDATA%\esprin_nemo\data` |
-| 便携版 | 便携版所在目录下的 `data_path.json` | 便携版所在目录下的 `data/` |
+| 安装版（Windows） | `%APPDATA%\esprin_nemo\data_path.json` | `%APPDATA%\esprin_nemo\data` |
+| 安装版（Linux） | `~/.local/share/EsprinNemo/data_path.json`（`$XDG_DATA_HOME/EsprinNemo`） | `~/.local/share/EsprinNemo/data` |
+| 便携版（Windows） | 便携版所在目录下的 `data_path.json` | 便携版所在目录下的 `data/` |
 | 开发运行（`bun start`） | 不使用记录文件 | 项目内 `data/` |
 
-Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）的位置随之区分：安装版保持 Electron 默认位置，便携版使用程序目录下的 `user_data/`，开发运行使用 `%APPDATA%\esprin_nemo\dev_user_data`。便携版单独存放的原因是其定位为「不写入 `%APPDATA%`」，而默认位置中的缓存、Cookie 与崩溃转储均为实际写入，仅迁移数据文件并不充分，且会与安装版共用同一 profile；开发运行单独存放的原因是不与安装版共用同一把单实例锁。
+配置目录的位置由 `src/main/data_path.js` 按平台解析：Windows 与 macOS 取 Electron 的 `appData`（即 `%APPDATA%` / `~/Library/Application Support`）下的 `esprin_nemo`；Linux 不取 Electron 的 `~/.config`，而是优先用 `$XDG_DATA_HOME`，未设置时用 `~/.local/share`，再拼上 `EsprinNemo` —— 笔记、待办与配置属于「应用数据」而非「配置」，放这里才符合 XDG 的划分，也不会与 Electron 自己的 profile 目录混在一起。
+
+Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）的位置随之区分：安装版保持 Electron 默认位置（Linux 上即 `~/.config/Esprin Nemo`），便携版使用程序目录下的 `user_data/`，开发运行使用配置目录下的 `dev_user_data`（Windows 为 `%APPDATA%\esprin_nemo\dev_user_data`，Linux 为 `~/.local/share/EsprinNemo/dev_user_data`）。便携版单独存放的原因是其定位为「不写入 `%APPDATA%`」，而默认位置中的缓存、Cookie 与崩溃转储均为实际写入，仅迁移数据文件并不充分，且会与安装版共用同一 profile；开发运行单独存放的原因是不与安装版共用同一把单实例锁。
 
 记录内容：
 
@@ -386,10 +412,10 @@ Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志�
 
 ```text
 data_path.json 中的位置（安装时选择或应用内更改）
-  → %APPDATA%\esprin_nemo\data
+  → %APPDATA%\esprin_nemo\data（Linux：~/.local/share/EsprinNemo/data）
 ```
 
-据此，「恢复默认」会删除记录并回到 `%APPDATA%\esprin_nemo\data`。记录文件统一使用正斜杠（安装向导的 NSIS 脚本不便转义反斜杠），应用读取时换算为当前平台的写法。
+据此，「恢复默认」会删除记录并回到当前平台的默认位置。记录文件统一使用正斜杠（安装向导的 NSIS 脚本不便转义反斜杠），应用读取时换算为当前平台的写法。
 
 便携版沿用同一套顺序，仅将 `%APPDATA%\esprin_nemo` 替换为便携版 exe 所在目录：先在便携版目录下创建 `data/` 存放数据，记录文件同样位于该目录；在设置中选择其他位置后，`data_path.json` 仍落在便携版目录，「恢复默认」则删除记录并回到便携版目录下的 `data/`。便携版不读取也不写入 `%APPDATA%` 中的记录，因此与安装版（或多份便携版）可以并存而互不干扰；整个便携版目录复制到其他位置后，数据与设置随之迁移。
 
@@ -416,30 +442,39 @@ data_path.json 中的位置（安装时选择或应用内更改）
 
 ### 服务端
 
-服务端为独立仓库 [EsprinProject/Sync](https://github.com/EsprinProject/Sync)，主体是单个 Python 文件（`sync.py`，仅使用标准库）。在存放数据的机器上运行：
+服务端在本仓库内（[`src/sync/`](src/sync)，Node/JavaScript 实现，只依赖运行时自带模块）。在存放数据的机器上运行：
 
 ```bash
-# 启动服务端（Python 3，仅使用标准库）
-python sync.py --host 0.0.0.0 --port 8686 --data ./esprin-data
+# 开发运行：默认 127.0.0.1:8686，数据写入 ./data
+bun run start:sync
 
-# 离线自测：覆盖全部接口、重启后重建索引与管理后台
-python sync.py --selftest
+# 等价的手工调用：指定监听地址、端口、数据目录与网页端目录
+bun src/sync/server.js --host 0.0.0.0 --port 8686 --data ./esprin-data
+
+# 离线自测：覆盖同步接口、账户与令牌、管理后台
+bun src/sync/server.js --selftest
+
+# 打包：Windows exe + 无扩展名的可执行文件（产物在 dist/）
+bun run build:sync
 ```
+
+`build:sync` 产出两个文件，都是编译好的可执行文件，网页端与管理页已经内嵌在里面，单独拿走一个就能跑：`dist/EsprinSync.v<版本>.exe`（Windows x64）与 `dist/EsprinSync.v<版本>`（无扩展名，默认按当前系统编译，Linux 上即 Linux x64 的可执行文件）。用 `--target=bun-darwin-arm64` 之类换无扩展名那一个的目标，`--no-exe` / `--no-bare` 分别跳过这两项，`--out=<目录>` 换输出目录（首次编译某个平台会联网取 Bun 的对应运行时）。
 
 - 数据布局：服务端支持多个账户，默认只有一个名为 `admin` 的内置账户（它也管理服务端）。每个账户一份独立的操作日志 `<data>/users/<账户 id>/journal.log`（一行一条操作，JSON Lines），把日志从头重放一遍即为该账户的全部数据。追加写入，只有整理（彻底删除后 / 管理后台的「整理日志」）会重写它：已彻底删除条目的正文与历史被抹掉，只留一行删除标记，其余操作的序号不变。旧版单账户布局（`<data>/admin.json` 与数据目录根下的日志、令牌）在首次启动时自动迁移：日志与令牌搬进 `<data>/users/admin/`，`admin.json` 里的密码摘要并入内置账户，原文件归档为 `admin.json.migrated`
 - 设置页「数据与存储 → 自建同步 → 服务端项目」的「打开项目主页」可在系统浏览器中打开该仓库
 - 令牌：在管理后台（见下）中创建与保存，每个账户各有自己的一套；客户端也可用账户名 + 密码直接换一份（`POST /admin/api/tokens/generate`，见下）；同时兼容启动参数 `--token` 与环境变量 `ESPRIN_TOKEN`（等同内置账户的一份令牌）
 - 鉴权：`/sync/*` 一律要求凭据——客户端的访问令牌（`Authorization: Bearer`）或账户登录会话；每份凭据只读写它所属账户的那一份日志，未携带凭据的请求一律返回 401
 - 接口（同步）：`GET /sync/health`（不需要凭据，用于区分「地址错」与「凭据错」；带凭据时会额外报出该账户的日志身份与账户名）、`GET /sync/ops?since=&limit=`、`POST /sync/ops`、`GET /sync/state`、`GET /sync/file?path=`、`GET /sync/ids?limit=`、`POST /sync/ids/claim`
-- 接口（团队笔记）：`GET /sync/shares`、`POST /sync/shares/request`、`POST /sync/shares/respond`、`POST /sync/shares/revoke`、`POST /sync/shares/leave`（见 [团队笔记（共享）](#团队笔记共享)）
+- 接口（团队笔记）：`GET /sync/shares`、`POST /sync/shares/request`、`POST /sync/shares/respond`、`POST /sync/shares/revoke`、`POST /sync/shares/leave`（见 [团队笔记（共享）](#团队笔记共享)）。JavaScript 版尚未移植，这些路径目前一律返回 501
 - 可复用 ID：`/sync/state` 里的 `recyclable` 是回收池的大小；`GET /sync/ids` 列出池子，`POST /sync/ids/claim`（`{device, kind, count, since}`）把最近删掉的几个 ID 占住并发给调用方，其中 `since` 是调用方「已应用到第几号」——其他设备只发序号已跟上的，发起删除的那一台可以不等（它本地那份早就删掉了），序号没跟上的用 `pending` 报回去
 - 幂等：每条操作带 `opId`，客户端重试时重复提交不会重复写入日志
 - 路径安全：只接受数据目录内的相对路径，`..`、绝对路径一律拒绝
-- 网页版客户端：界面在独立仓库 [EsprinProject/Web](https://github.com/EsprinProject/Web)，服务端启动时把它克隆到 `web/` 并在根路径 `/` 托管；本地没有那份克隆时根路径返回一页说明（`--web-repo` / `--web-ref` 换源，`--web-update` 启动时拉取一次，`--no-web-clone` 只用现成的 `web/`）
+- 网页端：直接托管本仓库的 `src/renderer/`（与桌面端同一份界面），启动时把 `package.json` 的版本、`.github/releases.md` 的说明与 `svg_icon` 注入页面；不再克隆任何仓库。查找顺序是 `--web-dir` → 服务端同级的 `web/` → 仓库根；编译成可执行文件后这套资源（`src/renderer/`、`node_modules/material-symbols/`、`package.json`、`.github/releases.md`、管理页）全部内嵌在里面，直接读内嵌副本，找不到时根路径返回一页说明
+- 团队笔记（共享）：`GET /sync/shares`、`POST /sync/shares/request`、`POST /sync/shares/respond`、`POST /sync/shares/revoke`、`POST /sync/shares/leave` 目前返回 501 —— Python 版的这部分还没移植到 JS
 
 ### 管理后台
 
-启动后在浏览器中打开「服务器地址 + `/admin`」（例如 `http://192.168.1.10:8686/admin`）。根路径 `/` 留给网页版客户端（独立仓库 [EsprinProject/Web](https://github.com/EsprinProject/Web) 的克隆，服务端启动时放在 `web/` 目录），管理后台与它分开挂在 `/admin` 下。管理页面是仓库 `manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。服务端可以供多个账户使用，各自的笔记与待办互不可见；面板上的「正在管理的账户」决定令牌与日志两节作用在哪个账户上。
+启动后在浏览器中打开「服务器地址 + `/admin`」（例如 `http://192.168.1.10:8686/admin`）。根路径 `/` 留给网页端（同一份 Nemo 界面，服务端直接读 `src/renderer/` 或打包产物的 `web/`），管理后台与它分开挂在 `/admin` 下。管理页面是 `src/sync/manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。服务端可以供多个账户使用，各自的笔记与待办互不可见；面板上的「正在管理的账户」决定令牌与日志两节作用在哪个账户上。
 
 - **账户**：服务端默认只有内置账户 `admin`，其余账户只能由管理员在面板的「账户」一节新建（账户名 1~32 个字符、不能重名，密码至少 8 位）。新建的账户是普通账户，只能登录网页版客户端同步自己的数据；勾选「管理员」后它也能进入管理面板。内置账户不可删除、不可停用、不可取消管理员、不可改名（它的名字同时是数据目录名），且至少保留一个账户
 - **首次打开**引导设置内置账户的密码（至少 8 位），随后进入管理面板；密码以 PBKDF2-HMAC-SHA256（20 万次迭代 + 随机盐）按账户各自存为摘要写入 `<data>/users.json`，不可反推原文，后续登录在同一页面完成（输入账户名 + 密码；本页只让管理员登录，非管理员可用登录卡片上的「生成令牌」取令牌）
@@ -490,7 +525,7 @@ python sync.py --selftest
 
 ### 客户端
 
-配置项（除令牌外都随 `config.json` 落盘）：
+配置项（除令牌外都随 `config.json` 落盘；桌面端与网页版读写的是同一份 `config.json`，网页版里那份在浏览器存储中）：
 
 | 字段 | 说明 |
 | --- | --- |
@@ -501,7 +536,7 @@ python sync.py --selftest
 | `syncServer.autoSync` | `off`（默认，只是不定时）/ `5s` / `1m` / `5m` / `custom`（自定义）；每次启动应用都会同步一次，与它无关（旧版的 `startup` 取值等同于 `off`） |
 | `syncServer.autoSyncSeconds` | `custom` 生效的间隔秒数（5 ~ 86400 的整数，界面中可按秒或分钟填写） |
 | `syncServer.lastSyncAt` / `lastSyncSummary` | 上次同步的时刻与结果摘要，仅用于设置页展示 |
-| 令牌 | 不写入配置文件：在服务端管理页（服务器地址 + `/admin`）创建，填入「访问令牌」后加密保存到系统密钥链（安装版 `%APPDATA%\esprin_nemo\sync_token.bin`，便携版在便携版目录下，开发运行另用 `sync_token.dev.bin`）；服务端仅使用 `--token` 时也可直接填写 |
+| 令牌 | 不写入配置文件：在服务端管理页（服务器地址 + `/admin`）创建，填入「访问令牌」后加密保存到系统密钥链（安装版 `%APPDATA%\esprin_nemo\sync_token.bin`，Linux 安装版 `~/.local/share/EsprinNemo/sync_token.bin`，便携版在便携版目录下，开发运行另用 `sync_token.dev.bin`）；服务端仅使用 `--token` 时也可直接填写 |
 
 设备 ID 由主进程生成一次后固定下来（形如 `dev-a1b2c3`），可在「设置 → 数据与存储 → 自建同步 → 设备 ID」查看并一键复制（只读，不参与鉴权）；服务端创建令牌时把该值填进「绑定设备」，该令牌提交的改动就都记在这台设备名下。它与是否启用同步无关，保存在配置目录的 `sync_state.json`，不随 `config.json` 复制或分享。
 
@@ -589,13 +624,14 @@ IPC 通道：
 
 ### 自测
 
-在 EsprinSync 仓库中执行：
+在本仓库中执行：
 
 ```bash
-# 服务端：接口、幂等、越界路径、重启后重建索引、团队笔记（邀请 / 同意 / 拒绝 / 撤销 / 退出 / 账户被删后的作废）、
-# 管理后台（设密码 / 登录 / 账户登录换令牌 / 令牌增删改查 / 设备绑定 / 日志概览与下载）
-# 页面一节看 web/：那里没克隆 EsprinProject/Web 时跳过，不算通过
-python sync.py --selftest
+# 服务端：接口与幂等、越界路径、回收 ID 的领取、日志整理、重启后重建索引、
+# 管理后台（设密码 / 登录 / 账户登录换令牌 / 令牌增删改查）
+# 团队笔记（共享）尚未移植到 JavaScript 版，相关接口一律 501，自测不再覆盖这一节
+# 页面一节看 src/renderer：网页端托管失败时跳过，不算通过
+bun src/sync/server.js --selftest
 
 # 客户端同步逻辑：删除不复活、远端更新覆盖本地、本地更新不被旧操作覆盖，以及日志文件的解析、重放与导出目标校验
 node sync-selftest.js
@@ -665,7 +701,7 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 
 - **Windows**：通过 DPAPI（由当前 Windows 账户派生密钥）加密保存在 `%APPDATA%\esprin_nemo\ai_key.bin`。便携版改存到便携版所在目录下的同名文件，首次运行会将 `%APPDATA%` 中已有的密钥迁移过去，无需重新填写
 - **macOS**：通过系统钥匙串（Keychain）加密保存
-- **Linux**：通过系统的 Secret Service / libsecret（GNOME Keyring / KWallet）保存
+- **Linux**：通过系统的 Secret Service / libsecret（GNOME Keyring / KWallet）保存，文件位于 `~/.local/share/EsprinNemo/ai_key.bin`；桌面在无密钥环的服务环境（或会话里没有解锁的密钥环）下运行时退回下一行的文件权限保护
 - 系统不支持密钥链时，退化为仅当前系统账户可读写的文件权限（`0600`），设置页会如实标出「当前系统未提供密钥链」
 - 渲染进程不保留也不回显密钥明文；设置页仅提供「输入并回车保存」「一键清除」与当前保管状态提示
 - **旧版升级**：若检测到旧版 `data/config.json` 中残留的明文 `apiKey`，应用会在启动或切换数据目录时将其收编进本机安全存储，并从配置文件中抹除明文，无需重新配置
@@ -696,7 +732,7 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 | 永不提醒（更新弹窗） | 勾选后关闭弹窗，自动把「自动检查并下载更新」改成关闭（直接写入 `config.json` 并停掉定时检查），设置页开关与界面状态同步变为关闭 |
 | 检查更新 | 立即检查一次，结果直接显示在设置页（关闭自动更新后同样可用） |
 | 下载更新 / 取消下载 | 手动下载当前版本（仅在自动下载被关闭、或自动下载失败后需要时出现），下载中可随时取消并丢弃已下载的部分 |
-| 重启并安装 / 打开安装包 | 安装版直接调用安装包完成升级（无向导、装完自动重开）；便携版与开发运行只打开安装包所在目录，由用户手动升级 |
+| 重启并安装 / 打开安装包 | Windows 安装版直接调用安装包完成升级（无向导、装完自动重开）；便携版、开发运行与 Linux 只打开安装包所在目录，由用户手动升级 |
 | 打开发布页 | 在系统浏览器中打开 GitHub Releases，便于查看完整更新说明或手动下载 |
 | 项目地址 | 展示仓库地址 `https://github.com/EsprinProject/Nemo`，可用「打开项目主页」在系统浏览器中打开 |
 | 新版本说明 / 当前版本说明 | 均取自更新源上对应 release 的正文，按 Markdown 渲染（先转义 HTML，发布页中的 `<script>` 只会以纯文本形式出现）；当前版本的说明来自 tag 等于当前版本的那条 release，本地构建的未发布版本会显示「更新源上没有找到对应的发布记录」，不影响其他功能 |
@@ -706,20 +742,68 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 - 更新源为 GitHub 仓库 `EsprinProject/Nemo` 的 Releases（定义在 `src/main/updater.js` 的 `UPDATE_REPO`，更换仓库时只需修改此处）
 - 检查走 `GET https://api.github.com/repos/{owner}/{repo}/releases/latest`，取该 release 的 tag（形如 `v0.0.0`）与当前版本逐段数值比较（支持 `2.1.10 > 2.1.9`），仅当高于当前版本时提醒更新
 - 当前版本说明走 `GET https://api.github.com/repos/{owner}/{repo}/releases/tags/v<当前版本>`（取不到时按不带 `v` 的写法再试一次），404 视为该版本没有发布记录；同一版本仅请求一次，之后使用缓存
-- 安装包仅接受同时满足两个条件的附件：文件名中包含独立的 `setup` 段（由点 / 空格 / 连字符 / 下划线分隔，如 `EsprinNemo.Setup.v2.1.5.exe`、`en.Setup.123.exe`），且以 `.exe` 结尾。发布页没有此类附件时，设置页会提示前往发布页手动下载。下载至系统临时目录，按 `Content-Length` 校验体积，并检查文件头（`MZ`）
+- 安装包按平台挑选附件：Windows 上文件名需包含独立的 `setup` 段（由点 / 空格 / 连字符 / 下划线分隔，如 `EsprinNemo.Setup.v2.1.5.exe`、`en.Setup.123.exe`）且以 `.exe` 结尾；Linux 上取名字以 `.AppImage` 结尾的附件（即 `EsprinNemo.v<版本>.AppImage`）。发布页没有对应附件时，设置页会提示前往发布页手动下载。Windows 下载至系统临时目录，Linux 下载至下载目录（取不到则退回临时目录），按 `Content-Length` 校验体积，并检查文件头（Windows 为 `MZ`，Linux 为 ELF 魔数），Linux 下载完成后补上可执行权限
 - 安装时以 `--upgrade --updated --force-run` 运行安装包：`--upgrade` 由安装脚本（`src/win_installer/installer.nsh`）识别，跳过数据位置向导页、沿用上次的安装范围（不再询问「为谁安装」）、不显示完成页，安装完成后由安装器重新拉起应用；`--updated` / `--force-run` 是 electron-builder 自带的开关，用于跳过许可与安装目录页，并允许安装程序等待旧应用退出。用户侧只会看到一个进度条与「正在更新」提示，`%APPDATA%\esprin_nemo\data_path.json` 与数据目录均不会被改动
-- 开发运行（`bun start`）不参与自动检查与后台下载（源码不经更新包分发），但设置页的「检查更新」仍可手动使用；便携版因为自身不是安装版，只提供下载与手动升级
+- 开发运行（`bun start`）不参与自动检查与后台下载（源码不经更新包分发），但设置页的「检查更新」仍可手动使用；便携版因为自身不是安装版，只提供下载与手动升级；Linux 上检查、下载、版本说明都照常，只是不做自动安装——AppImage 在运行中无法替换自身，弹窗会引导到下载好的文件，由用户覆盖自己的那份并重启
 - 一次发布只需改好 `package.json` 的版本号并推送（见[发布新版本](#发布新版本)），无需额外维护版本清单文件
 - 网络请求仅指向 GitHub（API 与下载地址）；检查失败（离线、代理、频率限制等）仅在设置页显示原因，不会自动重试
+
+## 网页版
+
+网页版不是另做一份界面，而是同一份渲染进程换一个宿主：`src/renderer/main.html`、`src/renderer/styles/`、`src/renderer/scripts/`、`src/renderer/fonts/` 两边共用。桌面端由 Electron 主进程提供文件系统、系统弹窗、托盘等能力；网页端由 [`src/renderer/web_host.js`](src/renderer/web_host.js) 在页面内提供等价实现——该文件在 Electron 下检测到 `require` 已存在即直接退出，对桌面端无影响。
+
+| 命令 | 作用 |
+| --- | --- |
+| `bun run start:web` | 以静态服务器托管本仓库，浏览器打开 `src/renderer/main.html`，默认监听 `127.0.0.1:4569` |
+| `bun run build:web` | 把 `main.html` 引用的样式、脚本、字体全部内联为单文件，产出 `dist/EsprinNemo.Web.v<版本>.html` |
+
+### 宿主接管了什么
+
+- **文件系统**：`require('fs')` / `require('path')` 由宿主接管，数据目录映射为虚拟路径 `/esprin/data`，内容按「路径 → 内容」存进浏览器数据库 IndexedDB（库名 `esprin-nemo-web`）。笔记、待办、配置的读写仍是 `scripts/storage.js` 里那套逻辑，只是落盘位置从磁盘换成浏览器存储
+- **启动镜像**：界面里的 `fs.*Sync` 是同步调用，而 IndexedDB 只有异步接口，因此宿主在写库的同时把整张文件表同步镜像到 `localStorage`（键 `esprin.nemo.web_fs.v1`，预算 3 MB，超出时先丢二进制文件）。启动时先同步读镜像让应用立刻可用，随后再把库里的完整内容合并进来并重绘界面；库里已有、镜像里没有的文件也能在合并后出现
+- **对话框**：`dialog:message` 映射到浏览器原生 `confirm` / `prompt`；导入笔记、插入图片、选择 AI 附件改用 `<input type=file>`，读到的内容先写进虚拟路径再交给原有代码，因此调用方无需改动
+- **导出与预览**：`fm:save-file` 走 `<a download>` 下载，`assets:open-file` 走 `blob:` 链接打开
+- **启动引导**：`boot.js` 依赖的 `data:get-dir-sync`、`window_appearance.js` 依赖的 `system:get-accent-color-sync` 等同步通道由宿主直接给出网页可用的取值，首屏外观照常预注入
+- **版本与版本说明**：`start:web` 与 `build:web` 都会把 `package.json` 的 `version` 与 [`.github/releases.md`](.github/releases.md) 的全文注入页面（`window.__esprinVersion` / `window.__esprinReleaseNotes`）。宿主的 `app.getVersion()` 与更新状态里的「当前版本」取自前者；「当前版本说明」分区用后者渲染（Markdown 交给共用的 `markdown.js`），所以网页模式的版本号与说明都跟仓库一致，且不需要联网
+
+### 网页模式下的差异
+
+- **桌面专属能力不存在**：系统托盘、桌面便利贴、随口记（语音转文本）、开机自启、自动更新都没有网页等价物，宿主按空实现返回，`styles/mode.css` 里 `html.web-mode` 的规则把这些设置分区整体藏掉（「启动与托盘」「桌面便利贴」「随口记」「自动更新」「新版本说明」），不留空标题与置灰项；「版本信息」与「当前版本说明」保留
+- **数据目录固定**：`data:get-dir` 报告的是虚拟目录 `/esprin/data`，设置里的「数据存放位置」与开发运行一样整行置灰，不提供切换
+- **没有更新检查**：更新相关的通道一律返回「不支持」，「自动更新」与「新版本说明」两个分区在网页模式下不显示，因此不会停在「正在向更新源读取…」；「当前版本说明」保留，内容取自打包时注入的 `.github/releases.md`，离线也能看到
+- **加密笔记不可用**：`scripts/secret.js` 依赖 Node 的 `createCipheriv` / `pbkdf2`，宿主只提供 `sha256` 与随机数
+- **同步与 AI 助手尚未接入**：两组通道当前返回「暂未接入」。`src/main/sync_server.js` 与 `src/main/ai_service.js` 除 `ipcMain` / `safeStorage` / `dialog` 外只用 `fs`、`path`、`crypto`、`fetch`，宿主已具备把这两个模块直接接进页内的条件，接入留作后续
+- **存储受浏览器配额限制**：数据放在 IndexedDB 里，容量跟随浏览器给本站点的配额（通常远大于 `localStorage`），但仍是浏览器自己的空间，清理站点数据会一并清掉
+
+### 开发运行
+
+```bash
+bun run start:web
+```
+
+- 入口是 `http://127.0.0.1:4569/src/renderer/main.html`，访问 `/` 会跳转到该地址；`data/` 与 `.git/` 不对外提供
+- 监听地址与端口默认 `127.0.0.1:4569`，可用 `-p` / `--port`、`-h` / `--host` 调整，也支持 `--port=4569` 写法与 `PORT` / `HOST` 环境变量
+- 以 `ESPRIN_SYNC_UPSTREAM=http://主机:端口` 启动时，`/sync`、`/health`、`/admin` 转发给该自建 EsprinSync；未配置时这三个前缀返回 404
+
+### 单文件打包
+
+```bash
+bun run build:web
+```
+
+- 产出的 HTML 不引用任何外部资源：样式与脚本内联为 `<style>` / `<script>`，Material Symbols 与 Mohave 以 base64 数据 URI 内联在 `@font-face` 中，图标取自 `package.json` 的 `svg_icon`（`src/assets/icon.svg`）内联为数据 URI；`start:web` 也会把它注入到开发页面里
+- 打包自带自包含校验：内联完成后扫描产物，`<link>` / `<script src>` / `<img src>` / CSS `url()` / `@import` 里只要有一处不是 `data:`、`blob:` 或页内锚点，构建立即失败并列出该处；脚本块先摘除再扫描，避免把运行期拼接的模板标记判成外部引用
+- 双击打开（`file://`）即可离线使用，打开过程不发起任何请求；笔记等数据写入该页面的 IndexedDB（`localStorage` 只存启动镜像），换路径或换浏览器打开就是另一份数据
+- 输出路径可用 `--out <路径>` 指定，默认按版本号命名：`dist/EsprinNemo.Web.v<版本>.html`（与安装包 `EsprinNemo.Setup.v<版本>.exe`、便携版 `EsprinNemo.Portable.v<版本>.exe` 同一套命名）；字体占主要体积，产物约 8 MB
 
 ## 项目结构
 
 ```text
-├── package.json            # "main" 指向 src/main/main.js
-├── assets/
-│   ├── Main.new.svg        # 应用图标矢量源（构建图标用它，见 package.json 的 build.icon）
-│   └── Main.new.png        # 同图形的位图版（窗口与托盘图标用它，nativeImage 不解析 SVG）
+├── package.json            # "main" 指向 src/main/main.js；icon 与 svg_icon 指向应用图标（位图 / 矢量），代码里不再各自拼图标路径
 ├── src/
+│   ├── assets/
+│   │   ├── icon.svg        # 应用图标矢量源（package.json 的 svg_icon，网页端据此内联 favicon）
+│   │   └── icon.png        # 同图形的位图版（package.json 的 icon，窗口、托盘、安装包与桌面右键菜单用它）
 │   ├── main/               # 主进程
 │   │   ├── main.js         # 窗口、菜单、数据目录解析与迁移、IPC
 │   │   ├── ai_secret.js    # AI 密钥：旧版明文收编与密钥文件迁移（加解密由 secret_store.js 负责）
@@ -728,37 +812,46 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 │   │   ├── sync_server.js  # 自建同步：操作日志（outbox / 序号 / 重放）、与服务端通信，以及团队笔记（共享）的接口
 │   │   ├── speech_windows.js # 随口记：系统语音识别桥（拉起识别进程、把识别结果转成 IPC 事件）
 │   │   ├── speech_windows.ps1 # 随口记：Windows 桌面识别引擎脚本（System.Speech，ASCII 源码）
-│   │   ├── auto_launch.js  # 开机自启：读写系统登录启动项（注册表 Run 项 / 登录项 / autostart）
-│   │   ├── data_path.js    # 数据目录解析：安装版 / 便携版 / 开发版的位置、自定义位置记录与启动可写性检查
+│   │   ├── auto_launch.js  # 开机自启：Windows / macOS 读写系统登录启动项，Linux 写 XDG autostart 的 .desktop
+│   │   ├── data_path.js    # 数据目录解析：安装版 / 便携版 / 开发版的位置（Windows `%APPDATA%\esprin_nemo`，Linux `~/.local/share/EsprinNemo`）、自定义位置记录与启动可写性检查
 │   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入 / 勾选）
 │   │   ├── scratchpad_window.js # 小本本：右下角置顶便利贴小窗口与内容读写
 │   │   ├── sticky_notes.js # 桌面便利贴：每张便利贴一个窗口，记录读写与条目桥接
-│   │   ├── desktop_layer.js # 桌面层：把便利贴窗口压到所有窗口之下（常驻 PowerShell 子进程，调 Win32 SetWindowPos）
+│   │   ├── desktop_layer.js # 桌面层：把便利贴窗口压到所有窗口之下（常驻 PowerShell 子进程，调 Win32 SetWindowPos；非 Windows 下停用）
 │   │   ├── desktop_layer.ps1 # 桌面层：Win32 SetWindowPos(HWND_BOTTOM) 脚本（ASCII 源码）
-│   │   ├── desktop_menu.js # 桌面右键菜单：写 / 删 DesktopBackground 注册表项，按当前便利贴清单重建子项
+│   │   ├── desktop_menu.js # 桌面右键菜单：写 / 删 DesktopBackground 注册表项，按当前便利贴清单重建子项（仅 Windows）
 │   │   ├── tray.js         # 系统托盘：托盘图标、右键菜单（小本本 / 桌面便利贴 / 新建笔记 / 新建待办 / 设置 / 退出）
-│   │   ├── updater.js      # 应用更新：检查 GitHub Releases、读取当前版本发布说明、下载安装包、静默升级
-│   │   ├── font_list.js    # 跨平台本机字体枚举（解析字体文件 name 表）
+│   │   ├── updater.js      # 应用更新：检查 GitHub Releases、读取当前版本发布说明、下载安装包（Windows 为 Setup.exe，Linux 为 AppImage）、静默升级（仅 Windows）
+│   │   ├── font_list.js    # 跨平台本机字体枚举（Windows 字体目录 / Linux 的 /usr/share/fonts 等，解析字体文件 name 表）
 │   │   ├── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
 │   │   └── window_appearance.js # 主题 / 风格 / 圆角 / 主题色 / 字体的统一换算
 │   ├── win_installer/      # Windows 安装器：NSIS 自定义向导页（数据存放位置）
 │   │   ├── installer.nsh   # electron-builder nsis.include
 │   │   └── README.md       # 安装器说明
-│   └── renderer/           # 渲染进程
-│       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本
+│   ├── renderer/           # 渲染进程（桌面端与网页模式共用同一份界面）
+│       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本（桌面端与网页模式的唯一入口页）
 │       ├── dialog.html     # 弹窗窗口页面
 │       ├── scratchpad.html # 小本本窗口页面（标题 + 正文、选择笔记、Ctrl+S 保存）
 │       ├── sticky.html     # 桌面便利贴窗口页面（标题栏 + 纸面预览 / 编辑、待办勾选、纸张颜色、右键菜单）
 │       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题风格 / 主题色 / 圆角尺度 / 字体 / 界面布局预注入（无闪屏）
+│       ├── web_host.js     # 网页模式宿主：页内的 fs / path / Buffer / crypto / ipcRenderer，浏览器里顶替主进程（Electron 下直接退出）
 │       ├── fonts/          # 随应用分发的品牌字体（Mohave）
-│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / sync（自建同步面板）/ voice（随口记：语音转文本）/ alom（Alom 风格）/ radius（圆角尺度）/ mode（界面布局）/ motion（动效：进场动画与换肤交叉淡入）
+│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / sync（自建同步面板）/ voice（随口记：语音转文本）/ alom（Alom 风格）/ radius（圆角尺度）/ mode（界面布局，含网页模式下的入口裁剪）/ motion（动效：进场动画与换肤交叉淡入）
 │       └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / mode / notes / scratchpad / sticky_notes（桌面便利贴：标题栏入口、设置分区与条目桥接）/ sticky_window（桌面便利贴窗口逻辑）/ tray / auto_launch / sync_server / team_notes（团队笔记：共享请求与共享列表）/ editor / voice_notes / ai / ai_chats / ai_files / ai_agent / update / render …
+│   ├── sync/               # 自建同步服务端（Node/JavaScript，`bun run start:sync`）
+│   │   ├── server.js       # HTTP 服务、路由、同步/管理接口与启动流程（含 --selftest）
+│   │   ├── lib.js          # 常量、日志、密码摘要、路径校验等公共工具
+│   │   ├── store.js        # 账户、访问令牌、登录会话与密码校验
+│   │   ├── journal.js      # 操作日志：追加、索引、增量读取、回收 ID、整理
+│   │   ├── assets.js       # 网页端（src/renderer）与管理页的静态资源与注入
+│   │   └── manager/        # 管理后台静态文件（挂在 /admin）
+├── scripts/                # 开发与打包工具：web_server.js / web_build.js（网页模式）、sync_build.js（服务端打包：Windows exe + 无扩展名可执行文件）
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
 └── readme/                 # 文档配图
 ```
 
-自建同步服务端不在本仓库内，位于独立仓库 [EsprinProject/Sync](https://github.com/EsprinProject/Sync)，其目录包含 `sync.py`（日志与 HTTP API）、`manager/`（管理页面静态文件，挂在 `/admin`）与 `sync-selftest.js`（客户端同步逻辑自测）。网页版客户端另在独立仓库 [EsprinProject/Web](https://github.com/EsprinProject/Web)，服务端启动时克隆到 `web/`（该目录已 gitignore，不在 Sync 仓库里）并从根路径托管。
+自建同步服务端在本仓库内（[`src/sync/`](src/sync)）：`server.js` 是 HTTP 与路由，`lib.js` / `store.js` / `journal.js` 分别放公共常量与工具、账户与令牌会话、操作日志，`assets.js` 负责网页端与管理页的静态资源；`manager/` 是管理页面静态文件（挂在 `/admin`）。网页端没有独立的源码目录，与桌面端共用同一个 `src/renderer/`，服务端直接托管它，不再克隆外部仓库；打包产物里的 `web/` 供独立部署使用。
 
 > 渲染进程按「经典脚本」方式拆分：`src/renderer/scripts/` 下的文件共享同一个全局作用域，`state.js`
 > 必须在其它脚本之前加载，`app.js` 负责在 `window.onload` 时启动应用。
@@ -766,6 +859,7 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 ## 技术栈
 
 - **Electron 44**：主进程（`src/main/`）+ 渲染进程（`src/renderer/`），无打包步骤，直接加载 `main.html`
+- **网页模式（`src/renderer/web_host.js`）**：与桌面端同一份界面，无构建步骤；`tools/web_server.js` 托管仓库并用浏览器打开 `main.html`，`tools/web_build.js` 只做内联，把该页面引用的样式、脚本、字体收进一个 HTML 文件
 - **原生 JavaScript / HTML / CSS**：界面基于 CSS 变量实现主题、风格、圆角、主题色与字体切换
 - **Node.js 文件系统直读直写**：渲染进程通过 `require('fs')` 直接读写数据目录
 - **material-symbols**：图标字体

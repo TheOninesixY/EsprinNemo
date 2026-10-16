@@ -82,7 +82,8 @@ container.querySelectorAll('a').forEach((link) => {
         }
         if (src.includes('.')) {
             const fullPath = resolveItemAssetPath(itemId, src);
-            img.src = 'file:///' + fullPath.replace(/\\/g, '/');
+            const normalized = fullPath.replace(/\\/g, '/');
+            img.src = normalized.startsWith('//') ? `file:${normalized}` : `file:///${normalized.replace(/^\/+/, '')}`;
         }
     });
 

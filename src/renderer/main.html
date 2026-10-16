@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Esprin Nemo</title>
 
+    <script src="./web_host.js"></script>
     <script src="./window_appearance.js"></script>
     <script src="./boot.js"></script>
     <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
@@ -733,7 +734,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">API Key</span>
-                                    <span class="settings-row-desc">由系统密钥链加密保存（Windows DPAPI），不写入数据目录，也不随 config.json 复制或分享；输入后回车即保存，本地服务（如 Ollama）可留空</span>
+                                    <span class="settings-row-desc">由系统密钥链加密保存（Windows 为 DPAPI，Linux 为系统密钥环；不可用时退回仅本机可读的文件），不写入数据目录，也不随 config.json 复制或分享；输入后回车即保存，本地服务（如 Ollama）可留空</span>
                                 </div>
                                 <div class="ai-input-stack">
                                     <div class="ai-input-group">
@@ -924,7 +925,7 @@
                             <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">访问令牌</span>
-                                    <span class="settings-row-desc">由上方「账户登录」签发，或在服务端管理页面（服务器地址 + /admin）手动创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows DPAPI），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
+                                    <span class="settings-row-desc">由上方「账户登录」签发，或在服务端管理页面（服务器地址 + /admin）手动创建的令牌；创建时可绑定设备，绑定后该令牌提交的操作都记为该设备。令牌由系统密钥链加密保存（Windows 为 DPAPI，Linux 为系统密钥环；不可用时退回仅本机可读的文件），不写入数据目录，也不随 config.json 复制或分享；服务端以启动参数 --token 指定令牌时填入该值</span>
                                 </div>
                                 <div class="sync-input-stack">
                                     <div class="sync-input-group">
@@ -1028,7 +1029,7 @@
                             <div class="settings-row-desc" id="tray-status">正在读取托盘状态…</div>
                         </div>
 
-<div class="settings-section">
+<div class="settings-section" id="sticky-settings-section">
                             <div class="settings-section-title">桌面便利贴</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
@@ -1040,7 +1041,7 @@
                                     <span class="slider"></span>
                                 </label>
                             </div>
-                            <div class="settings-row-desc">便利贴贴在桌面层：始终位于其他窗口之下（与桌面同级），不会遮挡任何应用窗口，点击它也不会浮到最前。想看桌面上的便利贴，把挡着的窗口最小化或按 Win + D 显示桌面即可。关闭某张便利贴：在它上面右键选「关闭并移除」。</div>
+                            <div class="settings-row-desc" id="sticky-layer-desc">便利贴贴在桌面层：始终位于其他窗口之下（与桌面同级），不会遮挡任何应用窗口，点击它也不会浮到最前。想看桌面上的便利贴，把挡着的窗口最小化或按 Win + D 显示桌面即可。关闭某张便利贴：在它上面右键选「关闭并移除」。</div>
 
                             <div class="settings-row">
                                 <div class="settings-row-info">

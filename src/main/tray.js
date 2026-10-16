@@ -65,22 +65,27 @@ function buildTrayMenu() {
   const template = [
     { label: '打开 Esprin Nemo', click: () => { onShowMainWindow(); } },
     { type: 'separator' },
-    { label: '小本本', click: () => { onOpenScratchpad(); } },
-    {
-      label: '桌面便利贴',
+    { label: '小本本', click: () => { onOpenScratchpad(); } }
+  ];
 
+  if (process.platform === 'win32') {
+    template.push({
+      label: '桌面便利贴',
       submenu: [
         { label: '贴上便利贴', click: () => { sendAction('pick-sticky-note'); } },
         { label: '显示全部便利贴', click: () => { onShowStickyNotes(); } },
         { label: '收起全部便利贴', click: () => { onHideStickyNotes(); } }
       ]
-    },
+    });
+  }
+
+  template.push(
     { label: '新建笔记', click: () => { sendAction(ACTION_NEW_NOTE); } },
     { label: '新建待办', click: () => { sendAction(ACTION_NEW_TODO); } },
     { label: '设置', click: () => { sendAction(ACTION_OPEN_SETTINGS); } },
     { type: 'separator' },
     { label: '退出', click: () => { onQuit(); } }
-  ];
+  );
 
   return Menu.buildFromTemplate(template);
 }

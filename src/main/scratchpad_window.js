@@ -27,7 +27,7 @@ let resolveRadius = () => 'default';
 let resolveFonts = () => ({});
 let resolveDataDir = () => '';
 let getOwnerWindow = () => null;
-let iconPath = path.join(__dirname, '..', 'assets', 'icon.png');
+let iconPath = path.join(__dirname, '..', '..', require('../../package.json').icon);
 
 let handleWindowClosed = () => {};
 let ipcRegistered = false;

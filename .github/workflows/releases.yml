@@ -1,221 +1,132 @@
-name: Release
+
+name: Build and Release
 
 on:
   push:
     branches:
       - main
-    paths:
-      - package.json
   workflow_dispatch:
 
 permissions:
   contents: write
-  actions: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Build & Publish Release
-    runs-on: windows-latest
-    env:
-      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    name: Build and Publish Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - name: 读取版本号并检查是否已发布
-        id: check
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Read package version
+        id: version
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          TAG="v$VERSION"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid package version: $VERSION"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "标签 $TAG 已存在，版本未更新，跳过发布。"
-          else
-            echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "检测到新版本 $TAG，开始构建并发布。"
-          fi
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
-      - name: 安装 Bun
-        if: steps.check.outputs.published == 'false'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: Build all targets
+        run: bun build:all
 
-      - name: 安装依赖
-        if: steps.check.outputs.published == 'false'
-        run: bun install
-
-      - name: 构建
-        if: steps.check.outputs.published == 'false'
-        run: bun run build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 列出构建产物
-        if: steps.check.outputs.published == 'false'
-        shell: bash
-        run: ls -lh dist
-
-      - name: 提取 Git 提交记录并前置过滤
-        if: steps.check.outputs.published == 'false'
-        shell: bash
-        run: |
-          echo "[INFO] 查找上一个版本 Tag..."
-          LAST_TAG=$(git describe --tags --abbrev=0 "${{ github.sha }}^" 2>/dev/null || echo "")
-
-          if [ -n "$LAST_TAG" ]; then
-            echo "[INFO] 上一版本 Tag: $LAST_TAG，提取提交范围: $LAST_TAG..${{ github.sha }}"
-            git log "$LAST_TAG..${{ github.sha }}" --pretty=format:"* %s (%h)" --no-merges > RAW_COMMITS.txt
-          else
-            echo "[WARN] 未找到历史 Tag，提取最近 50 条提交..."
-            git log -n 50 --pretty=format:"* %s (%h)" --no-merges > RAW_COMMITS.txt
-          fi
-
-          # 从源头强力剔除所有工程、配置、版本升级、文件后缀类的噪音行
-          grep -viE "(\.yml|\.json|\.md|release|bump|workflow|actions|ci|build|chore\(|style\(|refactor\()" RAW_COMMITS.txt > FILTERED_COMMITS.txt || true
-
-          # 若全部被过滤完，回退使用原始提交，避免给 AI 传入空内容
-          if [ ! -s FILTERED_COMMITS.txt ]; then
-            cp RAW_COMMITS.txt FILTERED_COMMITS.txt
-          fi
-
-          echo "[INFO] 清洗后保留的有效功能提交数: $(wc -l < FILTERED_COMMITS.txt)"
-
-      - name: 生成发行版说明
-        if: steps.check.outputs.published == 'false'
-        id: release_notes
+      - name: Prepare release assets
         shell: bash
         env:
-          AI_RELEASE: ${{ secrets.AI_Release }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          node -e '
-            const fs = require("fs");
-            const rawCommits = fs.readFileSync("FILTERED_COMMITS.txt", "utf8").trim();
+          set -euo pipefail
 
-            function fallback(reason) {
-              console.log("[WARN] 降级使用原始提交日志，原因:", reason);
-              fs.writeFileSync("GENERATED_RELEASE.md", "### 更新日志\n\n" + rawCommits, "utf8");
-              process.exit(0);
-            }
+          mkdir -p release-assets
 
-            function parseConfig(raw) {
-              const config = {};
-              if (!raw) return config;
-              const lines = raw.split(/\r?\n/);
-              for (const line of lines) {
-                const match = line.match(/^\s*([A-Za-z0-9_]+)\s*[:=]\s*(?:"([^"]*)"|'\''([^'\'']*)'\''|(.*))\s*$/);
-                if (match) {
-                  const key = match[1].toUpperCase();
-                  const val = (match[2] ?? match[3] ?? match[4] ?? "").trim();
-                  if (val) config[key] = val;
-                }
-              }
-              return config;
-            }
+          copy_one() {
+            local pattern="$1"
+            local destination="$2"
+            local -a matches=()
 
-            const parsed = parseConfig(process.env.AI_RELEASE);
-            const key = parsed.KEY || "";
-            const url = parsed.URL || "";
-            const model = parsed.MODEL || "";
+            shopt -s nullglob
+            matches=(dist/$pattern)
+            shopt -u nullglob
 
-            if (!key || !url || !model) {
-              fallback("缺少 AI_RELEASE 配置");
-            }
+            if [[ ${#matches[@]} -ne 1 ]]; then
+              echo "::error::Expected exactly one file matching dist/$pattern, found ${#matches[@]}"
+              printf '%s\n' "${matches[@]}"
+              exit 1
+            fi
 
-            async function run() {
-              console.log("[INFO] 正在调用 AI 生成发行版说明...");
-              let promptTemplate = "";
-              try {
-                promptTemplate = fs.readFileSync(".github/workflows/releases_prompt.md", "utf8");
-              } catch (e) {
-                fallback("读取 releases_prompt.md 失败: " + e.message);
-              }
+            cp -- "${matches[0]}" "release-assets/$destination"
+          }
 
-              const prompt = promptTemplate.replace("{{commits}}", rawCommits);
+          copy_one "EsprinNemo.Web.v${VERSION}.html" \
+            "EsprinNemo.Web.v${VERSION}.html"
 
-              let endpoint = url.replace(/\/+$/, "");
-              if (!endpoint.endsWith("/chat/completions")) {
-                endpoint += "/chat/completions";
-              }
+          copy_one "EsprinNemo.v${VERSION}.AppImage" \
+            "EsprinNemo.v${VERSION}.AppImage"
 
-              try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 30000);
+          copy_one "EsprinNemo.Portable.v${VERSION}.exe" \
+            "EsprinNemo.Portable.v${VERSION}.exe"
 
-                const res = await fetch(endpoint, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${key}`
-                  },
-                  body: JSON.stringify({
-                    model: model,
-                    messages: [{ role: "user", content: prompt }],
-                    temperature: 0.2
-                  }),
-                  signal: controller.signal
-                });
+          copy_one "EsprinNemo.Setup.v${VERSION}.exe" \
+            "EsprinNemo.Setup.v${VERSION}.exe"
 
-                clearTimeout(timeoutId);
+          copy_one "EsprinSync.v${VERSION}.exe" \
+            "EsprinSync.v${VERSION}.exe"
 
-                if (!res.ok) {
-                  const errText = await res.text();
-                  fallback(`API 返回错误 ${res.status}: ${errText}`);
-                }
+          copy_one "EsprinSync.v${VERSION}" \
+            "EsprinSync.v${VERSION}"
 
-                const data = await res.json();
-                let text = data.choices?.[0]?.message?.content || "";
-                text = text.trim();
+          echo "Release assets:"
+          ls -lh release-assets
 
-                if (text.startsWith("```markdown")) {
-                  text = text.replace(/^```markdown\s*/, "").replace(/\s*```$/, "");
-                } else if (text.startsWith("```")) {
-                  text = text.replace(/^```\s*/, "").replace(/\s*```$/, "");
-                }
-
-                if (text.length > 5) {
-                  console.log("[INFO] 发行版说明生成完毕。");
-                  fs.writeFileSync("GENERATED_RELEASE.md", text, "utf8");
-                  return;
-                } else {
-                  fallback("AI 返回内容过短");
-                }
-              } catch (err) {
-                fallback("请求异常: " + err.message);
-              }
-            }
-
-            run();
-          '
-          echo "path=GENERATED_RELEASE.md" >> "$GITHUB_OUTPUT"
-
-      - name: 发布 Release
-        if: steps.check.outputs.published == 'false'
-        uses: softprops/action-gh-release@v2
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.check.outputs.tag }}
-          name: ${{ steps.check.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          body_path: ${{ steps.release_notes.outputs.path }}
-          draft: false
-          prerelease: false
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          body_path: .github/releases.md
           files: |
-            dist/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            release-assets/EsprinNemo.Web.v${{ steps.version.outputs.version }}.html
+            release-assets/EsprinNemo.v${{ steps.version.outputs.version }}.AppImage
+            release-assets/EsprinNemo.Portable.v${{ steps.version.outputs.version }}.exe
+            release-assets/EsprinNemo.Setup.v${{ steps.version.outputs.version }}.exe
+            release-assets/EsprinSync.v${{ steps.version.outputs.version }}.exe
+            release-assets/EsprinSync.v${{ steps.version.outputs.version }}
 
-      - name: 清理 Actions 缓存
-        if: ${{ !cancelled() && steps.check.outputs.published == 'false' }}
+      - name: Clean generated release files
+        if: success()
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          echo "[INFO] 清理 Actions 缓存..."
-          gh cache delete --all --repo "$GITHUB_REPOSITORY" || echo "[INFO] 没有可清理的缓存。"
+          set -euo pipefail
+
+          rm -f -- \
+            "dist/EsprinNemo.Web.v${VERSION}.html" \
+            "dist/EsprinNemo.v${VERSION}.AppImage" \
+            "dist/EsprinNemo.Portable.v${VERSION}.exe" \
+            "dist/EsprinNemo.Setup.v${VERSION}.exe" \
+            "dist/EsprinSync.v${VERSION}.exe" \
+            "dist/EsprinSync.v${VERSION}" \
+            "dist/EsprinNemo.Setup.v${VERSION}.exe.blockmap"
+
+          rm -rf -- release-assets
+
+          echo "Release assets cleaned."
+          echo "node_modules, linux-unpacked and win-unpacked were preserved."

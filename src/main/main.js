@@ -156,18 +156,34 @@ function resolveEffectiveTheme() {
   return isLight ? 'light' : 'dark';
 }
 
+function normalizeAccentHex(raw) {
+  if (typeof raw !== 'string') return '';
+  const text = raw.trim();
+  const rgb = text.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgb) {
+    const parts = rgb[1].split(',').map((item) => Number(item.trim()));
+    if (parts.length >= 3 && parts.slice(0, 3).every((value) => Number.isFinite(value))) {
+      const hex = parts.slice(0, 3)
+        .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0'))
+        .join('');
+      return `#${hex.toUpperCase()}`;
+    }
+    return '';
+  }
+  const hex = text.replace(/[^0-9a-fA-F]/g, '');
+  if (hex.length === 3) return `#${hex.split('').map((char) => char + char).join('').toUpperCase()}`;
+  if (hex.length >= 6) return `#${hex.slice(0, 6).toUpperCase()}`;
+  return '';
+}
+
 function getSystemAccentColor() {
   try {
     const { systemPreferences } = require('electron');
-    if (typeof systemPreferences.getAccentColor === 'function') {
-      const raw = systemPreferences.getAccentColor();
-      if (typeof raw === 'string' && raw.length >= 6) {
-
-        return `#${raw.slice(0, 6).toUpperCase()}`;
-      }
-    }
-  } catch (e) {}
-  return '';
+    if (typeof systemPreferences.getAccentColor !== 'function') return '';
+    return normalizeAccentHex(systemPreferences.getAccentColor());
+  } catch (e) {
+    return '';
+  }
 }
 
 function resolveAccentColor() {
@@ -875,27 +891,36 @@ function applyBackdropViaNativeApi(win) {
 function createWindow() {
   Menu.setApplicationMenu(null);
 
-const currentDataDir = resolveDataDir();
+  const currentDataDir = resolveDataDir();
 
-const initialBg = buildWindowAppearance({
+  const appearance = buildWindowAppearance({
     theme: resolveEffectiveTheme(),
-    style: resolveThemeStyle()
-  }).backgroundColor;
+    style: resolveThemeStyle(),
+    radius: resolveCornerRadius(),
+    accent: resolveAccentColor(),
+    brandColor: resolveBrandColor(),
+    fonts: resolveWindowFonts()
+  });
 
-const minSize = scaleMinWindowSize(resolveUiScale());
+  const initialBg = appearance.backgroundColor;
 
-const MICA_ARG = '--esprin-nemo-mica';
+  const minSize = scaleMinWindowSize(resolveUiScale());
+
+  const MICA_ARG = '--esprin-nemo-mica';
   let backdropEnabled = false;
   let winBuild = 0;
-  try {
-    const release = os.release();
-    winBuild = parseInt(release.split('.').pop(), 10);
-    backdropEnabled = winBuild >= 22000;
-  } catch (e) {  }
-  console.log(`[Esprin Nemo] Backdrop 检测: Build=${winBuild} Eligible=${backdropEnabled}`);
+  if (process.platform === 'win32') {
+    try {
+      const release = os.release();
+      winBuild = parseInt(release.split('.').pop(), 10);
+      backdropEnabled = winBuild >= 22000;
+    } catch (e) {  }
+    console.log(`[Esprin Nemo] Backdrop 检测: Build=${winBuild} Eligible=${backdropEnabled}`);
+  }
 
-  const additionalArgs = [DATA_DIR_ARG + currentDataDir];
+  const additionalArgs = [...appearance.args];
   if (IS_PORTABLE_RUN) additionalArgs.push(PORTABLE_ARG);
+  additionalArgs.push(`${DATA_DIR_ARG}${currentDataDir}`);
   if (backdropEnabled) additionalArgs.push(MICA_ARG);
 
   const win = new BrowserWindow({
@@ -1084,16 +1109,15 @@ if (!IS_PORTABLE_RUN) runStartupStep('应用更新', () => registerUpdateIpc());
 
 runStartupStep('启动信息', () => {
     const flavor = IS_PORTABLE_DATA_RUN ? '便携版' : (IS_DEV_RUN ? '开发运行' : '安装版');
-    console.log(`[Esprin Nemo] 启动：${flavor}，数据目录 ${resolveDataDir()}`);
+    const platform = process.platform === 'linux' ? 'Linux' : (process.platform === 'win32' ? 'Windows' : process.platform);
+    console.log(`[INFO] [Nemo] 启动：${flavor}·${platform}，数据目录 ${resolveDataDir()}`);
   });
 
-try {
+  try {
     const { systemPreferences } = require('electron');
     if (typeof systemPreferences.on === 'function') {
       systemPreferences.on('accent-color-changed', (event, newColor) => {
-        const hex = typeof newColor === 'string' && newColor.length >= 6
-          ? `#${newColor.slice(0, 6).toUpperCase()}`
-          : getSystemAccentColor();
+        const hex = normalizeAccentHex(newColor) || getSystemAccentColor();
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('system:accent-color-changed', hex);
         }
@@ -1111,12 +1135,14 @@ try {
   }
   startupReady = true;
 
-runStartupStep('桌面便利贴', () => restoreStickyNotes());
+if (process.platform === 'win32') {
+  runStartupStep('桌面便利贴', () => restoreStickyNotes());
 
-runStartupStep('桌面右键菜单', () => {
+  runStartupStep('桌面右键菜单', () => {
     registerDesktopMenu();
     handleDesktopMenuArgv(process.argv);
   });
+}
 
   if (!IS_PORTABLE_RUN) scheduleAutoChecks();
 });

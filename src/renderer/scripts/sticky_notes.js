@@ -320,6 +320,25 @@ function syncStickyNotesAppearance() {
     }
 }
 
+function isStickyFeatureSupported() {
+    return process.platform === 'win32';
+}
+
+function hideStickyFeatureUI() {
+    const btn = document.getElementById('btn-sticky-notes');
+    if (btn) {
+        btn.hidden = true;
+        btn.style.display = 'none';
+        btn.disabled = true;
+    }
+
+    const section = document.getElementById('sticky-settings-section');
+    if (section) section.style.display = 'none';
+
+    const menu = document.getElementById('sticky-notes-menu');
+    if (menu) menu.classList.add('hidden');
+}
+
 function applyStickySettingsUI() {
     const config = State.stickyNotes;
     const enabled = document.getElementById('setting-sticky-enabled');
@@ -344,8 +363,18 @@ function setStickyEnabled(enabled) {
 }
 
 function initStickyNoteSettings() {
+    if (!isStickyFeatureSupported()) {
+        hideStickyFeatureUI();
+        return;
+    }
+
     const config = State.stickyNotes;
     applyStickySettingsUI();
+
+    const layerDesc = document.getElementById('sticky-layer-desc');
+    if (layerDesc && process.platform !== 'win32') {
+        layerDesc.textContent = '便利贴按普通窗口显示（不出现在任务栏）：Linux 没有「置底」窗口接口，因此它不会始终沉在其他窗口之下。关闭某张便利贴：在它上面右键选「关闭并移除」。';
+    }
 
     const enabled = document.getElementById('setting-sticky-enabled');
     if (enabled) {

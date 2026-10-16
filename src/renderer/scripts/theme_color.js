@@ -38,13 +38,33 @@ function normalizeAccentColor(value) {
 
 let cachedSystemAccentColor = '';
 
+function normalizeSystemAccentHex(raw) {
+    if (typeof raw !== 'string') return '';
+    const text = raw.trim();
+    const rgb = text.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgb) {
+        const parts = rgb[1].split(',').map((item) => Number(item.trim()));
+        if (parts.length >= 3 && parts.slice(0, 3).every((value) => Number.isFinite(value))) {
+            const hex = parts.slice(0, 3)
+                .map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0'))
+                .join('');
+            return `#${hex.toUpperCase()}`;
+        }
+        return '';
+    }
+    const hex = text.replace(/[^0-9a-fA-F]/g, '');
+    if (hex.length === 3) return `#${hex.split('').map((char) => char + char).join('').toUpperCase()}`;
+    if (hex.length >= 6) return `#${hex.slice(0, 6).toUpperCase()}`;
+    return '';
+}
+
 function fetchSystemAccentColor() {
     try {
         const { systemPreferences } = require('electron');
         if (systemPreferences && typeof systemPreferences.getAccentColor === 'function') {
-            const raw = systemPreferences.getAccentColor();
-            if (typeof raw === 'string' && raw.length >= 6) {
-                cachedSystemAccentColor = `#${raw.slice(0, 6).toUpperCase()}`;
+            const hex = normalizeSystemAccentHex(systemPreferences.getAccentColor());
+            if (hex) {
+                cachedSystemAccentColor = hex;
                 return cachedSystemAccentColor;
             }
         }
@@ -91,7 +111,7 @@ function isLightThemeActive() {
 function applyAccentColor() {
     const rootStyle = document.documentElement.style;
     const hex = resolveAccentHex(State.accentColor);
-    if (!hex) {
+    if (!hex || !ACCENT_HEX_PATTERN.test(hex)) {
         rootStyle.removeProperty('--accent');
         rootStyle.removeProperty('--accent-bg');
         rootStyle.removeProperty('--accent-fg');

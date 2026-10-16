@@ -15,11 +15,27 @@ function isDirectory(dir) {
   }
 }
 
-function getFontDirs() {
+function getWindowsFontDirs() {
   const home = os.homedir();
   const winDir = process.env.WINDIR || 'C:\\Windows';
   const localAppData = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
   return [path.join(winDir, 'Fonts'), path.join(localAppData, 'Microsoft', 'Windows', 'Fonts')].filter(isDirectory);
+}
+
+function getLinuxFontDirs() {
+  const home = os.homedir();
+  const xdgDataHome = process.env.XDG_DATA_HOME;
+  const dataHome = xdgDataHome && path.isAbsolute(xdgDataHome) ? xdgDataHome : path.join(home, '.local', 'share');
+  return [
+    path.join(home, '.fonts'),
+    path.join(dataHome, 'fonts'),
+    '/usr/local/share/fonts',
+    '/usr/share/fonts'
+  ].filter(isDirectory);
+}
+
+function getFontDirs() {
+  return process.platform === 'linux' ? getLinuxFontDirs() : getWindowsFontDirs();
 }
 
 function collectFontFiles(dir, out, depth) {
