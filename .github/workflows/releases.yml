@@ -49,6 +49,8 @@ jobs:
         run: bun build:all
         env:
           CI: "false"
+          HOME: /tmp
+          WINEPREFIX: /tmp/.wine
 
       - name: Prepare release assets
         shell: bash
