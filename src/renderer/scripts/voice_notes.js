@@ -30,6 +30,10 @@ function voiceLang() {
     return normalizeVoiceLanguage(State.voice.lang);
 }
 
+function isVoiceSupportedPlatform() {
+    return process.platform === 'win32';
+}
+
 const VOICE_STATUS_TTL_MS = 5000;
 let voiceStatusCache = { at: 0, value: null };
 
@@ -146,6 +150,11 @@ function stopVoiceDictation(options = {}) {
 
 async function startVoiceDictation() {
 
+    if (!isVoiceSupportedPlatform()) {
+        applyVoiceBarVisibility(false);
+        showToast('随口记仅在 Windows 上可用：当前 Linux 环境已隐藏此功能');
+        return;
+    }
     if (voiceListening) {
         stopVoiceDictation();
         return;
@@ -260,9 +269,17 @@ function syncVoiceSettingsUI() {
 
 function syncVoiceEntry(item) {
     const itemId = item ? item.id : null;
-    const available = State.voice.enabled !== false && itemId !== null && !isReadOnlyItem(item);
+    const available = isVoiceSupportedPlatform()
+        && State.voice.enabled !== false
+        && itemId !== null
+        && !isReadOnlyItem(item);
     const button = voiceBarElement('btn-voice-dictate');
     if (button) button.classList.toggle('hidden', !available);
+
+    if (!isVoiceSupportedPlatform()) {
+        applyVoiceBarVisibility(false);
+        return;
+    }
 
 if (voiceListening && (!available || voiceSessionItemId !== itemId)) stopVoiceDictation({ silent: true });
     if (!available && !voiceStarting) applyVoiceBarVisibility(false);
@@ -297,8 +314,15 @@ function handleVoiceEvent(event, payload) {
 }
 
 function initVoiceNotes() {
+    if (!isVoiceSupportedPlatform()) {
+        applyVoiceBarVisibility(false);
+    }
+
     const button = voiceBarElement('btn-voice-dictate');
-    if (button) button.onclick = () => startVoiceDictation();
+    if (button) {
+        button.classList.toggle('hidden', !isVoiceSupportedPlatform());
+        button.onclick = () => startVoiceDictation();
+    }
     const stopButton = voiceBarElement('btn-voice-stop');
     if (stopButton) stopButton.onclick = () => stopVoiceDictation();
 

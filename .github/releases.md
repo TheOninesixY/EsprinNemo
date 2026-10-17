@@ -1,1 +1,1 @@
-新增Linux支持
+当是在Linux环境下运行时，将禁用依赖WindowsAPI的语音输入（随口说）
