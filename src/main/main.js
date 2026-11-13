@@ -1,6 +1,5 @@
-const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell, nativeTheme, screen } = require('electron');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const {
@@ -46,6 +45,12 @@ const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
 const { configureSyncServer, registerSyncIpc, applyAutoSyncRuntime } = require('./sync_server.js');
 const { disposeSpeechWindows, registerSpeechIpc } = require('./speech_windows.js');
+const {
+  disposeWallpaper,
+  getWallpaperSnapshot,
+  startWallpaperWatch,
+  wallpaperArg
+} = require('./wallpaper.js');
 const { configureUpdater, registerUpdateIpc, scheduleAutoChecks, isPortableRun, PORTABLE_ARG } = require('./updater.js');
 
 const APP_ROOT = app.getAppPath();
@@ -296,6 +301,42 @@ let isQuitting = false;
 
 let startupBlocked = false;
 
+let quitRequested = false;
+
+let quitCleanupDone = false;
+
+let quitFinalized = false;
+
+function requestQuit() {
+  if (quitRequested || quitFinalized) return;
+  quitRequested = true;
+  isQuitting = true;
+  app.quit();
+}
+
+function runQuitStep(label, run) {
+  try {
+    return run();
+  } catch (error) {
+    console.error(`[ERROR] [Nemo] 退出步骤「${label}」失败:`, error);
+    return null;
+  }
+}
+
+function reportProcessError(kind, error) {
+  const detail = error && error.stack ? error.stack : error;
+  console.error(`[ERROR] [Nemo] ${kind}:`, detail);
+  if (quitRequested || isQuitting) process.exitCode = 0;
+}
+
+process.on('uncaughtException', (error) => {
+  reportProcessError('未捕获异常', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  reportProcessError('未处理的 Promise rejection', reason);
+});
+
 function setupTray() {
   configureTray({
     getConfig: readUserConfig,
@@ -307,7 +348,7 @@ function setupTray() {
     onNewStickyNote: () => { createStickyNote({ kind: 'free' }); },
     onShowStickyNotes: showAllStickyNotes,
     onHideStickyNotes: hideAllStickyNotes,
-    onQuit: () => { app.quit(); },
+    onQuit: () => { requestQuit(); },
 
 onEnabledChanged: (enabled) => { if (!enabled) quitIfNoVisibleWindow(); }
   });
@@ -343,7 +384,7 @@ function quitIfNoVisibleWindow() {
   if (isQuitting || isTrayEnabled()) return;
   if (isScratchpadWindowOpen() || isStickyNoteOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
-  app.quit();
+  requestQuit();
 }
 
 function handleScratchpadClosed() {
@@ -352,7 +393,7 @@ function handleScratchpadClosed() {
 
   if (isStickyNoteOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
-  app.quit();
+  requestQuit();
 }
 
 function handleStickyNoteClosed() {
@@ -360,7 +401,7 @@ function handleStickyNoteClosed() {
   if (isTrayEnabled()) return;
   if (isScratchpadWindowOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
-  app.quit();
+  requestQuit();
 }
 
 function normalizePathForCompare(target) {
@@ -556,6 +597,53 @@ ipcMain.handle('system:get-accent-color', () => {
 
 ipcMain.on('system:get-accent-color-sync', (event) => {
   event.returnValue = getSystemAccentColor();
+});
+
+function wallpaperFramePayload(win) {
+  if (!win || win.isDestroyed()) return null;
+  try {
+    const bounds = win.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+    if (!display) return null;
+    return {
+      originX: bounds.x - display.bounds.x,
+      originY: bounds.y - display.bounds.y,
+      canvasWidth: display.bounds.width,
+      canvasHeight: display.bounds.height
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function sendWallpaperFrame(win) {
+  if (!win || win.isDestroyed()) return;
+  const contents = win.webContents;
+  if (!contents || contents.isDestroyed()) return;
+  const payload = wallpaperFramePayload(win);
+  if (!payload) return;
+  contents.send('wallpaper:frame', payload);
+}
+
+let wallpaperFrameTimer = null;
+
+function scheduleWallpaperFrame(win) {
+  if (wallpaperFrameTimer) return;
+  wallpaperFrameTimer = setTimeout(() => {
+    wallpaperFrameTimer = null;
+    sendWallpaperFrame(win);
+  }, 16);
+  if (typeof wallpaperFrameTimer.unref === 'function') wallpaperFrameTimer.unref();
+}
+
+ipcMain.handle('wallpaper:get', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  try {
+    return { ...getWallpaperSnapshot(), frame: wallpaperFramePayload(win) };
+  } catch (error) {
+    console.warn('[WARN] [Nemo] 读取桌面壁纸失败，回退主题背景:', error.message);
+    return { url: '', signature: '', source: '', reason: 'error', frame: wallpaperFramePayload(win) };
+  }
 });
 
 ipcMain.handle('notes:pick-import', async (event) => {
@@ -865,28 +953,14 @@ console.error('[Esprin Nemo] 位置记录写入失败，新的数据位置无法
 }
 
 function abortStartup(blocker) {
-  console.error('[Esprin Nemo] 便携版启动失败:', blocker.reason, blocker.dir);
+  console.error('[ERROR] [Nemo] 便携版启动失败:', blocker.reason, blocker.dir);
 
   if (!dataDir) dataDir = blocker.dataDir;
 
-isQuitting = true;
-
-  app.quit();
+  requestQuit();
 }
 
-const REVEAL_DELAY = 90;
-const REVEAL_FALLBACK_MS = 2500;
-
-function applyBackdropViaNativeApi(win) {
-  try {
-    win.setBackgroundMaterial('mica');
-    console.log('[Esprin Nemo] setBackgroundMaterial → mica');
-    return true;
-  } catch (e) {
-    console.error('[Esprin Nemo] setBackgroundMaterial 失败:', e.message);
-    return false;
-  }
-}
+const STARTUP_FALLBACK_MS = 15000;
 
 function createWindow() {
   Menu.setApplicationMenu(null);
@@ -906,22 +980,16 @@ function createWindow() {
 
   const minSize = scaleMinWindowSize(resolveUiScale());
 
-  const MICA_ARG = '--esprin-nemo-mica';
-  let backdropEnabled = false;
-  let winBuild = 0;
-  if (process.platform === 'win32') {
-    try {
-      const release = os.release();
-      winBuild = parseInt(release.split('.').pop(), 10);
-      backdropEnabled = winBuild >= 22000;
-    } catch (e) {  }
-    console.log(`[Esprin Nemo] Backdrop 检测: Build=${winBuild} Eligible=${backdropEnabled}`);
-  }
-
   const additionalArgs = [...appearance.args];
   if (IS_PORTABLE_RUN) additionalArgs.push(PORTABLE_ARG);
   additionalArgs.push(`${DATA_DIR_ARG}${currentDataDir}`);
-  if (backdropEnabled) additionalArgs.push(MICA_ARG);
+  let wallpaperPreload = '';
+  try {
+    wallpaperPreload = wallpaperArg(getWallpaperSnapshot());
+  } catch (error) {
+    console.warn('[WARN] [Nemo] 准备桌面壁纸失败，使用主题背景:', error.message);
+  }
+  if (wallpaperPreload) additionalArgs.push(wallpaperPreload);
 
   const win = new BrowserWindow({
     width: 1200,
@@ -932,7 +1000,7 @@ function createWindow() {
     show: false,
     autoHideMenuBar: true,
     icon: APP_ICON_PATH,
-    backgroundColor: backdropEnabled ? '#00000000' : initialBg,
+    backgroundColor: initialBg,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -944,36 +1012,33 @@ function createWindow() {
   });
 
   let revealed = false;
-  let backdropTried = false;
+  let startupInitialized = false;
   const reveal = (reason) => {
     if (revealed || win.isDestroyed()) return;
     revealed = true;
-    if (reason !== 'ready-to-show') {
-      console.warn(`[Esprin Nemo] ready-to-show 没有来到，已按「${reason}」显示主窗口`);
+    if (reason !== 'did-finish-load') {
+      console.warn(`[WARN] [Nemo] did-finish-load 未到达，已按「${reason}」显示主窗口`);
     }
-
-if (backdropEnabled && !backdropTried) {
-      backdropTried = true;
-      if (!applyBackdropViaNativeApi(win)) {
-        win.webContents.executeJavaScript(
-          'document.documentElement.classList.remove("mica");' +
-          'document.documentElement.style.backgroundColor="";'
-        ).catch(() => {});
-        console.error('[Esprin Nemo] vibedwm 失败，body 回退不透明');
-      }
-    }
-
     win.show();
   };
-  win.once('ready-to-show', () => reveal('ready-to-show'));
 
-  win.webContents.once('did-finish-load', () => setTimeout(() => reveal('did-finish-load'), REVEAL_DELAY));
+  win.webContents.on('did-finish-load', () => {
+    sendWallpaperFrame(win);
+    if (startupInitialized) return;
+    startupInitialized = true;
+    reveal('did-finish-load');
+  });
 
-  const revealTimer = setTimeout(() => reveal('超时'), REVEAL_FALLBACK_MS);
+  ['move', 'resize', 'moved', 'resized'].forEach((name) => {
+    win.on(name, () => scheduleWallpaperFrame(win));
+  });
+
+  const revealTimer = setTimeout(() => reveal('超时兜底'), STARTUP_FALLBACK_MS);
+  if (typeof revealTimer.unref === 'function') revealTimer.unref();
   win.once('closed', () => clearTimeout(revealTimer));
 
 win.webContents.on('render-process-gone', (event, details) => {
-    console.error('[Esprin Nemo] 主窗口渲染进程已退出:', details && details.reason);
+    console.error('[ERROR] [Nemo] 主窗口渲染进程已退出:', details && details.reason);
   });
 
 win.on('close', (event) => {
@@ -990,10 +1055,12 @@ win.on('close', (event) => {
 
   win.on('enter-full-screen', () => {
     win.webContents.send('window:fullscreen-changed', true);
+    scheduleWallpaperFrame(win);
   });
 
   win.on('leave-full-screen', () => {
     win.webContents.send('window:fullscreen-changed', false);
+    scheduleWallpaperFrame(win);
   });
 
 win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'renderer', 'main.html')).href);
@@ -1107,6 +1174,21 @@ runStartupStep('界面默认值', () => registerUiDefaults());
 
 if (!IS_PORTABLE_RUN) runStartupStep('应用更新', () => registerUpdateIpc());
 
+runStartupStep('桌面壁纸', () => {
+  startWallpaperWatch((snapshot) => {
+    if (mainWindowClosed || !mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.webContents.send('wallpaper:changed', {
+      ...snapshot,
+      frame: wallpaperFramePayload(mainWindow)
+    });
+  });
+
+  const resendFrame = () => scheduleWallpaperFrame(mainWindow);
+  screen.on('display-metrics-changed', resendFrame);
+  screen.on('display-added', resendFrame);
+  screen.on('display-removed', resendFrame);
+});
+
 runStartupStep('启动信息', () => {
     const flavor = IS_PORTABLE_DATA_RUN ? '便携版' : (IS_DEV_RUN ? '开发运行' : '安装版');
     const platform = process.platform === 'linux' ? 'Linux' : (process.platform === 'win32' ? 'Windows' : process.platform);
@@ -1145,23 +1227,34 @@ if (process.platform === 'win32') {
 }
 
   if (!IS_PORTABLE_RUN) scheduleAutoChecks();
+}).catch((error) => {
+  console.error('[ERROR] [Nemo] 启动流程失败:', error);
 });
 
 app.on('before-quit', () => {
   isQuitting = true;
+  quitRequested = true;
 
-  disposeSpeechWindows();
+  if (quitCleanupDone) return;
+  quitCleanupDone = true;
 
-disposeDesktopLayer();
-  releaseStickyNotes();
+  runQuitStep('语音识别', disposeSpeechWindows);
+  runQuitStep('桌面层', disposeDesktopLayer);
+  runQuitStep('桌面便利贴', releaseStickyNotes);
+  runQuitStep('桌面壁纸', disposeWallpaper);
 });
 
 app.on('will-quit', () => {
-  unregisterDesktopMenu();
+  if (quitFinalized) return;
+  quitFinalized = true;
+
+  runQuitStep('桌面右键菜单', unregisterDesktopMenu);
+
+  process.exitCode = 0;
+  console.log('[INFO] [Nemo] 资源清理完成，正常退出');
 });
 
 app.on('window-all-closed', () => {
-
   if (isTrayEnabled()) return;
-  app.quit();
+  requestQuit();
 });

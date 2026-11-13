@@ -15,9 +15,11 @@ async function openScratchpadWindow() {
     }
 }
 
-document.getElementById('win-min').onclick = winControls.min;
-document.getElementById('win-max').onclick = winControls.max;
-document.getElementById('win-close').onclick = winControls.close;
+function removeDesktopFullscreenButton() {
+    if (IS_WEB_RUNTIME) return;
+    const button = document.getElementById('btn-fullscreen');
+    if (button) button.remove();
+}
 
 function updateFullscreenState(isFullscreen) {
     if (isFullscreen) {
@@ -34,6 +36,12 @@ function updateFullscreenState(isFullscreen) {
         if (fsBtn) fsBtn.title = '全屏';
     }
 }
+
+document.getElementById('win-min').onclick = winControls.min;
+document.getElementById('win-max').onclick = winControls.max;
+document.getElementById('win-close').onclick = winControls.close;
+
+removeDesktopFullscreenButton();
 
 ipcRenderer.on('window:fullscreen-changed', (event, isFullscreen) => {
     updateFullscreenState(isFullscreen);

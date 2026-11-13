@@ -1,6 +1,6 @@
 const CACHE_NAME = 'esprin-nemo-web-v1';
 const HOME_URL = '/';
-const SHELL_FILES = ['/', '/boot.js', '/window_appearance.js', '/web_host.js'];
+const SHELL_FILES = ['/', '/src/renderer/boot.js', '/src/renderer/window_appearance.js', '/src/renderer/web_host.js'];
 const SHELL_PREFIXES = ['/styles/', '/scripts/', '/fonts/', '/src/', '/node_modules/material-symbols/'];
 const BYPASS_PREFIXES = ['/sync', '/admin', '/health'];
 

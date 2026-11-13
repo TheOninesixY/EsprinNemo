@@ -544,6 +544,7 @@ function openAiSettingsPanel() {
     setAiPanelOpen(false);
     openSettingsTab();
     switchSettingsCategory('ai');
+    if (typeof setSettingsSubpageOpen === 'function') setSettingsSubpageOpen(true);
 }
 
 function toggleAiAssistant() {

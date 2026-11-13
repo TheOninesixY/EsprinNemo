@@ -132,6 +132,7 @@ function openTab(noteId) {
 }
 
 function openSettingsTab() {
+    if (typeof setSettingsSubpageOpen === 'function') setSettingsSubpageOpen(false);
     if (!State.openNoteIds.includes('settings')) {
         State.openNoteIds.push('settings');
     }

@@ -1,0 +1,68 @@
+.window-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+}
+
+html.has-wallpaper .window-backdrop {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.28s ease, visibility 0s;
+}
+
+.window-backdrop-image {
+    position: absolute;
+    inset: 0;
+    background-image: var(--desktop-wallpaper, none);
+    background-position: center center;
+    background-size: cover;
+    background-repeat: no-repeat;
+}
+
+html.has-wallpaper-frame .window-backdrop-image {
+    background-size: var(--wallpaper-canvas-width, 100%) var(--wallpaper-canvas-height, 100%);
+    background-position: var(--wallpaper-origin-x, 0px) var(--wallpaper-origin-y, 0px);
+}
+
+html.has-wallpaper,
+html.has-wallpaper body {
+    background-color: transparent;
+}
+
+html.has-wallpaper .app-container {
+    position: relative;
+    z-index: 1;
+}
+
+:root.has-wallpaper {
+    --sidebar-glass-bg: rgba(13, 17, 23, 0.8);
+    --notes-glass-bg: rgba(16, 20, 27, 0.9);
+}
+
+:root.has-wallpaper.light {
+    --sidebar-glass-bg: rgba(255, 255, 255, 0.8);
+    --notes-glass-bg: rgba(255, 255, 255, 0.9);
+}
+
+html.has-wallpaper .sidebar {
+    background-color: var(--sidebar-glass-bg);
+    -webkit-backdrop-filter: blur(26px) saturate(1.18);
+    backdrop-filter: blur(26px) saturate(1.18);
+}
+
+html.has-wallpaper .notes-panel {
+    background-color: var(--notes-glass-bg);
+    -webkit-backdrop-filter: blur(22px) saturate(1.12);
+    backdrop-filter: blur(22px) saturate(1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .window-backdrop {
+        transition: none;
+    }
+}

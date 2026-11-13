@@ -34,7 +34,7 @@ uiMode: 'modern',
 
 tabsDisabled: false,
 
-    sidebarCollapsed: false,
+    sidebarCollapsed: true,
 
     trashRetentionDays: 0,
 

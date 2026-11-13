@@ -4,6 +4,7 @@
     if (typeof window.require === 'function') return;
 
     const WEB_MODE_CLASS = 'web-mode';
+    document.documentElement.classList.add(WEB_MODE_CLASS);
     const DATA_DIR = '/esprin/data';
     const APP_DATA_DIR = '/esprin/appdata';
     const CONFIG_DIR = '/esprin/appdata/esprin_nemo';

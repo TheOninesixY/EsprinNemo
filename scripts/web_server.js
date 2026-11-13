@@ -11,6 +11,7 @@ const { URL } = require('url');
 const MODULE = 'WebServer';
 const WEB_ROOT = path.resolve(__dirname, '..');
 const ENTRY_PATH = '/src/renderer/main.html';
+const ENTRY_DIR = path.posix.dirname(ENTRY_PATH);
 const STATIC_ALIASES = { '/sw.js': '/src/renderer/sw.js' };
 const BLOCKED_PREFIXES = ['/data/', '/.git/'];
 const DEFAULT_PORT = 4569;
@@ -164,11 +165,17 @@ function faviconTag() {
     }
 }
 
+function injectBase(html) {
+    if (/<base\b/i.test(html)) return html;
+    return html.replace(/<head\b[^>]*>/i, `$&<base href="${ENTRY_DIR}/">`);
+}
+
 function injectVersion(html) {
     const payload = { version: readAppVersion(), notes: readReleaseNotes() };
     const json = JSON.stringify(payload).replace(/</g, '\\u003c');
     const tag = `<script>window.__esprinVersion=${JSON.stringify(payload.version)};window.__esprinReleaseNotes=${json};</script>\n`;
-    const withGlobals = html.replace(/<script\b/i, `${tag}$&`);
+    const withBase = injectBase(html);
+    const withGlobals = withBase.replace(/<script\b/i, `${tag}$&`);
     const icon = faviconTag();
     return icon ? withGlobals.replace(/<\/head>/i, `${icon}\n</head>`) : withGlobals;
 }
@@ -196,14 +203,16 @@ function serveFile(filePath, res, options = {}) {
     return true;
 }
 
-function redirect(res, location) {
-    res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' });
-    res.end();
-}
-
 function serveStatic(pathname, res) {
+    const entryFile = path.join(WEB_ROOT, ENTRY_PATH);
+
     if (pathname === '/') {
-        redirect(res, ENTRY_PATH);
+        try {
+            if (serveFile(entryFile, res, { injectVersion: true })) return;
+        } catch (error) {
+            console.warn(`[WARN] [${MODULE}] 入口页读取失败 (detail=${error.message})`);
+        }
+        sendJson(res, 404, { error: '入口页不存在' });
         return;
     }
 
@@ -213,8 +222,6 @@ function serveStatic(pathname, res) {
         sendJson(res, 400, { error: '路径非法' });
         return;
     }
-
-    const entryFile = path.join(WEB_ROOT, ENTRY_PATH);
 
     try {
         if (fs.existsSync(target) && serveFile(target, res, { injectVersion: target === entryFile })) return;
@@ -287,7 +294,7 @@ function main() {
     });
 
     server.listen(port, host, () => {
-        console.log(`[INFO] [${MODULE}] 监听 http://${host}:${port}${ENTRY_PATH} (root=${path.relative(process.cwd(), WEB_ROOT)})`);
+        console.log(`[INFO] [${MODULE}] 监听 http://${host}:${port}/ (root=${path.relative(process.cwd(), WEB_ROOT)})`);
         console.log(`[INFO] [${MODULE}] 同步接口转发 ${upstream ? `-> ${upstream}` : '未启用 (ESPRIN_SYNC_UPSTREAM)'}`);
     });
 

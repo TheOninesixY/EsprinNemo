@@ -3,11 +3,19 @@ const SETTINGS_CATEGORIES = [
     { id: 'appearance', label: '外观', icon: 'palette', desc: '界面布局、缩放、主题与字体' },
     { id: 'ai', label: 'AI 助手', icon: 'chat_bubble', desc: '接口、密钥与提问上下文' },
     { id: 'secret', label: '秘密本', icon: 'lock', desc: '隐藏或已加密的文档：隐藏的条目只在这里能找到' },
-    { id: 'data', label: '数据与同步', icon: 'folder', desc: '本地数据目录、文件日志与自建同步' },
+    { id: 'data', label: '数据与同步', icon: 'folder', desc: '本地数据目录、文件导入、文件日志与自建同步' },
     { id: 'system', label: '系统', icon: 'dock_to_bottom', desc: '开机自启、托盘、桌面便利贴与更新版本' }
 ];
 
 let activeSettingsCategory = SETTINGS_CATEGORIES[0].id;
+
+let settingsSubpageOpen = false;
+
+function setSettingsSubpageOpen(open) {
+    settingsSubpageOpen = !!open;
+    const view = document.getElementById('settings-view');
+    if (view) view.classList.toggle('is-subpage', settingsSubpageOpen);
+}
 
 function switchSettingsCategory(id) {
 
@@ -36,6 +44,11 @@ function switchSettingsCategory(id) {
     const headerDesc = document.getElementById('settings-header-desc');
     if (headerDesc) headerDesc.textContent = category.desc;
 
+    const crumbIcon = document.getElementById('settings-crumb-icon');
+    if (crumbIcon) crumbIcon.textContent = category.icon;
+    const crumbText = document.getElementById('settings-crumb-text');
+    if (crumbText) crumbText.textContent = category.label;
+
 const content = document.querySelector('#settings-view .settings-content');
     if (content) content.scrollTop = 0;
 
@@ -60,10 +73,18 @@ item.title = category.label;
                 <span class="ms-icon sm">${category.icon}</span>
                 <span class="settings-nav-label">${escapeHTML(category.label)}</span>
             </span>
+            <span class="ms-icon sm settings-nav-chevron">chevron_right</span>
         `;
-        item.onclick = () => switchSettingsCategory(category.id);
+        item.onclick = () => {
+            switchSettingsCategory(category.id);
+            setSettingsSubpageOpen(true);
+        };
         nav.appendChild(item);
     });
 
+    const crumb = document.getElementById('btn-settings-crumb');
+    if (crumb) crumb.onclick = () => setSettingsSubpageOpen(false);
+
     switchSettingsCategory(activeSettingsCategory);
+    setSettingsSubpageOpen(false);
 }

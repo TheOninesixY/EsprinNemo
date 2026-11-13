@@ -5,4 +5,4 @@
 - 该项目使用Bun开发，严禁使用npm等其他nodejs包管理器
 - 严禁在代码中添加任何注释
 - 项目输出要有`[INFO]`、`[WARN]`、`[ERROR]`这三种日志输出，且要加上`[项目]`，例如：`[INFO] [Nemo] 本地预览已启动。`、`[INFO] [WebBuild] 构建成功。`。
-- 该项目仅支持Windows和Linux，所以无须添加任何MacOS支持
+- 该项目仅支持Windows和Linux，禁止增加MacOS支持。

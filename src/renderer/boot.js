@@ -14,6 +14,9 @@ const UI_SCALE_MIN = 0.5;
 const UI_SCALE_MAX = 2;
 const UI_SCALE_DEFAULT = 1;
 
+const WALLPAPER_ARG_PREFIX = '--esprin-nemo-wallpaper=';
+const WALLPAPER_CLASS = 'has-wallpaper';
+
 function normalizeUiScale(value) {
     const num = Number(value);
     if (!Number.isFinite(num)) return UI_SCALE_DEFAULT;
@@ -25,10 +28,32 @@ const PORTABLE_ARG = '--esprin-nemo-portable';
 const IS_PORTABLE_RUN = (process.argv || []).includes(PORTABLE_ARG)
     || !!(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR);
 
-const MICA_ARG = '--esprin-nemo-mica';
-const IS_MICA_ENABLED = (process.argv || []).includes(MICA_ARG);
-if (IS_MICA_ENABLED) {
-    document.documentElement.classList.add('mica');
+const IS_WEB_RUNTIME = (() => {
+    try {
+        return !(process.versions && process.versions.electron);
+    } catch (e) {
+        return true;
+    }
+})();
+
+document.documentElement.classList.add(IS_WEB_RUNTIME ? 'web-runtime' : 'desktop-runtime');
+
+document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
+
+function readWallpaperUrl() {
+    try {
+        const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(WALLPAPER_ARG_PREFIX));
+        if (!matched) return '';
+        return matched.slice(WALLPAPER_ARG_PREFIX.length).trim();
+    } catch (e) {
+        return '';
+    }
+}
+
+const initialWallpaperUrl = readWallpaperUrl();
+if (initialWallpaperUrl) {
+    document.documentElement.style.setProperty('--desktop-wallpaper', `url("${initialWallpaperUrl}")`);
+    document.documentElement.classList.add(WALLPAPER_CLASS);
 }
 
 function resolveDataDir() {
@@ -69,22 +94,18 @@ try {
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
         if (config && config.uiScale !== undefined) uiScale = config.uiScale;
 
-if (config && config.sidebarCollapsed) {
-            document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
-        }
-
-if (config && config.uiMode !== 'classic' && config.uiMode !== 'standard') {
+        if (config && config.uiMode !== 'classic' && config.uiMode !== 'standard') {
             document.documentElement.classList.add(MODERN_LAYOUT_CLASS);
 
-if (config.tabsDisabled === true || config.lineHideTabs === true) {
+            if (config.tabsDisabled === true || config.lineHideTabs === true) {
                 document.documentElement.classList.add(TABS_DISABLED_CLASS);
             }
         }
     }
 
-webFrame.setZoomFactor(normalizeUiScale(uiScale));
+    webFrame.setZoomFactor(normalizeUiScale(uiScale));
 
-const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
     applyWindowAppearance({
         theme: isLight ? 'light' : 'dark',
         style: themeStyle,

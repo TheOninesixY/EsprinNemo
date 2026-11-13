@@ -28,146 +28,14 @@ function renderApp() {
     renderTabs();
     renderListPanel();
     renderWorkspace();
-}
-
-const SIDEBAR_WIDTH_TRANSITION_MS = 180;
-
-const SIDEBAR_TEXT_FADE_MS = 160;
-
-const SIDEBAR_ICONS_FADING_CLASS = 'icons-fading';
-
-let sidebarFadeTimer = null;
-let sidebarCollapseTimer = null;
-let sidebarFadeInBound = false;
-
-function finishSidebarTextFadeIn() {
-    if (sidebarFadeTimer) {
-        clearTimeout(sidebarFadeTimer);
-        sidebarFadeTimer = null;
-    }
-    const sidebar = document.getElementById('app-sidebar');
-    if (sidebar) sidebar.classList.remove('text-fading', SIDEBAR_ICONS_FADING_CLASS);
-}
-
-function clearSidebarCollapseTimer() {
-    if (sidebarCollapseTimer) {
-        clearTimeout(sidebarCollapseTimer);
-        sidebarCollapseTimer = null;
-    }
-}
-
-function scheduleSidebarFadeInFallback() {
-    if (sidebarFadeTimer) clearTimeout(sidebarFadeTimer);
-    sidebarFadeTimer = setTimeout(finishSidebarTextFadeIn, SIDEBAR_WIDTH_TRANSITION_MS + 60);
+    if (typeof syncMobileNav === 'function') syncMobileNav();
 }
 
 function applySidebarCollapsed() {
+    const root = document.documentElement;
+    root.classList.add(SIDEBAR_COLLAPSED_CLASS);
     const sidebar = document.getElementById('app-sidebar');
-    if (!sidebar) return;
-
-if (!sidebarFadeInBound) {
-        sidebar.addEventListener('transitionend', (e) => {
-            if (e.target === sidebar && e.propertyName === 'width') finishSidebarTextFadeIn();
-        });
-        sidebarFadeInBound = true;
-    }
-
-    const collapsed = !!State.sidebarCollapsed;
-
-const rootClass = document.documentElement.classList;
-    const wasCollapsed = rootClass.contains(SIDEBAR_COLLAPSED_CLASS);
-    const fading = sidebar.classList.contains('text-fading');
-
-    if (collapsed) {
-        if (wasCollapsed) {
-
-            clearSidebarCollapseTimer();
-            finishSidebarTextFadeIn();
-        } else if (!fading) {
-
-            sidebar.classList.add('text-fading', SIDEBAR_ICONS_FADING_CLASS);
-            clearSidebarCollapseTimer();
-            sidebarCollapseTimer = setTimeout(() => {
-                sidebarCollapseTimer = null;
-
-rootClass.add(SIDEBAR_COLLAPSED_CLASS);
-
-scheduleSidebarFadeInFallback();
-            }, SIDEBAR_TEXT_FADE_MS);
-        }
-
-    } else {
-        clearSidebarCollapseTimer();
-        rootClass.remove(SIDEBAR_COLLAPSED_CLASS);
-        if (wasCollapsed) {
-
-            sidebar.classList.add('text-fading');
-
-            scheduleSidebarFadeInFallback();
-        } else {
-
-            finishSidebarTextFadeIn();
-        }
-    }
-
-    const btn = document.getElementById('btn-toggle-sidebar');
-    if (btn) btn.title = collapsed ? '展开侧边栏' : '收起侧边栏';
-
-    const icon = document.getElementById('sidebar-toggle-icon');
-    if (icon) icon.textContent = collapsed ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left';
-}
-
-function toggleSidebarOverlay() {
-    if (document.documentElement.classList.contains('sidebar-overlay-open')) {
-        closeSidebarOverlay();
-    } else {
-        openSidebarOverlay();
-    }
-}
-
-function openSidebarOverlay() {
-    const html = document.documentElement;
-    html.classList.add('sidebar-overlay-open');
-    const sidebar = document.getElementById('app-sidebar');
-    if (sidebar) {
-        sidebar.classList.remove('text-fading', SIDEBAR_ICONS_FADING_CLASS);
-    }
-    html.classList.remove(SIDEBAR_COLLAPSED_CLASS);
-    const icon = document.getElementById('sidebar-toggle-icon');
-    if (icon) icon.textContent = 'keyboard_double_arrow_left';
-}
-
-function closeSidebarOverlay() {
-    const html = document.documentElement;
-    html.classList.add(SIDEBAR_COLLAPSED_CLASS);
-    const sidebar = document.getElementById('app-sidebar');
-    const finish = () => {
-        html.classList.remove('sidebar-overlay-open');
-        const icon = document.getElementById('sidebar-toggle-icon');
-        if (icon) icon.textContent = 'keyboard_double_arrow_right';
-    };
-    if (sidebar) {
-        sidebar.addEventListener('transitionend', function handler(e) {
-            if (e.propertyName === 'width') {
-                sidebar.removeEventListener('transitionend', handler);
-                finish();
-            }
-        });
-    }
-    setTimeout(finish, 250);
-}
-
-function toggleSidebarCollapsed() {
-    if (window.innerWidth < NARROW_WINDOW_THRESHOLD && State.activeNoteId != null) {
-        toggleSidebarOverlay();
-        return;
-    }
-    if (document.documentElement.classList.contains('sidebar-overlay-open')) {
-        closeSidebarOverlay();
-    }
-    State.sidebarCollapsed = !State.sidebarCollapsed;
-    applySidebarCollapsed();
-    saveConfig();
+    if (sidebar) sidebar.classList.remove('text-fading', 'icons-fading');
 }
 
 function panelCategoryTitle(filter) {
@@ -221,7 +89,6 @@ let activeNoteCount = 0;
 const clearBtn = document.getElementById('btn-empty-trash');
     clearBtn.classList.toggle('hidden', State.currentFilter !== 'trash');
 
-document.getElementById('btn-import-note').classList.toggle('hidden', State.currentFilter === 'trash');
     document.getElementById('panel-category-title').textContent = panelCategoryTitle(State.currentFilter);
 }
 
@@ -237,6 +104,7 @@ function renderFolders() {
         const isSelected = State.currentFilter === `folder:${folder}`;
         const item = document.createElement('div');
         item.className = `nav-item folder-item ${isSelected ? 'active' : ''}`;
+        item.title = folder;
         item.innerHTML = `
             <div class="nav-item-left">
                 <span class="ms-icon sm">folder</span>
@@ -282,7 +150,7 @@ function renderTags() {
     container.innerHTML = '';
 
     if (tagSet.size === 0) {
-        container.innerHTML = `<span style="font-size: 11px; color: var(--text-muted); padding: 4px;">无标签</span>`;
+        container.innerHTML = '<span class="tag-pill tag-pill-empty" title="无标签"><span class="ms-icon xs">sell</span></span>';
         return;
     }
 
@@ -290,7 +158,8 @@ function renderTags() {
         const isSelected = State.currentFilter === `tag:${tag}`;
         const pill = document.createElement('span');
         pill.className = `tag-pill ${isSelected ? 'active' : ''}`;
-        pill.textContent = `#${tag}`;
+        pill.title = `#${tag}`;
+        pill.innerHTML = '<span class="ms-icon xs">sell</span>';
         pill.addEventListener('click', () => {
             State.currentFilter = isSelected ? 'all' : `tag:${tag}`;
             renderApp();

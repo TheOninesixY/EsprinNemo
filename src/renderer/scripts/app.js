@@ -61,7 +61,7 @@ let saved = {};
     State.uiMode = normalizeUiMode(saved.uiMode);
 
     State.tabsDisabled = saved.tabsDisabled === true;
-    State.sidebarCollapsed = !!saved.sidebarCollapsed;
+    State.sidebarCollapsed = true;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;
 
@@ -132,6 +132,7 @@ runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('随口记', initVoiceNotes);
 
     runBootStep('事件绑定', setupEvents);
+    runBootStep('手机端布局', initMobile);
     runBootStep('废纸篓保留期限', syncTrashRetentionSelect);
     runBootStep('数据存放位置', refreshDataDirInfo);
     runBootStep('自建同步设置', initSyncServerSettings);
@@ -182,54 +183,12 @@ trashPurgeTimer = setInterval(() => {
 updateNarrowLayout();
 };
 
-let narrowAutoSidebar = false;
-
 function updateNarrowLayout() {
     const narrow = window.innerWidth < NARROW_WINDOW_THRESHOLD;
-    const editorEmpty = State.activeNoteId == null;
     const html = document.documentElement;
 
-    if (typeof closeSidebarOverlay === 'function' && !narrow && html.classList.contains('sidebar-overlay-open')) {
-        closeSidebarOverlay();
-    }
-    if (typeof closeSidebarOverlay === 'function' && editorEmpty && html.classList.contains('sidebar-overlay-open')) {
-        closeSidebarOverlay();
-    }
-
-    if (narrow) {
-        if (editorEmpty) {
-
-            html.classList.add('narrow-hide-editor');
-
-            if (narrowAutoSidebar) {
-                html.classList.remove(SIDEBAR_COLLAPSED_CLASS);
-                narrowAutoSidebar = false;
-            }
-        } else {
-
-            html.classList.remove('narrow-hide-editor');
-            if (!html.classList.contains('sidebar-overlay-open') && !html.classList.contains(SIDEBAR_COLLAPSED_CLASS)) {
-                html.classList.add(SIDEBAR_COLLAPSED_CLASS);
-                narrowAutoSidebar = true;
-            }
-        }
-    } else {
-
-        html.classList.remove('narrow-hide-editor');
-        if (narrowAutoSidebar) {
-
-            narrowAutoSidebar = false;
-            if (!State.sidebarCollapsed) {
-                html.classList.remove(SIDEBAR_COLLAPSED_CLASS);
-            }
-        }
-
-        if (State.sidebarCollapsed) {
-            html.classList.add(SIDEBAR_COLLAPSED_CLASS);
-        } else if (!narrowAutoSidebar) {
-            html.classList.remove(SIDEBAR_COLLAPSED_CLASS);
-        }
-    }
+    html.classList.add(SIDEBAR_COLLAPSED_CLASS);
+    html.classList.toggle('narrow-hide-editor', narrow && State.activeNoteId == null);
 }
 
 window.addEventListener('resize', updateNarrowLayout);

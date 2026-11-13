@@ -19,9 +19,6 @@ document.getElementById('btn-new-note').onclick = (e) => {
 
     document.getElementById('btn-empty-new').onclick = (e) => toggleNewItemMenu(e.currentTarget);
 
-document.getElementById('btn-import-note').onclick = () => importNoteFiles();
-    document.getElementById('btn-toggle-sidebar').onclick = toggleSidebarCollapsed;
-
     document.getElementById('input-note-title').oninput = autoSaveActiveItem;
     const contentTextarea = document.getElementById('textarea-note-content');
     contentTextarea.oninput = () => {
@@ -208,6 +205,9 @@ const btnDataChange = document.getElementById('btn-data-change');
     const btnDataOpen = document.getElementById('btn-data-open');
     if (btnDataOpen) btnDataOpen.onclick = openDataDir;
 
+    const btnDataImport = document.getElementById('btn-data-import');
+    if (btnDataImport) btnDataImport.onclick = () => importNoteFiles();
+
     document.getElementById('btn-theme-toggle').onclick = () => {
 
         if (State.theme === 'system') {
@@ -221,9 +221,12 @@ const btnDataChange = document.getElementById('btn-data-change');
         saveConfig();
     };
 
-    document.getElementById('btn-fullscreen').onclick = () => {
-        winControls.toggleFullscreen();
-    };
+    const fullscreenButton = document.getElementById('btn-fullscreen');
+    if (fullscreenButton) {
+        fullscreenButton.onclick = () => {
+            winControls.toggleFullscreen();
+        };
+    }
 
 document.getElementById('btn-scratchpad').onclick = () => {
         openScratchpadWindow();
@@ -306,7 +309,6 @@ const importIds = new Set();
     document.querySelectorAll('.sidebar .nav-item[data-filter]').forEach(item => {
         item.onclick = () => {
             State.currentFilter = item.getAttribute('data-filter');
-            if (typeof closeSidebarOverlay === 'function') closeSidebarOverlay();
             renderApp();
         };
     });
@@ -464,18 +466,4 @@ if (key === 'tab') {
             showToast('已保存');
         }
     };
-
-    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
-    if (sidebarBackdrop) sidebarBackdrop.onclick = () => {
-        if (typeof closeSidebarOverlay === 'function') closeSidebarOverlay();
-    };
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            const html = document.documentElement;
-            if (html.classList.contains('sidebar-overlay-open')) {
-                if (typeof closeSidebarOverlay === 'function') closeSidebarOverlay();
-            }
-        }
-    });
 }
