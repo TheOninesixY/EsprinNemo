@@ -201,76 +201,11 @@ document.getElementById('folder-context-menu').onclick = (e) => {
     else if (action === 'delete-folder') deleteFolder(folder);
 };
 
-const NEW_ITEM_ACTIONS = [
-    { action: 'new-note', icon: 'description', label: '新建笔记' },
-    { action: 'new-todo', icon: 'check_box', label: '新建待办' },
-    { action: 'import-note', icon: 'file_upload', label: '导入文件' }
-];
-
-function showNewItemMenu(anchor) {
-    const menu = document.getElementById('new-item-menu');
-    menu.innerHTML = '';
-
-    NEW_ITEM_ACTIONS.forEach(entry => {
-
-        const el = document.createElement('button');
-        el.type = 'button';
-        el.className = 'dropdown-option';
-        el.dataset.action = entry.action;
-
-        const icon = document.createElement('span');
-        icon.className = 'ms-icon sm';
-        icon.textContent = entry.icon;
-
-        const label = document.createElement('span');
-        label.className = 'dropdown-option-text';
-        label.textContent = entry.label;
-
-        el.append(icon, label);
-        menu.appendChild(el);
-    });
-
-    const rect = anchor ? anchor.getBoundingClientRect() : null;
-    const x = rect ? rect.left : 8;
-    const y = rect ? rect.bottom + 4 : 8;
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-    menu.classList.remove('hidden');
-
-    const menuRect = menu.getBoundingClientRect();
-    menu.style.left = `${Math.max(4, Math.min(x, window.innerWidth - menuRect.width - 4))}px`;
-    menu.style.top = `${Math.max(4, Math.min(y, window.innerHeight - menuRect.height - 4))}px`;
-}
-
-function hideNewItemMenu() {
-    document.getElementById('new-item-menu').classList.add('hidden');
-}
-
-function toggleNewItemMenu(anchor) {
-    const menu = document.getElementById('new-item-menu');
-    if (menu.classList.contains('hidden')) showNewItemMenu(anchor);
-    else hideNewItemMenu();
-}
-
-document.getElementById('new-item-menu').onclick = (e) => {
-    const target = e.target.closest('[data-action]');
-    if (!target) return;
-    const action = target.getAttribute('data-action');
-    hideNewItemMenu();
-    if (action === 'new-note') createNewNote();
-    else if (action === 'new-todo') createNewTodo();
-    else if (action === 'import-note') importNoteFiles();
-};
-
 window.addEventListener('click', (e) => {
     if (!e.target.closest('#note-context-menu')) hideContextMenu();
     if (!e.target.closest('#folder-context-menu')) hideFolderContextMenu();
 
     if (!e.target.closest('#sticky-notes-menu') && !e.target.closest('#btn-sticky-notes')) {
         if (typeof hideStickyMenu === 'function') hideStickyMenu();
-    }
-    const isNewMenuTrigger = !!e.target.closest('#btn-empty-new');
-    if (!e.target.closest('#new-item-menu') && !isNewMenuTrigger) {
-        hideNewItemMenu();
     }
 });

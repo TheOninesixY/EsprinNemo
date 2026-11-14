@@ -9,16 +9,7 @@ const SETTINGS_CATEGORIES = [
 
 let activeSettingsCategory = SETTINGS_CATEGORIES[0].id;
 
-let settingsSubpageOpen = false;
-
-function setSettingsSubpageOpen(open) {
-    settingsSubpageOpen = !!open;
-    const view = document.getElementById('settings-view');
-    if (view) view.classList.toggle('is-subpage', settingsSubpageOpen);
-}
-
 function switchSettingsCategory(id) {
-
     const category = SETTINGS_CATEGORIES.find(c => c.id === id) || SETTINGS_CATEGORIES[0];
     activeSettingsCategory = category.id;
 
@@ -44,15 +35,18 @@ function switchSettingsCategory(id) {
     const headerDesc = document.getElementById('settings-header-desc');
     if (headerDesc) headerDesc.textContent = category.desc;
 
+    const topbarCurrent = document.getElementById('settings-topbar-current');
+    if (topbarCurrent) topbarCurrent.textContent = category.label;
+
     const crumbIcon = document.getElementById('settings-crumb-icon');
     if (crumbIcon) crumbIcon.textContent = category.icon;
     const crumbText = document.getElementById('settings-crumb-text');
     if (crumbText) crumbText.textContent = category.label;
 
-const content = document.querySelector('#settings-view .settings-content');
+    const content = document.querySelector('#settings-view .settings-content');
     if (content) content.scrollTop = 0;
 
-if (category.id === 'system' && typeof refreshUpdateInfo === 'function') refreshUpdateInfo();
+    if (category.id === 'system' && typeof refreshUpdateInfo === 'function') refreshUpdateInfo();
 }
 
 function initSettingsNav() {
@@ -66,25 +60,25 @@ function initSettingsNav() {
         item.className = 'nav-item settings-nav-item';
         item.dataset.settingsTarget = category.id;
 
-item.title = category.label;
+        item.title = category.label;
         item.setAttribute('aria-label', category.label);
         item.innerHTML = `
             <span class="nav-item-left">
                 <span class="ms-icon sm">${category.icon}</span>
                 <span class="settings-nav-label">${escapeHTML(category.label)}</span>
             </span>
-            <span class="ms-icon sm settings-nav-chevron">chevron_right</span>
         `;
-        item.onclick = () => {
-            switchSettingsCategory(category.id);
-            setSettingsSubpageOpen(true);
-        };
+        item.onclick = () => switchSettingsCategory(category.id);
         nav.appendChild(item);
     });
 
     const crumb = document.getElementById('btn-settings-crumb');
-    if (crumb) crumb.onclick = () => setSettingsSubpageOpen(false);
+    if (crumb) crumb.onclick = () => closeSettingsTab();
 
     switchSettingsCategory(activeSettingsCategory);
-    setSettingsSubpageOpen(false);
+}
+
+function closeSettingsTab() {
+    if (typeof closeTab === 'function') closeTab('settings');
+    renderApp();
 }

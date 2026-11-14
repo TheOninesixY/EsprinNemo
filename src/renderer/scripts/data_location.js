@@ -199,6 +199,12 @@ if (State.currentFilter.startsWith('folder:')) {
         if (!State.notes.some(hasTag) && !State.todos.some(hasTag)) State.currentFilter = 'all';
     }
 
+    if (State.filterFolder && !State.folders.includes(State.filterFolder)) State.filterFolder = '';
+    if (State.filterTag) {
+        const hasFilterTag = (item) => Array.isArray(item.tags) && item.tags.includes(State.filterTag);
+        if (!State.notes.some(hasFilterTag) && !State.todos.some(hasFilterTag)) State.filterTag = '';
+    }
+
     applyTheme();
     applyThemeStyle();
     applyCornerRadius();

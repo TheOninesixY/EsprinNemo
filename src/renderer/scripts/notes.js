@@ -1,7 +1,11 @@
 function newNoteDefaults() {
+    const folder = State.filterFolder
+        || (State.currentFilter.startsWith('folder:') ? State.currentFilter.replace('folder:', '') : '');
+    const tag = State.filterTag
+        || (State.currentFilter.startsWith('tag:') ? State.currentFilter.replace('tag:', '') : '');
     return {
-        folder: State.currentFilter.startsWith('folder:') ? State.currentFilter.replace('folder:', '') : '默认',
-        tags: State.currentFilter.startsWith('tag:') ? [State.currentFilter.replace('tag:', '')] : []
+        folder: folder || '默认',
+        tags: tag ? [tag] : []
     };
 }
 
@@ -140,7 +144,6 @@ function openTab(noteId) {
 }
 
 function openSettingsTab() {
-    if (typeof setSettingsSubpageOpen === 'function') setSettingsSubpageOpen(false);
     if (!State.openNoteIds.includes('settings')) {
         State.openNoteIds.push('settings');
     }
@@ -558,6 +561,8 @@ function getFilteredItems() {
     const onlyTodos = filter === 'todos';
     const folderFilter = filter.startsWith('folder:') ? filter.slice(7) : null;
     const tagFilter = filter.startsWith('tag:') ? filter.slice(4) : null;
+    const refineFolder = State.filterFolder || '';
+    const refineTag = State.filterTag || '';
     const query = State.searchQuery.trim().toLowerCase();
     const sortBy = State.sortBy;
 
@@ -577,6 +582,9 @@ const consider = (item, isTodo) => {
             if (folderFilter !== null && item.folder !== folderFilter) return;
             if (tagFilter !== null && (!item.tags || !item.tags.includes(tagFilter))) return;
         }
+
+        if (refineFolder && item.folder !== refineFolder) return;
+        if (refineTag && (!Array.isArray(item.tags) || !item.tags.includes(refineTag))) return;
 
         if (query && !itemSearchText(item).includes(query)) return;
 

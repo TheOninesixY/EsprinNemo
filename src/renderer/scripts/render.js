@@ -1,5 +1,7 @@
 const renderSignatures = { tabs: null, list: null };
 
+const SETTINGS_OPEN_CLASS = 'settings-open';
+
 const LIST_RENDER_CHUNK = 80;
 
 let listRenderToken = 0;
@@ -26,7 +28,7 @@ function renderApp() {
     renderTabs();
     renderListPanel();
     renderWorkspace();
-    if (typeof refreshFilterPopoverIfOpen === 'function') refreshFilterPopoverIfOpen();
+    if (typeof refreshFilterDrawerIfOpen === 'function') refreshFilterDrawerIfOpen();
     if (typeof syncMobileNav === 'function') syncMobileNav();
 }
 
@@ -74,11 +76,18 @@ let activeNoteCount = 0;
     document.getElementById('count-trash').textContent = trashedCount;
     document.getElementById('sidebar-stat').textContent = `${activeNoteCount} 篇笔记 · ${activeTodoCount} 项待办`;
 
+    const inSettings = State.activeNoteId === 'settings';
     sidebarNavItems.forEach(el => {
         const f = el.getAttribute('data-filter');
-        if (f === State.currentFilter) el.classList.add('active');
+        if (!inSettings && f === State.currentFilter) el.classList.add('active');
         else el.classList.remove('active');
     });
+
+    const settingsBtn = document.getElementById('btn-open-settings');
+    if (settingsBtn) {
+        settingsBtn.classList.toggle('active', inSettings);
+        settingsBtn.setAttribute('aria-pressed', inSettings ? 'true' : 'false');
+    }
 
 const clearBtn = document.getElementById('btn-empty-trash');
     clearBtn.classList.toggle('hidden', State.currentFilter !== 'trash');
@@ -86,11 +95,10 @@ const clearBtn = document.getElementById('btn-empty-trash');
     const newBtn = document.getElementById('btn-new-item');
     if (newBtn) newBtn.classList.toggle('hidden', State.currentFilter === 'trash');
 
-    if (typeof syncFilterTriggerState === 'function') syncFilterTriggerState();
-
     if (typeof syncNewButtonTitles === 'function') syncNewButtonTitles();
 
-    document.getElementById('panel-category-title').textContent = panelCategoryTitle(State.currentFilter);
+    const refinement = typeof filterRefinementLabel === 'function' ? filterRefinementLabel() : '';
+    document.getElementById('panel-category-title').textContent = `${panelCategoryTitle(State.currentFilter)}${refinement}`;
 }
 
 function getAllTags() {
@@ -631,12 +639,12 @@ function renderListPanel() {
     const placeholder = searchPlaceholderText(State.currentFilter);
     if (searchInput.placeholder !== placeholder) searchInput.placeholder = placeholder;
 
-const signature = `${State.currentFilter}\u0001${State.searchQuery}\u0002${State.sortBy}\u0003${State.activeNoteId}\u0004`
+const signature = `${State.currentFilter}\u0001${State.filterFolder}\u0007${State.filterTag}\u0008${State.searchQuery}\u0002${State.sortBy}\u0003${State.activeNoteId}\u0004`
         + list.map(item => `${item.id}\u0005${isTodoItem(item) ? 1 : 0}\u0005${isSharedItem(item) ? 1 : 0}\u0005${item.title || ''}\u0005${formatDate(item.updatedAt)}\u0005${item.folder}\u0005${item.isPinned ? 1 : 0}\u0005${item.isDone ? 1 : 0}\u0005${notePreviewText(item)}`).join('\u0006');
     if (renderSignatures.list === signature) return;
     renderSignatures.list = signature;
 
-const enterKey = `${State.currentFilter}\u0001${State.searchQuery}\u0002${State.sortBy}`;
+const enterKey = `${State.currentFilter}\u0001${State.filterFolder}\u0007${State.filterTag}\u0008${State.searchQuery}\u0002${State.sortBy}`;
     if (enterKey !== listEnterKey) {
         listEnterKey = enterKey;
         playListEnter(container);
@@ -723,12 +731,20 @@ function renderWorkspace() {
     const contentArea = document.querySelector('.editor-content-area');
     const footer = document.querySelector('.editor-footer');
     const editorBody = document.querySelector('.editor-body');
+    const settingsSidebar = document.getElementById('settings-sidebar');
+    const notesList = document.getElementById('notes-list-box');
+    const notesHeader = document.querySelector('.notes-panel-header');
 
 if (State.activeNoteId === 'settings') {
-        if (sidebar) sidebar.classList.add('hidden');
-        if (notesPanel) notesPanel.classList.add('hidden');
-        if (workspace) workspace.classList.add('hidden');
+        document.documentElement.classList.add(SETTINGS_OPEN_CLASS);
+        if (sidebar) sidebar.classList.remove('hidden');
+        if (notesPanel) notesPanel.classList.remove('hidden');
+        if (workspace) workspace.classList.remove('hidden');
         if (settingsView) settingsView.classList.remove('hidden');
+        if (settingsSidebar) settingsSidebar.classList.remove('hidden');
+        if (notesList) notesList.classList.add('hidden');
+        if (notesHeader) notesHeader.classList.add('hidden');
+        if (editorBody) editorBody.classList.add('hidden');
         emptyState.classList.add('hidden');
         topbar.classList.add('hidden');
         toolbar.classList.add('hidden');
@@ -766,6 +782,10 @@ syncVoiceEntry(null);
     if (notesPanel) notesPanel.classList.remove('hidden');
     if (workspace) workspace.classList.remove('hidden');
     if (settingsView) settingsView.classList.add('hidden');
+    document.documentElement.classList.remove(SETTINGS_OPEN_CLASS);
+    if (settingsSidebar) settingsSidebar.classList.add('hidden');
+    if (notesList) notesList.classList.remove('hidden');
+    if (notesHeader) notesHeader.classList.remove('hidden');
     if (editorBody) editorBody.classList.remove('hidden');
     applyAiPanelVisibility();
     applyFileManagerVisibility();

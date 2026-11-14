@@ -80,6 +80,10 @@ function applyMobileFilter(filter) {
     if (!filter) return;
     setMobileSheetOpen(false);
     if (typeof flushPendingSave === 'function') flushPendingSave();
+    if (State.activeNoteId === 'settings') {
+        if (typeof closeTab === 'function') closeTab('settings');
+        State.activeNoteId = null;
+    }
     State.currentFilter = filter;
     renderApp();
     const box = document.getElementById('notes-list-box');
@@ -389,8 +393,8 @@ function bindMobileEvents() {
         }
 
         const settingsView = document.getElementById('settings-view');
-        if (settingsView && !settingsView.classList.contains('hidden') && settingsView.classList.contains('is-subpage')) {
-            if (typeof setSettingsSubpageOpen === 'function') setSettingsSubpageOpen(false);
+        if (settingsView && !settingsView.classList.contains('hidden')) {
+            if (typeof closeSettingsTab === 'function') closeSettingsTab();
             return;
         }
 

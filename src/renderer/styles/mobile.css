@@ -6,7 +6,6 @@
 .editor-back,
 .editor-ai,
 .settings-crumb,
-.settings-nav-title,
 .settings-nav-chevron {
     display: none;
 }
@@ -137,6 +136,17 @@
 
     html.web-mode .app-body > .workspace {
         display: none !important;
+    }
+
+    html.web-mode .app-body > .workspace:has(#settings-view:not(.hidden)) {
+        display: flex !important;
+        position: fixed;
+        inset: 0;
+        z-index: 340;
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        background-color: var(--bg-editor);
     }
 
     html.web-mode .app-body > .workspace:has(#editor-topbar:not(.hidden)) {
@@ -334,23 +344,24 @@
         transform: none;
     }
 
-    html.web-mode .settings-drag-band {
-        display: none;
-    }
-
     html.web-mode .settings-view {
-        position: fixed;
-        inset: 0;
-        z-index: 350;
-        display: block;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
         width: 100%;
         height: 100%;
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-        background-color: var(--bg-body);
+        padding: 0;
+        background-color: var(--bg-editor);
         overflow: hidden;
+    }
+
+    html.web-mode .settings-topbar {
+        height: auto;
+        min-height: 48px;
+        padding: env(safe-area-inset-top) 14px 0 14px;
+        background-color: var(--bg-body);
+        flex-shrink: 0;
     }
 
     html.web-mode:has(#settings-view:not(.hidden)) #app-titlebar {
@@ -362,62 +373,14 @@
         inset: 0;
         width: 100%;
         height: 100%;
-        border-right: none;
-        border-bottom: none;
         padding: 0 0 calc(16px + env(safe-area-inset-bottom)) 0;
         overflow-x: hidden;
         overflow-y: auto;
-        transform: translateX(0);
-        opacity: 1;
         background-color: var(--bg-body);
-        transition: transform var(--motion-base) cubic-bezier(0.2, 0.9, 0.3, 1),
-                    opacity var(--motion-base) var(--ease-out);
-        will-change: transform, opacity;
     }
 
-    html.web-mode .settings-view.is-subpage .settings-sidebar {
-        transform: translateX(-24%);
-        opacity: 0.6;
-        pointer-events: none;
-    }
-
-    html.web-mode .settings-nav-head {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        height: 48px;
-        padding: 0 8px;
-        border-bottom: 1px solid var(--border-color);
-        background-color: var(--bg-titlebar);
-    }
-
-    html.web-mode .settings-back,
-    html.web-mode .settings-view .settings-sidebar .settings-back {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 4px;
-        width: auto;
-        height: 36px;
-        padding: 0 8px;
-        margin: 0;
-        border-radius: var(--radius-sm);
-        color: var(--text-secondary);
-        font-size: 13.5px;
-    }
-
-    html.web-mode .settings-back .settings-back-label,
     html.web-mode .settings-nav-item .settings-nav-label {
         display: inline;
-    }
-
-    html.web-mode .settings-nav-title {
-        display: inline-flex;
-        align-items: center;
-        font-size: 17px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-left: 4px;
     }
 
     html.web-mode .settings-nav {
@@ -457,80 +420,25 @@
     }
 
     html.web-mode .settings-nav-chevron {
-        display: inline-flex;
-        color: var(--text-muted);
+        display: none;
     }
 
     html.web-mode .settings-content {
-        position: absolute;
-        inset: 0;
+        position: relative;
+        flex: 1;
+        min-height: 0;
         width: 100%;
-        height: 100%;
-        transform: translateX(100%);
-        opacity: 0;
-        pointer-events: none;
+        height: auto;
         background-color: var(--bg-body);
         padding: 0 14px calc(24px + env(safe-area-inset-bottom)) 14px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 0;
-        transition: transform var(--motion-base) cubic-bezier(0.2, 0.9, 0.3, 1),
-                    opacity var(--motion-base) var(--ease-out);
-        will-change: transform, opacity;
-    }
-
-    html.web-mode .settings-view.is-subpage .settings-content {
-        transform: translateX(0);
-        opacity: 1;
-        pointer-events: auto;
     }
 
     html.web-mode .settings-crumb {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        flex-shrink: 0;
-        height: 48px;
-        margin: 0 -14px 12px -14px;
-        padding: 0 8px;
-        border-bottom: 1px solid var(--border-color);
-        background-color: var(--bg-titlebar);
-        position: sticky;
-        top: 0;
-        z-index: 5;
-    }
-
-    html.web-mode .settings-crumb-back {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        flex-shrink: 0;
-        border-radius: var(--radius-sm);
-        color: var(--text-secondary);
-    }
-
-    html.web-mode .settings-crumb-back:active {
-        background-color: var(--item-active);
-        color: var(--text-primary);
-    }
-
-    html.web-mode .settings-crumb-title {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-width: 0;
-        overflow: hidden;
-        white-space: nowrap;
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-    html.web-mode .settings-crumb-title .ms-icon {
-        color: var(--accent);
+        display: none;
     }
 
     html.web-mode .settings-view .settings-content {

@@ -61,6 +61,15 @@ html.has-wallpaper .notes-panel {
     backdrop-filter: blur(22px) saturate(1.12);
 }
 
+html.has-wallpaper .settings-sidebar {
+    background-color: transparent;
+}
+
+html.has-wallpaper .settings-topbar {
+    background-color: transparent;
+    border-bottom-color: var(--border-light);
+}
+
 html.has-wallpaper.sidebar-blur-off .sidebar {
     background-color: var(--bg-sidebar);
     -webkit-backdrop-filter: none;
@@ -71,6 +80,11 @@ html.has-wallpaper.sidebar-blur-off .notes-panel {
     background-color: var(--bg-list);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+}
+
+html.has-wallpaper.sidebar-blur-off .settings-topbar {
+    background-color: var(--bg-titlebar);
+    border-bottom-color: var(--border-color);
 }
 
 @media (prefers-reduced-motion: reduce) {

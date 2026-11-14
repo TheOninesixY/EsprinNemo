@@ -135,6 +135,11 @@
     outline-offset: 1px;
 }
 
+.btn-sidebar-settings.active {
+    background-color: var(--item-active);
+    color: var(--text-primary);
+}
+
 #sidebar-stat {
     min-width: 0;
     margin-right: auto;
@@ -184,6 +189,7 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
+    position: relative;
 }
 
 .notes-panel-header {
@@ -191,7 +197,11 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     border-bottom: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
+}
+
+.notes-panel-search-row {
+    margin-bottom: 8px;
 }
 
 .notes-panel-search-row {
@@ -216,8 +226,7 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     overflow: hidden;
 }
 .search-box > .ms-icon,
-.search-box .btn-clear,
-.search-box .search-filter {
+.search-box .btn-clear {
     flex-shrink: 0;
 }
 .search-box input {

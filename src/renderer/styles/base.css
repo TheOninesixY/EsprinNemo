@@ -110,7 +110,6 @@ input, textarea, select {
 
 .titlebar-actions,
 .window-controls,
-.btn-new-note,
 .btn-action-icon,
 .win-btn {
     -webkit-app-region: no-drag;
@@ -207,26 +206,7 @@ input, textarea, select {
     flex-shrink: 0;
 }
 
-.btn-new-note {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    height: 26px;
-    padding: 0 10px;
-    border-radius: var(--radius-sm);
-    background-color: var(--accent);
-    color: var(--accent-fg);
-    font-size: 12px;
-    font-weight: 500;
-    transition: opacity 0.15s, transform 0.1s;
-}
-.btn-new-note:hover {
-    opacity: 0.9;
-}
 
-.btn-new-note:active {
-    transform: scale(0.98);
-}
 
 .btn-action-icon {
     width: 26px;
@@ -293,7 +273,6 @@ body.is-fullscreen .titlebar-tabs {
         animation: none !important;
     }
     .btn-action-icon:active,
-    .btn-new-note:active,
     .fmt-btn:active {
         transform: none !important;
     }

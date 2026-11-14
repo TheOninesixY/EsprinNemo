@@ -12,9 +12,7 @@ const tabsBack = document.getElementById('btn-tabs-back');
 
 document.getElementById('btn-new-item').onclick = () => createItemForCurrentFilter();
 
-    if (typeof initFilterPopover === 'function') initFilterPopover();
-
-    document.getElementById('btn-empty-new').onclick = (e) => toggleNewItemMenu(e.currentTarget);
+    if (typeof initFilterDrawer === 'function') initFilterDrawer();
 
     document.getElementById('input-note-title').oninput = autoSaveActiveItem;
     const contentTextarea = document.getElementById('textarea-note-content');
@@ -157,16 +155,6 @@ document.getElementById('btn-todo-done').onclick = () => {
         openSettingsTab();
     };
 
-const btnSettingsBack = document.getElementById('btn-settings-back');
-    if (btnSettingsBack) {
-        btnSettingsBack.onclick = () => {
-            if (State.activeNoteId !== 'settings') return;
-            flushPendingSave();
-            closeTab('settings');
-            renderApp();
-        };
-    }
-
     const settingSpellcheck = document.getElementById('setting-spellcheck');
     if (settingSpellcheck) {
         settingSpellcheck.onchange = (e) => {
@@ -305,6 +293,12 @@ const importIds = new Set();
 
     document.querySelectorAll('.sidebar .nav-item[data-filter]').forEach(item => {
         item.onclick = () => {
+            const wasSettings = State.activeNoteId === 'settings';
+            if (wasSettings) {
+                flushPendingSave();
+                closeTab('settings');
+                State.activeNoteId = null;
+            }
             State.currentFilter = item.getAttribute('data-filter');
             renderApp();
         };

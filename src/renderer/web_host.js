@@ -765,7 +765,7 @@
         get currentVersion() {
             return appVersion();
         },
-        repoUrl: 'https://github.com/EsprinProject/Nemo',
+        repoUrl: 'https://github.com/TheOninesixY/EsprinNemo',
         autoUpdate: false,
         ghProxyEnabled: false,
         canAutoInstall: false,
@@ -891,13 +891,13 @@
         'update:set-gh-proxy': { run: () => ({ ...updateSnapshotStub }) },
         'update:open-release': {
             run: () => {
-                window.open('https://github.com/EsprinProject/Nemo/releases', '_blank', 'noopener');
+                window.open('https://github.com/TheOninesixY/EsprinNemo/releases', '_blank', 'noopener');
                 return true;
             }
         },
         'update:open-repo': {
             run: () => {
-                window.open('https://github.com/EsprinProject/Nemo', '_blank', 'noopener');
+                window.open('https://github.com/TheOninesixY/EsprinNemo', '_blank', 'noopener');
                 return true;
             }
         },

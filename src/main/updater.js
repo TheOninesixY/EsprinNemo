@@ -5,7 +5,7 @@ const https = require('node:https');
 const { spawn } = require('node:child_process');
 const { showDialogWindow } = require('./dialog_window.js');
 
-const UPDATE_REPO = 'EsprinProject/Nemo';
+const UPDATE_REPO = 'TheOninesixY/EsprinNemo';
 
 const REPO_URL = `https://github.com/${UPDATE_REPO}`;
 const RELEASE_PAGE_URL = `${REPO_URL}/releases`;

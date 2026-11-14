@@ -1,31 +1,61 @@
 .settings-view {
     flex: 1;
-    height: 100%;
+    min-height: 0;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     overflow: hidden;
     background-color: var(--bg-editor);
-
-    --settings-top-inset: 40px;
 }
 
-.settings-drag-band {
-    display: none;
-}
 .settings-sidebar {
-    width: 210px;
-    flex-shrink: 0;
-    background-color: var(--bg-sidebar);
-    border-right: 1px solid var(--border-color);
-    padding: 10px 8px;
-    overflow-y: auto;
-
-    transition: width 0.18s ease;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 8px;
+    background-color: transparent;
+    overflow: hidden;
 }
+
+.settings-topbar {
+    flex-shrink: 0;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-titlebar);
+}
+
+.settings-topbar-icon {
+    color: var(--accent);
+}
+
+.settings-topbar-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settings-topbar-sep {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.settings-topbar-current {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
 .settings-nav {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 .settings-nav-item {
@@ -34,23 +64,27 @@
     text-align: left;
     font-size: 12.5px;
 }
+
+.settings-nav-item .settings-nav-chevron {
+    display: none;
+}
+
+.settings-nav-item .settings-nav-label {
+    display: inline;
+}
+
 .settings-content {
     flex: 1;
     min-width: 0;
-    height: 100%;
+    min-height: 0;
     overflow-y: auto;
-    padding: 32px 48px;
+    padding: 20px 32px 32px;
     display: flex;
     flex-direction: column;
     gap: 24px;
 }
 
-.settings-sidebar,
-.settings-content {
-    scrollbar-width: none;
-}
-.settings-sidebar::-webkit-scrollbar,
-.settings-content::-webkit-scrollbar {
+.settings-crumb {
     display: none;
 }
 
@@ -764,24 +798,10 @@ input:checked + .slider:before {
 }
 
 @container settings-view (max-width: 1024px) {
-    .settings-sidebar {
-        width: 48px;
-        padding: 10px 8px;
-    }
-
-    .settings-back .settings-back-label,
     .settings-nav-item .settings-nav-label {
         display: none;
     }
 
-    .settings-view .settings-sidebar .settings-back {
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        margin: 0 auto 8px;
-        gap: 0;
-        justify-content: center;
-    }
     .settings-view .settings-sidebar .settings-nav-item {
         padding: 7px 8px;
     }

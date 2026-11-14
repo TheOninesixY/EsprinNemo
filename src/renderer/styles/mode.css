@@ -33,6 +33,16 @@ html.modern-layout:has(#workspace-tabs:empty) {
     --modern-drag-top: 0px;
 }
 
+html.settings-open {
+    --modern-tabs-height: 0px;
+    --modern-drag-top: 0px;
+}
+
+html.settings-open .workspace-tabs,
+html.settings-open .tabs-back {
+    display: none !important;
+}
+
 html.modern-layout .workspace-tabs {
     display: flex;
     align-items: center;
@@ -179,7 +189,6 @@ html.modern-layout.tabs-disabled .notes-panel-header {
 html.modern-layout .editor-meta,
 html.modern-layout .editor-actions,
 html.modern-layout .notes-panel-header,
-html.modern-layout .settings-drag-band,
 html.modern-layout .settings-sidebar {
     -webkit-app-region: drag;
 }
@@ -188,7 +197,8 @@ html.modern-layout .editor-meta > *,
 html.modern-layout .editor-actions > *,
 html.modern-layout .notes-panel-header .search-box,
 html.modern-layout .notes-panel-header .dropdown,
-html.modern-layout .settings-sidebar .settings-back,
+html.modern-layout .notes-panel-header .filter-drawer,
+html.modern-layout .notes-panel-header .search-new,
 html.modern-layout .settings-sidebar .settings-nav-item {
     -webkit-app-region: no-drag;
 }
@@ -207,31 +217,24 @@ html.modern-layout .empty-drag-surface {
 }
 
 html.modern-layout .settings-view {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+}
 
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: var(--settings-top-inset) minmax(0, 1fr);
-}
-html.modern-layout .settings-sidebar {
-    grid-column: 1;
-    grid-row: 1 / -1;
-}
-html.modern-layout .settings-drag-band {
-    display: block;
-    grid-column: 2;
-    grid-row: 1;
-    margin-right: 312px;
+html.modern-layout .settings-topbar {
     -webkit-app-region: drag;
+    padding-right: 312px;
 }
 
-html.modern-layout body.is-fullscreen .settings-drag-band {
-    margin-right: 178px;
+html.modern-layout body.is-fullscreen .settings-topbar {
+    padding-right: 178px;
+}
+
+html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .settings-topbar {
+    padding-right: 16px;
 }
 
 html.modern-layout .settings-view .settings-content {
-    grid-column: 2;
-    grid-row: 2;
-    padding-top: 0;
     padding-right: 48px;
 }
 
@@ -283,28 +286,6 @@ html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .wor
 html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-drag-surface {
 
     inset: var(--modern-drag-top) 0 0 0;
-}
-
-.settings-back {
-    display: none;
-}
-html.modern-layout .settings-back {
-    display: flex;
-    align-items: center;
-
-    justify-content: flex-start;
-    gap: 6px;
-    width: 100%;
-    padding: 6px 8px;
-    margin-bottom: 8px;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    font-size: 12.5px;
-    transition: background-color 0.15s, color 0.15s;
-}
-html.modern-layout .settings-back:hover {
-    background-color: var(--item-hover);
-    color: var(--text-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {

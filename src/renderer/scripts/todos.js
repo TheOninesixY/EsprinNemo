@@ -1,7 +1,11 @@
 function newTodoDefaults() {
+    const folder = State.filterFolder
+        || (State.currentFilter.startsWith('folder:') ? State.currentFilter.replace('folder:', '') : '');
+    const tag = State.filterTag
+        || (State.currentFilter.startsWith('tag:') ? State.currentFilter.replace('tag:', '') : '');
     return {
-        folder: State.currentFilter.startsWith('folder:') ? State.currentFilter.replace('folder:', '') : '默认',
-        tags: State.currentFilter.startsWith('tag:') ? [State.currentFilter.replace('tag:', '')] : []
+        folder: folder || '默认',
+        tags: tag ? [tag] : []
     };
 }
 

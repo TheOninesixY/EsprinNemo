@@ -28,6 +28,9 @@ currentFilter: 'all',
 uiScale: 1,
     spellcheck: false,
 
+filterFolder: '',
+    filterTag: '',
+
 tabsDisabled: false,
 
     sidebarBlur: true,
