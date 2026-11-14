@@ -52,15 +52,13 @@ let saved = {};
     State.theme = saved.theme || 'system';
     State.themeStyle = normalizeThemeStyle(saved.themeStyle);
     State.accentColor = normalizeAccentColor(saved.accentColor);
-    State.brandColor = normalizeBrandColor(saved.brandColor);
     State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
 
     State.uiScale = normalizeUiScale(saved.uiScale);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
 
-    State.uiMode = normalizeUiMode(saved.uiMode);
-
     State.tabsDisabled = saved.tabsDisabled === true;
+    State.sidebarBlur = saved.sidebarBlur !== false;
     State.sidebarCollapsed = true;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;
@@ -115,7 +113,6 @@ runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('明暗模式', initThemeMode);
     runBootStep('界面风格', initThemeStyle);
     runBootStep('主题色', initAccentColor);
-    runBootStep('应用名颜色', initBrandColor);
     runBootStep('圆角尺度', initCornerRadius);
     runBootStep('界面缩放', initUiScale);
     runBootStep('拼写检查', applySpellcheck);

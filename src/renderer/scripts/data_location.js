@@ -104,9 +104,8 @@ function adoptDataDir(dir, options = {}) {
         uiScale: State.uiScale,
         spellcheck: State.spellcheck,
 
-        uiMode: State.uiMode,
-
         tabsDisabled: State.tabsDisabled,
+        sidebarBlur: State.sidebarBlur !== false,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
@@ -115,7 +114,6 @@ function adoptDataDir(dir, options = {}) {
         autoLaunch: State.autoLaunch === true,
         trayEnabled: State.trayEnabled !== false,
 
-        brandColor: State.brandColor,
         fonts: { ...State.fonts },
 
         voice: { ...State.voice }
@@ -131,12 +129,11 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.theme = saved.theme;
         State.themeStyle = saved.themeStyle;
         State.accentColor = saved.accentColor;
-        State.brandColor = normalizeBrandColor(saved.brandColor);
         State.cornerRadius = saved.cornerRadius;
         State.uiScale = saved.uiScale;
         State.spellcheck = saved.spellcheck;
-        State.uiMode = saved.uiMode;
         State.tabsDisabled = saved.tabsDisabled === true;
+        State.sidebarBlur = saved.sidebarBlur !== false;
         State.sidebarCollapsed = true;
         State.trashRetentionDays = saved.trashRetentionDays;
         State.autoUpdate = saved.autoUpdate !== false;
@@ -159,12 +156,11 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.themeStyle = prefs.themeStyle;
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
-        State.brandColor = prefs.brandColor;
         State.cornerRadius = prefs.cornerRadius;
         State.uiScale = prefs.uiScale;
         State.spellcheck = prefs.spellcheck;
-        State.uiMode = prefs.uiMode;
         State.tabsDisabled = prefs.tabsDisabled === true;
+        State.sidebarBlur = prefs.sidebarBlur !== false;
         State.sidebarCollapsed = true;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
@@ -205,7 +201,6 @@ if (State.currentFilter.startsWith('folder:')) {
 
     applyTheme();
     applyThemeStyle();
-    applyBrandColor();
     applyCornerRadius();
     applyUiScale();
     applySpellcheck();
@@ -213,9 +208,9 @@ if (State.currentFilter.startsWith('folder:')) {
     applySidebarCollapsed();
 
     applyUiMode();
+    applySidebarBlur();
     syncFontSelects();
     syncAccentControls();
-    syncBrandColorSelect();
     syncThemeStyleSelect();
     syncCornerRadiusControl();
     syncUiScaleControl();

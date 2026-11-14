@@ -1,4 +1,4 @@
-const renderSignatures = { folders: null, tags: null, tabs: null, list: null };
+const renderSignatures = { tabs: null, list: null };
 
 const LIST_RENDER_CHUNK = 80;
 
@@ -23,11 +23,10 @@ const sidebarNavItems = document.querySelectorAll('.sidebar .nav-item');
 
 function renderApp() {
     renderCounts();
-    renderFolders();
-    renderTags();
     renderTabs();
     renderListPanel();
     renderWorkspace();
+    if (typeof refreshFilterPopoverIfOpen === 'function') refreshFilterPopoverIfOpen();
     if (typeof syncMobileNav === 'function') syncMobileNav();
 }
 
@@ -41,7 +40,6 @@ function applySidebarCollapsed() {
 function panelCategoryTitle(filter) {
     if (filter === 'all') return '全部笔记';
     if (filter === 'todos') return '全部待办';
-    if (filter === 'pinned') return '已置顶';
     if (filter === 'trash') return '废纸篓';
     if (filter.startsWith('folder:')) return filter.replace('folder:', '');
     if (filter.startsWith('tag:')) return '#' + filter.replace('tag:', '');
@@ -52,7 +50,6 @@ function renderCounts() {
 
 let activeNoteCount = 0;
     let activeTodoCount = 0;
-    let pinnedCount = 0;
     let trashedCount = 0;
     State.notes.forEach(note => {
         if (isSecretHidden(note)) return;
@@ -60,7 +57,6 @@ let activeNoteCount = 0;
             trashedCount++;
         } else {
             activeNoteCount++;
-            if (note.isPinned) pinnedCount++;
         }
     });
 
@@ -70,13 +66,11 @@ let activeNoteCount = 0;
             trashedCount++;
         } else {
             activeTodoCount++;
-            if (todo.isPinned) pinnedCount++;
         }
     });
 
     document.getElementById('count-all').textContent = activeNoteCount;
     document.getElementById('count-todos').textContent = activeTodoCount;
-    document.getElementById('count-pinned').textContent = pinnedCount;
     document.getElementById('count-trash').textContent = trashedCount;
     document.getElementById('sidebar-stat').textContent = `${activeNoteCount} 篇笔记 · ${activeTodoCount} 项待办`;
 
@@ -89,41 +83,14 @@ let activeNoteCount = 0;
 const clearBtn = document.getElementById('btn-empty-trash');
     clearBtn.classList.toggle('hidden', State.currentFilter !== 'trash');
 
+    const newBtn = document.getElementById('btn-new-item');
+    if (newBtn) newBtn.classList.toggle('hidden', State.currentFilter === 'trash');
+
+    if (typeof syncFilterTriggerState === 'function') syncFilterTriggerState();
+
+    if (typeof syncNewButtonTitles === 'function') syncNewButtonTitles();
+
     document.getElementById('panel-category-title').textContent = panelCategoryTitle(State.currentFilter);
-}
-
-function renderFolders() {
-    const signature = `${State.currentFilter}\u0001${State.folders.join('\u0001')}`;
-    if (renderSignatures.folders === signature) return;
-    renderSignatures.folders = signature;
-
-    const container = document.getElementById('sidebar-folder-list');
-    container.innerHTML = '';
-
-    State.folders.forEach(folder => {
-        const isSelected = State.currentFilter === `folder:${folder}`;
-        const item = document.createElement('div');
-        item.className = `nav-item folder-item ${isSelected ? 'active' : ''}`;
-        item.title = folder;
-        item.innerHTML = `
-            <div class="nav-item-left">
-                <span class="ms-icon sm">folder</span>
-                <span class="nav-text">${escapeHTML(folder)}</span>
-            </div>
-        `;
-
-        item.addEventListener('click', () => {
-            State.currentFilter = `folder:${folder}`;
-            renderApp();
-        });
-
-item.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            showFolderContextMenu(e.clientX, e.clientY, folder);
-        });
-
-        container.appendChild(item);
-    });
 }
 
 function getAllTags() {
@@ -132,40 +99,6 @@ function getAllTags() {
         if (Array.isArray(item.tags)) item.tags.forEach(t => { if (t) tags.add(t); });
     });
     return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-}
-
-function renderTags() {
-
-    const tagSet = new Set();
-    [...State.notes, ...State.todos].forEach(item => {
-        if (item.isTrashed || isSecretHidden(item)) return;
-        if (Array.isArray(item.tags)) item.tags.forEach(t => { if (t) tagSet.add(t); });
-    });
-
-    const signature = `${State.currentFilter}\u0001${Array.from(tagSet).join('\u0001')}`;
-    if (renderSignatures.tags === signature) return;
-    renderSignatures.tags = signature;
-
-    const container = document.getElementById('sidebar-tag-list');
-    container.innerHTML = '';
-
-    if (tagSet.size === 0) {
-        container.innerHTML = '<span class="tag-pill tag-pill-empty" title="无标签"><span class="ms-icon xs">sell</span></span>';
-        return;
-    }
-
-    tagSet.forEach(tag => {
-        const isSelected = State.currentFilter === `tag:${tag}`;
-        const pill = document.createElement('span');
-        pill.className = `tag-pill ${isSelected ? 'active' : ''}`;
-        pill.title = `#${tag}`;
-        pill.innerHTML = '<span class="ms-icon xs">sell</span>';
-        pill.addEventListener('click', () => {
-            State.currentFilter = isSelected ? 'all' : `tag:${tag}`;
-            renderApp();
-        });
-        container.appendChild(pill);
-    });
 }
 
 const TAGS_FADE_RIGHT_CLASS = 'tags-fade-right';
@@ -199,7 +132,7 @@ container.addEventListener('wheel', (e) => {
 const TAB_CONTAINER_IDS = ['titlebar-tabs', 'workspace-tabs'];
 
 function tabsContainerId() {
-    return isModernLayout() ? 'workspace-tabs' : 'titlebar-tabs';
+    return 'workspace-tabs';
 }
 
 function renderedTabIds() {
@@ -254,7 +187,7 @@ bindTabsFade(tabsContainer);
 
 State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || !!getItemById(id));
 
-const signature = `${State.uiMode}\u0001${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
+const signature = `${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
         const item = id === 'settings' ? null : getItemById(id);
         // 加密状态（含本轮是否已解锁）跟着进签名：上锁 / 解锁后标题没变，图标也要换
         const secret = item && item.locked === true ? (item.unlocked === true ? 2 : 1) : 0;
@@ -789,6 +722,7 @@ function renderWorkspace() {
     const titleArea = document.querySelector('.editor-title-area');
     const contentArea = document.querySelector('.editor-content-area');
     const footer = document.querySelector('.editor-footer');
+    const editorBody = document.querySelector('.editor-body');
 
 if (State.activeNoteId === 'settings') {
         if (sidebar) sidebar.classList.add('hidden');
@@ -832,6 +766,7 @@ syncVoiceEntry(null);
     if (notesPanel) notesPanel.classList.remove('hidden');
     if (workspace) workspace.classList.remove('hidden');
     if (settingsView) settingsView.classList.add('hidden');
+    if (editorBody) editorBody.classList.remove('hidden');
     applyAiPanelVisibility();
     applyFileManagerVisibility();
 

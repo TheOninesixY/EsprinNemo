@@ -18,8 +18,6 @@
     --danger-bg: rgba(251, 113, 133, 0.18);
     --warning: #fbbf24;
 
-    --brand: #c9b8ff;
-
     --item-hover: rgba(255, 255, 255, 0.06);
     --item-active: rgba(139, 92, 246, 0.18);
 
@@ -54,8 +52,6 @@
     --danger: #e11d48;
     --danger-bg: rgba(225, 29, 72, 0.1);
     --warning: #b45309;
-
-    --brand: #4c1d95;
 
     --item-hover: rgba(124, 58, 237, 0.06);
     --item-active: rgba(124, 58, 237, 0.13);
@@ -113,27 +109,6 @@
     border-right: 1px solid var(--border-light);
 }
 
-:root[data-theme-style="magic"] .titlebar-brand,
-:root[data-theme-style="magic"] .sidebar-brand {
-    background-image: var(--magic-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    font-weight: 700;
-    letter-spacing: 0.6px;
-}
-
-:root[data-theme-style="magic"] .titlebar-brand:hover {
-    background-color: transparent;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.55));
-}
-:root[data-theme-style="magic"] .titlebar-brand:active {
-    opacity: 1;
-    filter: drop-shadow(0 0 16px rgba(139, 92, 246, 0.75));
-}
-
 :root[data-theme-style="magic"] .nav-item {
     border-radius: var(--radius-pill);
     padding: 7px 12px;
@@ -162,27 +137,7 @@
     font-weight: 600;
 }
 
-:root[data-theme-style="magic"] .btn-sidebar-new {
-    background-image: var(--magic-gradient);
-    background-color: transparent;
-    box-shadow: var(--magic-glow-sm);
-    border-radius: var(--radius-pill);
-}
-:root[data-theme-style="magic"] .btn-sidebar-new:hover {
-    box-shadow: var(--magic-glow-md);
-    filter: brightness(1.08);
-}
-
-:root[data-theme-style="magic"] .sidebar-action-wrap .btn-sidebar-new,
-:root[data-theme-style="magic"] .sidebar-action-wrap .btn-sidebar-new-extra {
-    border-radius: var(--radius-pill);
-}
-
-:root[data-theme-style="magic"] .tag-pill {
-    border-radius: var(--radius-pill);
-    border-color: var(--border-color);
-}
-:root[data-theme-style="magic"] .tag-pill.active {
+:root[data-theme-style="magic"] .filter-chip.active {
     background-image: var(--magic-gradient);
     border-color: transparent;
     color: #ffffff;

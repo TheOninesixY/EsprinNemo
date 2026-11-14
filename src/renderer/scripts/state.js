@@ -23,16 +23,14 @@ currentFilter: 'all',
 
     accentColor: 'system',
 
-    brandColor: 'brand',
-
     cornerRadius: 'default',
 
 uiScale: 1,
     spellcheck: false,
 
-uiMode: 'modern',
-
 tabsDisabled: false,
+
+    sidebarBlur: true,
 
     sidebarCollapsed: true,
 
@@ -90,8 +88,6 @@ aiHasApiKey: false,
     previewTimer: null
 };
 
-const UI_MODE_VALUES = ['classic', 'modern'];
-
 const STICKY_COLOR_VALUES = ['yellow', 'green', 'blue', 'pink', 'purple', 'gray'];
 
 function normalizeStickyConfig(value) {
@@ -102,18 +98,12 @@ function normalizeStickyConfig(value) {
     };
 }
 
-function normalizeUiMode(value) {
-    if (value === 'line' || value === 'notab' || value === 'minimal') return 'modern';
-    if (value === 'standard') return 'classic';
-    return UI_MODE_VALUES.includes(value) ? value : 'modern';
-}
-
 function isModernLayout() {
-    return State.uiMode === 'modern';
+    return true;
 }
 
 function isTabsDisabled() {
-    return isModernLayout() && State.tabsDisabled === true;
+    return State.tabsDisabled === true;
 }
 
 const AI_SCOPE_VALUES = ['current', 'all', 'none'];

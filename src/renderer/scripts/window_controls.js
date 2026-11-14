@@ -51,6 +51,5 @@ document.getElementById('app-titlebar').ondblclick = (e) => {
     if (document.body.classList.contains('is-fullscreen')) return;
     if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;
 
-    if (e.target.closest('.titlebar-brand')) return;
     winControls.max();
 };

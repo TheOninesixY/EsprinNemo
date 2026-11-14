@@ -962,7 +962,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', brandColor: 'brand', cornerRadius: 'default', uiScale: 1, spellcheck: false, uiMode: 'modern', tabsDisabled: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, tabsDisabled: false, sidebarBlur: true, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
 
 try {
         if (fs.existsSync(CONFIG_FILE)) {
@@ -1128,15 +1128,13 @@ const aiChats = loadAiChats(config.aiActiveChat);
         theme: config.theme || 'system',
         themeStyle: normalizeThemeStyle(config.themeStyle),
         accentColor: normalizeAccentColor(config.accentColor),
-        brandColor: normalizeBrandColor(config.brandColor),
         cornerRadius: normalizeCornerRadius(config.cornerRadius),
 
         uiScale: normalizeUiScale(config.uiScale),
         spellcheck: !!config.spellcheck,
 
-        uiMode: normalizeUiMode(config.uiMode),
-
         tabsDisabled: config.tabsDisabled === true,
+        sidebarBlur: config.sidebarBlur !== false,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
 
@@ -1189,15 +1187,13 @@ function saveConfig() {
             theme: State.theme,
             themeStyle: normalizeThemeStyle(State.themeStyle),
             accentColor: normalizeAccentColor(State.accentColor),
-            brandColor: normalizeBrandColor(State.brandColor),
             cornerRadius: normalizeCornerRadius(State.cornerRadius),
 
             uiScale: normalizeUiScale(State.uiScale),
             spellcheck: State.spellcheck,
 
-uiMode: normalizeUiMode(State.uiMode),
-
             tabsDisabled: State.tabsDisabled === true,
+            sidebarBlur: State.sidebarBlur !== false,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
 

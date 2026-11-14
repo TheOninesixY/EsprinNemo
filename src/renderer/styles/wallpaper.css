@@ -61,6 +61,18 @@ html.has-wallpaper .notes-panel {
     backdrop-filter: blur(22px) saturate(1.12);
 }
 
+html.has-wallpaper.sidebar-blur-off .sidebar {
+    background-color: var(--bg-sidebar);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+html.has-wallpaper.sidebar-blur-off .notes-panel {
+    background-color: var(--bg-list);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .window-backdrop {
         transition: none;

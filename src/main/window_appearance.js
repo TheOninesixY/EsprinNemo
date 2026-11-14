@@ -42,10 +42,6 @@ function normalizeAccent(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function normalizeBrandColor(value) {
-  return value === 'mono' || value === 'accent' ? value : 'brand';
-}
-
 function normalizeFonts(value) {
   const source = value && typeof value === 'object' ? value : {};
   const fonts = {};
@@ -61,15 +57,13 @@ function buildWindowAppearance(values) {
   const style = normalizeStyle(source.style);
   const radius = normalizeRadius(source.radius);
   const accent = normalizeAccent(source.accent);
-  const brandColor = normalizeBrandColor(source.brandColor);
   const fonts = normalizeFonts(source.fonts);
 
   const args = [
     `${ARG_PREFIX}theme=${theme}`,
     `${ARG_PREFIX}style=${style}`,
     `${ARG_PREFIX}radius=${radius}`,
-    `${ARG_PREFIX}accent=${accent}`,
-    `${ARG_PREFIX}brand=${brandColor}`
+    `${ARG_PREFIX}accent=${accent}`
   ];
   Object.keys(FONT_ARG_NAMES).forEach((key) => {
     args.push(`${ARG_PREFIX}${FONT_ARG_NAMES[key]}=${fonts[key]}`);
@@ -80,7 +74,6 @@ function buildWindowAppearance(values) {
     style,
     radius,
     accent,
-    brandColor,
     fonts,
     args,
     backgroundColor: THEME_BG[style][theme]

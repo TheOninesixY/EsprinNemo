@@ -100,30 +100,6 @@ input, textarea, select {
     user-select: none;
 }
 
-.titlebar-brand {
-    font-family: 'Mohave', var(--font-sans);
-    font-size: 16px;
-    font-weight: 600;
-
-    color: var(--brand-fg);
-    letter-spacing: 0.4px;
-    margin-right: 14px;
-    padding: 4px 6px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
-    cursor: pointer;
-    transition: background-color 0.15s, opacity 0.15s;
-}
-.titlebar-brand:hover {
-    background-color: var(--item-hover);
-}
-.titlebar-brand:active {
-    opacity: 0.7;
-}
-
 .titlebar-tabs {
     -webkit-app-region: drag;
 }
@@ -280,7 +256,6 @@ body.is-fullscreen .window-controls {
 }
 
 body.is-fullscreen .titlebar,
-body.is-fullscreen .titlebar-brand,
 body.is-fullscreen .titlebar-tabs {
     -webkit-app-region: no-drag;
 }

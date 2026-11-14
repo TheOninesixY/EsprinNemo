@@ -253,7 +253,7 @@ function bindMobileFilterSwipe() {
         const dx = event.changedTouches[0].clientX - startX;
         if (Math.abs(dx) < 48) return;
 
-        const filters = ['all', 'todos', 'pinned', 'trash'];
+        const filters = ['all', 'todos', 'trash'];
         const from = filters.indexOf(State.currentFilter);
         if (from === -1) return;
 

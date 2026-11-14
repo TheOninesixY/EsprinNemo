@@ -39,6 +39,14 @@ saveNote(newNote);
     showToast('已创建新笔记');
 }
 
+function createItemForCurrentFilter() {
+    if (State.currentFilter === 'todos') {
+        createNewTodo();
+        return;
+    }
+    createNewNote();
+}
+
 const IMPORT_FILE_MAX = 100;
 const IMPORT_FILE_MAX_BYTES = 5 * 1024 * 1024;
 

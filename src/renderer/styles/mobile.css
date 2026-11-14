@@ -43,26 +43,6 @@
         padding-left: calc(8px + env(safe-area-inset-left));
     }
 
-    html.web-mode.modern-layout .titlebar-brand {
-        display: inline-flex !important;
-        align-items: center;
-        height: 32px;
-        padding: 0 6px;
-        flex-shrink: 0;
-        font-size: 15px;
-        pointer-events: none;
-        cursor: default;
-    }
-
-    html.web-mode .titlebar-brand {
-        display: inline-flex;
-        align-items: center;
-        height: 32px;
-        padding: 0 6px;
-        flex-shrink: 0;
-        font-size: 15px;
-    }
-
     html.web-mode .titlebar-tabs {
         display: none;
     }
@@ -704,8 +684,6 @@
     }
 
     html.web-mode .notes-list,
-    html.web-mode .folder-list,
-    html.web-mode .tag-list,
     html.web-mode .settings-sidebar,
     html.web-mode .settings-content,
     html.web-mode .ai-messages,
@@ -1076,10 +1054,6 @@
 
     html.web-mode .view-btn {
         padding: 5px 10px;
-    }
-
-    html.web-mode .tag-pill {
-        padding: 4px 10px;
     }
 
     html.web-mode .context-menu-item,

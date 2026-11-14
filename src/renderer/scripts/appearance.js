@@ -171,35 +171,6 @@ function applySpellcheck() {
     });
 }
 
-const BRAND_COLOR_VALUES = ['brand', 'mono', 'accent'];
-
-function normalizeBrandColor(value) {
-    return BRAND_COLOR_VALUES.includes(value) ? value : 'brand';
-}
-
-function applyBrandColor() {
-    document.documentElement.dataset.brandColor = normalizeBrandColor(State.brandColor);
-}
-
-function syncBrandColorSelect() {
-    const select = document.getElementById('setting-brand-color');
-    if (select) select.value = normalizeBrandColor(State.brandColor);
-}
-
-function setBrandColor(value) {
-    State.brandColor = normalizeBrandColor(value);
-    applyBrandColor();
-    syncBrandColorSelect();
-    saveConfig();
-}
-
-function initBrandColor() {
-    const select = document.getElementById('setting-brand-color');
-    if (select) select.onchange = (e) => setBrandColor(e.target.value);
-    applyBrandColor();
-    syncBrandColorSelect();
-}
-
 const CORNER_RADIUS_VALUES = ['square', 'slight', 'default', 'large'];
 
 function normalizeCornerRadius(value) {

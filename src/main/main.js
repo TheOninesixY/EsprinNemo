@@ -209,11 +209,6 @@ function resolveAccentColor() {
   return `#${hex.toUpperCase()}`;
 }
 
-function resolveBrandColor() {
-  const raw = readUserConfig().brandColor;
-  return raw === 'mono' || raw === 'accent' ? raw : 'brand';
-}
-
 function resolveThemeStyle() {
   const raw = readUserConfig().themeStyle;
   return raw === 'alom' || raw === 'magic' ? raw : 'default';
@@ -233,7 +228,6 @@ configureDialogWindows({
   getTheme: resolveEffectiveTheme,
   getStyle: resolveThemeStyle,
   getAccent: resolveAccentColor,
-  getBrandColor: resolveBrandColor,
   getRadius: resolveCornerRadius,
   getFonts: resolveWindowFonts,
   icon: APP_ICON_PATH
@@ -972,7 +966,6 @@ function createWindow() {
     style: resolveThemeStyle(),
     radius: resolveCornerRadius(),
     accent: resolveAccentColor(),
-    brandColor: resolveBrandColor(),
     fonts: resolveWindowFonts()
   });
 

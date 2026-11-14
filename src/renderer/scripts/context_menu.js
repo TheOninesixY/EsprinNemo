@@ -269,8 +269,7 @@ window.addEventListener('click', (e) => {
     if (!e.target.closest('#sticky-notes-menu') && !e.target.closest('#btn-sticky-notes')) {
         if (typeof hideStickyMenu === 'function') hideStickyMenu();
     }
-    const isNewMenuTrigger = !!e.target.closest('#btn-empty-new')
-        || (!isModernLayout() && !!e.target.closest('#btn-new-note'));
+    const isNewMenuTrigger = !!e.target.closest('#btn-empty-new');
     if (!e.target.closest('#new-item-menu') && !isNewMenuTrigger) {
         hideNewItemMenu();
     }

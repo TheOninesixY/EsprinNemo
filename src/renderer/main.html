@@ -42,6 +42,8 @@
 
     <link rel="stylesheet" href="./styles/mobile.css">
 
+    <link rel="stylesheet" href="./styles/filter.css">
+
     <link rel="stylesheet" href="./styles/wallpaper.css">
 </head>
 <body>
@@ -52,9 +54,7 @@
 
         <header class="titlebar" id="app-titlebar">
 
-            <div class="titlebar-brand" id="app-brand" title="回到首页">EsprinNemo</div>
-
-<div class="titlebar-tabs" id="titlebar-tabs"></div>
+            <div class="titlebar-tabs" id="titlebar-tabs"></div>
 
 <div class="titlebar-actions">
 
@@ -97,25 +97,6 @@
 <div class="app-body">
             <aside class="sidebar" id="app-sidebar">
 
-                <div class="sidebar-action-wrap">
-
-                    <div class="sidebar-brand" id="sidebar-brand">EsprinNemo</div>
-
-                    <div class="sidebar-new-split" id="sidebar-new-split">
-
-                        <button class="btn-sidebar-new btn-sidebar-new-extra" id="btn-new-todo"
-                                title="新建待办 (Ctrl+Shift+N)">
-                            <span class="ms-icon sm">check_box</span>
-                        </button>
-
-                        <button class="btn-sidebar-new" id="btn-new-note" title="新建笔记 (Ctrl+N)">
-                            <span class="ms-icon sm btn-new-note-icon">add</span>
-                            <span class="ms-icon sm btn-new-note-icon-doc">note_add</span>
-                            <span class="nav-text">新建</span>
-                        </button>
-                    </div>
-                </div>
-
 <div class="nav-section nav-section-main">
                     <div class="nav-item active" data-filter="all" title="全部笔记">
                         <div class="nav-item-left">
@@ -131,13 +112,6 @@
                         </div>
                         <span class="nav-badge" id="count-todos">0</span>
                     </div>
-                    <div class="nav-item" data-filter="pinned" title="已置顶的笔记与待办">
-                        <div class="nav-item-left">
-                            <span class="ms-icon sm">push_pin</span>
-                            <span class="nav-text">已置顶</span>
-                        </div>
-                        <span class="nav-badge" id="count-pinned">0</span>
-                    </div>
                     <div class="nav-item" data-filter="trash" title="废纸篓（笔记与待办共用）">
                         <div class="nav-item-left">
                             <span class="ms-icon sm">delete</span>
@@ -145,23 +119,6 @@
                         </div>
                         <span class="nav-badge" id="count-trash">0</span>
                     </div>
-                </div>
-
-<div class="nav-section nav-section-folders">
-                    <div class="nav-section-title">
-                        <span>文件夹</span>
-                        <button id="btn-add-folder" title="新建文件夹">
-                            <span class="ms-icon xs">add</span>
-                        </button>
-                    </div>
-                    <div class="folder-list" id="sidebar-folder-list"></div>
-                </div>
-
-<div class="nav-section nav-section-tags">
-                    <div class="nav-section-title">
-                        <span>标签过滤</span>
-                    </div>
-                    <div class="tag-list" id="sidebar-tag-list"></div>
                 </div>
 
 <div class="sidebar-bottom">
@@ -179,8 +136,14 @@
                         <div class="search-box">
                             <span class="ms-icon sm" style="color: var(--text-muted);">search</span>
                             <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+K)" spellcheck="false">
+                            <button class="btn-action-icon search-filter" id="btn-search-filter" title="筛选（文件夹 / 标签）">
+                                <span class="ms-icon sm">filter_list</span>
+                            </button>
                             <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
                         </div>
+                        <button class="btn-action-icon search-new" id="btn-new-item" title="新建笔记 (Ctrl+N)">
+                            <span class="ms-icon sm">add</span>
+                        </button>
                         <button class="btn-action-icon hidden" id="btn-empty-trash" title="彻底清空废纸篓">
                             <span class="ms-icon sm">delete_forever</span>
                         </button>
@@ -198,6 +161,34 @@
                 <div class="mobile-search-mask" id="mobile-search-mask" aria-hidden="true"></div>
                 <div class="notes-list" id="notes-list-box"></div>
             </section>
+
+            <div class="filter-popover hidden" id="filter-popover" role="dialog" aria-label="筛选">
+                <div class="filter-popover-head">
+                    <span class="filter-popover-title">
+                        <span class="ms-icon xs">filter_list</span>
+                        <span>筛选</span>
+                    </span>
+                    <button class="filter-popover-close" id="btn-filter-close" title="关闭筛选">
+                        <span class="ms-icon xs">close</span>
+                    </button>
+                </div>
+                <div class="filter-section">
+                    <div class="filter-section-title">
+                        <span>文件夹</span>
+                        <button class="filter-add-folder" id="btn-add-folder" title="新建文件夹">
+                            <span class="ms-icon xs">add</span>
+                        </button>
+                    </div>
+                    <div class="filter-chips" id="filter-folder-chips"></div>
+                </div>
+                <div class="filter-section">
+                    <div class="filter-section-title">标签</div>
+                    <div class="filter-chips" id="filter-tag-chips"></div>
+                </div>
+                <div class="filter-actions">
+                    <button class="settings-btn" id="btn-filter-all" title="清除筛选，显示全部笔记与待办">查看全部内容</button>
+                </div>
+            </div>
 
 <main class="workspace" id="workspace-box">
 
@@ -541,24 +532,25 @@
 
                         <div class="settings-section">
                             <div class="settings-section-title">界面</div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">布局风格</span>
-                                    <span class="settings-row-desc">现代布局去掉标题栏、标签页移到工作区顶部；经典布局保留标题栏</span>
-                                </div>
-                                <select class="settings-select" id="setting-ui-mode">
-                                    <option value="modern">现代布局</option>
-                                    <option value="classic">经典布局</option>
-                                </select>
-                            </div>
 
-                            <div class="settings-row settings-row-modern-only">
+                            <div class="settings-row">
                                 <div class="settings-row-info">
                                     <span class="settings-row-label">禁用标签页</span>
                                     <span class="settings-row-desc">收起工作区顶部的整条标签栏；已打开的标签仍然保留，关闭本开关即恢复显示（默认开启）</span>
                                 </div>
                                 <label class="switch">
                                     <input type="checkbox" id="setting-tabs-disabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">侧边栏模糊</span>
+                                    <span class="settings-row-desc">桌面壁纸作为窗口背景时，侧边栏与笔记列表使用毛玻璃；关闭后两块区域改为不透明主题底色</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-sidebar-blur">
                                     <span class="slider"></span>
                                 </label>
                             </div>
@@ -645,17 +637,6 @@
                                     <option value="default">默认风格</option>
                                     <option value="alom">Alom</option>
                                     <option value="magic">魔幻</option>
-                                </select>
-                            </div>
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">左上角应用名</span>
-                                    <span class="settings-row-desc">标题栏左上角「EsprinNemo」的文字颜色；弹窗标题栏同步生效</span>
-                                </div>
-                                <select class="settings-select" id="setting-brand-color">
-                                    <option value="brand">品牌色</option>
-                                    <option value="mono">黑 / 白（跟随明暗）</option>
-                                    <option value="accent">跟随主题色</option>
                                 </select>
                             </div>
                         </div>
@@ -1247,10 +1228,6 @@
                     <span class="ms-icon" id="btn-mobile-fab-icon">add</span>
                 </span>
             </button>
-            <button class="mobile-tab" type="button" data-filter="pinned">
-                <span class="ms-icon">push_pin</span>
-                <span>置顶</span>
-            </button>
             <button class="mobile-tab" type="button" data-filter="trash">
                 <span class="ms-icon">delete</span>
                 <span>废纸篓</span>
@@ -1302,6 +1279,7 @@
     <script src="./scripts/auto_launch.js"></script>
     <script src="./scripts/update.js"></script>
     <script src="./scripts/render.js"></script>
+    <script src="./scripts/filter.js"></script>
     <script src="./scripts/context_menu.js"></script>
     <script src="./scripts/events.js"></script>
     <script src="./scripts/mobile.js"></script>

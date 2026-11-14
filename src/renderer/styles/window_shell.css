@@ -93,15 +93,6 @@ input, textarea, select {
     user-select: none;
 }
 
-.titlebar-brand {
-    font-family: 'Mohave', var(--font-sans);
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.4px;
-    color: var(--brand-fg);
-    flex-shrink: 0;
-}
-
 .titlebar-icon {
     flex-shrink: 0;
     color: var(--accent);

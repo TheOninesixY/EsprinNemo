@@ -23,8 +23,6 @@ let resolveTheme = () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 
 let resolveAccent = () => '';
 
-let resolveBrandColor = () => 'brand';
-
 let resolveRadius = () => 'default';
 
 let resolveStyle = () => 'default';
@@ -33,11 +31,10 @@ let resolveFonts = () => ({});
 let iconPath = path.join(__dirname, '..', '..', require('../../package.json').icon);
 let ipcRegistered = false;
 
-function configureDialogWindows({ getTheme, getStyle, getAccent, getBrandColor, getRadius, getFonts, icon } = {}) {
+function configureDialogWindows({ getTheme, getStyle, getAccent, getRadius, getFonts, icon } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
   if (typeof getStyle === 'function') resolveStyle = getStyle;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
-  if (typeof getBrandColor === 'function') resolveBrandColor = getBrandColor;
   if (typeof getRadius === 'function') resolveRadius = getRadius;
   if (typeof getFonts === 'function') resolveFonts = getFonts;
   if (typeof icon === 'string' && icon) iconPath = icon;
@@ -48,7 +45,6 @@ function currentAppearance() {
     theme: safeResolve(resolveTheme, 'dark', '主题'),
     style: safeResolve(resolveStyle, 'default', '主题风格'),
     accent: safeResolve(resolveAccent, '', '主题色'),
-    brandColor: safeResolve(resolveBrandColor, 'brand', '应用名颜色'),
     radius: safeResolve(resolveRadius, 'default', '圆角尺度'),
     fonts: safeResolve(resolveFonts, {}, '字体')
   });

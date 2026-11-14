@@ -4,7 +4,6 @@
     const HEX_PATTERN = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
     const RADIUS_VALUES = ['square', 'slight', 'large'];
-    const BRAND_COLOR_VALUES = ['mono', 'accent'];
 
     const FONT_VARS = {
         '--font-ui-latin': 'uiLatin',
@@ -29,7 +28,6 @@ function readWindowAppearanceFromArgs() {
             style: readArg('style'),
             radius: readArg('radius'),
             accent: readArg('accent'),
-            brandColor: readArg('brand'),
             fonts: {
                 uiLatin: readArg('font-ui-latin'),
                 uiCjk: readArg('font-ui-cjk'),
@@ -60,10 +58,6 @@ function quoteFontFamily(name) {
 
 function applyRadius(radius) {
         document.documentElement.dataset.radius = RADIUS_VALUES.includes(radius) ? radius : 'default';
-    }
-
-function applyBrandColor(brandColor) {
-        document.documentElement.dataset.brandColor = BRAND_COLOR_VALUES.includes(brandColor) ? brandColor : 'brand';
     }
 
 function normalizeSystemAccentHex(raw) {
@@ -139,7 +133,6 @@ function applyWindowAppearance(options) {
         applyTheme(source.theme);
         applyThemeStyle(source.style);
         applyRadius(source.radius);
-        applyBrandColor(source.brandColor);
         applyAccent(source.accent);
         applyFonts(source.fonts);
     }

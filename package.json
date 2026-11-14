@@ -23,7 +23,6 @@
   "build": {
     "appId": "io.github.theoninesixy.esprin_nemo",
     "productName": "Esprin Nemo",
-    "icon": "src/assets/icon.png",
     "files": [
       "src/",
       "!src/sync/**"

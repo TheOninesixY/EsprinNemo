@@ -6,16 +6,13 @@ const leaveActiveItem = () => {
         State.activeNoteId = null;
         renderApp();
     };
-    document.getElementById('app-brand').onclick = leaveActiveItem;
 
 const tabsBack = document.getElementById('btn-tabs-back');
     if (tabsBack) tabsBack.onclick = leaveActiveItem;
 
-document.getElementById('btn-new-note').onclick = (e) => {
-        if (isModernLayout()) createNewNote();
-        else toggleNewItemMenu(e.currentTarget);
-    };
-    document.getElementById('btn-new-todo').onclick = () => createNewTodo();
+document.getElementById('btn-new-item').onclick = () => createItemForCurrentFilter();
+
+    if (typeof initFilterPopover === 'function') initFilterPopover();
 
     document.getElementById('btn-empty-new').onclick = (e) => toggleNewItemMenu(e.currentTarget);
 
