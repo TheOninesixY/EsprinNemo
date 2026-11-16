@@ -68,16 +68,26 @@ const checkIcon = todo.isDone ? 'check_box' : 'check_box_outline_blank';
         `}
         <div class="todo-card-body">
             <div class="note-card-title">
-                <span>${escapeHTML(itemDisplayTitle(todo))}</span>
-                ${todo.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+                <span class="note-card-title-text">${escapeHTML(itemDisplayTitle(todo))}</span>
+                <div class="note-card-title-meta">
+                    ${todo.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+                    <div class="note-card-folder-slot"></div>
+                </div>
             </div>
             <div class="note-card-preview">${escapeHTML(notePreviewText(todo))}</div>
             <div class="note-card-footer">
-                <span>${formatDate(todo.updatedAt)}</span>
-                <span class="note-card-folder">${escapeHTML(todo.folder)}</span>
+                <span class="note-card-date">${formatDate(todo.updatedAt)}</span>
             </div>
         </div>
     `;
+
+    const editable = isActive && !isReadOnlyItem(todo);
+    const folderSlot = card.querySelector('.note-card-folder-slot');
+    renderCardFolder(folderSlot, todo, { editable });
+    folderSlot.addEventListener('click', (event) => event.stopPropagation());
+    const footer = card.querySelector('.note-card-footer');
+    footer.classList.toggle('is-editable', editable);
+    footer.appendChild(buildCardTags(todo, { editable }));
 
     card.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check')) return;

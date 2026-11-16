@@ -61,6 +61,21 @@ html.has-wallpaper .notes-panel {
     backdrop-filter: blur(22px) saturate(1.12);
 }
 
+html.has-wallpaper:not(.sidebar-blur-off) .workspace:has(#workspace-tabs:not(:empty)) {
+    background-color: transparent;
+    background-image: linear-gradient(to bottom,
+        transparent 0,
+        transparent var(--modern-tabs-height),
+        var(--bg-editor) var(--modern-tabs-height),
+        var(--bg-editor) 100%);
+}
+
+html.has-wallpaper:not(.sidebar-blur-off) .workspace-tabs-glass {
+    background-color: var(--sidebar-glass-bg);
+    -webkit-backdrop-filter: blur(26px) saturate(1.18);
+    backdrop-filter: blur(26px) saturate(1.18);
+}
+
 html.has-wallpaper .settings-sidebar {
     background-color: transparent;
 }
@@ -78,6 +93,17 @@ html.has-wallpaper.sidebar-blur-off .sidebar {
 
 html.has-wallpaper.sidebar-blur-off .notes-panel {
     background-color: var(--bg-list);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+html.has-wallpaper.sidebar-blur-off .workspace:has(#workspace-tabs:not(:empty)) {
+    background-color: var(--bg-editor);
+    background-image: none;
+}
+
+html.has-wallpaper.sidebar-blur-off .workspace-tabs-glass {
+    background-color: transparent;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }

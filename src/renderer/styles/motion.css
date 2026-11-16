@@ -26,9 +26,6 @@
 .editor-topbar {
     animation: fadeIn var(--motion-base) var(--ease-out);
 }
-.editor-toolbar {
-    animation: fadeInUp var(--motion-base) var(--ease-out) 30ms backwards;
-}
 .editor-title-area {
     animation: fadeInUp var(--motion-base) var(--ease-out) 50ms backwards;
 }
@@ -122,7 +119,6 @@ html.appearance-fading *::after {
     .settings-view,
     .settings-panel,
     .editor-topbar,
-    .editor-toolbar,
     .editor-title-area,
     .editor-content-area,
     .editor-footer,

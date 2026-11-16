@@ -57,7 +57,6 @@ let saved = {};
     State.uiScale = normalizeUiScale(saved.uiScale);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
 
-    State.tabsDisabled = saved.tabsDisabled === true;
     State.sidebarBlur = saved.sidebarBlur !== false;
     State.sidebarCollapsed = true;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);

@@ -395,6 +395,22 @@ function handleCustomDatalistKeydown(entry, event) {
     }
 }
 
+function disposeCustomSelect(select) {
+    if (!select) return;
+    const index = CUSTOM_SELECTS.findIndex((entry) => entry.select === select);
+    if (index === -1) return;
+
+    const [entry] = CUSTOM_SELECTS.splice(index, 1);
+    if (activeCustomSelect === entry) closeCustomSelect();
+    if (entry.observer) entry.observer.disconnect();
+    if (entry.menu && entry.menu.parentNode) entry.menu.parentNode.removeChild(entry.menu);
+}
+
+function disposeCustomSelectsIn(container) {
+    if (!container) return;
+    container.querySelectorAll('select[data-custom-dropdown="1"]').forEach(disposeCustomSelect);
+}
+
 function upgradeDatalistToCustom(input) {
     const listId = input.getAttribute('list');
     const list = listId ? document.getElementById(listId) : null;

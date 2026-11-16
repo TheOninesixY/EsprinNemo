@@ -962,7 +962,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, tabsDisabled: false, sidebarBlur: true, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarBlur: true, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
 
 try {
         if (fs.existsSync(CONFIG_FILE)) {
@@ -970,10 +970,6 @@ try {
             if (rawConfig) {
                 const parsed = JSON.parse(rawConfig);
 
-if (parsed && typeof parsed === 'object'
-                    && parsed.tabsDisabled === undefined && parsed.lineHideTabs !== undefined) {
-                    parsed.tabsDisabled = parsed.lineHideTabs === true;
-                }
                 config = { ...config, ...parsed };
             }
         } else {
@@ -1133,7 +1129,6 @@ const aiChats = loadAiChats(config.aiActiveChat);
         uiScale: normalizeUiScale(config.uiScale),
         spellcheck: !!config.spellcheck,
 
-        tabsDisabled: config.tabsDisabled === true,
         sidebarBlur: config.sidebarBlur !== false,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
@@ -1192,7 +1187,6 @@ function saveConfig() {
             uiScale: normalizeUiScale(State.uiScale),
             spellcheck: State.spellcheck,
 
-            tabsDisabled: State.tabsDisabled === true,
             sidebarBlur: State.sidebarBlur !== false,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),

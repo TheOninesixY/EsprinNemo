@@ -303,12 +303,37 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 6px;
     font-size: 13px;
     font-weight: 500;
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+.note-card-title-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.note-card-title-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.note-card-title-meta .ms-icon {
+    flex-shrink: 0;
+}
+.note-card-folder-slot {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.note-card-folder-slot .dropdown {
+    max-width: 9em;
 }
 .note-card-preview {
     font-size: 11.5px;
@@ -322,14 +347,107 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 6px;
     font-size: 10.5px;
     color: var(--text-muted);
     margin-top: 2px;
 }
+.note-card-date {
+    flex-shrink: 0;
+}
+.note-card-taxonomy {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+    margin-left: auto;
+}
+.note-card-footer.is-editable {
+    flex-wrap: nowrap;
+}
+.note-card-taxonomy.is-editable {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding-bottom: 1px;
+}
+.note-card-taxonomy.is-editable::-webkit-scrollbar {
+    display: none;
+}
+.note-card-taxonomy.is-editable > * {
+    flex-shrink: 0;
+}
 .note-card-folder {
+    flex-shrink: 0;
     padding: 1px 4px;
     border-radius: var(--radius-xs);
     background: var(--item-hover);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    max-width: 9em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.note-card-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    max-width: 9em;
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+    background: var(--accent-bg);
+    color: var(--accent);
+}
+.note-card-tag-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.note-card-tag-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    color: var(--text-muted);
+}
+.note-card-tag-remove:hover {
+    background: var(--item-hover);
+    color: var(--danger);
+}
+.note-card-tag-more {
+    background: transparent;
+    color: var(--text-muted);
+}
+.note-card-taxonomy .dropdown {
+    max-width: 100%;
+}
+.note-card-folder-select.dropdown-trigger,
+.note-card-tag-select.dropdown-trigger {
+    gap: 2px;
+    max-width: 9em;
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+    background: var(--item-hover);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.note-card-tag-select.dropdown-trigger {
+    color: var(--text-muted);
+}
+.note-card-taxonomy .dropdown-arrow {
+    font-size: 12px;
 }
 
 .todo-card {
@@ -369,7 +487,7 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     flex-direction: column;
     gap: 4px;
 }
-.todo-card.done .note-card-title span {
+.todo-card.done .note-card-title-text {
     text-decoration: line-through;
     color: var(--text-muted);
 }

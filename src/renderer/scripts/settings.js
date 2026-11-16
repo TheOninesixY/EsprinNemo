@@ -49,7 +49,7 @@ function switchSettingsCategory(id) {
     if (category.id === 'system' && typeof refreshUpdateInfo === 'function') refreshUpdateInfo();
 }
 
-function initSettingsNav() {
+function renderSettingsNavItems() {
     const nav = document.getElementById('settings-nav');
     if (!nav) return;
     nav.innerHTML = '';
@@ -72,10 +72,17 @@ function initSettingsNav() {
         nav.appendChild(item);
     });
 
+    switchSettingsCategory(activeSettingsCategory);
+}
+
+function initSettingsNav() {
+    const nav = document.getElementById('settings-nav');
+    if (!nav) return;
+
+    renderSettingsNavItems();
+
     const crumb = document.getElementById('btn-settings-crumb');
     if (crumb) crumb.onclick = () => closeSettingsTab();
-
-    switchSettingsCategory(activeSettingsCategory);
 }
 
 function closeSettingsTab() {

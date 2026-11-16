@@ -6,8 +6,6 @@ const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
 const MODERN_LAYOUT_CLASS = 'modern-layout';
 
-const TABS_DISABLED_CLASS = 'tabs-disabled';
-
 const SIDEBAR_BLUR_OFF_CLASS = 'sidebar-blur-off';
 
 const NARROW_WINDOW_THRESHOLD = 900;
@@ -87,7 +85,6 @@ try {
     let themeStyle = 'default';
     let cornerRadius = 'default';
     let uiScale = 1;
-    let tabsDisabled = false;
     let sidebarBlur = true;
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -97,11 +94,9 @@ try {
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
         if (config && config.uiScale !== undefined) uiScale = config.uiScale;
-        if (config && config.tabsDisabled === true) tabsDisabled = true;
         if (config && config.sidebarBlur === false) sidebarBlur = false;
     }
 
-    if (tabsDisabled) document.documentElement.classList.add(TABS_DISABLED_CLASS);
     if (!sidebarBlur) document.documentElement.classList.add(SIDEBAR_BLUR_OFF_CLASS);
     webFrame.setZoomFactor(normalizeUiScale(uiScale));
 

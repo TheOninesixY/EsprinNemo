@@ -188,6 +188,7 @@ html.modern-layout.tabs-disabled .notes-panel-header {
 
 html.modern-layout .editor-meta,
 html.modern-layout .editor-actions,
+html.modern-layout .editor-toolbar,
 html.modern-layout .notes-panel-header,
 html.modern-layout .settings-sidebar {
     -webkit-app-region: drag;
@@ -195,6 +196,7 @@ html.modern-layout .settings-sidebar {
 
 html.modern-layout .editor-meta > *,
 html.modern-layout .editor-actions > *,
+html.modern-layout .editor-toolbar > *,
 html.modern-layout .notes-panel-header .search-box,
 html.modern-layout .notes-panel-header .dropdown,
 html.modern-layout .notes-panel-header .filter-drawer,
@@ -222,20 +224,68 @@ html.modern-layout .settings-view {
 }
 
 html.modern-layout .settings-topbar {
+    -webkit-app-region: no-drag;
+    padding-right: 0;
+}
+
+html.modern-layout .settings-topbar-drag {
+    display: block;
+    flex: 1;
+    align-self: stretch;
+    min-width: 0;
+    margin-right: 312px;
     -webkit-app-region: drag;
-    padding-right: 312px;
 }
 
-html.modern-layout body.is-fullscreen .settings-topbar {
-    padding-right: 178px;
+html.modern-layout body.is-fullscreen .settings-topbar-drag {
+    margin-right: 178px;
 }
 
-html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .settings-topbar {
-    padding-right: 16px;
+html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .settings-topbar-drag {
+    margin-right: 0;
 }
 
 html.modern-layout .settings-view .settings-content {
     padding-right: 48px;
+}
+
+html.modern-layout .workspace-tabs-divider {
+    display: none;
+    flex-shrink: 0;
+    height: 1px;
+    background-color: var(--border-color);
+    pointer-events: none;
+}
+
+html.modern-layout #workspace-tabs:not(:empty) ~ .workspace-tabs-divider {
+    display: block;
+}
+
+html.modern-layout .workspace-tabs-glass {
+    display: none;
+}
+
+html.modern-layout .workspace:has(#workspace-tabs:not(:empty)) .workspace-tabs-glass {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: var(--modern-tabs-height);
+    pointer-events: none;
+    z-index: 11;
+}
+
+html.settings-open .workspace-tabs-divider,
+html.settings-open .workspace-tabs-glass {
+    display: none !important;
+}
+
+@media (max-width: 860px) {
+    html.modern-layout .workspace-tabs-divider,
+    html.modern-layout .workspace-tabs-glass {
+        display: none !important;
+    }
 }
 
 html.modern-layout .editor-topbar {

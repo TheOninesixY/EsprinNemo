@@ -31,8 +31,6 @@ uiScale: 1,
 filterFolder: '',
     filterTag: '',
 
-tabsDisabled: false,
-
     sidebarBlur: true,
 
     sidebarCollapsed: true,
@@ -103,10 +101,6 @@ function normalizeStickyConfig(value) {
 
 function isModernLayout() {
     return true;
-}
-
-function isTabsDisabled() {
-    return State.tabsDisabled === true;
 }
 
 const AI_SCOPE_VALUES = ['current', 'all', 'none'];

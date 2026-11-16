@@ -104,7 +104,6 @@ function adoptDataDir(dir, options = {}) {
         uiScale: State.uiScale,
         spellcheck: State.spellcheck,
 
-        tabsDisabled: State.tabsDisabled,
         sidebarBlur: State.sidebarBlur !== false,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
@@ -132,7 +131,6 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.cornerRadius = saved.cornerRadius;
         State.uiScale = saved.uiScale;
         State.spellcheck = saved.spellcheck;
-        State.tabsDisabled = saved.tabsDisabled === true;
         State.sidebarBlur = saved.sidebarBlur !== false;
         State.sidebarCollapsed = true;
         State.trashRetentionDays = saved.trashRetentionDays;
@@ -159,7 +157,6 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.cornerRadius = prefs.cornerRadius;
         State.uiScale = prefs.uiScale;
         State.spellcheck = prefs.spellcheck;
-        State.tabsDisabled = prefs.tabsDisabled === true;
         State.sidebarBlur = prefs.sidebarBlur !== false;
         State.sidebarCollapsed = true;
         State.trashRetentionDays = prefs.trashRetentionDays;

@@ -142,7 +142,7 @@ const editorPane = document.getElementById('editor-pane');
         }
     };
 
-document.getElementById('btn-todo-done').onclick = () => {
+    document.getElementById('btn-todo-done').onclick = () => {
         if (State.activeNoteId) toggleTodoDone(State.activeNoteId);
     };
     document.getElementById('btn-empty-trash').onclick = clearTrash;
@@ -433,7 +433,6 @@ if (searchInput.offsetParent === null && State.activeNoteId === 'settings') {
         }
 
 if (key === 'tab') {
-            if (isTabsDisabled()) return;
             e.preventDefault();
             switchTabByStep(e.shiftKey ? -1 : 1);
             return;

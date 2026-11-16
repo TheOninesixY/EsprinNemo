@@ -640,7 +640,7 @@ function renderListPanel() {
     if (searchInput.placeholder !== placeholder) searchInput.placeholder = placeholder;
 
 const signature = `${State.currentFilter}\u0001${State.filterFolder}\u0007${State.filterTag}\u0008${State.searchQuery}\u0002${State.sortBy}\u0003${State.activeNoteId}\u0004`
-        + list.map(item => `${item.id}\u0005${isTodoItem(item) ? 1 : 0}\u0005${isSharedItem(item) ? 1 : 0}\u0005${item.title || ''}\u0005${formatDate(item.updatedAt)}\u0005${item.folder}\u0005${item.isPinned ? 1 : 0}\u0005${item.isDone ? 1 : 0}\u0005${notePreviewText(item)}`).join('\u0006');
+        + list.map(item => `${item.id}\u0005${isTodoItem(item) ? 1 : 0}\u0005${isSharedItem(item) ? 1 : 0}\u0005${item.title || ''}\u0005${formatDate(item.updatedAt)}\u0005${item.folder}\u0005${Array.isArray(item.tags) ? item.tags.join('\u0009') : ''}\u0005${item.isPinned ? 1 : 0}\u0005${item.isDone ? 1 : 0}\u0005${notePreviewText(item)}`).join('\u0006');
     if (renderSignatures.list === signature) return;
     renderSignatures.list = signature;
 
@@ -651,6 +651,7 @@ const enterKey = `${State.currentFilter}\u0001${State.filterFolder}\u0007${State
     }
 
 const token = ++listRenderToken;
+    disposeCustomSelectsIn(container);
     container.innerHTML = '';
 
     if (list.length === 0) {
@@ -689,22 +690,171 @@ if (token !== listRenderToken) return;
     appendChunk();
 }
 
+const CARD_TAG_VISIBLE_LIMIT = 2;
+const CARD_NEW_TAG_VALUE = '\u0000new-tag';
+
+function cardTags(item) {
+    return Array.isArray(item.tags)
+        ? item.tags.filter(tag => typeof tag === 'string' && tag.trim())
+        : [];
+}
+
+function createCardSelectOption(value, label) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = label;
+    return option;
+}
+
+function createCardTagChip(tag, { removable = false, itemId = '' } = {}) {
+    const chip = document.createElement('span');
+    chip.className = 'note-card-tag';
+
+    const label = document.createElement('span');
+    label.className = 'note-card-tag-text';
+    label.textContent = `#${tag}`;
+    chip.appendChild(label);
+
+    if (removable) {
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'note-card-tag-remove';
+        removeBtn.title = '移除标签';
+        removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
+        removeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            removeItemTag(itemId, tag);
+        });
+        chip.appendChild(removeBtn);
+    }
+
+    return chip;
+}
+
+function createCardFolderSelect(item) {
+    const select = document.createElement('select');
+    select.className = 'select-folder note-card-folder-select';
+    select.title = '选择文件夹';
+
+    const folders = Array.isArray(State.folders) ? State.folders : [];
+    const names = folders.includes(item.folder) ? folders : [item.folder, ...folders];
+    names.forEach(name => select.appendChild(createCardSelectOption(name, name)));
+
+    select.value = item.folder;
+    select.addEventListener('change', (event) => changeItemFolder(item.id, event.target.value));
+    return select;
+}
+
+function createCardTagSelect(item) {
+    const applied = new Set(cardTags(item));
+    const choices = getAllTags().filter(tag => !applied.has(tag));
+
+    const select = document.createElement('select');
+    select.className = 'select-folder note-card-tag-select';
+    select.title = '添加标签';
+
+    const placeholder = createCardSelectOption('', '＋ 标签');
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+
+    choices.forEach(tag => select.appendChild(createCardSelectOption(tag, `#${tag}`)));
+    select.appendChild(createCardSelectOption(CARD_NEW_TAG_VALUE, '＋ 新建标签…'));
+
+    select.addEventListener('change', (event) => {
+        const value = event.target.value;
+        event.target.value = '';
+        if (!value) return;
+        if (value === CARD_NEW_TAG_VALUE) promptNewItemTag(item.id);
+        else addItemTag(item.id, value);
+    });
+
+    return select;
+}
+
+function renderCardFolder(container, item, { editable = false } = {}) {
+    if (!editable) {
+        const folder = document.createElement('span');
+        folder.className = 'note-card-folder';
+        folder.textContent = item.folder || '默认';
+        container.appendChild(folder);
+        return;
+    }
+
+    const select = createCardFolderSelect(item);
+    container.appendChild(select);
+    upgradeSelectToCustom(select);
+}
+
+function buildCardTags(item, { editable = false } = {}) {
+    const wrap = document.createElement('div');
+    wrap.className = `note-card-taxonomy${editable ? ' is-editable' : ''}`;
+
+    const tags = cardTags(item);
+
+    if (!editable) {
+        tags.slice(0, CARD_TAG_VISIBLE_LIMIT).forEach(tag => {
+            wrap.appendChild(createCardTagChip(tag));
+        });
+        if (tags.length > CARD_TAG_VISIBLE_LIMIT) {
+            const more = document.createElement('span');
+            more.className = 'note-card-tag note-card-tag-more';
+            more.textContent = `+${tags.length - CARD_TAG_VISIBLE_LIMIT}`;
+            more.title = tags.slice(CARD_TAG_VISIBLE_LIMIT).map(tag => `#${tag}`).join(' ');
+            wrap.appendChild(more);
+        }
+
+        return wrap;
+    }
+
+    tags.forEach(tag => {
+        wrap.appendChild(createCardTagChip(tag, { removable: true, itemId: item.id }));
+    });
+
+    const tagSelect = createCardTagSelect(item);
+    wrap.appendChild(tagSelect);
+    upgradeSelectToCustom(tagSelect);
+
+    wrap.addEventListener('click', (event) => event.stopPropagation());
+    wrap.addEventListener('wheel', (event) => {
+        if (wrap.scrollWidth <= wrap.clientWidth) return;
+        event.preventDefault();
+        wrap.scrollLeft += event.deltaY !== 0 ? event.deltaY : event.deltaX;
+    }, { passive: false });
+
+    requestAnimationFrame(() => {
+        if (wrap.isConnected) wrap.scrollLeft = wrap.scrollWidth;
+    });
+
+    return wrap;
+}
+
 function createNoteCard(note) {
     const card = document.createElement('div');
     card.className = `note-card ${note.id === State.activeNoteId ? 'active' : ''}`;
     card.innerHTML = `
         <div class="note-card-title">
-            <span>${escapeHTML(note.title || '未命名笔记')}</span>
-            ${isSharedItem(note) ? `<span class="ms-icon xs" title="来自账户 ${escapeHTML(note.shared.owner)} 的共享笔记">group</span>` : ''}
-            ${note.locked === true ? `<span class="ms-icon xs fill" style="color: var(--accent);">${note.unlocked === true ? 'lock_open' : 'lock'}</span>` : ''}
-            ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+            <span class="note-card-title-text">${escapeHTML(note.title || '未命名笔记')}</span>
+            <div class="note-card-title-meta">
+                ${isSharedItem(note) ? `<span class="ms-icon xs" title="来自账户 ${escapeHTML(note.shared.owner)} 的共享笔记">group</span>` : ''}
+                ${note.locked === true ? `<span class="ms-icon xs fill" style="color: var(--accent);">${note.unlocked === true ? 'lock_open' : 'lock'}</span>` : ''}
+                ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+                <div class="note-card-folder-slot"></div>
+            </div>
         </div>
         <div class="note-card-preview">${escapeHTML(notePreviewText(note))}</div>
         <div class="note-card-footer">
-            <span>${formatDate(note.updatedAt)}</span>
-            <span class="note-card-folder">${escapeHTML(note.folder)}</span>
+            <span class="note-card-date">${formatDate(note.updatedAt)}</span>
         </div>
     `;
+
+    const editable = note.id === State.activeNoteId && !isReadOnlyItem(note);
+    const folderSlot = card.querySelector('.note-card-folder-slot');
+    renderCardFolder(folderSlot, note, { editable });
+    folderSlot.addEventListener('click', (event) => event.stopPropagation());
+    const footer = card.querySelector('.note-card-footer');
+    footer.classList.toggle('is-editable', editable);
+    footer.appendChild(buildCardTags(note, { editable }));
 
     card.addEventListener('click', () => {
         openTab(note.id);

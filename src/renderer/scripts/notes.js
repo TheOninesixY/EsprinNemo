@@ -9,6 +9,65 @@ function newNoteDefaults() {
     };
 }
 
+function changeItemFolder(itemId, folder) {
+    const item = getItemById(itemId);
+    if (!item || isReadOnlyItem(item)) return;
+
+    const next = typeof folder === 'string' ? folder.trim() : '';
+    if (!next || next === item.folder) return;
+
+    item.folder = next;
+    saveItem(item);
+    renderApp();
+    showToast(`已移动到「${next}」`);
+}
+
+function addItemTag(itemId, tag) {
+    const item = getItemById(itemId);
+    if (!item || isReadOnlyItem(item)) return;
+
+    const name = typeof tag === 'string' ? tag.trim() : '';
+    if (!name) return;
+
+    if (!Array.isArray(item.tags)) item.tags = [];
+    if (item.tags.includes(name)) return;
+
+    item.tags.push(name);
+    saveItem(item);
+    renderApp();
+    showToast(`已添加标签 #${name}`);
+}
+
+function removeItemTag(itemId, tag) {
+    const item = getItemById(itemId);
+    if (!item || isReadOnlyItem(item) || !Array.isArray(item.tags)) return;
+
+    const next = item.tags.filter(t => t !== tag);
+    if (next.length === item.tags.length) return;
+
+    item.tags = next;
+    saveItem(item);
+    renderApp();
+    showToast(`已移除标签 #${tag}`);
+}
+
+async function promptNewItemTag(itemId) {
+    const item = getItemById(itemId);
+    if (!item || isReadOnlyItem(item)) return;
+
+    const name = await showPrompt('请输入新标签的名称', {
+        title: '新建标签',
+        placeholder: '标签名称...',
+        confirmLabel: '添加'
+    });
+    if (name === null) return;
+    if (!name) {
+        showToast('标签名称不能为空');
+        return;
+    }
+    addItemTag(itemId, name);
+}
+
 function createNewNote() {
     const defaults = newNoteDefaults();
     const newNote = {

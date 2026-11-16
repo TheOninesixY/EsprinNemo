@@ -29,6 +29,7 @@
     border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
+    gap: 8px;
     justify-content: space-between;
     padding: 0 16px;
     flex-shrink: 0;
@@ -38,8 +39,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1;
+    flex-shrink: 0;
     min-width: 0;
+    max-width: 40%;
 }
 .select-folder {
     padding: 3px 6px;
@@ -125,6 +127,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .editor-view-modes {
@@ -150,15 +153,13 @@
 }
 
 .editor-toolbar {
-    height: 34px;
-    border-bottom: 1px solid var(--border-light);
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 0 16px;
-    flex-shrink: 0;
+    padding: 0 8px;
     overflow-x: auto;
-
     scrollbar-width: none;
 }
 .editor-toolbar::-webkit-scrollbar {

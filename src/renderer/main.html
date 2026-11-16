@@ -184,7 +184,9 @@
 
 <main class="workspace" id="workspace-box">
 
+                <div class="workspace-tabs-glass" aria-hidden="true"></div>
                 <div class="workspace-tabs" id="workspace-tabs"></div>
+                <div class="workspace-tabs-divider" aria-hidden="true"></div>
 
 <button class="tabs-back" id="btn-tabs-back" title="返回笔记列表">
 
@@ -210,6 +212,25 @@
                         <button class="btn-action-icon" id="btn-add-tag" title="添加标签">
                             <span class="ms-icon sm">label</span>
                         </button>
+                    </div>
+
+                    <div class="editor-toolbar hidden" id="editor-toolbar">
+                        <button class="fmt-btn" data-fmt="bold" title="加粗">B</button>
+                        <button class="fmt-btn" data-fmt="italic" style="font-style: italic;" title="斜体">I</button>
+                        <div class="fmt-divider"></div>
+                        <button class="fmt-btn" data-fmt="h1">H1</button>
+                        <button class="fmt-btn" data-fmt="h2">H2</button>
+                        <button class="fmt-btn" data-fmt="h3">H3</button>
+                        <div class="fmt-divider"></div>
+                        <button class="fmt-btn" data-fmt="ul" title="无序列表"><span class="ms-icon sm">format_list_bulleted</span></button>
+                        <button class="fmt-btn" data-fmt="ol" title="有序列表"><span class="ms-icon sm">format_list_numbered</span></button>
+                        <button class="fmt-btn" data-fmt="task" title="待办清单"><span class="ms-icon sm">check_box</span></button>
+                        <button class="fmt-btn" data-fmt="quote" title="引用"><span class="ms-icon sm">format_quote</span></button>
+                        <button class="fmt-btn" data-fmt="code" title="代码块"><span class="ms-icon sm">code</span></button>
+                        <button class="fmt-btn" data-fmt="hr" title="分割线"><span class="ms-icon sm">horizontal_rule</span></button>
+                        <div class="fmt-divider"></div>
+                        <button class="fmt-btn" id="btn-insert-file" title="插入文件或图片"><span class="ms-icon sm">attach_file</span></button>
+                        <button class="fmt-btn" id="btn-file-manager" title="文件管理器"><span class="ms-icon sm">folder_open</span></button>
                     </div>
 
 <div class="editor-actions">
@@ -254,26 +275,7 @@
                 <div class="editor-body">
                 <div class="editor-main">
 
-                <div class="editor-toolbar hidden" id="editor-toolbar">
-                    <button class="fmt-btn" data-fmt="bold" title="加粗">B</button>
-                    <button class="fmt-btn" data-fmt="italic" style="font-style: italic;" title="斜体">I</button>
-                    <div class="fmt-divider"></div>
-                    <button class="fmt-btn" data-fmt="h1">H1</button>
-                    <button class="fmt-btn" data-fmt="h2">H2</button>
-                    <button class="fmt-btn" data-fmt="h3">H3</button>
-                    <div class="fmt-divider"></div>
-                    <button class="fmt-btn" data-fmt="ul" title="无序列表"><span class="ms-icon sm">format_list_bulleted</span></button>
-                    <button class="fmt-btn" data-fmt="ol" title="有序列表"><span class="ms-icon sm">format_list_numbered</span></button>
-                    <button class="fmt-btn" data-fmt="task" title="待办清单"><span class="ms-icon sm">check_box</span></button>
-                    <button class="fmt-btn" data-fmt="quote" title="引用"><span class="ms-icon sm">format_quote</span></button>
-                    <button class="fmt-btn" data-fmt="code" title="代码块"><span class="ms-icon sm">code</span></button>
-                    <button class="fmt-btn" data-fmt="hr" title="分割线"><span class="ms-icon sm">horizontal_rule</span></button>
-                    <div class="fmt-divider"></div>
-                    <button class="fmt-btn" id="btn-insert-file" title="插入文件或图片"><span class="ms-icon sm">attach_file</span></button>
-                    <button class="fmt-btn" id="btn-file-manager" title="文件管理器"><span class="ms-icon sm">folder_open</span></button>
-                </div>
-
-<div class="editor-title-area hidden">
+                <div class="editor-title-area hidden">
                     <input type="text" class="editor-title-input" id="input-note-title" placeholder="无标题笔记...">
                 </div>
 
@@ -334,6 +336,7 @@
                     <span class="settings-topbar-title">设置</span>
                     <span class="settings-topbar-sep">/</span>
                     <span class="settings-topbar-current" id="settings-topbar-current">编辑器</span>
+                    <div class="settings-topbar-drag" aria-hidden="true"></div>
                 </div>
 
                 <div class="settings-content">
@@ -425,17 +428,6 @@
 
                         <div class="settings-section">
                             <div class="settings-section-title">界面</div>
-
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">禁用标签页</span>
-                                    <span class="settings-row-desc">收起工作区顶部的整条标签栏；已打开的标签仍然保留，关闭本开关即恢复显示（默认开启）</span>
-                                </div>
-                                <label class="switch">
-                                    <input type="checkbox" id="setting-tabs-disabled">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
 
                             <div class="settings-row">
                                 <div class="settings-row-info">
