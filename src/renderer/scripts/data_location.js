@@ -92,6 +92,7 @@ async function refreshDataDirInfo() {
         dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };
     }
     updateDataDirUI();
+    if (typeof renderSettingsNavItems === 'function') renderSettingsNavItems();
 }
 
 function adoptDataDir(dir, options = {}) {
@@ -105,6 +106,7 @@ function adoptDataDir(dir, options = {}) {
         spellcheck: State.spellcheck,
 
         sidebarBlur: State.sidebarBlur !== false,
+        glassTransparent: State.glassTransparent === true,
         sidebarCollapsed: State.sidebarCollapsed,
         trashRetentionDays: State.trashRetentionDays,
         autoUpdate: State.autoUpdate,
@@ -158,6 +160,7 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.uiScale = prefs.uiScale;
         State.spellcheck = prefs.spellcheck;
         State.sidebarBlur = prefs.sidebarBlur !== false;
+        State.glassTransparent = prefs.glassTransparent === true;
         State.sidebarCollapsed = true;
         State.trashRetentionDays = prefs.trashRetentionDays;
         State.autoUpdate = prefs.autoUpdate !== false;
@@ -212,6 +215,7 @@ if (State.currentFilter.startsWith('folder:')) {
 
     applyUiMode();
     applySidebarBlur();
+    if (typeof applyGlassTransparent === 'function') applyGlassTransparent();
     syncFontSelects();
     syncAccentControls();
     syncThemeStyleSelect();

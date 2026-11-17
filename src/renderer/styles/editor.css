@@ -43,6 +43,13 @@
     min-width: 0;
     max-width: 40%;
 }
+
+/* 文件夹与标签改到笔记卡上编辑，编辑器顶栏不再显示 */
+.editor-topbar .select-folder,
+.editor-topbar .note-tags-container,
+.editor-topbar #btn-add-tag {
+    display: none;
+}
 .select-folder {
     padding: 3px 6px;
     background: var(--item-hover);

@@ -51,20 +51,45 @@ html.has-wallpaper .app-container {
 
 html.has-wallpaper .sidebar {
     background-color: var(--sidebar-glass-bg);
-    -webkit-backdrop-filter: blur(26px) saturate(1.18);
-    backdrop-filter: blur(26px) saturate(1.18);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
 }
 
 html.has-wallpaper .notes-panel {
+    background-color: transparent;
+    isolation: isolate;
+}
+
+/* 模糊放在不滚动的底层伪元素上：列表滚动时只重绘内容，不重算整块模糊 */
+html.has-wallpaper .notes-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background-color: var(--notes-glass-bg);
-    -webkit-backdrop-filter: blur(22px) saturate(1.12);
-    backdrop-filter: blur(22px) saturate(1.12);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: -1;
 }
 
 html.has-wallpaper:not(.sidebar-blur-off) .topbar {
     background-color: var(--sidebar-glass-bg);
-    -webkit-backdrop-filter: blur(26px) saturate(1.18);
-    backdrop-filter: blur(26px) saturate(1.18);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+/* 内拐角补块：尺寸很小，用同样的毛玻璃盖住圆角外的缺口 */
+html.has-wallpaper:not(.sidebar-blur-off) .app-chrome::before {
+    background-color: var(--sidebar-glass-bg);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+html.has-wallpaper.sidebar-blur-off .app-chrome::before {
+    background-color: var(--bg-sidebar);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 html.has-wallpaper .settings-sidebar {
@@ -86,6 +111,15 @@ html.has-wallpaper.sidebar-blur-off .notes-panel {
     background-color: var(--bg-list);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+}
+
+/* 开发者选项：毛玻璃透明 —— 保留半透明底色，但去掉模糊，直接透出背景 */
+html.glass-transparent .sidebar,
+html.glass-transparent .notes-panel,
+html.glass-transparent .topbar,
+html.glass-transparent .workspace-tabs-glass {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
 }
 
 html.has-wallpaper.sidebar-blur-off .topbar {

@@ -33,6 +33,8 @@ filterFolder: '',
 
     sidebarBlur: true,
 
+    glassTransparent: false,
+
     sidebarCollapsed: true,
 
     trashRetentionDays: 0,

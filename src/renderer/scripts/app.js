@@ -58,6 +58,7 @@ let saved = {};
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
 
     State.sidebarBlur = saved.sidebarBlur !== false;
+    State.glassTransparent = saved.glassTransparent === true;
     State.sidebarCollapsed = true;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);
     State.autoUpdate = saved.autoUpdate !== false;

@@ -29,16 +29,37 @@ html.modern-layout .app-chrome > .topbar {
     -webkit-app-region: drag;
 }
 
-/* 顶栏下沿的分界线只从侧边栏右缘开始，不画到侧边栏上方 */
-html.modern-layout .app-chrome > .topbar::after {
+/* 内拐角：内容区左上角做圆角，圆角外侧用一小块同色玻璃补住，避免露出未模糊的壁纸尖角 */
+html.modern-layout .app-chrome {
+    position: relative;
+}
+
+html.modern-layout .app-chrome > .notes-panel {
+    border-top: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+    border-top-left-radius: calc(var(--radius-md) * 1.6);
+}
+
+html.modern-layout .app-chrome::before {
     content: '';
     position: absolute;
     left: var(--modern-rail-width);
-    right: 0;
-    bottom: 0;
-    height: 1px;
-    background-color: var(--border-color);
+    top: var(--modern-tabs-height);
+    width: calc(var(--radius-md) * 1.6);
+    height: calc(var(--radius-md) * 1.6);
+    background-color: var(--bg-sidebar);
     pointer-events: none;
+    z-index: 0;
+}
+
+html.modern-layout .app-chrome > .notes-panel,
+html.modern-layout .app-chrome > .workspace {
+    position: relative;
+    z-index: 1;
+}
+
+html.modern-layout .app-chrome > .workspace {
+    border-top: 1px solid var(--border-color);
 }
 
 html.modern-layout .app-chrome > .topbar .app-corner {
@@ -47,13 +68,14 @@ html.modern-layout .app-chrome > .topbar .app-corner {
     justify-content: center;
     flex-shrink: 0;
     width: var(--modern-rail-width);
+    box-sizing: border-box;
     -webkit-app-region: drag;
 }
 
 html.modern-layout .app-chrome > .topbar .app-corner svg {
     display: block;
-    width: 22px;
-    height: 22px;
+    width: 18px;
+    height: 18px;
     color: var(--accent);
     pointer-events: none;
 }
@@ -94,7 +116,7 @@ html.modern-layout .app-chrome > .topbar > .titlebar-actions {
 html.modern-layout .app-chrome > .sidebar {
     grid-column: 1;
     grid-row: 2;
-    border-right: 1px solid var(--border-color);
+    border-right: none;
 }
 
 html.modern-layout .app-chrome > .notes-panel {
