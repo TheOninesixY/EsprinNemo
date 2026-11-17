@@ -1,30 +1,127 @@
-html.modern-layout .titlebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 40px;
-    padding: 0;
-
-    justify-content: flex-end;
-    background-color: transparent;
-    border-bottom: none;
-    -webkit-app-region: no-drag;
-    pointer-events: none;
-}
-html.modern-layout .titlebar-tabs {
-    display: none !important;
-}
-
-html.modern-layout .titlebar .titlebar-actions,
-html.modern-layout .titlebar .window-controls {
-    pointer-events: auto;
-}
-
 html.modern-layout {
     --modern-tabs-height: 40px;
-    --modern-drag-top: var(--modern-tabs-height);
+    --modern-drag-top: 0px;
+    --modern-rail-width: 48px;
 }
+
+html.modern-layout .app-chrome {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: var(--modern-rail-width) auto minmax(0, 1fr);
+    grid-template-rows: var(--modern-tabs-height) minmax(0, 1fr);
+}
+
+/* 顶部一条：拐角块 + 标签栏 + 工具按钮 + 窗口按钮，横跨整个宽度 */
+html.modern-layout .app-chrome > .topbar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+    height: var(--modern-tabs-height);
+    background-color: var(--bg-sidebar);
+    border-bottom: none;
+    z-index: 12;
+    -webkit-app-region: drag;
+}
+
+/* 顶栏下沿的分界线只从侧边栏右缘开始，不画到侧边栏上方 */
+html.modern-layout .app-chrome > .topbar::after {
+    content: '';
+    position: absolute;
+    left: var(--modern-rail-width);
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background-color: var(--border-color);
+    pointer-events: none;
+}
+
+html.modern-layout .app-chrome > .topbar .app-corner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--modern-rail-width);
+    -webkit-app-region: drag;
+}
+
+html.modern-layout .app-chrome > .topbar .app-corner svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+    color: var(--accent);
+    pointer-events: none;
+}
+
+html.modern-layout .app-chrome > .topbar .app-corner svg path {
+    fill: currentColor;
+}
+
+html.modern-layout .app-chrome > .topbar .app-brand {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0 12px 0 8px;
+    font-family: 'Mohave', var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--accent);
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    -webkit-app-region: drag;
+}
+
+html.modern-layout .app-chrome > .topbar .titlebar-actions,
+html.modern-layout .app-chrome > .topbar .window-controls {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 0;
+    -webkit-app-region: no-drag;
+}
+
+html.modern-layout .app-chrome > .topbar > .titlebar-actions {
+    margin-left: auto;
+}
+
+html.modern-layout .app-chrome > .sidebar {
+    grid-column: 1;
+    grid-row: 2;
+    border-right: 1px solid var(--border-color);
+}
+
+html.modern-layout .app-chrome > .notes-panel {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+html.modern-layout .app-chrome > .topbar > .workspace-tabs-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    -webkit-app-region: drag;
+}
+
+html.modern-layout .app-chrome > .topbar > .workspace-tabs-bar > .workspace-tabs {
+    flex: 1;
+    min-width: 0;
+}
+
+html.modern-layout .app-chrome > .workspace {
+    grid-column: 3;
+    grid-row: 2;
+}
+
 html.modern-layout.tabs-disabled {
     --modern-tabs-height: 0px;
 }
@@ -34,11 +131,9 @@ html.modern-layout:has(#workspace-tabs:empty) {
 }
 
 html.settings-open {
-    --modern-tabs-height: 0px;
     --modern-drag-top: 0px;
 }
 
-html.settings-open .workspace-tabs,
 html.settings-open .tabs-back {
     display: none !important;
 }
@@ -46,18 +141,16 @@ html.settings-open .tabs-back {
 html.modern-layout .workspace-tabs {
     display: flex;
     align-items: center;
-    flex-shrink: 0;
-    height: var(--modern-tabs-height);
+    flex: 1;
+    min-width: 0;
+    height: 100%;
     gap: 6px;
     padding: 0 8px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
 
-    margin-right: 312px;
-    transition: margin-right var(--motion-slow) var(--ease-out),
-                padding-left var(--motion-base) var(--ease-out),
-
+    transition: padding-left var(--motion-base) var(--ease-out),
                 --tabs-fade var(--motion-base) var(--ease-out),
                 --tabs-fade-left var(--motion-base) var(--ease-out);
 
@@ -70,7 +163,7 @@ html.modern-layout .workspace-tabs::-webkit-scrollbar {
 }
 
 html.modern-layout .workspace-tabs:empty {
-    display: none;
+    display: flex;
 }
 
 html.modern-layout.tabs-disabled .workspace-tabs {
@@ -111,7 +204,8 @@ html.modern-layout .workspace-tabs.tabs-fade-right {
     --tabs-fade: 32px;
 }
 
-html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .workspace-tabs {
+html.modern-layout .workspace-tabs-bar:has(#editor-topbar) .workspace-tabs,
+html.modern-layout .app-chrome:has(#editor-topbar:not(.hidden)) .workspace-tabs {
     -webkit-mask-image: linear-gradient(to right,
         transparent calc(var(--tabs-back-slot) - 6px),
         #000 calc(var(--tabs-back-slot) - 6px + var(--tabs-fade-left)),
@@ -167,18 +261,18 @@ html.modern-layout .tabs-back:hover {
     color: var(--text-primary);
 }
 
-html.modern-layout:not(.tabs-disabled) .workspace:has(#editor-topbar:not(.hidden)):has(#workspace-tabs:not(:empty)) .tabs-back,
-html.modern-layout.tabs-disabled .workspace:has(#editor-topbar:not(.hidden)) .tabs-back {
+html.modern-layout .app-chrome:has(#editor-topbar:not(.hidden)):has(#workspace-tabs:not(:empty)) .tabs-back,
+html.modern-layout.tabs-disabled .app-chrome:has(#editor-topbar:not(.hidden)) .tabs-back {
     opacity: 1;
     transform: none;
     pointer-events: auto;
 }
-html.modern-layout .workspace:has(#editor-topbar:not(.hidden)) .workspace-tabs {
+html.modern-layout .app-chrome:has(#editor-topbar:not(.hidden)) .workspace-tabs {
     padding-left: var(--tabs-back-slot);
 }
 
 html.modern-layout .notes-panel-header {
-    min-height: calc(var(--modern-tabs-height) + 40px);
+    min-height: 40px;
     justify-content: space-between;
 }
 
@@ -233,16 +327,7 @@ html.modern-layout .settings-topbar-drag {
     flex: 1;
     align-self: stretch;
     min-width: 0;
-    margin-right: 312px;
     -webkit-app-region: drag;
-}
-
-html.modern-layout body.is-fullscreen .settings-topbar-drag {
-    margin-right: 178px;
-}
-
-html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .settings-topbar-drag {
-    margin-right: 0;
 }
 
 html.modern-layout .settings-view .settings-content {
@@ -251,41 +336,10 @@ html.modern-layout .settings-view .settings-content {
 
 html.modern-layout .workspace-tabs-divider {
     display: none;
-    flex-shrink: 0;
-    height: 1px;
-    background-color: var(--border-color);
-    pointer-events: none;
-}
-
-html.modern-layout #workspace-tabs:not(:empty) ~ .workspace-tabs-divider {
-    display: block;
 }
 
 html.modern-layout .workspace-tabs-glass {
     display: none;
-}
-
-html.modern-layout .workspace:has(#workspace-tabs:not(:empty)) .workspace-tabs-glass {
-    display: block;
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    height: var(--modern-tabs-height);
-    pointer-events: none;
-    z-index: 11;
-}
-
-html.settings-open .workspace-tabs-divider,
-html.settings-open .workspace-tabs-glass {
-    display: none !important;
-}
-
-@media (max-width: 860px) {
-    html.modern-layout .workspace-tabs-divider,
-    html.modern-layout .workspace-tabs-glass {
-        display: none !important;
-    }
 }
 
 html.modern-layout .editor-topbar {
@@ -293,24 +347,8 @@ html.modern-layout .editor-topbar {
 }
 
 html.modern-layout.tabs-disabled .editor-topbar {
-    padding-right: 312px;
-    transition: padding-right var(--motion-slow) var(--ease-out),
-                padding-left var(--motion-base) var(--ease-out);
-}
-
-html.modern-layout.tabs-disabled .editor-topbar {
     padding-left: var(--tabs-back-slot);
-}
-html.modern-layout.tabs-disabled body.is-fullscreen .editor-topbar {
-    padding-right: 178px;
-}
-html.modern-layout.tabs-disabled .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .editor-topbar {
-    padding-right: 16px;
-}
-
-html.modern-layout body.is-fullscreen .workspace-tabs {
-    margin-right: 178px;
-    -webkit-app-region: no-drag;
+    transition: padding-left var(--motion-base) var(--ease-out);
 }
 
 html.modern-layout .ai-panel-drag-strip {
@@ -330,9 +368,6 @@ html.modern-layout .ai-drawer {
     top: 80px;
 }
 
-html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .workspace-tabs {
-    margin-right: 16px;
-}
 html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-drag-surface {
 
     inset: var(--modern-drag-top) 0 0 0;

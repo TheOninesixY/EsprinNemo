@@ -52,49 +52,59 @@
     </div>
     <div class="app-container">
 
-        <header class="titlebar" id="app-titlebar">
-
-            <div class="titlebar-tabs" id="titlebar-tabs"></div>
-
-<div class="titlebar-actions">
-
-                <button class="btn-action-icon" id="btn-ai-assistant" title="AI 助手">
-                    <span class="ms-icon sm">chat_bubble</span>
-                </button>
-
-                <button class="btn-action-icon" id="btn-scratchpad" title="小本本">
-                    <span class="ms-icon sm">sticky_note_2</span>
-                </button>
-
-                <button class="btn-action-icon" id="btn-sticky-notes" title="桌面便利贴">
-                    <span class="ms-icon sm">keep</span>
-                </button>
-                <button class="btn-action-icon" id="btn-theme-toggle" title="切换主题">
-                    <span class="ms-icon sm" id="theme-icon">computer</span>
-                </button>
-                <button class="btn-action-icon" id="btn-fullscreen" title="全屏">
-                    <span class="ms-icon sm">fullscreen</span>
-                </button>
-
-                <button class="btn-action-icon mobile-menu-toggle" id="btn-mobile-menu" title="更多">
-                    <span class="ms-icon sm">more_vert</span>
-                </button>
-            </div>
-
-<div class="window-controls">
-                <button class="win-btn" id="win-min" title="最小化">
-                    <span class="ms-icon xs">remove</span>
-                </button>
-                <button class="win-btn" id="win-max" title="最大化">
-                    <span class="ms-icon xs">crop_square</span>
-                </button>
-                <button class="win-btn close" id="win-close" title="关闭">
-                    <span class="ms-icon xs">close</span>
-                </button>
-            </div>
-        </header>
-
 <div class="app-body">
+            <div class="app-chrome">
+            <header class="topbar" id="app-titlebar">
+                <div class="app-corner" aria-hidden="true"></div>
+
+                <div class="app-brand" aria-hidden="true">EsprinNemo</div>
+
+                <div class="workspace-tabs-bar" id="workspace-tabs-bar">
+                    <button class="tabs-back" id="btn-tabs-back" title="返回笔记列表">
+                        <span class="ms-icon sm tabs-back-icon-back">arrow_back</span>
+                        <span class="ms-icon sm tabs-back-icon-home">home</span>
+                    </button>
+                    <div class="workspace-tabs" id="workspace-tabs"></div>
+                    <div class="workspace-tabs-divider" aria-hidden="true"></div>
+                </div>
+
+                <div class="titlebar-actions">
+                    <button class="btn-action-icon" id="btn-ai-assistant" title="AI 助手">
+                        <span class="ms-icon sm">chat_bubble</span>
+                    </button>
+
+                    <button class="btn-action-icon" id="btn-scratchpad" title="小本本">
+                        <span class="ms-icon sm">sticky_note_2</span>
+                    </button>
+
+                    <button class="btn-action-icon" id="btn-sticky-notes" title="桌面便利贴">
+                        <span class="ms-icon sm">keep</span>
+                    </button>
+                    <button class="btn-action-icon" id="btn-theme-toggle" title="切换主题">
+                        <span class="ms-icon sm" id="theme-icon">computer</span>
+                    </button>
+                    <button class="btn-action-icon" id="btn-fullscreen" title="全屏">
+                        <span class="ms-icon sm">fullscreen</span>
+                    </button>
+
+                    <button class="btn-action-icon mobile-menu-toggle" id="btn-mobile-menu" title="更多">
+                        <span class="ms-icon sm">more_vert</span>
+                    </button>
+                </div>
+
+                <div class="window-controls">
+                    <button class="win-btn" id="win-min" title="最小化">
+                        <span class="ms-icon xs">remove</span>
+                    </button>
+                    <button class="win-btn" id="win-max" title="最大化">
+                        <span class="ms-icon xs">crop_square</span>
+                    </button>
+                    <button class="win-btn close" id="win-close" title="关闭">
+                        <span class="ms-icon xs">close</span>
+                    </button>
+                </div>
+            </header>
+
             <aside class="sidebar" id="app-sidebar">
 
 <div class="nav-section nav-section-main">
@@ -184,17 +194,7 @@
 
 <main class="workspace" id="workspace-box">
 
-                <div class="workspace-tabs-glass" aria-hidden="true"></div>
-                <div class="workspace-tabs" id="workspace-tabs"></div>
-                <div class="workspace-tabs-divider" aria-hidden="true"></div>
-
-<button class="tabs-back" id="btn-tabs-back" title="返回笔记列表">
-
-                    <span class="ms-icon sm tabs-back-icon-back">arrow_back</span>
-                    <span class="ms-icon sm tabs-back-icon-home">home</span>
-                </button>
-
-<div class="empty-placeholder" id="empty-state">
+                <div class="empty-placeholder" id="empty-state">
 
                     <div class="empty-drag-surface" aria-hidden="true"></div>
                     <span class="ms-icon">edit_note</span>
@@ -1066,6 +1066,7 @@
                 </div>
             </div>
             </main>
+            </div>
 
 <aside class="ai-panel hidden" id="ai-panel">
 
@@ -1229,6 +1230,7 @@
     <script src="./scripts/wallpaper.js"></script>
     <script src="./scripts/appearance.js"></script>
     <script src="./scripts/theme_color.js"></script>
+    <script src="./scripts/app_icon.js"></script>
     <script src="./scripts/fonts.js"></script>
     <script src="./scripts/mode.js"></script>
     <script src="./scripts/ai_settings.js"></script>

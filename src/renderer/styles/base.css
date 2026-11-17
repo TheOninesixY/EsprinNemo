@@ -100,6 +100,19 @@ input, textarea, select {
     user-select: none;
 }
 
+.topbar {
+    height: 40px;
+    background-color: var(--bg-titlebar);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    -webkit-app-region: drag;
+    position: relative;
+    z-index: 100;
+    user-select: none;
+}
+
 .titlebar-tabs {
     -webkit-app-region: drag;
 }
