@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Slide Generator - Generates HTML slides using design tokens
 ALL styles MUST use CSS variables from design-tokens.css
@@ -12,11 +12,9 @@ from html import escape
 from pathlib import Path
 from datetime import datetime
 
-
 def _e(value, default=''):
     """HTML-escape a user-supplied value for safe embedding in HTML content."""
     return escape(str(value if value is not None else default))
-
 
 def _safe_url(url, default='#'):
     """Validate and escape a URL for use in href attributes.
@@ -28,15 +26,11 @@ def _safe_url(url, default='#'):
         return escape(str(url), quote=True)
     return default
 
-# Paths
 SCRIPT_DIR = Path(__file__).parent
 DATA_DIR = SCRIPT_DIR.parent / "data"
 TOKENS_CSS = Path(__file__).resolve().parents[4] / "assets" / "design-tokens.css"
 TOKENS_JSON = Path(__file__).resolve().parents[4] / "assets" / "design-tokens.json"
 OUTPUT_DIR = Path(__file__).resolve().parents[4] / "assets" / "designs" / "slides"
-
-# ============ BRAND-COMPLIANT SLIDE TEMPLATE ============
-# ALL values reference CSS variables from design-tokens.css
 
 SLIDE_TEMPLATE = '''<!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -422,9 +416,6 @@ SLIDE_TEMPLATE = '''<!DOCTYPE html>
 </html>
 '''
 
-
-# ============ SLIDE GENERATORS ============
-
 def generate_title_slide(data):
     """Title slide with gradient headline"""
     return f'''
@@ -442,7 +433,6 @@ def generate_title_slide(data):
         </div>
     </section>
     '''
-
 
 def generate_problem_slide(data):
     """Problem statement slide using PAS formula"""
@@ -473,7 +463,6 @@ def generate_problem_slide(data):
         </div>
     </section>
     '''
-
 
 def generate_solution_slide(data):
     """Solution slide with feature highlights"""
@@ -519,7 +508,6 @@ def generate_solution_slide(data):
     </section>
     '''
 
-
 def generate_metrics_slide(data):
     """Traction/metrics slide with large numbers"""
     metrics = data.get('metrics', [
@@ -549,7 +537,6 @@ def generate_metrics_slide(data):
         </div>
     </section>
     '''
-
 
 def generate_chart_slide(data):
     """Chart slide with CSS bar chart"""
@@ -584,7 +571,6 @@ def generate_chart_slide(data):
     </section>
     '''
 
-
 def generate_testimonial_slide(data):
     """Social proof slide"""
     return f'''
@@ -602,7 +588,6 @@ def generate_testimonial_slide(data):
     </section>
     '''
 
-
 def generate_cta_slide(data):
     """Closing CTA slide"""
     return f'''
@@ -619,8 +604,6 @@ def generate_cta_slide(data):
     </section>
     '''
 
-
-# Slide type mapping
 SLIDE_GENERATORS = {
     'title': generate_title_slide,
     'problem': generate_problem_slide,
@@ -633,7 +616,6 @@ SLIDE_GENERATORS = {
     'closing': generate_cta_slide
 }
 
-
 def generate_deck(slides_data, title="Pitch Deck"):
     """Generate complete deck from slide data list"""
     slides_html = ""
@@ -645,7 +627,6 @@ def generate_deck(slides_data, title="Pitch Deck"):
         else:
             print(f"Warning: Unknown slide type '{slide_type}'")
 
-    # Calculate relative path to tokens CSS
     tokens_rel_path = "../../../assets/design-tokens.css"
 
     return SLIDE_TEMPLATE.format(
@@ -653,7 +634,6 @@ def generate_deck(slides_data, title="Pitch Deck"):
         tokens_css_path=tokens_rel_path,
         slides_content=slides_html
     )
-
 
 def main():
     parser = argparse.ArgumentParser(description="Generate brand-compliant slides")
@@ -664,7 +644,7 @@ def main():
     args = parser.parse_args()
 
     if args.demo:
-        # Demo deck showcasing all slide types
+
         demo_slides = [
             {
                 'type': 'title',
@@ -764,7 +744,6 @@ def main():
 
     else:
         parser.print_help()
-
 
 if __name__ == "__main__":
     main()

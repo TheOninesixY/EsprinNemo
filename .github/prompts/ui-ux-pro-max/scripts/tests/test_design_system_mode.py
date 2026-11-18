@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Regression tests for color-mode coherence in design_system.py (issue #428).
 
@@ -23,7 +23,7 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from design_system import (  # noqa: E402
+from design_system import (
     _filter_anti_patterns_for_mode,
     _contrast_ratio,
     _palette_is_dark,
@@ -33,12 +33,11 @@ from design_system import (  # noqa: E402
     _select_palette_for_mode,
     _style_is_dark_primary,
     DesignSystemGenerator,
-)  # noqa: I001 - private helpers first, public class last
+)
 
 LIGHT_PALETTE = {"Product Type": "SaaS", "Background": "#F8FAFC", "Foreground": "#020617"}
 DARK_PALETTE = {"Product Type": "Fintech/Crypto", "Background": "#0F172A", "Foreground": "#F8FAFC"}
 
-# Verbatim from styles.csv row "Modern Dark (Cinema Mobile)".
 DARK_PRIMARY_STYLE = {
     "Style Category": "Modern Dark (Cinema Mobile)",
     "Light Mode ✓": "✓ Light mode only as exception",
@@ -49,7 +48,6 @@ DUAL_MODE_STYLE = {
     "Light Mode ✓": "✓ Full",
     "Dark Mode ✓": "✓ Full",
 }
-
 
 class TestLuminance(unittest.TestCase):
     def test_parses_six_and_three_digit_hex(self):
@@ -62,14 +60,13 @@ class TestLuminance(unittest.TestCase):
             self.assertIsNone(_relative_luminance(value))
 
     def test_classifies_backgrounds_from_the_shipped_data(self):
-        # Lightest dark background and darkest light background in colors.csv.
+
         self.assertTrue(_palette_is_dark({"Background": "#1F2937"}))
         self.assertFalse(_palette_is_dark({"Background": "#E8ECF1"}))
 
     def test_missing_background_is_not_dark(self):
         self.assertFalse(_palette_is_dark({}))
         self.assertFalse(_palette_is_dark(None))
-
 
 class TestModeResolution(unittest.TestCase):
     def test_dark_primary_style_detected(self):
@@ -89,7 +86,6 @@ class TestModeResolution(unittest.TestCase):
         self.assertEqual(_resolve_color_mode("saas dark mode", DUAL_MODE_STYLE), "dark")
         self.assertEqual(_resolve_color_mode("saas", DARK_PRIMARY_STYLE), "dark")
         self.assertEqual(_resolve_color_mode("saas", DUAL_MODE_STYLE), "light")
-
 
 class TestPaletteSelection(unittest.TestCase):
     def test_dark_mode_skips_light_palettes(self):
@@ -116,7 +112,6 @@ class TestPaletteSelection(unittest.TestCase):
         self.assertGreaterEqual(
             _contrast_ratio(chosen["Ring"], chosen["Background"]), 3.0)
 
-
 class TestAntiPatternGating(unittest.TestCase):
     def test_dark_clause_dropped_others_kept(self):
         result = _filter_anti_patterns_for_mode(
@@ -133,7 +128,6 @@ class TestAntiPatternGating(unittest.TestCase):
 
     def test_empty_input(self):
         self.assertEqual(_filter_anti_patterns_for_mode("", "dark"), "")
-
 
 class TestEndToEndCoherence(unittest.TestCase):
     """The exact reproduction from issue #428."""
@@ -183,7 +177,6 @@ class TestEndToEndCoherence(unittest.TestCase):
     def test_light_query_keeps_a_light_background(self):
         ds = DesignSystemGenerator().generate("healthcare clinic booking app")
         self.assertFalse(_palette_is_dark({"Background": ds["colors"]["background"]}))
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

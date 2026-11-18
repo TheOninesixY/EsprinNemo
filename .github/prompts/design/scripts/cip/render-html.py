@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 CIP HTML Presentation Renderer
 
@@ -15,11 +15,9 @@ import base64
 from pathlib import Path
 from datetime import datetime
 
-# Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent))
 from core import search, get_cip_brief
 
-# Deliverable descriptions for presentation
 DELIVERABLE_INFO = {
     "business card": {
         "title": "Business Card",
@@ -95,7 +93,6 @@ DELIVERABLE_INFO = {
     }
 }
 
-
 def get_image_base64(image_path):
     """Convert image to base64 for embedding in HTML"""
     try:
@@ -105,21 +102,19 @@ def get_image_base64(image_path):
         print(f"Warning: Could not load image {image_path}: {e}")
         return None
 
-
 def get_deliverable_info(filename):
     """Extract deliverable type from filename and get info"""
     filename_lower = filename.lower()
     for key, info in DELIVERABLE_INFO.items():
         if key.replace(" ", "-") in filename_lower or key.replace(" ", "_") in filename_lower:
             return info
-    # Default info
+
     return {
         "title": filename.replace("-", " ").replace("_", " ").title(),
         "concept": "Brand identity application",
         "purpose": "Extends brand presence across touchpoints",
         "specs": "Custom specifications"
     }
-
 
 def generate_html(brand_name, industry, images_dir, output_path=None, style=None):
     """Generate HTML presentation from CIP images"""
@@ -129,18 +124,15 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
         print(f"Error: Directory not found: {images_dir}")
         return None
 
-    # Get all PNG images
     images = sorted(images_dir.glob("*.png"))
     if not images:
         print(f"Error: No PNG images found in {images_dir}")
         return None
 
-    # Get CIP brief for brand info
     brief = get_cip_brief(brand_name, industry, style)
     style_info = brief.get("style", {})
     industry_info = brief.get("industry", {})
 
-    # Build HTML
     html_parts = [f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -339,7 +331,6 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
         </p>
 ''']
 
-    # Add each deliverable
     for i, image_path in enumerate(images):
         info = get_deliverable_info(image_path.stem)
         img_base64 = get_image_base64(image_path)
@@ -363,7 +354,6 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
         </div>
 ''')
 
-    # Close HTML
     html_parts.append(f'''
     </section>
 
@@ -378,7 +368,6 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
 
     html_content = "".join(html_parts)
 
-    # Save HTML
     output_path = output_path or images_dir / f"{brand_name.lower().replace(' ', '-')}-cip-presentation.html"
     output_path = Path(output_path)
 
@@ -387,7 +376,6 @@ def generate_html(brand_name, industry, images_dir, output_path=None, style=None
 
     print(f"✅ HTML presentation generated: {output_path}")
     return str(output_path)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -418,7 +406,6 @@ Examples:
         output_path=args.output,
         style=args.style
     )
-
 
 if __name__ == "__main__":
     main()

@@ -1,34 +1,14 @@
 #!/usr/bin/env node
-/**
- * inject-brand-context.cjs
- *
- * Extracts brand context from markdown brand guidelines
- * and outputs a formatted system prompt addition.
- *
- * Usage:
- *   node inject-brand-context.cjs [path-to-guidelines]
- *   node inject-brand-context.cjs --json [path-to-guidelines]
- *
- * Default path: docs/brand-guidelines.md
- */
 
 const fs = require("fs");
 const path = require("path");
-
-// Default brand guidelines path
 const DEFAULT_GUIDELINES_PATH = "docs/brand-guidelines.md";
 
-/**
- * Extract hex colors from text
- */
 function extractHexColors(text) {
   const hexPattern = /#[0-9A-Fa-f]{6}\b/g;
   return [...new Set(text.match(hexPattern) || [])];
 }
 
-/**
- * Extract color data from markdown table
- */
 function extractColorsFromTable(content) {
   const colors = {
     primary: [],
@@ -36,8 +16,6 @@ function extractColorsFromTable(content) {
     neutral: [],
     semantic: [],
   };
-
-  // Find color tables
   const primaryMatch = content.match(
     /### Primary Colors[\s\S]*?\|[\s\S]*?(?=###|$)/i
   );
@@ -59,22 +37,15 @@ function extractColorsFromTable(content) {
   return colors;
 }
 
-/**
- * Extract typography info
- */
 function extractTypography(content) {
   const typography = {
     heading: null,
     body: null,
     mono: null,
   };
-
-  // Look for font definitions
   const headingMatch = content.match(/--font-heading:\s*['"]([^'"]+)['"]/);
   const bodyMatch = content.match(/--font-body:\s*['"]([^'"]+)['"]/);
   const monoMatch = content.match(/--font-mono:\s*['"]([^'"]+)['"]/);
-
-  // Fallback: look in tables
   const fontStackMatch = content.match(/### Font Stack[\s\S]*?(?=###|##|$)/i);
   if (fontStackMatch) {
     const stackText = fontStackMatch[0];
@@ -92,17 +63,12 @@ function extractTypography(content) {
   return typography;
 }
 
-/**
- * Extract voice/tone information
- */
 function extractVoice(content) {
   const voice = {
     traits: [],
     prohibited: [],
     personality: "",
   };
-
-  // Extract personality traits from table
   const personalityMatch = content.match(
     /### Brand Personality[\s\S]*?\|[\s\S]*?(?=###|##|$)/i
   );
@@ -117,8 +83,6 @@ function extractVoice(content) {
       }).filter(Boolean);
     }
   }
-
-  // Extract prohibited terms
   const prohibitedMatch = content.match(
     /### Prohibited[\s\S]*?(?=###|##|$)/i
   );
@@ -130,8 +94,6 @@ function extractVoice(content) {
         .filter((t) => t && !t.includes("Avoid") && !t.includes("---"));
     }
   }
-
-  // Fallback: look for Forbidden Phrases
   const forbiddenMatch = content.match(
     /### Forbidden Phrases[\s\S]*?(?=###|##|$)/i
   );
@@ -149,9 +111,6 @@ function extractVoice(content) {
   return voice;
 }
 
-/**
- * Extract core attributes
- */
 function extractCoreAttributes(content) {
   const attributes = [];
 
@@ -178,9 +137,6 @@ function extractCoreAttributes(content) {
   return attributes;
 }
 
-/**
- * Extract AI image generation context
- */
 function extractImageStyle(content) {
   const imageStyle = {
     basePrompt: "",
@@ -189,16 +145,12 @@ function extractImageStyle(content) {
     donts: [],
     examplePrompts: [],
   };
-
-  // Extract base prompt template (content between ``` blocks after "Base Prompt Template")
   const basePromptMatch = content.match(
     /### Base Prompt Template[\s\S]*?```\n?([\s\S]*?)```/i
   );
   if (basePromptMatch) {
     imageStyle.basePrompt = basePromptMatch[1].trim().replace(/\n/g, " ");
   }
-
-  // Extract style keywords from table
   const keywordsMatch = content.match(
     /### Style Keywords[\s\S]*?\|[\s\S]*?(?=###|##|$)/i
   );
@@ -214,8 +166,6 @@ function extractImageStyle(content) {
       });
     }
   }
-
-  // Extract visual mood descriptors (bullet points)
   const moodMatch = content.match(
     /### Visual Mood Descriptors[\s\S]*?(?=###|##|$)/i
   );
@@ -225,8 +175,6 @@ function extractImageStyle(content) {
       imageStyle.mood = moodItems.map((item) => item.replace(/^-\s*/, "").trim());
     }
   }
-
-  // Extract visual don'ts from table
   const dontsMatch = content.match(
     /### Visual Don'ts[\s\S]*?\|[\s\S]*?(?=###|##|$)/i
   );
@@ -241,8 +189,6 @@ function extractImageStyle(content) {
       });
     }
   }
-
-  // Extract example prompts (content between ``` blocks after specific headers)
   const exampleMatch = content.match(/### Example Prompts[\s\S]*?(?=##|$)/i);
   if (exampleMatch) {
     const prompts = exampleMatch[0].match(/\*\*([^*]+)\*\*:\s*```\n?([\s\S]*?)```/g);
@@ -262,9 +208,6 @@ function extractImageStyle(content) {
   return imageStyle;
 }
 
-/**
- * Generate system prompt addition
- */
 function generatePromptAddition(brandContext) {
   const { colors, typography, voice, attributes, imageStyle } = brandContext;
 
@@ -284,8 +227,6 @@ BRAND VOICE:
 CONTENT RULES:
 - Prohibited Terms: ${voice.prohibited.join(", ") || "None specified"}
 `;
-
-  // Add image style context if available
   if (imageStyle && imageStyle.basePrompt) {
     prompt += `
 IMAGE GENERATION:
@@ -304,30 +245,19 @@ Maintain consistent voice, colors, and messaging.
   return prompt.trim();
 }
 
-/**
- * Main function
- */
 function main() {
   const args = process.argv.slice(2);
   const jsonOutput = args.includes("--json");
   const guidelinesPath = args.find((a) => !a.startsWith("--")) || DEFAULT_GUIDELINES_PATH;
-
-  // Resolve path
   const resolvedPath = path.isAbsolute(guidelinesPath)
     ? guidelinesPath
     : path.join(process.cwd(), guidelinesPath);
-
-  // Check if file exists
   if (!fs.existsSync(resolvedPath)) {
     console.error(`Error: Brand guidelines not found at ${resolvedPath}`);
     console.error(`Create brand guidelines at ${DEFAULT_GUIDELINES_PATH} or specify a path.`);
     process.exit(1);
   }
-
-  // Read file
   const content = fs.readFileSync(resolvedPath, "utf-8");
-
-  // Extract brand context
   const brandContext = {
     colors: extractColorsFromTable(content),
     typography: extractTypography(content),
@@ -337,8 +267,6 @@ function main() {
     source: resolvedPath,
     extractedAt: new Date().toISOString(),
   };
-
-  // Output
   if (jsonOutput) {
     console.log(JSON.stringify(brandContext, null, 2));
   } else {

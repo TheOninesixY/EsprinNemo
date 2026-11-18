@@ -6,12 +6,10 @@ from pathlib import Path
 
 import pytest
 
-# Add parent directory to path for imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from tailwind_config_gen import TailwindConfigGenerator
-
 
 class TestTailwindConfigGenerator:
     """Test TailwindConfigGenerator class."""
@@ -248,7 +246,6 @@ class TestTailwindConfigGenerator:
     def test_validate_config_empty_theme(self):
         """Test validating config with empty theme extensions."""
         generator = TailwindConfigGenerator()
-        # Default has empty theme.extend
 
         valid, message = generator.validate_config()
 
@@ -296,7 +293,6 @@ class TestTailwindConfigGenerator:
             output_path=output_path
         )
 
-        # Add various customizations
         generator.add_colors({"brand": "#3b82f6", "accent": "#8b5cf6"})
         generator.add_fonts({"sans": ["Inter", "sans-serif"]})
         generator.add_spacing({"navbar": "4rem"})
@@ -308,7 +304,6 @@ class TestTailwindConfigGenerator:
 
         content = output_path.read_text()
 
-        # Verify all customizations are present
         assert "brand" in content
         assert "accent" in content
         assert "Inter" in content
@@ -337,7 +332,6 @@ class TestTailwindConfigGenerator:
         assert "primary" in content
         assert "@tailwindcss/forms" in content
 
-
 def _strip_to_object(config_str: str) -> str:
     """Reduce a generated TS/JS config to a bare assignable object so it can be
     handed to `node --check` without a TypeScript loader."""
@@ -351,7 +345,6 @@ def _strip_to_object(config_str: str) -> str:
         line = line.replace("module.exports =", "const config =")
         lines.append(line)
     return "\n".join(lines)
-
 
 class TestGeneratedConfigIsValidJs:
     """Regression guard for the missing-comma bug between the ``theme`` block and

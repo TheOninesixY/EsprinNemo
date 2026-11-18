@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Data integrity guardrail for ui-ux-pro-max. Stdlib-only, no pytest dependency,
 so it can run as a standalone pre-publish/CI check:
@@ -32,8 +32,6 @@ from core import (CSV_CONFIG, STACK_CONFIG, STACK_CURRENT_APPLICABILITY,
                   _STACK_COLS, DATA_DIR)
 from reasoning_contract import parse_decision_rules
 
-# REASONING_FILE lives in design_system.py, not core.py -- redeclared here to
-# avoid a circular import (design_system.py imports core.py).
 REASONING_FILE = "ui-reasoning.csv"
 STYLE_STATUSES = {"active", "supplemental", "deprecated"}
 STACK_STATUSES = STYLE_STATUSES | {"unverified"}
@@ -144,7 +142,6 @@ REQUIRED_UX_GUIDANCE = {
     "Auto-Rotating Content Controls": "All",
 }
 
-
 def _relative_luminance(value):
     if not HEX_COLOR.fullmatch(value or ""):
         raise ValueError(f"invalid hex color '{value}'")
@@ -153,18 +150,15 @@ def _relative_luminance(value):
               else ((channel + 0.055) / 1.055) ** 2.4 for channel in channels]
     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
 
-
 def contrast_ratio(foreground, background):
     """Return WCAG contrast for two opaque six-digit sRGB colors."""
     first, second = _relative_luminance(foreground), _relative_luminance(background)
     return (max(first, second) + 0.05) / (min(first, second) + 0.05)
 
-
 def _read_rows(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return reader.fieldnames or [], list(reader)
-
 
 def _check_file(label, filepath, search_cols, output_cols, problems):
     if not filepath.exists():
@@ -182,13 +176,9 @@ def _check_file(label, filepath, search_cols, output_cols, problems):
         if col not in header_set:
             problems.append(f"[{label}] {filepath.name}: expected column '{col}' not found in header")
 
-    # Only check for duplicates against an actual identifier column ("No" is
-    # the sequential-index convention used across this dataset). The first
-    # CSV column is not reliably a unique key -- e.g. stack files use
-    # "Category", which legitimately repeats across many guideline rows.
     if "No" in header_set:
         seen = {}
-        for i, row in enumerate(rows, start=2):  # +1 header, +1 to be 1-indexed
+        for i, row in enumerate(rows, start=2):
             key = row.get("No", "")
             if key in seen:
                 problems.append(
@@ -204,17 +194,14 @@ def _check_file(label, filepath, search_cols, output_cols, problems):
 
     return headers, rows
 
-
 def _split(value, delimiter):
     return [part.strip() for part in value.split(delimiter) if part.strip()]
-
 
 def _valid_date(value):
     try:
         return date.fromisoformat(value) <= date.today()
     except (TypeError, ValueError):
         return False
-
 
 def _valid_confidence(value):
     return (
@@ -226,7 +213,6 @@ def _valid_confidence(value):
             and 0 <= value <= 1
         )
     )
-
 
 def _check_style_contract(styles, products, reasoning, problems,
                           replacement_targets=None):
@@ -327,7 +313,6 @@ def _check_style_contract(styles, products, reasoning, problems,
             problems.append("[style] mobile prompt median exceeds 1.25x general median")
     return ids
 
-
 def _check_reasoning_contract(products, colors, reasoning, style_ids, patterns, problems):
     semantic_sets = (
         ("products", products, "Product Type"),
@@ -383,7 +368,6 @@ def _check_reasoning_contract(products, colors, reasoning, style_ids, patterns, 
             except ValueError:
                 problems.append(f"[reasoning:{category}] invalid Confidence '{confidence}'")
 
-
 def _check_color_contract(rows, problems):
     for row in rows:
         product = row.get("Product Type", "")
@@ -413,7 +397,6 @@ def _check_color_contract(rows, problems):
         except ValueError:
             pass
 
-
 def _check_chart_contract(rows, problems):
     for row in rows:
         data_type = row.get("Data Type", "")
@@ -432,19 +415,15 @@ def _check_chart_contract(rows, problems):
         if WCAG_GRADE.search(fallback):
             problems.append(f"[chart:{data_type}] fallback claims WCAG conformance")
 
-
 def _font_families(url):
     return parse_qs(urlsplit(url).query).get("family", [])
-
 
 def _font_names(family_declarations):
     return {declaration.split(":", 1)[0].replace("+", " ")
             for declaration in family_declarations}
 
-
 def _configured_font_names(config):
     return set(re.findall(r"'([^']+)'", config))
-
 
 def _imported_weights(family_declarations):
     weights = set()
@@ -457,13 +436,11 @@ def _imported_weights(family_declarations):
             weights.update(FONT_WEIGHT.findall(values))
     return weights
 
-
 def _declared_weights(notes):
     weights = set()
     for match in re.finditer(r"(?:weights?|strictly)[^.;]{0,100}", notes, re.I):
         weights.update(FONT_WEIGHT.findall(match.group()))
     return weights
-
 
 def _check_typography_contract(rows, problems):
     for row in rows:
@@ -488,7 +465,6 @@ def _check_typography_contract(rows, problems):
             missing = ", ".join(sorted(declared_weights - imported_weights))
             problems.append(f"[typography:{pairing}] recommended weights not imported: {missing}")
 
-
 def _load_catalog_json(name, problems):
     try:
         payload = json.loads((DATA_DIR / name).read_text(encoding="utf-8"))
@@ -500,14 +476,12 @@ def _load_catalog_json(name, problems):
         return {}
     return payload
 
-
 def _catalog_date(value):
     try:
         parsed = date.fromisoformat(value)
         return parsed.year > 1970 and parsed <= date.today()
     except (TypeError, ValueError):
         return False
-
 
 def _valid_google_fonts_exclusion_source(value):
     if not isinstance(value, str):
@@ -524,7 +498,6 @@ def _valid_google_fonts_exclusion_source(value):
     return parsed.hostname == "github.com" and (
         parsed.path == "/google/fonts" or parsed.path.startswith("/google/fonts/")
     )
-
 
 def _check_font_catalog(rows, licenses, typography, problems):
     families = [row.get("Family", "") for row in rows]
@@ -596,7 +569,6 @@ def _check_font_catalog(rows, licenses, typography, problems):
                 missing = ", ".join(sorted(weights - available[family]))
                 problems.append(f"[typography:{pairing}] catalog lacks {family} weights: {missing}")
 
-
 def _check_phosphor_catalog(curated, manifest, problems):
     source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
     imports = manifest.get("reactImports") if isinstance(manifest.get("reactImports"), dict) else {}
@@ -630,7 +602,6 @@ def _check_phosphor_catalog(curated, manifest, problems):
         component = component_match.group(1) if component_match else ""
         if names.get(name) != component:
             problems.append(f"[catalog:phosphor:{name}] curated icon is absent or mismatched")
-
 
 def _check_catalog_summary(summary, licenses, phosphor, problems):
     if not _catalog_date(summary.get("verifiedAt")):
@@ -679,7 +650,6 @@ def _check_catalog_summary(summary, licenses, phosphor, problems):
     if summary.get("pendingCandidates") != pending:
         problems.append("[catalog:summary] pending candidates do not match exclusions")
 
-
 def _check_catalog_contract(domain_rows, problems):
     if (DATA_DIR / ".google-font-refresh.incomplete.json").exists():
         problems.append("[catalog:google-fonts] incomplete refresh marker requires review")
@@ -693,7 +663,6 @@ def _check_catalog_contract(domain_rows, problems):
         _check_phosphor_catalog(domain_rows.get("icons", []), phosphor, problems)
     if summary:
         _check_catalog_summary(summary, licenses, phosphor, problems)
-
 
 def _check_icon_contract(rows, problems):
     for row in rows:
@@ -714,7 +683,6 @@ def _check_icon_contract(rows, problems):
                for pattern in ICON_USAGE_REQUIREMENTS):
             problems.append(f"[icons:{icon}] incomplete contextual accessibility guidance")
 
-
 def _check_ux_contract(rows, problems):
     ux_by_issue = {row.get("Issue", ""): row for row in rows}
     for issue in sorted(set(REQUIRED_UX_GUIDANCE) - set(ux_by_issue)):
@@ -725,20 +693,17 @@ def _check_ux_contract(rows, problems):
                     or row.get("Severity") not in {"Medium", "High", "Critical"}):
             problems.append(f"[ux:{issue}] shifted or invalid semantic fields")
 
-
 def _check_motion_contract(rows, problems):
     for row in rows:
         text = " ".join(row.values()).casefold()
         if "reduced-motion" not in text and "user-controlled" not in text:
             problems.append(f"[motion:{row.get('No')}] missing explicit motion opt-out")
 
-
 def _check_app_interface_contract(rows, problems):
     native_target = next((row for row in rows
                           if row.get("Issue") == "Touch Target Size"), {})
     if not {"44pt", "48dp"} <= set(re.findall(r"44pt|48dp", " ".join(native_target.values()))):
         problems.append("[web:Touch Target Size] must distinguish iOS 44pt and Android 48dp")
-
 
 def _check_react_contract(rows, problems):
     react_text = "\n".join(" ".join(row.values()) for row in rows)
@@ -750,7 +715,6 @@ def _check_react_contract(rows, problems):
     if not all(phrase in effect_text for phrase in ("inside effects", "dependencies")):
         problems.append("[react:Effect Events] current scope/dependency guidance is required")
 
-
 def _check_landing_claims(rows, problems):
     for row in rows:
         optimization = row.get("Conversion Optimization", "")
@@ -760,7 +724,6 @@ def _check_landing_claims(rows, problems):
             problems.append(
                 f"[landing:{row.get('Pattern Name')}] unsupported quantitative claim"
             )
-
 
 def _check_core_data_contract(domain_rows, problems):
     _check_color_contract(domain_rows.get("color", []), problems)
@@ -772,7 +735,6 @@ def _check_core_data_contract(domain_rows, problems):
     _check_app_interface_contract(domain_rows.get("web", []), problems)
     _check_react_contract(domain_rows.get("react", []), problems)
     _check_landing_claims(domain_rows.get("landing", []), problems)
-
 
 def _valid_provenance_source(source, source_index, identity, problems):
     if not isinstance(source, dict):
@@ -796,7 +758,6 @@ def _valid_provenance_source(source, source_index, identity, problems):
         )
         return False
     return True
-
 
 def _check_stack_freshness_contract(stack, rows, problems):
     """Validate curated-stack applicability and official high-impact sources."""
@@ -834,7 +795,6 @@ def _check_stack_freshness_contract(stack, rows, problems):
     if not active_count and stack != "uwp":
         problems.append(f"[stack:{stack}] requires at least one active current row")
 
-
 def _valid_dataset_source_key(source_file, source_key, identity, problems):
     if source_file not in CORE_PROVENANCE_FILES:
         problems.append(f"[provenance] unknown dataset-contract sourceFile for {identity}")
@@ -865,7 +825,6 @@ def _valid_dataset_source_key(source_file, source_key, identity, problems):
         return False
     return True
 
-
 def _valid_catalog_source_key(source_file, source_key, identity, problems):
     if source_file not in CATALOG_PROVENANCE_FILES:
         problems.append(f"[provenance] unknown catalog sourceFile for {identity}")
@@ -891,7 +850,6 @@ def _valid_catalog_source_key(source_file, source_key, identity, problems):
         problems.append(f"[provenance] catalog count is stale for {identity}")
         return False
     return True
-
 
 def _check_provenance(reasoning, styles, problems):
     path = DATA_DIR / "data-provenance.json"
@@ -995,7 +953,6 @@ def _check_provenance(reasoning, styles, problems):
             + ", ".join(sorted(CATALOG_PROVENANCE_IDS - catalog_ids))
         )
 
-
 def validate():
     """Return every semantic data problem without terminating the process."""
     problems, domain_rows = [], {}
@@ -1073,7 +1030,6 @@ def validate():
 
     return problems
 
-
 def main():
     problems = validate()
 
@@ -1085,7 +1041,6 @@ def main():
 
     print(f"OK: validated {len(CSV_CONFIG)} domain files, {len(STACK_CONFIG)} stack files, and ui-reasoning.csv")
     sys.exit(0)
-
 
 if __name__ == "__main__":
     main()

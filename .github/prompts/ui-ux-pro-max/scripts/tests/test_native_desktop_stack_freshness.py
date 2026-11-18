@@ -12,20 +12,18 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from core import (DATA_DIR, STACK_CONFIG, STACK_CURRENT_APPLICABILITY,
-                  search_stack)  # noqa: E402
-from validate_data import STACK_OFFICIAL_HOSTS  # noqa: E402
+                  search_stack)
+from validate_data import STACK_OFFICIAL_HOSTS
 
 STACKS = {
     "react-native", "flutter", "swiftui", "jetpack-compose", "avalonia",
     "uwp", "winui", "wpf", "uno", "javafx", "threejs", "laravel",
 }
 
-
 def _rows(stack):
     path = DATA_DIR / STACK_CONFIG[stack]["file"]
     with path.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
-
 
 class TestNativeDesktopStackFreshness(unittest.TestCase):
     def test_rows_have_final_freshness_metadata(self):
@@ -170,7 +168,6 @@ class TestNativeDesktopStackFreshness(unittest.TestCase):
                 for token in tokens:
                     with self.subTest(stack=stack, row=row["No"], token=token):
                         self.assertNotIn(token, recommended)
-
 
 if __name__ == "__main__":
     unittest.main()

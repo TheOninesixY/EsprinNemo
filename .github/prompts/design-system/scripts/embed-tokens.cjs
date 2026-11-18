@@ -1,19 +1,7 @@
 #!/usr/bin/env node
-/**
- * embed-tokens.cjs
- * Reads design-tokens.css and outputs embeddable inline CSS.
- * Use when generating standalone HTML files (infographics, slides, etc.)
- *
- * Usage:
- *   node embed-tokens.cjs           # Output full CSS
- *   node embed-tokens.cjs --minimal # Output only commonly used tokens
- *   node embed-tokens.cjs --style   # Wrap in <style> tags
- */
 
 const fs = require('fs');
 const path = require('path');
-
-// Find project root (look for assets/design-tokens.css)
 function findProjectRoot(startDir) {
   let dir = startDir;
   while (dir !== '/') {
@@ -32,8 +20,6 @@ if (!projectRoot) {
 }
 
 const tokensPath = path.join(projectRoot, 'assets', 'design-tokens.css');
-
-// Minimal tokens commonly used in infographics/slides
 const MINIMAL_TOKENS = [
   '--primitive-spacing-',
   '--primitive-fontSize-',
@@ -55,7 +41,6 @@ const MINIMAL_TOKENS = [
 ];
 
 function extractTokens(css, minimal = false) {
-  // Extract :root block
   const rootMatch = css.match(/:root\s*\{([^}]+)\}/g);
   if (!rootMatch) return '';
 
@@ -70,14 +55,10 @@ function extractTokens(css, minimal = false) {
       MINIMAL_TOKENS.some(token => v.includes(token))
     );
   }
-
-  // Dedupe
   allVars = [...new Set(allVars)];
 
   return `:root {\n  ${allVars.join('\n  ')}\n}`;
 }
-
-// Parse args
 const args = process.argv.slice(2);
 const minimal = args.includes('--minimal');
 const wrapStyle = args.includes('--style');

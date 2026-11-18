@@ -1,21 +1,4 @@
 #!/usr/bin/env bun
-/**
- * clean.js —— 移除 JS / Python / PowerShell 源码里的注释
- *
- * 用法：
- *   bun clean.js src/                 清理目录下所有 .js/.mjs/.cjs/.py/.ps1
- *   bun clean.js src/main/main.js     只清理指定文件
- *   bun clean.js src/ --dry           只统计，不写回
- *   bun clean.js src/ --quiet         只输出汇总
- *
- * 规则：
- *   - 只删真注释：字符串、模板字符串、正则字面量、Python 三引号、
- *     PowerShell here-string 里的斜杠注释、井号注释、块注释都原样保留
- *   - 块注释按其中包含的换行数补回换行，删除后行号不会错位
- *   - 保留 shebang（#!）与 PowerShell 的 #requires 指令
- *   - Python 的 docstring 语法上是字符串而非注释，默认保留
- */
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -28,8 +11,6 @@ const EXT_KIND = new Map([
 ]);
 
 const SKIP_DIRS = new Set(['node_modules', '.git', '.hg', '.svn']);
-
-/* ────────────────────────── 公共小工具 ────────────────────────── */
 
 function trimTrailingSpaces(out) {
     while (out.length) {
@@ -49,7 +30,6 @@ function keepLineBreaks(out, chunk) {
     }
 }
 
-/* 当前输出行的最后一个换行之后是否已经有非空白内容 */
 function lineHasContent(out) {
     for (let i = out.length - 1; i >= 0; i--) {
         const chunk = out[i];
@@ -62,8 +42,6 @@ function lineHasContent(out) {
     return false;
 }
 
-/* 注释清掉后会留下只含空白的行，整理成最多一个空行，
-   并去掉文件首尾因删注释产生的空行 */
 function tidyBlankLines(text) {
     const lines = text.split('\n');
     const kept = [];
@@ -76,9 +54,6 @@ function tidyBlankLines(text) {
     return kept.join('\n') + (text.endsWith('\n') ? '\n' : '');
 }
 
-/* ───────────────────────────── JavaScript ───────────────────────────── */
-
-// 这些「上一个有效记号」后面出现的 `/` 视为正则字面量的开始，而不是除号
 const REGEX_ALLOWED_PREV = new Set([
     '', '(', ',', '=', ':', '[', '!', '&', '|', '?', '{', '}', ';',
     '+', '-', '*', '%', '^', '~', '<', '>', '/',
@@ -143,8 +118,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
     while (i < src.length) {
         const c = src[i];
         const c2 = src[i + 1];
-
-        // 行注释
         if (c === '/' && c2 === '/') {
             ws = '';
             let j = i + 2;
@@ -153,14 +126,11 @@ function stripJsCode(src, start, stopAtBrace, stats) {
             i = j;
             continue;
         }
-
-        // 块注释
         if (c === '/' && c2 === '*') {
             let j = i + 2;
             while (j < src.length && !(src[j] === '*' && src[j + 1] === '/')) j++;
             const end = Math.min(j + 2, src.length);
             const chunk = src.slice(i, end);
-            // 先把待处理的空白落盘（含换行），避免整行注释被并到上一行
             flush();
             const atLineStart = !lineHasContent(out);
             if (/[\r\n]/.test(chunk)) {
@@ -168,8 +138,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
                 keepLineBreaks(out, chunk);
                 if (lineHasContent(out)) ws = '\n';
             } else {
-                // 两侧都没空白时才补一个空格，避免把两个记号粘在一起；
-                // 行首的块注释不需要补，否则会留下一个多余的行首空格
                 const nextChar = src[end];
                 trimTrailingSpaces(out);
                 const needSpace = nextChar
@@ -179,7 +147,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
                     && nextChar !== '\r';
                 if (needSpace && !atLineStart) out.push(' ');
             }
-            // 行首的块注释连同其后的一小段空白一起吃掉，避免留下缩进空格
             if (atLineStart) {
                 let k = end;
                 while (k < src.length && (src[k] === ' ' || src[k] === '\t')) k++;
@@ -190,8 +157,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
             stats.removed++;
             continue;
         }
-
-        // 单/双引号字符串
         if (c === '"' || c === "'") {
             let j = i + 1;
             while (j < src.length) {
@@ -205,8 +170,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
             i = j;
             continue;
         }
-
-        // 模板字符串（内部 ${} 里的注释也要清掉）
         if (c === '`') {
             const res = scanJsTemplate(src, i, stats);
             push(res.text);
@@ -214,8 +177,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
             i = res.next;
             continue;
         }
-
-        // 正则字面量 / 除号
         if (c === '/') {
             if (REGEX_ALLOWED_PREV.has(prev)) {
                 const res = scanJsRegex(src, i);
@@ -231,8 +192,6 @@ function stripJsCode(src, start, stopAtBrace, stats) {
             i++;
             continue;
         }
-
-        // 标识符 / 关键字
         if (JS_IDENT.test(c)) {
             let j = i + 1;
             while (j < src.length && JS_IDENT.test(src[j])) j++;
@@ -283,8 +242,6 @@ function stripJs(src, stats) {
     const out = [];
 
     if (src[0] === '\uFEFF') { out.push('\uFEFF'); i = 1; }
-
-    // shebang 保留
     if (src.startsWith('#!', i)) {
         let j = i;
         while (j < src.length && src[j] !== '\n' && src[j] !== '\r') j++;
@@ -297,15 +254,11 @@ function stripJs(src, stats) {
     return out.join('');
 }
 
-/* ─────────────────────────────── Python ─────────────────────────────── */
-
 function stripPy(src, stats) {
     const out = [];
     let i = 0;
 
     if (src[0] === '\uFEFF') { out.push('\uFEFF'); i = 1; }
-
-    // shebang / 编码声明保留
     if (src.startsWith('#!', i)) {
         let j = i;
         while (j < src.length && src[j] !== '\n' && src[j] !== '\r') j++;
@@ -315,8 +268,6 @@ function stripPy(src, stats) {
 
     while (i < src.length) {
         const c = src[i];
-
-        // 行注释
         if (c === '#') {
             trimTrailingSpaces(out);
             let j = i + 1;
@@ -325,8 +276,6 @@ function stripPy(src, stats) {
             i = j;
             continue;
         }
-
-        // 字符串（含三引号、r/b/f/u 前缀，前缀本身会落在普通文本里）
         if (c === '"' || c === "'") {
             const triple = src[i + 1] === c && src[i + 2] === c;
             let j = i + (triple ? 3 : 1);
@@ -344,8 +293,6 @@ function stripPy(src, stats) {
             i = j;
             continue;
         }
-
-        // 普通文本整段推进
         let j = i + 1;
         while (j < src.length && src[j] !== '#' && src[j] !== '"' && src[j] !== "'") j++;
         out.push(src.slice(i, j));
@@ -354,8 +301,6 @@ function stripPy(src, stats) {
 
     return out.join('');
 }
-
-/* ──────────────────────────── PowerShell ──────────────────────────── */
 
 function stripPs1(src, stats) {
     const out = [];
@@ -375,8 +320,6 @@ function stripPs1(src, stats) {
     while (i < src.length) {
         const c = src[i];
         const c2 = src[i + 1];
-
-        // 行首指令保留（#requires、#!）
         if (c === '#' && atLineStart(i) && (c2 === '!' || src.startsWith('#requires', i))) {
             let j = i;
             while (j < src.length && src[j] !== '\n' && src[j] !== '\r') j++;
@@ -384,8 +327,6 @@ function stripPs1(src, stats) {
             i = j;
             continue;
         }
-
-        // 块注释 <# ... #>
         if (c === '<' && c2 === '#') {
             let j = i + 2;
             while (j < src.length && !(src[j] === '#' && src[j + 1] === '>')) j++;
@@ -398,8 +339,6 @@ function stripPs1(src, stats) {
             i = end;
             continue;
         }
-
-        // 行注释
         if (c === '#') {
             trimTrailingSpaces(out);
             let j = i + 1;
@@ -408,8 +347,6 @@ function stripPs1(src, stats) {
             i = j;
             continue;
         }
-
-        // here-string @" ... "@ / @' ... '@
         if (c === '@' && (c2 === '"' || c2 === "'")) {
             const quote = c2;
             const term = quote + '@';
@@ -428,8 +365,6 @@ function stripPs1(src, stats) {
             i = end;
             continue;
         }
-
-        // 单引号字符串：'' 表示一个单引号
         if (c === "'") {
             let j = i + 1;
             while (j < src.length) {
@@ -441,8 +376,6 @@ function stripPs1(src, stats) {
             i = j;
             continue;
         }
-
-        // 双引号字符串：反引号转义
         if (c === '"') {
             let j = i + 1;
             while (j < src.length) {
@@ -454,8 +387,6 @@ function stripPs1(src, stats) {
             i = j;
             continue;
         }
-
-        // 反引号转义（行尾续行等），成对跳过
         if (c === '`' && i + 1 < src.length) {
             out.push(src.slice(i, i + 2));
             i += 2;
@@ -468,8 +399,6 @@ function stripPs1(src, stats) {
 
     return out.join('');
 }
-
-/* ─────────────────────────────── 驱动 ─────────────────────────────── */
 
 const STRIPPERS = { js: stripJs, py: stripPy, ps1: stripPs1 };
 

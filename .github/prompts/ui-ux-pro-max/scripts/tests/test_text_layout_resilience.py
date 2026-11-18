@@ -10,13 +10,11 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPTS_DIR.parent / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import search, search_stack  # noqa: E402
-
+from core import search, search_stack
 
 def read_rows(relative_path):
     with (DATA_DIR / relative_path).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
-
 
 UX_PHRASES = {
     "Heading Line Balance": ("progressive visual heuristic", "natural-wrap fallback"),
@@ -36,7 +34,6 @@ TAILWIND_PHRASES = {
     "Long token resilience": ("wrap-anywhere", "min-w-0"),
     "Compact label layout": ("flex flex-wrap gap-2", "whitespace-nowrap", "shrink-0"),
 }
-
 
 class TestTextLayoutRetrieval(unittest.TestCase):
     def test_locked_queries_return_the_canonical_identity_first(self):
@@ -63,7 +60,6 @@ class TestTextLayoutRetrieval(unittest.TestCase):
         actual = [row.get("Guideline") for row in result["results"]]
         self.assertTrue(actual, result.get("diagnostics"))
         self.assertEqual("Compact label layout", actual[0], f"ranking={actual!r}")
-
 
 class TestTextLayoutDataContracts(unittest.TestCase):
     @classmethod
@@ -114,7 +110,6 @@ class TestTextLayoutDataContracts(unittest.TestCase):
                     self.assertIn(phrase, guidance)
                 for claim in forbidden:
                     self.assertNotIn(claim, guidance)
-
 
 if __name__ == "__main__":
     unittest.main()

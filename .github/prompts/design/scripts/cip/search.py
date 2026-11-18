@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 CIP Design Search CLI - Search corporate identity design guidelines
 """
@@ -9,10 +9,8 @@ import json
 import sys
 from pathlib import Path
 
-# Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent))
 from core import search, search_all, get_cip_brief, CSV_CONFIG
-
 
 def format_results(results, domain):
     """Format search results for display"""
@@ -27,7 +25,6 @@ def format_results(results, domain):
             if value:
                 output.append(f"  {key}: {value}")
     return "\n".join(output)
-
 
 def format_brief(brief):
     """Format CIP brief for display"""
@@ -60,7 +57,6 @@ def format_brief(brief):
             output.append(f"   • {d.get('Deliverable', 'N/A')}: {d.get('Description', '')[:60]}...")
 
     return "\n".join(output)
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -121,7 +117,6 @@ Examples:
             print(f"Query: {result['query']}")
             print(f"Results: {result['count']}")
             print(format_results(result.get("results", []), result["domain"]))
-
 
 if __name__ == "__main__":
     main()

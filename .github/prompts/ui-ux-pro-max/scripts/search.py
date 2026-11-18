@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 UI/UX Pro Max Search - BM25 search engine for UI/UX style guides
 Usage: python search.py "<query>" [--domain <domain>] [--stack <stack>] [--max-results 3]
@@ -32,14 +32,12 @@ import io
 from core import CSV_CONFIG, AVAILABLE_STACKS, MAX_RESULTS, UNTRUNCATED_COLS, search, search_stack
 from design_system import generate_design_system
 
-# Force UTF-8 for stdout/stderr to handle emojis on Windows (cp1252 default)
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 if sys.stderr.encoding and sys.stderr.encoding.lower() != 'utf-8':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 TRUNCATE_AT = 300
-
 
 def format_output(result, full=False):
     """Format results for Claude consumption (token-optimized)"""
@@ -92,7 +90,6 @@ def format_output(result, full=False):
 
     return "\n".join(output)
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="UI Pro Max Search")
     parser.add_argument("query", help="Search query")
@@ -102,23 +99,22 @@ if __name__ == "__main__":
                         metavar="1-20", help="Max results (default: 3)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--full", action="store_true", help="Do not truncate long field values in text output")
-    # Design system generation
+
     parser.add_argument("--design-system", "-ds", action="store_true", help="Generate complete design system recommendation")
     parser.add_argument("--project-name", "-p", type=str, default=None, help="Project name for design system output")
     parser.add_argument("--format", "-f", choices=["ascii", "markdown"], default="ascii", help="Output format for design system (ignored if --json)")
-    # Persistence (Master + Overrides pattern)
+
     parser.add_argument("--persist", action="store_true", help="Save design system to design-system/<project-slug>/MASTER.md (creates hierarchical structure)")
     parser.add_argument("--page", type=str, default=None, help="Create page-specific override file in design-system/<project-slug>/pages/")
     parser.add_argument("--output-dir", "-o", type=str, default=None, help="Output directory for persisted files (default: current directory -- pass this explicitly, pointed at the project root)")
     parser.add_argument("--force", action="store_true", help="Overwrite an existing MASTER.md when persisting (default: skip if it already exists)")
-    # Design dials (1-10), only applied with --design-system
+
     parser.add_argument("--variance", type=int, choices=range(1, 11), metavar="1-10", help="DESIGN_VARIANCE dial: 1=centered/minimal, 10=bold/asymmetric (only with --design-system)")
     parser.add_argument("--motion", type=int, choices=range(1, 11), metavar="1-10", help="MOTION_INTENSITY dial: 1=subtle, 10=complex; pulls a matching GSAP snippet from motion.csv (only with --design-system)")
     parser.add_argument("--density", type=int, choices=range(1, 11), metavar="1-10", help="VISUAL_DENSITY dial: 1=spacious, 10=dense/dashboard; overrides the spacing scale (only with --design-system)")
 
     args = parser.parse_args()
 
-    # Design system takes priority
     if args.design_system:
         result = generate_design_system(
             args.query,
@@ -155,14 +151,14 @@ if __name__ == "__main__":
                     print(f"📖 Usage: When building a page, check {ds_dir}/pages/[page].md first.")
                     print("   If it exists, its rules override MASTER.md. Otherwise, use MASTER.md.")
                 print("=" * 60)
-    # Stack search
+
     elif args.stack:
         result = search_stack(args.query, args.stack, args.max_results)
         if args.json:
             print(json_module.dumps(result, indent=2, ensure_ascii=False))
         else:
             print(format_output(result, full=args.full))
-    # Domain search
+
     else:
         result = search(args.query, args.domain, args.max_results)
         if args.json:

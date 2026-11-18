@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-
 class ShadcnInstaller:
     """Handle shadcn/ui component installation."""
 
@@ -76,7 +75,7 @@ class ShadcnInstaller:
                         return version.lstrip("^~>=<").split()[0]
             except (json.JSONDecodeError, KeyError):
                 pass
-        return "2.3.0"  # pinned fallback; update when newer stable release is needed
+        return "2.3.0"
 
     def add_components(
         self, components: List[str], overwrite: bool = False
@@ -100,7 +99,6 @@ class ShadcnInstaller:
                 "shadcn not initialized. Run 'npx shadcn@latest init' first",
             )
 
-        # Check which components already exist
         installed = self.get_installed_components()
         already_installed = [c for c in components if c in installed]
 
@@ -111,7 +109,6 @@ class ShadcnInstaller:
                 "Use --overwrite to reinstall",
             )
 
-        # Build command
         shadcn_version = self._get_shadcn_version()
         cmd = ["npx", f"shadcn@{shadcn_version}", "add"] + components
 
@@ -121,7 +118,6 @@ class ShadcnInstaller:
         if self.dry_run:
             return True, f"Would run: {' '.join(cmd)}"
 
-        # Execute command
         try:
             result = subprocess.run(
                 cmd,
@@ -206,7 +202,6 @@ class ShadcnInstaller:
 
         return True, f"Installed components:\n" + "\n".join(f"  - {c}" for c in sorted(installed))
 
-
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -272,25 +267,21 @@ Examples:
 
     args = parser.parse_args()
 
-    # Initialize installer
     installer = ShadcnInstaller(
         project_root=args.project_root,
         dry_run=args.dry_run,
     )
 
-    # Handle list command
     if args.list:
         success, message = installer.list_installed()
         print(message)
         sys.exit(0 if success else 1)
 
-    # Handle add all command
     if args.all:
         success, message = installer.add_all_components(overwrite=args.overwrite)
         print(message)
         sys.exit(0 if success else 1)
 
-    # Handle add specific components
     if not args.components:
         parser.print_help()
         sys.exit(1)
@@ -302,7 +293,6 @@ Examples:
 
     print(message)
     sys.exit(0 if success else 1)
-
 
 if __name__ == "__main__":
     main()

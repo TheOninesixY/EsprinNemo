@@ -12,14 +12,12 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPTS_DIR.parent / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import search  # noqa: E402
-from design_system import _style_is_dark_primary  # noqa: E402
-
+from core import search
+from design_system import _style_is_dark_primary
 
 def read_rows(name):
     with (DATA_DIR / name).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
-
 
 class TestStyleTaxonomy(unittest.TestCase):
     @classmethod
@@ -169,7 +167,6 @@ class TestStyleTaxonomy(unittest.TestCase):
                 self.assertTrue(
                     any(source["type"] == "official" for source in record["sources"])
                 )
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

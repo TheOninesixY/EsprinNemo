@@ -23,7 +23,6 @@ TOKENS_STARTER = (
     SCRIPTS.parent.parent / "design-system" / "templates" / "design-tokens-starter.json"
 )
 
-
 def test_sync_parses_bundled_starter_template(tmp_path):
     node = shutil.which("node")
     if not node:
@@ -41,7 +40,6 @@ def test_sync_parses_bundled_starter_template(tmp_path):
         text=True,
     )
 
-    # Must not crash (the bug raised an unhandled TypeError).
     assert "TypeError" not in result.stderr, result.stderr
     assert result.returncode == 0, result.stderr + result.stdout
 

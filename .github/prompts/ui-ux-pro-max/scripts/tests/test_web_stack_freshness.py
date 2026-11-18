@@ -11,8 +11,8 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import DATA_DIR, STACK_CONFIG, WEB_STACKS, search_stack  # noqa: E402
-from validate_data import STACK_OFFICIAL_HOSTS  # noqa: E402
+from core import DATA_DIR, STACK_CONFIG, WEB_STACKS, search_stack
+from validate_data import STACK_OFFICIAL_HOSTS
 
 CURRENT_APPLICABILITY = {
     "react": "react 19.2.x",
@@ -27,12 +27,10 @@ CURRENT_APPLICABILITY = {
     "nuxt-ui": "nuxt-ui 4.10",
 }
 
-
 def _rows(stack):
     path = DATA_DIR / STACK_CONFIG[stack]["file"]
     with path.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
-
 
 class TestWebStackFreshness(unittest.TestCase):
     def test_web_rows_have_explicit_freshness_metadata(self):
@@ -171,7 +169,6 @@ class TestWebStackFreshness(unittest.TestCase):
             "fetch(url {", _rows("nextjs")[12]["Code Good"].casefold()
         )
         self.assertNotIn("catch(e) {}", _rows("react")[39]["Code Good"].casefold())
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,22 +1,7 @@
 #!/usr/bin/env node
-/**
- * validate-asset.cjs
- *
- * Validates marketing assets against brand guidelines.
- * Checks: file naming, dimensions, file size, metadata.
- *
- * Usage:
- *   node validate-asset.cjs <asset-path>
- *   node validate-asset.cjs <asset-path> --json
- *   node validate-asset.cjs <asset-path> --fix
- *
- * For color validation of images, use with extract-colors.cjs
- */
 
 const fs = require("fs");
 const path = require("path");
-
-// Validation rules
 const RULES = {
   naming: {
     pattern: /^[a-z]+_[a-z0-9-]+_[a-z0-9-]+_\d{8}(_[a-z0-9-]+)?\.[a-z]+$/,
@@ -47,9 +32,6 @@ const RULES = {
   },
 };
 
-/**
- * Parse asset filename
- */
 function parseFilename(filename) {
   const parts = filename.replace(/\.[^.]+$/, "").split("_");
 
@@ -67,29 +49,19 @@ function parseFilename(filename) {
   };
 }
 
-/**
- * Validate filename convention
- */
 function validateFilename(filename) {
   const issues = [];
   const suggestions = [];
-
-  // Check pattern match
   if (!RULES.naming.pattern.test(filename)) {
     issues.push("Filename does not match naming convention");
     suggestions.push(`Expected format: ${RULES.naming.description}`);
     suggestions.push(`Examples: ${RULES.naming.examples.join(", ")}`);
   }
-
-  // Parse and check components
   const parsed = parseFilename(filename);
   if (parsed) {
-    // Check timestamp format
     if (!/^\d{8}$/.test(parsed.timestamp)) {
       issues.push("Timestamp should be YYYYMMDD format");
     }
-
-    // Check kebab-case for campaign and description
     if (parsed.campaign && !/^[a-z0-9-]+$/.test(parsed.campaign)) {
       issues.push("Campaign name should be kebab-case");
     }
@@ -97,8 +69,6 @@ function validateFilename(filename) {
     if (parsed.description && !/^[a-z0-9-]+$/.test(parsed.description)) {
       issues.push("Description should be kebab-case");
     }
-
-    // Check valid type
     const validTypes = [
       "banner",
       "logo",
@@ -116,9 +86,6 @@ function validateFilename(filename) {
   return { valid: issues.length === 0, issues, suggestions, parsed };
 }
 
-/**
- * Validate file size
- */
 function validateFileSize(filepath, extension) {
   const issues = [];
   const warnings = [];
@@ -152,9 +119,6 @@ function validateFileSize(filepath, extension) {
   return { valid: issues.length === 0, issues, warnings, size };
 }
 
-/**
- * Validate file format
- */
 function validateFormat(extension) {
   const issues = [];
   const info = { category: null };
@@ -170,8 +134,6 @@ function validateFormat(extension) {
     issues.push(`Unsupported file format: .${extension}`);
     return { valid: false, issues, info };
   }
-
-  // Determine category
   if (RULES.formats.image.includes(extension)) info.category = "image";
   else if (RULES.formats.vector.includes(extension)) info.category = "vector";
   else if (RULES.formats.video.includes(extension)) info.category = "video";
@@ -181,9 +143,6 @@ function validateFormat(extension) {
   return { valid: true, issues, info };
 }
 
-/**
- * Check if asset exists in manifest
- */
 function checkManifest(filepath) {
   const manifestPath = path.join(process.cwd(), ".assets", "manifest.json");
 
@@ -208,9 +167,6 @@ function checkManifest(filepath) {
   }
 }
 
-/**
- * Generate suggested filename
- */
 function suggestFilename(original, parsed) {
   if (!parsed) return null;
 
@@ -223,9 +179,6 @@ function suggestFilename(original, parsed) {
   return `${type}_${campaign}_${description}_${today}.${ext}`;
 }
 
-/**
- * Format bytes to human readable
- */
 function formatBytes(bytes) {
   if (bytes === 0) return "0 Bytes";
   const k = 1024;
@@ -234,9 +187,6 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
-/**
- * Main validation function
- */
 function validateAsset(assetPath) {
   const results = {
     path: assetPath,
@@ -247,8 +197,6 @@ function validateAsset(assetPath) {
     suggestions: [],
     checks: {},
   };
-
-  // Check file exists
   if (!fs.existsSync(assetPath)) {
     results.valid = false;
     results.issues.push(`File not found: ${assetPath}`);
@@ -257,31 +205,23 @@ function validateAsset(assetPath) {
 
   const filename = path.basename(assetPath);
   const extension = path.extname(filename).slice(1).toLowerCase();
-
-  // 1. Validate filename
   const filenameResult = validateFilename(filename);
   results.checks.filename = filenameResult;
   if (!filenameResult.valid) {
     results.issues.push(...filenameResult.issues);
     results.suggestions.push(...filenameResult.suggestions);
   }
-
-  // 2. Validate format
   const formatResult = validateFormat(extension);
   results.checks.format = formatResult;
   if (!formatResult.valid) {
     results.issues.push(...formatResult.issues);
   }
-
-  // 3. Validate file size
   const sizeResult = validateFileSize(assetPath, extension);
   results.checks.fileSize = sizeResult;
   if (!sizeResult.valid) {
     results.issues.push(...sizeResult.issues);
   }
   results.warnings.push(...sizeResult.warnings);
-
-  // 4. Check manifest registration
   const manifestResult = checkManifest(assetPath);
   results.checks.manifest = manifestResult;
   if (!manifestResult.registered) {
@@ -290,24 +230,17 @@ function validateAsset(assetPath) {
       "Register asset in .assets/manifest.json for tracking"
     );
   }
-
-  // 5. Suggest corrected filename if needed
   if (!filenameResult.valid && filenameResult.parsed) {
     const suggested = suggestFilename(filename, filenameResult.parsed);
     if (suggested) {
       results.suggestions.push(`Suggested filename: ${suggested}`);
     }
   }
-
-  // Overall validity
   results.valid = results.issues.length === 0;
 
   return results;
 }
 
-/**
- * Format output for console
- */
 function formatOutput(results) {
   const lines = [];
 
@@ -334,8 +267,6 @@ function formatOutput(results) {
       lines.push(`  - ${suggestion}`)
     );
   }
-
-  // File size info
   if (results.checks.fileSize?.size) {
     lines.push(`\nFile Size: ${formatBytes(results.checks.fileSize.size)}`);
   }
@@ -345,9 +276,6 @@ function formatOutput(results) {
   return lines.join("\n");
 }
 
-/**
- * Main
- */
 function main() {
   const args = process.argv.slice(2);
   const jsonOutput = args.includes("--json");
@@ -364,23 +292,15 @@ function main() {
     );
     process.exit(1);
   }
-
-  // Resolve path
   const resolvedPath = path.isAbsolute(assetPath)
     ? assetPath
     : path.join(process.cwd(), assetPath);
-
-  // Validate
   const results = validateAsset(resolvedPath);
-
-  // Output
   if (jsonOutput) {
     console.log(JSON.stringify(results, null, 2));
   } else {
     console.log(formatOutput(results));
   }
-
-  // Exit with appropriate code
   process.exit(results.valid ? 0 : 1);
 }
 

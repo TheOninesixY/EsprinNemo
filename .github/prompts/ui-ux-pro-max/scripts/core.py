@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 UI/UX Pro Max Core - BM25 search engine for UI/UX style guides
 """
@@ -11,7 +11,6 @@ from pathlib import Path
 from math import log
 from collections import defaultdict
 
-# ============ CONFIGURATION ============
 DATA_DIR = Path(__file__).parent.parent / "data"
 MAX_RESULTS = 3
 
@@ -78,8 +77,6 @@ CSV_CONFIG = {
     }
 }
 
-# Output columns whose content (code samples, checklists) must never be
-# hard-truncated for display -- truncating mid-snippet destroys the value.
 UNTRUNCATED_COLS = {
     "Code Example Good", "Code Example Bad", "Code Good", "Code Bad",
     "Implementation Checklist", "Design System Variables", "CSS Import",
@@ -111,7 +108,6 @@ STACK_CONFIG = {
     "uwp":              {"file": "stacks/uwp.csv"},
 }
 
-# Common columns for all stacks
 _STACK_COLS = {
     "search_cols": ["Category", "Guideline", "Description", "Do", "Don't",
                     "Code Good", "Code Bad"],
@@ -197,9 +193,6 @@ AVAILABLE_STACKS = list(STACK_CONFIG.keys())
 _INDEX_VERSION = 2
 _SEARCH_CALIBRATION_VERSION = "2026-08-12-v1"
 
-# Search calibration uses evidence coverage first; raw BM25 floors are kept
-# domain-specific because corpora vary greatly in size and document length.
-# Values are intentionally conservative and are measured by the calibration suite.
 _DOMAIN_SCORE_FLOORS = {
     "style": 4.3, "landing": 4.0, "product": 6.0, "icons": 5.8,
     "react": 3.3,
@@ -232,19 +225,11 @@ _DOMAIN_QUERY_REWRITES = {
             "semantic": None, "autocomplete": "input", "preconnect": None},
 }
 
-
-# ============ TOKENIZATION ============
-# Common two-letter/three-letter words that add noise without adding search
-# signal. Deliberately short -- domain-relevant short tokens (ui, ux, ai,
-# css, 3d, js, os, md, gsap) must stay searchable, which is why we don't
-# filter purely by length.
 _STOPWORDS = {
     "to", "in", "on", "at", "is", "of", "by", "or", "an", "if", "no", "so",
     "do", "be", "we", "it", "as", "the", "and", "for", "are", "was",
 }
 
-# Query/corpus normalization so common spelling variants match each other.
-# Keep this a plain dict (stdlib only, no fuzzy-matching dependency).
 _SYNONYMS = {
     "q&a": "question answer",
     "e-commerce": "ecommerce",
@@ -269,7 +254,6 @@ _SYNONYM_PATTERNS = [
     for variant, canonical in sorted(_SYNONYMS.items(), key=lambda item: len(item[0]), reverse=True)
 ]
 
-
 def _normalize(text):
     """Apply longest-first synonym substitution at token boundaries."""
     normalized = str(text)
@@ -277,8 +261,6 @@ def _normalize(text):
         normalized = pattern.sub(canonical, normalized)
     return normalized
 
-
-# ============ BM25 IMPLEMENTATION ============
 class BM25:
     """BM25 ranking algorithm for text search"""
 
@@ -291,7 +273,7 @@ class BM25:
         self.idf = {}
         self.doc_freqs = defaultdict(int)
         self.N = 0
-        self._term_freqs = []  # precomputed per-doc term frequencies
+        self._term_freqs = []
 
     def tokenize(self, text):
         """Lowercase, normalize synonyms, split, remove punctuation, filter stopwords"""
@@ -346,19 +328,12 @@ class BM25:
         """All indexed terms, for suggestion/typo-recovery purposes."""
         return list(self.idf.keys())
 
-
-# ============ CSV / INDEX CACHE ============
-# Data files are small and reused across multiple domain searches within a
-# single --design-system run; avoid re-reading + re-indexing the same file
-# repeatedly in one process.
-_csv_cache = {}   # filepath -> (signature, rows)
-_bm25_cache = {}  # (path, fields, scorer version) -> (file signature, index)
-
+_csv_cache = {}
+_bm25_cache = {}
 
 def _file_signature(filepath):
     stat = filepath.stat()
     return stat.st_mtime_ns, stat.st_size
-
 
 def _load_csv_snapshot(filepath, attempts=3):
     """Return rows and the verified signature of the bytes they came from."""
@@ -377,11 +352,9 @@ def _load_csv_snapshot(filepath, attempts=3):
             return rows, after
     raise OSError(f"File changed while reading: {filepath}")
 
-
 def _load_csv(filepath):
     """Load CSV rows from a stable, signature-verified snapshot."""
     return _load_csv_snapshot(filepath)[0]
-
 
 def _get_bm25(filepath, search_cols, data, signature=None, cache_variant=""):
     """Fitted index with cache identity covering fields and scorer version."""
@@ -401,15 +374,12 @@ def _get_bm25(filepath, search_cols, data, signature=None, cache_variant=""):
     _bm25_cache[key] = (signature, index)
     return index
 
-
-# ============ SEARCH FUNCTIONS ============
 def _query_coverage(index, query):
     tokens = set(index.tokenize(query))
     if not tokens:
         return 0.0
     vocabulary = set(index.vocabulary())
     return sum(token in vocabulary for token in tokens) / len(tokens)
-
 
 def _search_csv_detailed(filepath, search_cols, output_cols, query, max_results,
                          threshold=None, routing_domain=None, row_filter=None,
@@ -462,13 +432,11 @@ def _search_csv_detailed(filepath, search_cols, output_cols, query, max_results,
                   "reason": "low-confidence" if abstain else "matched"}
     return results, bm25, diagnostic
 
-
 def _search_csv(filepath, search_cols, output_cols, query, max_results):
     """Backward-compatible internal search tuple used by existing callers/tests."""
     results, index, _ = _search_csv_detailed(
         filepath, search_cols, output_cols, query, max_results)
     return results, index
-
 
 def _passes_threshold(index, query, threshold):
     ranked = index.score(query)
@@ -478,7 +446,6 @@ def _passes_threshold(index, query, threshold):
             and _query_coverage(index, query) >= threshold["min_coverage"]
             and (threshold["min_margin"] <= 0
                  or top_score - runner_up_score >= threshold["min_margin"]))
-
 
 def _suggest_terms(bm25, query, limit=6, threshold=None):
     """Nearest known vocabulary terms for a query that returned 0 hits,
@@ -500,7 +467,6 @@ def _suggest_terms(bm25, query, limit=6, threshold=None):
             candidates.append((-similarity, -bm25.doc_freqs.get(term, 0), term))
     return [term for _, _, term in sorted(candidates)[:limit]]
 
-
 def _suggest_identities(rows, query, fields, limit=6):
     """Suggest complete public identities so a retry can bypass score thresholds."""
     tokenizer = BM25()
@@ -521,7 +487,6 @@ def _suggest_identities(rows, query, fields, limit=6):
                 candidates.append((-similarity, len(identity_tokens), identity))
     return [identity for _, _, identity in sorted(set(candidates))[:limit]]
 
-
 def _row_identities(row, fields):
     """Return non-empty public identities from ordinary and alias fields."""
     identities = []
@@ -530,11 +495,6 @@ def _row_identities(row, fields):
         identities.extend(value.strip() for value in values if value.strip())
     return identities
 
-
-# Load the product-domain keyword list from products.csv at import time so
-# it stays in sync with the data instead of needing manual updates to a
-# hardcoded list. Falls back to a small built-in seed if the file is
-# missing (e.g. package built without data/).
 def _load_product_keywords():
     """Return high-signal product labels/aliases, never every corpus keyword."""
     seed = ["saas", "ecommerce", "fintech", "healthcare", "gaming", "portfolio",
@@ -556,10 +516,8 @@ def _load_product_keywords():
             keywords.add(label)
     return sorted(keywords, key=len, reverse=True)
 
-
 _DOMAIN_KEYWORDS = None
 _DOMAIN_KEYWORDS_SIGNATURE = None
-
 
 def _domain_keywords():
     global _DOMAIN_KEYWORDS, _DOMAIN_KEYWORDS_SIGNATURE
@@ -585,12 +543,10 @@ def _domain_keywords():
     _DOMAIN_KEYWORDS_SIGNATURE = signature
     return _DOMAIN_KEYWORDS
 
-
 def _contains_phrase(text, phrase):
     if re.search(r"\w", phrase):
         return bool(re.search(r'(?<!\w)' + re.escape(phrase) + r'(?!\w)', text))
     return phrase in text
-
 
 def _rewrite_query_for_domain(query, domain, index):
     """Apply only explicit, semantic rewrites for routing-only vocabulary."""
@@ -613,9 +569,6 @@ def _rewrite_query_for_domain(query, domain, index):
         return query, []
     return f"{query} {' '.join(sorted(set(replacement_terms)))}", sorted(set(rewrites))
 
-
-# Domains checked in this fixed order when scores tie, so results are
-# deterministic instead of depending on dict/hash ordering.
 _DOMAIN_TIEBREAK_ORDER = [
     "ux", "product", "style", "color", "typography", "google-fonts",
     "chart", "landing", "icons", "gsap", "react", "web",
@@ -623,7 +576,6 @@ _DOMAIN_TIEBREAK_ORDER = [
 _DOMAIN_TIEBREAK_RANK = {
     domain: rank for rank, domain in enumerate(_DOMAIN_TIEBREAK_ORDER)
 }
-
 
 def detect_domain(query, return_scores=False):
     """Auto-detect the most relevant domain from query.
@@ -640,7 +592,7 @@ def detect_domain(query, return_scores=False):
         total = 0.0
         for kw in keywords:
             if _contains_phrase(query_lower, kw):
-                # weight = 1 point per word in the keyword phrase
+
                 specificity = max(1, len(kw.split()))
                 total += 2.0 * specificity if domain != "product" else specificity
         scores[domain] = total
@@ -659,7 +611,6 @@ def detect_domain(query, return_scores=False):
         runner_up = ranked[1][0] if len(ranked) > 1 and ranked[1][1] > 0 else None
         return result, runner_up
     return result
-
 
 def _style_identity(rows, query, allow_contained=True):
     """Resolve an explicit style identity without opening generic variant ranking."""
@@ -691,7 +642,6 @@ def _style_identity(rows, query, allow_contained=True):
     }
     return next(iter(best_rows.values())) if len(best_rows) == 1 else None
 
-
 def _exact_row_identity(rows, query, fields):
     """Return one row whose stable public identity exactly matches the query."""
     folded = str(query or "").strip().casefold()
@@ -701,7 +651,6 @@ def _exact_row_identity(rows, query, fields):
             matches.append(row)
     return matches[0] if len(matches) == 1 else None
 
-
 def _load_rows_or_empty(filepath):
     """Load rows for optional identity routing, leaving search to report I/O errors."""
     try:
@@ -709,14 +658,11 @@ def _load_rows_or_empty(filepath):
     except (csv.Error, OSError, UnicodeDecodeError):
         return []
 
-
 def _project_row(row, columns):
     return {column: row.get(column, "") for column in columns if column in row}
 
-
 def _valid_max_results(value):
     return not isinstance(value, bool) and isinstance(value, int) and 1 <= value <= 20
-
 
 def _exact_match_diagnostic(query, reason):
     return {
@@ -731,7 +677,6 @@ def _exact_match_diagnostic(query, reason):
         "calibration_version": _SEARCH_CALIBRATION_VERSION,
         "reason": reason,
     }
-
 
 def _style_search_destination(rows, matched):
     """Resolve a deprecated in-domain alias, or expose a cross-domain redirect."""
@@ -750,7 +695,6 @@ def _style_search_destination(rows, matched):
     if domain and replacement_id:
         return None, {"domain": domain, "id": replacement_id}
     return None, None
-
 
 def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
     """Main search function with auto-domain detection"""
@@ -844,7 +788,6 @@ def search(query, domain=None, max_results=MAX_RESULTS, diagnostics=False):
         out["diagnostics"] = diagnostic
     return out
 
-
 def _stack_query_requests_legacy(query, stack):
     """Whether a stack query explicitly targets an older framework generation."""
     normalized = _normalize(str(query or "").casefold())
@@ -884,7 +827,6 @@ def _stack_query_requests_legacy(query, stack):
         return False
     return bool(re.search(r"\b(?:legacy|deprecated)\b", normalized))
 
-
 def _stack_row_filter(rows, query, stack):
     """Choose one coherent applicability generation for stack retrieval."""
     statuses = {row.get("Status", "unverified") for row in rows}
@@ -921,7 +863,6 @@ def _stack_row_filter(rows, query, stack):
 
     return matches_base, f"{variant};base={requested_base}"
 
-
 def _exact_stack_identifier(rows, query, row_filter):
     """Resolve a standalone API identifier even when its BM25 IDF is low."""
     identifier = str(query or "").strip()
@@ -934,7 +875,6 @@ def _exact_stack_identifier(rows, query, row_filter):
     )]
     return matches[0] if len(matches) == 1 else None
 
-
 def _legacy_successor_guidance(rows, query, stack, row_filter):
     """Prefer the explicit successor row for a brand-new app on legacy-only stacks."""
     normalized = _normalize(str(query or "").casefold())
@@ -946,7 +886,6 @@ def _legacy_successor_guidance(rows, query, stack, row_filter):
         " ".join((row.get("Guideline", ""), row.get("Description", ""), row.get("Do", ""))).casefold(),
     )]
     return matches[0] if len(matches) == 1 else None
-
 
 def search_stack(query, stack, max_results=MAX_RESULTS, diagnostics=False):
     """Search stack-specific guidelines"""

@@ -11,30 +11,26 @@ import re
 import sys
 from pathlib import Path
 
-# Project root relative to this script
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 TOKENS_PATH = PROJECT_ROOT / 'assets' / 'design-tokens.json'
 BACKGROUNDS_CSV = Path(__file__).parent.parent / 'data' / 'slide-backgrounds.csv'
 
-
 def resolve_token_reference(ref: str, tokens: dict) -> str:
     """Resolve token reference like {primitive.color.ocean-blue.500} to hex value."""
     if not ref or not ref.startswith('{') or not ref.endswith('}'):
-        return ref  # Already a value, not a reference
+        return ref
 
-    # Parse reference: {primitive.color.ocean-blue.500}
-    path = ref[1:-1].split('.')  # ['primitive', 'color', 'ocean-blue', '500']
+    path = ref[1:-1].split('.')
     current = tokens
     for key in path:
         if isinstance(current, dict):
             current = current.get(key)
         else:
-            return None  # Invalid path
-    # Return $value if it's a token object
+            return None
+
     if isinstance(current, dict) and '$value' in current:
         return current['$value']
     return current
-
 
 def load_brand_colors():
     """Load colors from assets/design-tokens.json for overlay gradients.
@@ -48,7 +44,6 @@ def load_brand_colors():
         colors = tokens.get('primitive', {}).get('color', {})
         semantic = tokens.get('semantic', {}).get('color', {})
 
-        # Try semantic tokens first (preferred) - resolve references
         if semantic:
             primary_ref = semantic.get('primary', {}).get('$value')
             secondary_ref = semantic.get('secondary', {}).get('$value')
@@ -68,7 +63,6 @@ def load_brand_colors():
                     'background': background or '#0D0D0D',
                 }
 
-        # Fallback: find first color palette with 500 value (primary)
         primary_keys = ['ocean-blue', 'coral', 'blue', 'primary']
         secondary_keys = ['golden-amber', 'purple', 'amber', 'secondary']
         accent_keys = ['emerald', 'mint', 'green', 'accent']
@@ -104,14 +98,13 @@ def load_brand_colors():
             'background': background,
         }
     except (FileNotFoundError, KeyError, TypeError):
-        # Fallback defaults
+
         return {
             'primary': '#3B82F6',
             'secondary': '#F59E0B',
             'accent': '#10B981',
             'background': '#0D0D0D',
         }
-
 
 def load_backgrounds_config():
     """Load background configuration from CSV."""
@@ -125,7 +118,6 @@ def load_backgrounds_config():
         print(f"Warning: {BACKGROUNDS_CSV} not found")
     return config
 
-
 def get_overlay_css(style: str, brand_colors: dict) -> str:
     """Generate overlay CSS using brand colors from design-tokens.json."""
     overlays = {
@@ -137,8 +129,6 @@ def get_overlay_css(style: str, brand_colors: dict) -> str:
     }
     return overlays.get(style, overlays['gradient-dark'])
 
-
-# Curated high-quality images from Pexels (free to use, pre-selected for brand aesthetic)
 CURATED_IMAGES = {
     'hero': [
         'https://images.pexels.com/photos/3861969/pexels-photo-3861969.jpeg?auto=compress&cs=tinysrgb&w=1920',
@@ -185,17 +175,14 @@ CURATED_IMAGES = {
     ],
 }
 
-
 def get_curated_images(slide_type: str) -> list:
     """Get curated images for slide type."""
     return CURATED_IMAGES.get(slide_type, CURATED_IMAGES.get('hero', []))
-
 
 def get_pexels_search_url(keywords: str) -> str:
     """Generate Pexels search URL for manual lookup."""
     import urllib.parse
     return f"https://www.pexels.com/search/{urllib.parse.quote(keywords)}/"
-
 
 def get_background_image(slide_type: str) -> dict:
     """
@@ -213,7 +200,6 @@ def get_background_image(slide_type: str) -> dict:
         keywords = slide_config.get('search_keywords', slide_config.get('image_category', slide_type))
         overlay_style = slide_config.get('overlay_style', 'gradient-dark')
 
-    # Get curated images
     urls = get_curated_images(slide_type)
     if urls:
         return {
@@ -225,7 +211,6 @@ def get_background_image(slide_type: str) -> dict:
             'search_url': get_pexels_search_url(keywords),
         }
 
-    # Fallback: provide search URL for manual selection
     return {
         'url': None,
         'overlay': get_overlay_css(overlay_style, brand_colors),
@@ -233,7 +218,6 @@ def get_background_image(slide_type: str) -> dict:
         'search_url': get_pexels_search_url(keywords),
         'available_types': list(CURATED_IMAGES.keys()),
     }
-
 
 def generate_css_for_background(result: dict, slide_class: str = '.slide-with-bg') -> str:
     """Generate CSS for a background slide."""
@@ -264,7 +248,6 @@ def generate_css_for_background(result: dict, slide_class: str = '.slide-with-bg
 
 /* {result.get('attribution', 'Pexels')} - {result.get('search_url', '')} */
 """
-
 
 def main():
     """CLI entry point."""
@@ -311,7 +294,6 @@ def main():
         print(f"\nImage URL: {result['url']}")
         print(f"Alternatives: {len(result.get('all_urls', []))} available (use --all)")
         print(f"Overlay: {result['overlay']}")
-
 
 if __name__ == '__main__':
     main()

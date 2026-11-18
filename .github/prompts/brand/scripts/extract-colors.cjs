@@ -1,40 +1,14 @@
 #!/usr/bin/env node
-/**
- * extract-colors.cjs
- *
- * Extract dominant colors from an image and compare against brand palette.
- * Uses pure Node.js without external image processing dependencies.
- *
- * For full color extraction from images, integrate with ai-multimodal skill
- * or use ImageMagick via shell commands.
- *
- * Usage:
- *   node extract-colors.cjs <image-path>
- *   node extract-colors.cjs <image-path> --brand-file <path>
- *   node extract-colors.cjs --palette  # Show brand palette from guidelines
- *
- * Integration:
- *   For image color analysis, use: ai-multimodal skill or ImageMagick
- *   magick <image> -colors 10 -depth 8 -format "%c" histogram:info:
- */
 
 const fs = require("fs");
 const path = require("path");
-
-// Default brand guidelines path
 const DEFAULT_GUIDELINES_PATH = "docs/brand-guidelines.md";
 
-/**
- * Extract hex colors from markdown content
- */
 function extractHexColors(text) {
   const hexPattern = /#[0-9A-Fa-f]{6}\b/g;
   return [...new Set(text.match(hexPattern) || [])];
 }
 
-/**
- * Parse brand guidelines for color palette
- */
 function parseBrandColors(guidelinesPath) {
   const resolvedPath = path.isAbsolute(guidelinesPath)
     ? guidelinesPath
@@ -53,8 +27,6 @@ function parseBrandColors(guidelinesPath) {
     semantic: [],
     all: [],
   };
-
-  // Extract colors from different sections
   const sections = [
     { name: "primary", regex: /### Primary[\s\S]*?(?=###|##|$)/i },
     { name: "secondary", regex: /### Secondary[\s\S]*?(?=###|##|$)/i },
@@ -70,16 +42,11 @@ function parseBrandColors(guidelinesPath) {
       palette.all.push(...colors);
     }
   });
-
-  // Dedupe all
   palette.all = [...new Set(palette.all)];
 
   return palette;
 }
 
-/**
- * Convert hex to RGB
- */
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -91,9 +58,6 @@ function hexToRgb(hex) {
     : null;
 }
 
-/**
- * Convert RGB to hex
- */
 function rgbToHex(r, g, b) {
   return (
     "#" +
@@ -107,9 +71,6 @@ function rgbToHex(r, g, b) {
   );
 }
 
-/**
- * Calculate color distance (Euclidean in RGB space)
- */
 function colorDistance(color1, color2) {
   const rgb1 = typeof color1 === "string" ? hexToRgb(color1) : color1;
   const rgb2 = typeof color2 === "string" ? hexToRgb(color2) : color2;
@@ -123,9 +84,6 @@ function colorDistance(color1, color2) {
   );
 }
 
-/**
- * Find nearest brand color
- */
 function findNearestBrandColor(color, brandColors) {
   let nearest = null;
   let minDistance = Infinity;
@@ -141,10 +99,6 @@ function findNearestBrandColor(color, brandColors) {
   return { color: nearest, distance: minDistance };
 }
 
-/**
- * Calculate brand compliance percentage
- * Distance threshold: 50 (out of max ~441 for RGB)
- */
 function calculateCompliance(extractedColors, brandColors, threshold = 50) {
   if (!extractedColors || extractedColors.length === 0) return 100;
   if (!brandColors || brandColors.length === 0) return 0;
@@ -161,22 +115,15 @@ function calculateCompliance(extractedColors, brandColors, threshold = 50) {
   return Math.round((matchCount / extractedColors.length) * 100);
 }
 
-/**
- * Generate ImageMagick command for color extraction
- */
 function generateImageMagickCommand(imagePath, numColors = 10) {
   return `magick "${imagePath}" -colors ${numColors} -depth 8 -format "%c" histogram:info:`;
 }
 
-/**
- * Parse ImageMagick histogram output to extract colors
- */
 function parseImageMagickOutput(output) {
   const colors = [];
   const lines = output.trim().split("\n");
 
   lines.forEach((line) => {
-    // Match pattern like: 12345: (255,128,64) #FF8040 srgb(255,128,64)
     const hexMatch = line.match(/#([0-9A-Fa-f]{6})/);
     const countMatch = line.match(/^\s*(\d+):/);
 
@@ -187,16 +134,11 @@ function parseImageMagickOutput(output) {
       });
     }
   });
-
-  // Sort by count (most common first)
   colors.sort((a, b) => b.count - a.count);
 
   return colors;
 }
 
-/**
- * Display brand palette
- */
 function displayPalette(palette) {
   console.log("\n" + "=".repeat(50));
   console.log("BRAND COLOR PALETTE");
@@ -227,9 +169,6 @@ function displayPalette(palette) {
   console.log("=".repeat(50) + "\n");
 }
 
-/**
- * Main function
- */
 function main() {
   const args = process.argv.slice(2);
   const jsonOutput = args.includes("--json");
@@ -241,8 +180,6 @@ function main() {
   const imagePath = args.find(
     (a) => !a.startsWith("--") && a !== brandFileValue
   );
-
-  // Load brand palette
   const brandPalette = parseBrandColors(brandFile);
 
   if (!brandPalette) {
@@ -250,8 +187,6 @@ function main() {
     console.error(`Create brand guidelines or specify path with --brand-file`);
     process.exit(1);
   }
-
-  // Show palette mode
   if (showPalette || !imagePath) {
     if (jsonOutput) {
       console.log(JSON.stringify(brandPalette, null, 2));
@@ -267,8 +202,6 @@ function main() {
     }
     return;
   }
-
-  // Resolve image path
   const resolvedPath = path.isAbsolute(imagePath)
     ? imagePath
     : path.join(process.cwd(), imagePath);
@@ -277,8 +210,6 @@ function main() {
     console.error(`Image not found: ${resolvedPath}`);
     process.exit(1);
   }
-
-  // Generate extraction instructions
   const result = {
     image: resolvedPath,
     brandPalette: brandPalette,
@@ -314,8 +245,6 @@ function main() {
     console.log("\nTo extract colors from this image:\n");
     result.instructions.forEach((line) => console.log(line));
     console.log("\n" + "=".repeat(60));
-
-    // Show brand palette for reference
     console.log("\nBrand Palette Reference:");
     console.log(`  Primary: ${brandPalette.primary.join(", ") || "none"}`);
     console.log(`  Secondary: ${brandPalette.secondary.join(", ") || "none"}`);
@@ -323,8 +252,6 @@ function main() {
     console.log("=".repeat(60) + "\n");
   }
 }
-
-// Export functions for use as module
 module.exports = {
   parseBrandColors,
   hexToRgb,
@@ -334,8 +261,6 @@ module.exports = {
   calculateCompliance,
   parseImageMagickOutput,
 };
-
-// Run if called directly
 if (require.main === module) {
   main();
 }

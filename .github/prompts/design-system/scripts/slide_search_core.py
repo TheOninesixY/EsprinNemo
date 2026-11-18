@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Slide Search Core - BM25 search engine for slide design databases
 """
@@ -10,7 +10,6 @@ from pathlib import Path
 from math import log
 from collections import defaultdict
 
-# ============ CONFIGURATION ============
 DATA_DIR = Path(__file__).parent.parent / "data"
 MAX_RESULTS = 3
 
@@ -39,8 +38,6 @@ CSV_CONFIG = {
 
 AVAILABLE_DOMAINS = list(CSV_CONFIG.keys())
 
-
-# ============ BM25 IMPLEMENTATION ============
 class BM25:
     """BM25 ranking algorithm for text search"""
 
@@ -102,13 +99,10 @@ class BM25:
 
         return sorted(scores, key=lambda x: x[1], reverse=True)
 
-
-# ============ SEARCH FUNCTIONS ============
 def _load_csv(filepath):
     """Load CSV and return list of dicts"""
     with open(filepath, 'r', encoding='utf-8') as f:
         return list(csv.DictReader(f))
-
 
 def _search_csv(filepath, search_cols, output_cols, query, max_results):
     """Core search function using BM25"""
@@ -117,15 +111,12 @@ def _search_csv(filepath, search_cols, output_cols, query, max_results):
 
     data = _load_csv(filepath)
 
-    # Build documents from search columns
     documents = [" ".join(str(row.get(col, "")) for col in search_cols) for row in data]
 
-    # BM25 search
     bm25 = BM25()
     bm25.fit(documents)
     ranked = bm25.score(query)
 
-    # Get top results with score > 0
     results = []
     for idx, score in ranked[:max_results]:
         if score > 0:
@@ -133,7 +124,6 @@ def _search_csv(filepath, search_cols, output_cols, query, max_results):
             results.append({col: row.get(col, "") for col in output_cols if col in row})
 
     return results
-
 
 def detect_domain(query):
     """Auto-detect the most relevant domain from query"""
@@ -153,7 +143,6 @@ def detect_domain(query):
     scores = {domain: sum(1 for kw in keywords if kw in query_lower) for domain, keywords in domain_keywords.items()}
     best = max(scores, key=scores.get)
     return best if scores[best] > 0 else "strategy"
-
 
 def search(query, domain=None, max_results=MAX_RESULTS):
     """Main search function with auto-domain detection"""
@@ -176,7 +165,6 @@ def search(query, domain=None, max_results=MAX_RESULTS):
         "results": results
     }
 
-
 def search_all(query, max_results=2):
     """Search across all domains for comprehensive results"""
     all_results = {}
@@ -188,10 +176,6 @@ def search_all(query, max_results=2):
 
     return all_results
 
-
-# ============ CONTEXTUAL SEARCH (Premium Slide System) ============
-
-# New CSV configurations for decision system
 DECISION_CSV_CONFIG = {
     "layout-logic": {
         "file": "slide-layout-logic.csv",
@@ -211,7 +195,6 @@ DECISION_CSV_CONFIG = {
     }
 }
 
-
 def _load_decision_csv(csv_type):
     """Load a decision CSV and return as dict keyed by primary column."""
     config = DECISION_CSV_CONFIG.get(csv_type)
@@ -225,7 +208,6 @@ def _load_decision_csv(csv_type):
     data = _load_csv(filepath)
     return {row[config["key_col"]]: row for row in data if config["key_col"] in row}
 
-
 def get_layout_for_goal(goal, previous_emotion=None):
     """
     Get layout recommendation based on slide goal.
@@ -236,13 +218,11 @@ def get_layout_for_goal(goal, previous_emotion=None):
 
     result = dict(row) if row else {}
 
-    # Apply pattern-breaking logic
     if result.get("break_pattern") == "true" and previous_emotion:
         result["_pattern_break"] = True
         result["_contrast_with"] = previous_emotion
 
     return result
-
 
 def get_typography_for_slide(slide_type, has_metrics=False, has_quote=False):
     """
@@ -256,7 +236,6 @@ def get_typography_for_slide(slide_type, has_metrics=False, has_quote=False):
     if has_quote:
         return typography.get("quote-block", {})
 
-    # Map slide types to typography
     type_map = {
         "hero": "hero-statement",
         "hook": "hero-statement",
@@ -279,7 +258,6 @@ def get_typography_for_slide(slide_type, has_metrics=False, has_quote=False):
     content_type = type_map.get(slide_type, "feature-grid")
     return typography.get(content_type, {})
 
-
 def get_color_for_emotion(emotion):
     """
     Get color treatment based on emotional beat.
@@ -288,7 +266,6 @@ def get_color_for_emotion(emotion):
     colors = _load_decision_csv("color-logic")
     return colors.get(emotion, colors.get("clarity", {}))
 
-
 def get_background_config(slide_type):
     """
     Get background image configuration.
@@ -296,7 +273,6 @@ def get_background_config(slide_type):
     """
     backgrounds = _load_decision_csv("backgrounds")
     return backgrounds.get(slide_type, {})
-
 
 def should_use_full_bleed(slide_index, total_slides, emotion):
     """
@@ -321,22 +297,19 @@ def should_use_full_bleed(slide_index, total_slides, emotion):
 
     return slide_index in strategic_positions
 
-
 def calculate_pattern_break(slide_index, total_slides, previous_emotion=None):
     """
     Determine if this slide should break the visual pattern.
     Used for emotional contrast (Duarte Sparkline technique).
     """
-    # Pattern breaks at strategic positions
+
     if total_slides < 5:
         return False
 
-    # Break at 1/3 and 2/3 points
     third = total_slides // 3
     if slide_index in [third, third * 2]:
         return True
 
-    # Break when switching between frustration and hope
     contrasting_emotions = {
         "frustration": ["hope", "relief"],
         "hope": ["frustration", "fear"],
@@ -347,7 +320,6 @@ def calculate_pattern_break(slide_index, total_slides, previous_emotion=None):
         return True
 
     return False
-
 
 def search_with_context(query, slide_position=1, total_slides=9, previous_emotion=None):
     """
@@ -362,10 +334,9 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
     Returns:
         Search results enriched with contextual recommendations
     """
-    # Get base results from existing BM25 search
+
     base_results = search_all(query, max_results=2)
 
-    # Detect likely slide goal from query
     goal = detect_domain(query.lower())
     if "problem" in query.lower():
         goal = "problem"
@@ -378,7 +349,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
     elif "traction" in query.lower() or "metric" in query.lower():
         goal = "traction"
 
-    # Enrich with contextual recommendations
     context = {
         "slide_position": slide_position,
         "total_slides": total_slides,
@@ -386,7 +356,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
         "inferred_goal": goal,
     }
 
-    # Get layout recommendation
     layout = get_layout_for_goal(goal, previous_emotion)
     if layout:
         context["recommended_layout"] = layout.get("layout_pattern")
@@ -394,7 +363,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
         context["visual_weight"] = layout.get("visual_weight")
         context["use_background_image"] = layout.get("use_bg_image") == "true"
 
-    # Get typography recommendation
     typography = get_typography_for_slide(goal)
     if typography:
         context["typography"] = {
@@ -403,7 +371,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
             "weight_contrast": typography.get("weight_contrast"),
         }
 
-    # Get color treatment
     emotion = layout.get("emotion", "clarity") if layout else "clarity"
     color = get_color_for_emotion(emotion)
     if color:
@@ -414,7 +381,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
             "card_style": color.get("card_style"),
         }
 
-    # Calculate pattern breaking
     context["should_break_pattern"] = calculate_pattern_break(
         slide_position, total_slides, previous_emotion
     )
@@ -422,7 +388,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
         slide_position, total_slides, emotion
     )
 
-    # Get background config if needed
     if context.get("use_background_image"):
         bg_config = get_background_config(goal)
         if bg_config:
@@ -432,7 +397,6 @@ def search_with_context(query, slide_position=1, total_slides=9, previous_emotio
                 "search_keywords": bg_config.get("search_keywords"),
             }
 
-    # Suggested animation classes
     animation_map = {
         "hook": "animate-fade-up",
         "problem": "animate-fade-up",

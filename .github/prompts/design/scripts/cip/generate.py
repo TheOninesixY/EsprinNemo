@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 CIP Design Generator - Generate corporate identity mockups using Gemini Nano Banana
 
@@ -21,17 +21,14 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent))
 from core import search, get_cip_brief
 
-# Model options
 MODELS = {
-    "flash": "gemini-2.5-flash-image",      # Nano Banana Flash - fast, default
-    "pro": "gemini-3-pro-image-preview"      # Nano Banana Pro - quality, 4K text
+    "flash": "gemini-2.5-flash-image",
+    "pro": "gemini-3-pro-image-preview"
 }
 DEFAULT_MODEL = "flash"
-
 
 def load_logo_image(logo_path):
     """Load logo image using PIL for Gemini image editing"""
@@ -49,12 +46,12 @@ def load_logo_image(logo_path):
 
     try:
         img = Image.open(logo_path)
-        # Convert to RGB if necessary (Gemini works best with RGB)
+
         if img.mode in ('RGBA', 'P'):
-            # Create white background for transparent images
+
             background = Image.new('RGB', img.size, (255, 255, 255))
             if img.mode == 'RGBA':
-                background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+                background.paste(img, mask=img.split()[3])
             else:
                 background.paste(img)
             img = background
@@ -65,7 +62,6 @@ def load_logo_image(logo_path):
         print(f"Error loading logo: {e}")
         return None
 
-# Load environment variables
 def load_env():
     """Load environment variables from .env files"""
     env_paths = [
@@ -85,7 +81,6 @@ def load_env():
 
 load_env()
 
-
 def build_cip_prompt(deliverable, brand_name, style=None, industry=None, mockup=None, use_logo_image=False):
     """Build an optimized prompt for CIP mockup generation
 
@@ -98,19 +93,15 @@ def build_cip_prompt(deliverable, brand_name, style=None, industry=None, mockup=
         use_logo_image: If True, prompt is optimized for image editing with logo
     """
 
-    # Get deliverable details
     deliverable_info = search(deliverable, "deliverable", 1)
     deliverable_data = deliverable_info.get("results", [{}])[0] if deliverable_info.get("results") else {}
 
-    # Get style details
     style_info = search(style or "corporate minimal", "style", 1) if style else {}
     style_data = style_info.get("results", [{}])[0] if style_info.get("results") else {}
 
-    # Get industry details
     industry_info = search(industry or "technology", "industry", 1) if industry else {}
     industry_data = industry_info.get("results", [{}])[0] if industry_info.get("results") else {}
 
-    # Get mockup context
     mockup_context = deliverable_data.get("Mockup Context", "clean professional")
     if mockup:
         mockup_info = search(mockup, "mockup", 1)
@@ -118,7 +109,6 @@ def build_cip_prompt(deliverable, brand_name, style=None, industry=None, mockup=
             mockup_data = mockup_info["results"][0]
             mockup_context = mockup_data.get("Scene Description", mockup_context)
 
-    # Build prompt components
     deliverable_name = deliverable_data.get("Deliverable", deliverable)
     description = deliverable_data.get("Description", "")
     dimensions = deliverable_data.get("Dimensions", "")
@@ -132,9 +122,8 @@ def build_cip_prompt(deliverable, brand_name, style=None, industry=None, mockup=
 
     mood = style_data.get("Mood", industry_data.get("Mood", "professional"))
 
-    # Construct the prompt - different for image editing vs pure generation
     if use_logo_image:
-        # Image editing prompt: instructs to USE the provided logo image
+
         prompt_parts = [
             f"Create a professional corporate identity mockup photograph of a {deliverable_name}",
             f"Use the EXACT logo from the provided image - do NOT modify or recreate the logo",
@@ -152,7 +141,7 @@ def build_cip_prompt(deliverable, brand_name, style=None, industry=None, mockup=
             "8K resolution, sharp details"
         ]
     else:
-        # Pure text-to-image prompt
+
         prompt_parts = [
             f"Professional corporate identity mockup photograph",
             f"showing {deliverable_name} for brand '{brand_name}'",
@@ -181,7 +170,6 @@ def build_cip_prompt(deliverable, brand_name, style=None, industry=None, mockup=
         "mockup_context": mockup_context,
         "logo_placement": logo_placement
     }
-
 
 def generate_with_nano_banana(prompt_data, output_dir=None, model_key="flash", aspect_ratio="1:1", logo_image=None):
     """Generate image using Gemini Nano Banana (native image generation)
@@ -219,7 +207,6 @@ def generate_with_nano_banana(prompt_data, output_dir=None, model_key="flash", a
     prompt = prompt_data["prompt"]
     model_name = MODELS.get(model_key, MODELS[DEFAULT_MODEL])
 
-    # Determine mode
     mode = "image-editing" if logo_image else "text-to-image"
 
     print(f"\n🎨 Generating CIP mockup...")
@@ -233,31 +220,29 @@ def generate_with_nano_banana(prompt_data, output_dir=None, model_key="flash", a
         print(f"   Logo: Using provided image ({logo_image.size[0]}x{logo_image.size[1]})")
 
     try:
-        # Build contents: either just prompt or [prompt, image] for image editing
+
         if logo_image:
-            # Image editing mode: pass both prompt and logo image
+
             contents = [prompt, logo_image]
         else:
-            # Text-to-image mode: just the prompt
+
             contents = prompt
 
-        # Use generate_content with response_modalities=['IMAGE'] for Nano Banana
         response = client.models.generate_content(
             model=model_name,
             contents=contents,
             config=types.GenerateContentConfig(
-                response_modalities=['IMAGE'],  # Uppercase required
+                response_modalities=['IMAGE'],
                 image_config=types.ImageConfig(
                     aspect_ratio=aspect_ratio
                 )
             )
         )
 
-        # Extract image from response
         if response.candidates and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
                 if hasattr(part, 'inline_data') and part.inline_data:
-                    # Save image
+
                     output_dir = output_dir or Path.cwd()
                     output_dir = Path(output_dir)
                     output_dir.mkdir(parents=True, exist_ok=True)
@@ -282,7 +267,6 @@ def generate_with_nano_banana(prompt_data, output_dir=None, model_key="flash", a
         print(f"Error generating image: {e}")
         return None
 
-
 def generate_cip_set(brand_name, industry, style=None, deliverables=None, output_dir=None, model_key="flash", logo_path=None, aspect_ratio="1:1"):
     """Generate a complete CIP set for a brand
 
@@ -297,17 +281,14 @@ def generate_cip_set(brand_name, industry, style=None, deliverables=None, output
         aspect_ratio: Output aspect ratio
     """
 
-    # Load logo image if provided
     logo_image = None
     if logo_path:
         logo_image = load_logo_image(logo_path)
         if not logo_image:
             print("Warning: Could not load logo, falling back to text-to-image mode")
 
-    # Get CIP brief for the brand
     brief = get_cip_brief(brand_name, industry, style)
 
-    # Default deliverables if not specified
     if not deliverables:
         deliverables = ["business card", "letterhead", "office signage", "vehicle", "polo shirt"]
 
@@ -337,7 +318,6 @@ def generate_cip_set(brand_name, industry, style=None, deliverables=None, output
 
     return results
 
-
 def check_logo_required(brand_name, skip_prompt=False):
     """Check if logo is required and suggest logo-design skill if not provided
 
@@ -365,7 +345,6 @@ def check_logo_required(brand_name, skip_prompt=False):
         return 'continue'
     except (EOFError, KeyboardInterrupt):
         return 'continue'
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -415,7 +394,6 @@ Image Editing Mode:
 
     args = parser.parse_args()
 
-    # Check if logo is provided, prompt user if not
     logo_image = None
     if args.logo:
         logo_image = load_logo_image(args.logo)
@@ -423,7 +401,7 @@ Image Editing Mode:
             print("Error: Could not load logo image")
             sys.exit(1)
     elif not args.prompt_only:
-        # No logo provided - ask user what to do
+
         action = check_logo_required(args.brand, skip_prompt=args.no_logo_prompt)
         if action == 'generate':
             print("\n💡 To generate a logo, use the logo-design skill:")
@@ -433,12 +411,11 @@ Image Editing Mode:
         elif action == 'exit':
             print("\n   Provide logo with: --logo /path/to/your/logo.png")
             sys.exit(0)
-        # else: continue without logo
 
     use_logo = logo_image is not None
 
     if args.set or args.deliverables:
-        # Generate multiple deliverables
+
         deliverables = args.deliverables.split(",") if args.deliverables else None
 
         if args.prompt_only:
@@ -462,7 +439,7 @@ Image Editing Mode:
             else:
                 print(f"\n✅ Generated {len(results)} CIP mockups")
     else:
-        # Generate single deliverable
+
         deliverable = args.deliverable or "business card"
         prompt_data = build_cip_prompt(deliverable, args.brand, args.style, args.industry, args.mockup, use_logo_image=use_logo)
 
@@ -478,7 +455,6 @@ Image Editing Mode:
             )
             if args.json:
                 print(json.dumps({"filepath": filepath, **prompt_data}, indent=2))
-
 
 if __name__ == "__main__":
     main()

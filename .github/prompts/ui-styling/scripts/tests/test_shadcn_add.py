@@ -7,12 +7,10 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-# Add parent directory to path for imports
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shadcn_add import ShadcnInstaller
-
 
 class TestShadcnInstaller:
     """Test ShadcnInstaller class."""
@@ -23,7 +21,6 @@ class TestShadcnInstaller:
         project_root = tmp_path / "test-project"
         project_root.mkdir()
 
-        # Create components.json
         components_json = project_root / "components.json"
         components_json.write_text(
             json.dumps({
@@ -35,7 +32,6 @@ class TestShadcnInstaller:
             })
         )
 
-        # Create components directory
         ui_dir = project_root / "components" / "ui"
         ui_dir.mkdir(parents=True)
 
@@ -77,7 +73,6 @@ class TestShadcnInstaller:
         """Test getting installed components when files exist."""
         ui_dir = temp_project / "components" / "ui"
 
-        # Create component files
         (ui_dir / "button.tsx").write_text("export const Button = () => {}")
         (ui_dir / "card.tsx").write_text("export const Card = () => {}")
 
@@ -139,7 +134,6 @@ class TestShadcnInstaller:
             assert "Successfully added" in message
             mock_run.assert_called_once()
 
-            # Verify --overwrite flag was passed
             call_args = mock_run.call_args[0][0]
             assert "--overwrite" in call_args
 
@@ -170,7 +164,6 @@ class TestShadcnInstaller:
         assert "button" in message
         assert "card" in message
 
-        # Verify correct command was called
         mock_run.assert_called_once()
         call_args = mock_run.call_args[0][0]
         assert call_args[:3] == ["npx", "shadcn@2.3.0", "add"]
@@ -232,7 +225,6 @@ class TestShadcnInstaller:
         assert success is True
         assert "Successfully added all" in message
 
-        # Verify --all flag was passed
         call_args = mock_run.call_args[0][0]
         assert "--all" in call_args
 

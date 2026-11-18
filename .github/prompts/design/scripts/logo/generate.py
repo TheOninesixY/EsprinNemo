@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Logo Generation Script using Gemini Nano Banana API
 Uses Gemini 2.5 Flash Image and Gemini 3 Pro Image Preview models
@@ -25,7 +25,6 @@ import time
 from pathlib import Path
 from datetime import datetime
 
-# Load environment variables
 def load_env():
     """Load .env files in priority order"""
     env_paths = [
@@ -54,19 +53,14 @@ except ImportError:
     print("Install with: pip install google-genai")
     sys.exit(1)
 
-
-# ============ CONFIGURATION ============
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Gemini "Nano Banana" model configurations for image generation
-GEMINI_FLASH = "gemini-2.5-flash-image"  # Nano Banana: fast, high-volume, low-latency
-GEMINI_PRO = "gemini-3-pro-image-preview"  # Nano Banana Pro: professional quality, advanced reasoning
+GEMINI_FLASH = "gemini-2.5-flash-image"
+GEMINI_PRO = "gemini-3-pro-image-preview"
 
-# Supported aspect ratios
 ASPECT_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4"]
-DEFAULT_ASPECT_RATIO = "1:1"  # Square is ideal for logos
+DEFAULT_ASPECT_RATIO = "1:1"
 
-# Logo-specific prompt templates
 LOGO_PROMPT_TEMPLATE = """Generate a professional logo image: {prompt}
 
 Style requirements:
@@ -115,7 +109,6 @@ INDUSTRY_PROMPTS = {
     "creative": "creative agency, artistic, unique, expressive, colorful"
 }
 
-
 def enhance_prompt(base_prompt, style=None, industry=None, brand_name=None):
     """Enhance the logo prompt with style and industry modifiers"""
     prompt_parts = [base_prompt]
@@ -132,7 +125,6 @@ def enhance_prompt(base_prompt, style=None, industry=None, brand_name=None):
     combined = ", ".join(prompt_parts)
     return LOGO_PROMPT_TEMPLATE.format(prompt=combined)
 
-
 def generate_logo(prompt, style=None, industry=None, brand_name=None,
                   output_path=None, use_pro=False, aspect_ratio=None):
     """Generate a logo using Gemini models with image generation
@@ -147,17 +139,13 @@ def generate_logo(prompt, style=None, industry=None, brand_name=None,
         print("Set it with: export GEMINI_API_KEY='your-key'")
         return None
 
-    # Initialize client
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    # Enhance the prompt
     full_prompt = enhance_prompt(prompt, style, industry, brand_name)
 
-    # Select model
     model = GEMINI_PRO if use_pro else GEMINI_FLASH
     model_label = "Nano Banana Pro (gemini-3-pro-image-preview)" if use_pro else "Nano Banana (gemini-2.5-flash-image)"
 
-    # Set aspect ratio (default to 1:1 for logos)
     ratio = aspect_ratio if aspect_ratio in ASPECT_RATIOS else DEFAULT_ASPECT_RATIO
 
     print(f"Generating logo with {model_label}...")
@@ -166,7 +154,7 @@ def generate_logo(prompt, style=None, industry=None, brand_name=None,
     print()
 
     try:
-        # Generate image using Gemini with image generation capability
+
         response = client.models.generate_content(
             model=model,
             contents=full_prompt,
@@ -196,7 +184,6 @@ def generate_logo(prompt, style=None, industry=None, brand_name=None,
             )
         )
 
-        # Extract image from response
         image_data = None
         for part in response.candidates[0].content.parts:
             if hasattr(part, 'inline_data') and part.inline_data:
@@ -209,13 +196,11 @@ def generate_logo(prompt, style=None, industry=None, brand_name=None,
             print("Try a different prompt or check if the model supports image generation.")
             return None
 
-        # Determine output path
         if output_path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             brand_slug = brand_name.lower().replace(" ", "_") if brand_name else "logo"
             output_path = f"{brand_slug}_{timestamp}.png"
 
-        # Save image
         with open(output_path, "wb") as f:
             f.write(image_data)
 
@@ -226,11 +211,9 @@ def generate_logo(prompt, style=None, industry=None, brand_name=None,
         print(f"Error generating logo: {e}")
         return None
 
-
 def generate_batch(prompt, brand_name, count, output_dir, use_pro=False, brand_context=None, aspect_ratio=None):
     """Generate multiple logo variants with different styles"""
 
-    # Select appropriate styles for batch generation
     batch_styles = [
         ("minimalist", "Clean, simple geometric shape with minimal details"),
         ("modern", "Sleek gradient with tech-forward aesthetic"),
@@ -243,7 +226,6 @@ def generate_batch(prompt, brand_name, count, output_dir, use_pro=False, brand_c
         ("3d", "Dimensional design with depth and shadows"),
     ]
 
-    # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
     results = []
@@ -261,12 +243,10 @@ def generate_batch(prompt, brand_name, count, output_dir, use_pro=False, brand_c
     for i in range(min(count, len(batch_styles))):
         style_key, style_desc = batch_styles[i]
 
-        # Build enhanced prompt with brand context
         enhanced_prompt = f"{prompt}, {style_desc}"
         if brand_context:
             enhanced_prompt = f"{brand_context}, {enhanced_prompt}"
 
-        # Generate filename
         filename = f"{brand_name.lower().replace(' ', '_')}_{style_key}_{i+1:02d}.png"
         output_path = os.path.join(output_dir, filename)
 
@@ -288,7 +268,6 @@ def generate_batch(prompt, brand_name, count, output_dir, use_pro=False, brand_c
         else:
             print(f"  ✗ Failed: {style_key}\n")
 
-        # Rate limiting between requests
         if i < count - 1:
             time.sleep(2)
 
@@ -297,7 +276,6 @@ def generate_batch(prompt, brand_name, count, output_dir, use_pro=False, brand_c
     print(f"{'='*60}\n")
 
     return results
-
 
 def main():
     parser = argparse.ArgumentParser(description="Generate logos using Gemini Nano Banana models")
@@ -334,7 +312,6 @@ def main():
 
     prompt = args.prompt or "professional logo"
 
-    # Batch mode
     if args.batch:
         output_dir = args.output_dir or f"./{args.brand.lower().replace(' ', '_')}_logos"
         generate_batch(
@@ -356,7 +333,6 @@ def main():
             use_pro=args.pro,
             aspect_ratio=args.aspect_ratio
         )
-
 
 if __name__ == "__main__":
     main()

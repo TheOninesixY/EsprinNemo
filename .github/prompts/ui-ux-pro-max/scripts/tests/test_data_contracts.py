@@ -15,28 +15,24 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPTS_DIR.parent / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import AVAILABLE_STACKS, STACK_CONFIG  # noqa: E402
-from design_system import DesignSystemGenerator  # noqa: E402
-from reasoning_contract import apply_decision_rules, parse_decision_rules  # noqa: E402
-import validate_data  # noqa: E402
-from validate_data import _check_reasoning_contract  # noqa: E402
-
+from core import AVAILABLE_STACKS, STACK_CONFIG
+from design_system import DesignSystemGenerator
+from reasoning_contract import apply_decision_rules, parse_decision_rules
+import validate_data
+from validate_data import _check_reasoning_contract
 
 def read_rows(name):
     with (DATA_DIR / name).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
-
 def split_values(value, delimiter):
     return [part.strip() for part in value.split(delimiter) if part.strip()]
-
 
 def style_identities(row):
     return [
         row["Style ID"], row["Style Category"],
         *split_values(row["Aliases"], "|"),
     ]
-
 
 class TestStyleIdentityContract(unittest.TestCase):
     def setUp(self):
@@ -82,7 +78,6 @@ class TestStyleIdentityContract(unittest.TestCase):
             if reference.casefold() not in lookup
         })
         self.assertEqual([], unresolved)
-
 
 class TestReasoningContract(unittest.TestCase):
     def test_known_product_sets_match_exactly(self):
@@ -257,7 +252,6 @@ class TestReasoningContract(unittest.TestCase):
             "hud-sci-fi-fui",
         )
 
-
 class TestLandingAndStackContract(unittest.TestCase):
     def test_landing_sections_use_one_delimiter(self):
         for row in read_rows("landing.csv"):
@@ -351,7 +345,6 @@ class TestLandingAndStackContract(unittest.TestCase):
                 ))
                 self.assertTrue(problems)
 
-
 class TestGeneratedCatalogContract(unittest.TestCase):
     def load_json(self, name):
         return json.loads((DATA_DIR / name).read_text(encoding="utf-8"))
@@ -415,7 +408,6 @@ class TestGeneratedCatalogContract(unittest.TestCase):
             problems,
         )
         self.assertTrue(any("stale count for googleFonts" in problem for problem in problems))
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

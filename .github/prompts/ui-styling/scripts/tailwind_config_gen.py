@@ -13,11 +13,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# Valid npm package name pattern: optional @scope/, then package name with
-# optional subpath. Only allows alphanumeric, hyphens, dots, underscores,
-# and forward slashes — no quotes, parens, or semicolons.
 _VALID_PLUGIN_NAME = re.compile(r'^(@[a-zA-Z0-9_-]+/)?[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)*$')
-
 
 class TailwindConfigGenerator:
     """Generate Tailwind CSS configuration files."""
@@ -101,7 +97,7 @@ class TailwindConfigGenerator:
             name: Color name (e.g., 'brand', 'primary')
             base_color: Base color in oklch format or hex
         """
-        # For simplicity, use CSS variable approach
+
         if "colors" not in self.config["theme"]["extend"]:
             self.config["theme"]["extend"]["colors"] = {}
 
@@ -179,10 +175,8 @@ class TailwindConfigGenerator:
         """
         recommendations = []
 
-        # Always recommend animation plugin
         recommendations.append("tailwindcss-animate")
 
-        # Framework-specific recommendations
         if self.framework == "nextjs":
             recommendations.append("@tailwindcss/typography")
 
@@ -205,7 +199,6 @@ class TailwindConfigGenerator:
 
         config_json = json.dumps(self.config, indent=2)
 
-        # Remove plugin array from JSON (we'll add it with require())
         config_obj = self.config.copy()
         config_obj.pop("plugins", None)
         config_json = json.dumps(config_obj, indent=2)
@@ -260,7 +253,7 @@ module.exports = {{
         """Add indentation to JSON string."""
         indent = "  " * level
         lines = json_str.split("\n")
-        # Skip first and last lines (braces)
+
         indented = [indent + line for line in lines[1:-1]]
         return "\n".join(indented)
 
@@ -288,16 +281,14 @@ module.exports = {{
         Returns:
             Tuple of (valid, message)
         """
-        # Check content paths exist
+
         if not self.config["content"]:
             return False, "No content paths specified"
 
-        # Check if extending empty theme
         if not self.config["theme"]["extend"]:
             return True, "Warning: No theme extensions defined"
 
         return True, "Configuration valid"
-
 
 def main():
     """CLI entry point."""
@@ -384,14 +375,12 @@ Examples:
 
     args = parser.parse_args()
 
-    # Initialize generator
     generator = TailwindConfigGenerator(
         typescript=not args.js,
         framework=args.framework,
         output_path=args.output,
     )
 
-    # Add custom colors
     if args.colors:
         colors = {}
         for color_spec in args.colors:
@@ -403,7 +392,6 @@ Examples:
                 sys.exit(1)
         generator.add_colors(colors)
 
-    # Add custom fonts
     if args.fonts:
         fonts = {}
         for font_spec in args.fonts:
@@ -415,7 +403,6 @@ Examples:
                 sys.exit(1)
         generator.add_fonts(fonts)
 
-    # Add custom spacing
     if args.spacing:
         spacing = {}
         for spacing_spec in args.spacing:
@@ -427,7 +414,6 @@ Examples:
                 sys.exit(1)
         generator.add_spacing(spacing)
 
-    # Add custom breakpoints
     if args.breakpoints:
         breakpoints = {}
         for bp_spec in args.breakpoints:
@@ -439,7 +425,6 @@ Examples:
                 sys.exit(1)
         generator.add_breakpoints(breakpoints)
 
-    # Add recommended plugins
     if args.plugins:
         recommended = generator.recommend_plugins()
         generator.add_plugins(recommended)
@@ -447,7 +432,6 @@ Examples:
         print("\nInstall with:")
         print(f"  npm install -D {' '.join(recommended)}")
 
-    # Validate
     valid, message = generator.validate_config()
     if not valid:
         print(f"Validation failed: {message}", file=sys.stderr)
@@ -456,18 +440,15 @@ Examples:
     if message.startswith("Warning"):
         print(message)
 
-    # Validate only mode
     if args.validate_only:
         print("Configuration valid")
         print("\nGenerated config:")
         print(generator.generate_config_string())
         sys.exit(0)
 
-    # Write config
     success, message = generator.write_config()
     print(message)
     sys.exit(0 if success else 1)
-
 
 if __name__ == "__main__":
     main()

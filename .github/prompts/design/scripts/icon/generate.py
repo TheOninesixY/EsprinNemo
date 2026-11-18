@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Icon Generation Script using Gemini 3.1 Pro Preview API
 Generates SVG icons via text generation (SVG is XML text format)
@@ -22,7 +22,6 @@ import sys
 import time
 from pathlib import Path
 from datetime import datetime
-
 
 def load_env():
     """Load .env files in priority order"""
@@ -51,12 +50,9 @@ except ImportError:
     print("Install with: pip install google-genai")
     sys.exit(1)
 
-
-# ============ CONFIGURATION ============
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 MODEL = "gemini-3.1-pro-preview"
 
-# Icon styles with SVG-specific instructions
 ICON_STYLES = {
     "outlined": "outlined stroke icons, 2px stroke width, no fill, clean open paths",
     "filled": "solid filled icons, no stroke, flat color fills, bold shapes",
@@ -90,7 +86,6 @@ ICON_CATEGORIES = {
     "map": "pin, location, compass, globe, route, directions, map marker",
 }
 
-# SVG generation prompt template
 SVG_PROMPT_TEMPLATE = """Generate a clean, production-ready SVG icon.
 
 Requirements:
@@ -124,35 +119,30 @@ Requirements for EACH icon:
 Generate {count} different visual interpretations. Output each SVG in a separate ```svg``` code block.
 Label each variation (e.g., "Variation 1: [brief description]")."""
 
-
 def extract_svgs(text):
     """Extract SVG code blocks from model response"""
     svgs = []
 
-    # Try ```svg code blocks first
     pattern = r'```svg\s*\n(.*?)```'
     matches = re.findall(pattern, text, re.DOTALL)
     if matches:
         svgs.extend(matches)
 
-    # Fallback: try ```xml code blocks
     if not svgs:
         pattern = r'```xml\s*\n(.*?)```'
         matches = re.findall(pattern, text, re.DOTALL)
         svgs.extend(matches)
 
-    # Fallback: try bare <svg> tags
     if not svgs:
         pattern = r'(<svg[^>]*>.*?</svg>)'
         matches = re.findall(pattern, text, re.DOTALL)
         svgs.extend(matches)
 
-    # Clean up extracted SVGs
     cleaned = []
     for svg in svgs:
         svg = svg.strip()
         if not svg.startswith('<svg'):
-            # Try to find <svg> within the extracted text
+
             match = re.search(r'(<svg[^>]*>.*?</svg>)', svg, re.DOTALL)
             if match:
                 svg = match.group(1)
@@ -162,29 +152,26 @@ def extract_svgs(text):
 
     return cleaned
 
-
 def apply_color(svg_code, color):
     """Replace currentColor with specific color if provided"""
     if color:
-        # Replace currentColor with the specified color
+
         svg_code = svg_code.replace('currentColor', color)
-        # If no currentColor was present, add fill/stroke color
+
         if color not in svg_code:
             svg_code = svg_code.replace('<svg', f'<svg color="{color}"', 1)
     return svg_code
 
-
 def apply_viewbox_size(svg_code, size):
     """Adjust SVG viewBox to target size"""
     if size:
-        # Update width/height attributes if present
+
         svg_code = re.sub(r'width="[^"]*"', f'width="{size}"', svg_code)
         svg_code = re.sub(r'height="[^"]*"', f'height="{size}"', svg_code)
-        # Add width/height if not present
+
         if 'width=' not in svg_code:
             svg_code = svg_code.replace('<svg', f'<svg width="{size}" height="{size}"', 1)
     return svg_code
-
 
 def generate_icon(prompt, style=None, category=None, name=None,
                   color=None, size=24, output_path=None, viewbox=24):
@@ -197,20 +184,16 @@ def generate_icon(prompt, style=None, category=None, name=None,
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    # Build style instructions
     style_instructions = ""
     if style and style in ICON_STYLES:
         style_instructions = f"- Style: {ICON_STYLES[style]}"
 
-    # Build color instructions
     color_instructions = "- Use currentColor for all strokes and fills"
     if color:
         color_instructions = f"- Use color: {color} for primary elements, currentColor for secondary"
 
-    # Build size instructions
     size_instructions = f"- Design for {size}px display size, optimize detail level accordingly"
 
-    # Build final prompt
     icon_prompt = prompt
     if category and category in ICON_CATEGORIES:
         icon_prompt = f"{prompt} (category: {ICON_CATEGORIES[category]})"
@@ -241,7 +224,6 @@ def generate_icon(prompt, style=None, category=None, name=None,
             )
         )
 
-        # Extract SVG from response
         response_text = response.text if hasattr(response, 'text') else ""
         if not response_text:
             for part in response.candidates[0].content.parts:
@@ -257,13 +239,10 @@ def generate_icon(prompt, style=None, category=None, name=None,
 
         svg_code = svgs[0]
 
-        # Apply color if specified
         svg_code = apply_color(svg_code, color)
 
-        # Apply size
         svg_code = apply_viewbox_size(svg_code, size)
 
-        # Determine output path
         if output_path is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             slug = name or prompt.split()[0] if prompt else "icon"
@@ -271,7 +250,6 @@ def generate_icon(prompt, style=None, category=None, name=None,
             style_suffix = f"_{style}" if style else ""
             output_path = f"{slug}{style_suffix}_{timestamp}.svg"
 
-        # Save SVG
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(svg_code)
 
@@ -281,7 +259,6 @@ def generate_icon(prompt, style=None, category=None, name=None,
     except Exception as e:
         print(f"Error generating icon: {e}")
         return None
-
 
 def generate_batch(prompt, count, output_dir, style=None, color=None,
                    viewbox=24, name=None):
@@ -294,7 +271,6 @@ def generate_batch(prompt, count, output_dir, style=None, color=None,
     client = genai.Client(api_key=GEMINI_API_KEY)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Build instructions
     style_instructions = ""
     if style and style in ICON_STYLES:
         style_instructions = f"- Style: {ICON_STYLES[style]}"
@@ -367,7 +343,6 @@ def generate_batch(prompt, count, output_dir, style=None, color=None,
         print(f"Error generating icons: {e}")
         return []
 
-
 def generate_sizes(prompt, sizes, style=None, color=None, output_dir=None, name=None):
     """Generate same icon at multiple sizes"""
     if output_dir is None:
@@ -398,7 +373,6 @@ def generate_sizes(prompt, sizes, style=None, color=None, output_dir=None, name=
         time.sleep(1)
 
     return results
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -446,7 +420,6 @@ def main():
 
     prompt = args.prompt or args.name
 
-    # Multi-size mode
     if args.sizes:
         sizes = [int(s.strip()) for s in args.sizes.split(",")]
         generate_sizes(
@@ -457,7 +430,7 @@ def main():
             output_dir=args.output_dir or "./icons",
             name=args.name
         )
-    # Batch mode
+
     elif args.batch:
         output_dir = args.output_dir or "./icons"
         generate_batch(
@@ -469,7 +442,7 @@ def main():
             viewbox=args.viewbox,
             name=args.name
         )
-    # Single icon
+
     else:
         generate_icon(
             prompt=prompt,
@@ -481,7 +454,6 @@ def main():
             output_path=args.output,
             viewbox=args.viewbox
         )
-
 
 if __name__ == "__main__":
     main()

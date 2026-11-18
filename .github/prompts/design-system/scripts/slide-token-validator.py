@@ -16,12 +16,10 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 UNIFIED_VALIDATOR = SCRIPT_DIR / 'html-token-validator.py'
 
-
 def main():
     """Delegate to unified html-token-validator.py with --type slides."""
     args = sys.argv[1:]
 
-    # If no files specified, default to slides type
     if not args or all(arg.startswith('-') for arg in args):
         cmd = [sys.executable, str(UNIFIED_VALIDATOR), '--type', 'slides'] + args
     else:
@@ -29,7 +27,6 @@ def main():
 
     result = subprocess.run(cmd)
     sys.exit(result.returncode)
-
 
 if __name__ == '__main__':
     main()

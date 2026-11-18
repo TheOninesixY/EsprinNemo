@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Stdlib-only regression tests for core.py / design_system.py (unittest, not
 pytest -- this project ships with zero external dependencies and the tests
@@ -26,7 +26,6 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import core
 from core import BM25, detect_domain, search, search_stack, CSV_CONFIG, AVAILABLE_STACKS
 from design_system import DesignSystemGenerator, generate_design_system
-
 
 class TestTokenizer(unittest.TestCase):
     def test_short_domain_terms_are_kept(self):
@@ -60,7 +59,6 @@ class TestTokenizer(unittest.TestCase):
         tokens = bm25.tokenize("colour, organisation; behaviour customisation")
         for expected in ("color", "organization", "behavior", "customization"):
             self.assertIn(expected, tokens)
-
 
 class TestBm25CoreBehavior(unittest.TestCase):
     def test_empty_documents_produce_no_scores_or_vocab(self):
@@ -108,7 +106,6 @@ class TestBm25CoreBehavior(unittest.TestCase):
             results, _, _ = core._search_csv_detailed(
                 path, ["Name", "Keywords"], ["Name"], "beta", 1)
             self.assertEqual(results[0]["Name"], "Beta")
-
 
 class TestSearchDomains(unittest.TestCase):
     def test_read_failure_is_not_reported_as_a_search_result(self):
@@ -198,7 +195,6 @@ class TestSearchDomains(unittest.TestCase):
                 result = search_stack("performance", stack, max_results=1)
                 self.assertNotIn("error", result, f"stack '{stack}' failed: {result.get('error')}")
 
-
 class TestDomainDetection(unittest.TestCase):
     def test_style_keywords_route_to_style(self):
         self.assertEqual(detect_domain("glassmorphism dark ui"), "style")
@@ -248,7 +244,6 @@ class TestDomainDetection(unittest.TestCase):
                     explicitly_routing_only = keyword in core._DOMAIN_QUERY_REWRITES.get(domain, {})
                     self.assertTrue(searchable or explicitly_routing_only)
 
-
 class TestPersistence(unittest.TestCase):
     def test_concurrent_non_force_persist_has_one_writer(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -276,12 +271,10 @@ class TestPersistence(unittest.TestCase):
             self.assertTrue(master.exists())
             original_content = master.read_text(encoding="utf-8")
 
-            # Second persist without force must not overwrite.
             result2 = generate_design_system("saas dashboard", "Test Project", persist=True, output_dir=tmp)
             self.assertEqual(result2["persistence"]["status"], "skipped_exists")
             self.assertEqual(master.read_text(encoding="utf-8"), original_content)
 
-            # A new page override may be added without rewriting the existing Master.
             page_result = generate_design_system(
                 "checkout form", "Test Project", persist=True, page="Checkout", output_dir=tmp
             )
@@ -291,7 +284,6 @@ class TestPersistence(unittest.TestCase):
             self.assertEqual(page_result["persistence"]["created_files"], [str(page_file)])
             self.assertTrue(page_file.exists())
 
-            # Existing page overrides are protected by the same default no-overwrite rule.
             page_content = page_file.read_text(encoding="utf-8")
             page_result2 = generate_design_system(
                 "different checkout", "Test Project", persist=True, page="Checkout", output_dir=tmp
@@ -299,7 +291,6 @@ class TestPersistence(unittest.TestCase):
             self.assertEqual(page_result2["persistence"]["status"], "skipped_exists")
             self.assertEqual(page_file.read_text(encoding="utf-8"), page_content)
 
-            # With force=True it must overwrite.
             result3 = generate_design_system("ecommerce luxury", "Test Project", persist=True, output_dir=tmp, force=True)
             self.assertEqual(result3["persistence"]["status"], "success")
 
@@ -308,7 +299,6 @@ class TestPersistence(unittest.TestCase):
             generate_design_system("saas dashboard", "Scoped Project", persist=True, output_dir=tmp)
             expected = Path(tmp) / "design-system" / "scoped-project" / "MASTER.md"
             self.assertTrue(expected.exists())
-
 
 class TestReasoningMatch(unittest.TestCase):
     def test_known_category_matches_exactly(self):
@@ -319,9 +309,8 @@ class TestReasoningMatch(unittest.TestCase):
     def test_unknown_category_falls_back_gracefully(self):
         gen = DesignSystemGenerator()
         rule = gen._find_reasoning_rule("Totally Unknown Category XYZ")
-        # Should not raise; may return {} which _apply_reasoning handles with defaults.
-        self.assertIsInstance(rule, dict)
 
+        self.assertIsInstance(rule, dict)
 
 class TestDiagnosticsContracts(unittest.TestCase):
     def test_diagnostics_opt_in_is_additive_for_domain_search(self):
@@ -337,7 +326,6 @@ class TestDiagnosticsContracts(unittest.TestCase):
         diagnosed = search_stack("performance", "react", max_results=1, diagnostics=True)
         self.assertEqual(set(baseline.keys()), set(diagnosed.keys()) - {"diagnostics"})
         self.assertIn("diagnostics", diagnosed)
-
 
 if __name__ == "__main__":
     unittest.main()

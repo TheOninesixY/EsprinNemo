@@ -1,19 +1,8 @@
 #!/usr/bin/env node
-/**
- * Validate token usage in codebase
- * Finds hardcoded values that should use design tokens
- *
- * Usage:
- *   node validate-tokens.cjs --dir src/
- *   node validate-tokens.cjs --dir src/ --fix
- */
 
 const fs = require('fs');
 const path = require('path');
 
-/**
- * Parse command line arguments
- */
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
@@ -51,9 +40,6 @@ Checks for:
   return options;
 }
 
-/**
- * Patterns to detect hardcoded values
- */
 const patterns = {
   hexColor: {
     regex: /#([0-9A-Fa-f]{3}){1,2}\b/g,
@@ -66,35 +52,26 @@ const patterns = {
     suggestion: 'Use var(--color-*) token'
   },
   pixelValue: {
-    regex: /:\s*(\d{2,})px/g, // 2+ digit px values
+    regex: /:\s*(\d{2,})px/g,
     message: 'Hardcoded pixel value',
     suggestion: 'Use var(--space-*) or var(--radius-*) token'
   },
   remValue: {
-    regex: /:\s*\d+\.?\d*rem(?![^{]*\$value)/g, // rem not in token definition
+    regex: /:\s*\d+\.?\d*rem(?![^{]*\$value)/g,
     message: 'Hardcoded rem value',
     suggestion: 'Use var(--space-*) or var(--font-size-*) token'
   }
 };
 
-/**
- * File extensions to scan
- */
 const extensions = ['.css', '.scss', '.tsx', '.jsx', '.ts', '.js', '.vue', '.svelte'];
 
-/**
- * Files/patterns to skip
- */
 const skipPatterns = [
   /\.min\.(css|js)$/,
   /tailwind\.config/,
-  /globals\.css/, // Token definitions
+  /globals\.css/,
   /tokens\.(css|json)/
 ];
 
-/**
- * Get all files recursively
- */
 function getFiles(dir, ignore, files = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -116,23 +93,16 @@ function getFiles(dir, ignore, files = []) {
   return files;
 }
 
-/**
- * Check if file should be skipped
- */
 function shouldSkip(filePath) {
   return skipPatterns.some(pattern => pattern.test(filePath));
 }
 
-/**
- * Scan file for violations
- */
 function scanFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
   const violations = [];
 
   lines.forEach((line, index) => {
-    // Skip comments
     if (line.trim().startsWith('//') || line.trim().startsWith('/*')) {
       return;
     }
@@ -141,9 +111,8 @@ function scanFile(filePath) {
       const matches = line.match(pattern.regex);
       if (matches) {
         matches.forEach(match => {
-          // Skip common exceptions
           if (name === 'hexColor' && ['#000', '#fff', '#FFF', '#000000', '#FFFFFF'].includes(match.toUpperCase())) {
-            return; // Skip black/white, often intentional
+            return;
           }
 
           violations.push({
@@ -164,17 +133,12 @@ function scanFile(filePath) {
   return violations;
 }
 
-/**
- * Format violation report
- */
 function formatReport(violations) {
   if (violations.length === 0) {
     return '✅ No token violations found';
   }
 
   let report = `⚠️  Found ${violations.length} potential token violations:\n\n`;
-
-  // Group by file
   const byFile = {};
   violations.forEach(v => {
     if (!byFile[v.file]) byFile[v.file] = [];
@@ -190,8 +154,6 @@ function formatReport(violations) {
       report += `   Context: ${v.context}\n\n`;
     });
   }
-
-  // Summary
   const byType = {};
   violations.forEach(v => {
     byType[v.type] = (byType[v.type] || 0) + 1;
@@ -205,9 +167,6 @@ function formatReport(violations) {
   return report;
 }
 
-/**
- * Main
- */
 function main() {
   const options = parseArgs();
 
@@ -236,8 +195,6 @@ function main() {
   }
 
   console.log(formatReport(allViolations));
-
-  // Exit with error code if violations found
   if (allViolations.length > 0) {
     process.exit(1);
   }

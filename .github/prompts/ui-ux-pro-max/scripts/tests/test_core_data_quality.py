@@ -10,8 +10,8 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = SCRIPTS_DIR.parent / "data"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from core import search  # noqa: E402
-from validate_data import (  # noqa: E402
+from core import search
+from validate_data import (
     CHART_NON_COLOR_GUIDANCE,
     CHART_RISKS,
     CHART_TEXT_FALLBACK,
@@ -30,11 +30,9 @@ from validate_data import (  # noqa: E402
     contrast_ratio,
 )
 
-
 def read_rows(name):
     with (DATA_DIR / name).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
-
 
 class TestSemanticColors(unittest.TestCase):
     def test_declared_text_and_ui_pairs_meet_role_thresholds(self):
@@ -52,7 +50,6 @@ class TestSemanticColors(unittest.TestCase):
                                 for index in (0, 2, 4))
             with self.subTest(product=row["Product Type"]):
                 self.assertFalse(green > red * 1.1 and green > blue * 1.1)
-
 
 class TestAccessibilityGuidance(unittest.TestCase):
     def test_wcag_22_topics_have_explicit_rows_and_are_retrievable(self):
@@ -98,7 +95,6 @@ class TestAccessibilityGuidance(unittest.TestCase):
                     "reduced-motion" in text or "user-controlled" in text,
                     "every motion recipe needs an explicit opt-out",
                 )
-
 
 class TestChartsTypographyAndIcons(unittest.TestCase):
     def test_mutated_accessibility_and_import_contracts_fail(self):
@@ -182,7 +178,6 @@ class TestChartsTypographyAndIcons(unittest.TestCase):
                     " ".join(str(value) for value in result["results"][0].values()).casefold(),
                 )
 
-
 class TestCurrentReactGuidance(unittest.TestCase):
     def test_effect_event_is_scoped_and_community_use_latest_is_removed(self):
         rows = read_rows("react-performance.csv")
@@ -192,7 +187,6 @@ class TestCurrentReactGuidance(unittest.TestCase):
         self.assertIn("dependencies", text)
         self.assertFalse(any("uselatest" in " ".join(row.values()).casefold()
                              for row in rows))
-
 
 if __name__ == "__main__":
     unittest.main()

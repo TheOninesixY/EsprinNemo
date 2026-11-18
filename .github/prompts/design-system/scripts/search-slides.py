@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Slide Search CLI - Search slide design databases for strategies, layouts, copy, and charts
 """
@@ -12,7 +12,6 @@ from slide_search_core import (
     search_with_context, get_layout_for_goal, get_typography_for_slide,
     get_color_for_emotion, get_background_config
 )
-
 
 def format_result(result, domain):
     """Format a single search result for display"""
@@ -60,7 +59,6 @@ def format_result(result, domain):
 
     return "\n".join(output)
 
-
 def format_context(context):
     """Format contextual recommendations for display."""
     output = []
@@ -104,7 +102,6 @@ def format_context(context):
 
     return "\n".join(output)
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Search slide design databases",
@@ -134,7 +131,6 @@ Contextual Search (Premium System):
     parser.add_argument("--json", action="store_true",
                         help="Output as JSON")
 
-    # Contextual search options
     parser.add_argument("--context", action="store_true",
                         help="Use contextual search with layout/typography/color recommendations")
     parser.add_argument("--position", type=int, default=1,
@@ -146,7 +142,6 @@ Contextual Search (Premium System):
 
     args = parser.parse_args()
 
-    # Contextual search mode
     if args.context:
         result = search_with_context(
             args.query,
@@ -160,7 +155,6 @@ Contextual Search (Premium System):
         else:
             print(format_context(result['context']))
 
-            # Also show base search results
             if result.get('base_results'):
                 print("\n\n=== RELATED SEARCH RESULTS ===")
                 for domain, data in result['base_results'].items():
@@ -212,7 +206,6 @@ Contextual Search (Premium System):
                 print(f"--- Result {i} ---")
                 print(format_result(item, result['domain']))
                 print()
-
 
 if __name__ == "__main__":
     main()

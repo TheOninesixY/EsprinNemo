@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+
 """
 Logo Design Search - CLI for searching logo design guidelines
 Usage: python search.py "<query>" [--domain <domain>] [--max-results 3]
@@ -10,7 +10,6 @@ Domains: style, color, industry
 
 import argparse
 from core import CSV_CONFIG, MAX_RESULTS, search, search_all
-
 
 def format_output(result):
     """Format results for Claude consumption (token-optimized)"""
@@ -33,7 +32,6 @@ def format_output(result):
 
     return "\n".join(output)
 
-
 def generate_design_brief(query, brand_name=None):
     """Generate a comprehensive logo design brief based on query"""
     results = search_all(query, max_results=2)
@@ -49,7 +47,6 @@ def generate_design_brief(query, brand_name=None):
     output.append("=" * 60)
     output.append("")
 
-    # Industry recommendations
     if "industry" in results:
         output.append("## INDUSTRY ANALYSIS")
         for r in results["industry"]:
@@ -63,7 +60,6 @@ def generate_design_brief(query, brand_name=None):
             output.append(f"- Avoid: {r.get('Avoid', 'N/A')}")
             output.append("")
 
-    # Style recommendations
     if "style" in results:
         output.append("## STYLE RECOMMENDATIONS")
         for r in results["style"]:
@@ -75,7 +71,6 @@ def generate_design_brief(query, brand_name=None):
             output.append(f"- Complexity: {r.get('Complexity', 'N/A')}")
             output.append("")
 
-    # Color recommendations
     if "color" in results:
         output.append("## COLOR PALETTE OPTIONS")
         for r in results["color"]:
@@ -89,7 +84,6 @@ def generate_design_brief(query, brand_name=None):
 
     output.append("=" * 60)
     return "\n".join(output)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Logo Design Search")
