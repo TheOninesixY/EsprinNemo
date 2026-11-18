@@ -28,15 +28,9 @@ const PORTABLE_ARG = '--esprin-nemo-portable';
 const IS_PORTABLE_RUN = (process.argv || []).includes(PORTABLE_ARG)
     || !!(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR);
 
-const IS_WEB_RUNTIME = (() => {
-    try {
-        return !(process.versions && process.versions.electron);
-    } catch (e) {
-        return true;
-    }
-})();
+const IS_WEB_RUNTIME = false;
 
-document.documentElement.classList.add(IS_WEB_RUNTIME ? 'web-runtime' : 'desktop-runtime');
+document.documentElement.classList.add('desktop-runtime');
 
 document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
 
@@ -71,9 +65,9 @@ function resolveDataDir() {
             if (dir) return dir;
         }
 
-        return path.join(__dirname, '..', '..', 'data');
+        return path.join(__dirname, '..', '..', '..', 'data');
     } catch (e) {
-        return __dirname + '/../../data';
+        return __dirname + '/../../../data';
     }
 }
 

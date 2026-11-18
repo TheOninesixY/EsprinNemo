@@ -55,7 +55,7 @@ const { configureUpdater, registerUpdateIpc, scheduleAutoChecks, isPortableRun, 
 
 const APP_ROOT = app.getAppPath();
 
-const APP_ICON_PATH = path.join(APP_ROOT, require('../../package.json').icon);
+const APP_ICON_PATH = path.join(APP_ROOT, require('../../../package.json').icon);
 
 const IS_DEV_RUN = isDevRun(app);
 
@@ -1056,7 +1056,7 @@ win.on('close', (event) => {
     scheduleWallpaperFrame(win);
   });
 
-win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'renderer', 'main.html')).href);
+win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'desktop', 'renderer', 'main.html')).href);
 
   mainWindowClosed = false;
   mainWindow = win;

@@ -55,11 +55,6 @@ function switchSettingsCategory(id) {
     const topbarCurrent = document.getElementById('settings-topbar-current');
     if (topbarCurrent) topbarCurrent.textContent = category.label;
 
-    const crumbIcon = document.getElementById('settings-crumb-icon');
-    if (crumbIcon) crumbIcon.textContent = category.icon;
-    const crumbText = document.getElementById('settings-crumb-text');
-    if (crumbText) crumbText.textContent = category.label;
-
     const content = document.querySelector('#settings-view .settings-content');
     if (content) content.scrollTop = 0;
 
@@ -97,9 +92,6 @@ function initSettingsNav() {
     if (!nav) return;
 
     renderSettingsNavItems();
-
-    const crumb = document.getElementById('btn-settings-crumb');
-    if (crumb) crumb.onclick = () => closeSettingsTab();
 }
 
 function closeSettingsTab() {

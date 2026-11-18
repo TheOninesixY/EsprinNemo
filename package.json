@@ -1,18 +1,16 @@
 {
   "name": "esprin_nemo",
   "version": "3.4.0",
-  "main": "src/main/main.js",
+  "main": "src/desktop/main/main.js",
   "description": "Note, Nothing.",
-  "icon": "src/assets/icon.png",
-  "svg_icon": "src/assets/icon.svg",
+  "icon": "src/desktop/assets/icon.png",
+  "svg_icon": "src/desktop/assets/icon.svg",
   "author": "TheOninesixY <oninesixy@qq.com>",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win --linux --publish never",
-    "build:all": "bun run build&&bun build:web&&bun build:sync",
-    "start:web": "bun scripts/web_server.js",
-    "build:web": "bun scripts/web_build.js",
-    "start:sync": "bun src/sync/server.js",
+    "build:all": "bun run build&&bun build:sync",
+    "start:sync": "bun src/desktop/sync/server.js",
     "build:sync": "bun scripts/sync_build.js",
     "prepare": "husky"
   },
@@ -26,8 +24,9 @@
     "appId": "io.github.theoninesixy.esprin_nemo",
     "productName": "Esprin Nemo",
     "files": [
-      "src/",
-      "!src/sync/**"
+      "src/desktop/",
+      "!src/desktop/sync/**",
+      "!src/mobile/**"
     ],
     "win": {
       "target": [
@@ -40,7 +39,7 @@
     },
     "nsis": {
       "artifactName": "EsprinNemo.Setup.v${version}.${ext}",
-      "include": "src/win_installer/installer.nsh",
+      "include": "src/desktop/win_installer/installer.nsh",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,

@@ -277,7 +277,7 @@
 !macroend
 
 /* 卸载时清掉桌面右键菜单的注册表项（菜单本身 + 子项所在的那棵树）。
-   应用正常退出时会自己删除（见 src/main/desktop_menu.js），
+   应用正常退出时会自己删除（见 src/desktop/main/desktop_menu.js），
    只有应用被强杀、或卸载前从未正常退出时才会留下一条指向已卸载程序的菜单项。 */
 !macro customUnInstall
   DeleteRegKey HKCU "Software\Classes\DesktopBackground\Shell\EsprinNemoStickies"

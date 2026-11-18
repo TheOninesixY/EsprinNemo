@@ -6,16 +6,16 @@ const path = require('path');
 const { log } = require('./lib.js');
 
 const INDEX_NAME = 'index.html';
-const RENDERER_REL = path.join('src', 'renderer');
+const RENDERER_REL = path.join('src', 'desktop', 'renderer');
 const ENTRY_NAME = 'main.html';
-const RENDERER_FILES = new Set(['boot.js', 'window_appearance.js', 'web_host.js', 'sw.js']);
+const RENDERER_FILES = new Set(['boot.js', 'window_appearance.js']);
 const RENDERER_PREFIXES = ['styles/', 'scripts/', 'fonts/'];
 const NODE_PREFIX = 'node_modules/material-symbols/';
-const MAIN_SOURCE_FILES = ['src/main/data_path.js', 'src/main/secret_store.js', 'src/main/sync_server.js'];
+const MAIN_SOURCE_FILES = ['src/desktop/main/data_path.js', 'src/desktop/main/secret_store.js', 'src/desktop/main/sync_server.js'];
 
-let webBase = path.resolve(__dirname, '..', '..');
+let webBase = path.resolve(__dirname, '..', '..', '..');
 let embedded = null;
-const SELF_ROOT = path.resolve(__dirname, '..', '..');
+const SELF_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 function embeddedKey(from, target) {
     return path.relative(from, target).split(path.sep).join('/');
@@ -25,7 +25,7 @@ function detectWebBase(serverDir) {
     const candidates = [
         process.env.ESPRIN_WEB_DIR,
         path.join(serverDir, 'web'),
-        path.resolve(__dirname, '..', '..')
+        path.resolve(__dirname, '..', '..', '..')
     ];
     for (const candidate of candidates) {
         if (!candidate) continue;
@@ -33,7 +33,7 @@ function detectWebBase(serverDir) {
         const entry = path.join(resolved, RENDERER_REL, ENTRY_NAME);
         if (fs.existsSync(entry) || (embedded && embedded.get(embeddedKey(resolved, entry)) !== undefined)) return resolved;
     }
-    return path.resolve(__dirname, '..', '..');
+    return path.resolve(__dirname, '..', '..', '..');
 }
 
 function setWebBase(dir) {
@@ -131,7 +131,7 @@ function readWebEntry() {
 <h1 style="font-size:18px;margin-bottom:12px">找不到网页端的页面文件</h1>
 <p style="color:#8b949e">服务端读取入口页面的位置：</p>
 <p><code style="background:#21262d;padding:6px 10px;border-radius:6px;display:inline-block">${entryPath()}</code></p>
-<p style="color:#8b949e">把 Nemo 仓库的 src/renderer 放进来（或打包时随产物一起分发），也可以启动时用 --web-dir 指定</p>
+<p style="color:#8b949e">把 Nemo 仓库的 src/desktop/renderer 放进来（或打包时随产物一起分发），也可以启动时用 --web-dir 指定</p>
 </body></html>`
         };
     }
@@ -151,7 +151,7 @@ function webClientReady() {
 function webClientSummary() {
     const meta = readPackageMeta();
     const missing = [];
-    for (const relative of [ENTRY_NAME, 'styles/tokens.css', 'scripts/app.js', 'web_host.js']) {
+    for (const relative of [ENTRY_NAME, 'styles/tokens.css', 'scripts/app.js']) {
         if (!readFileOrEmbedded(path.join(rendererDir(), relative))) missing.push(relative);
     }
     const font = readFileOrEmbedded(path.join(webBase, 'node_modules', 'material-symbols', 'material-symbols-rounded.woff2'));

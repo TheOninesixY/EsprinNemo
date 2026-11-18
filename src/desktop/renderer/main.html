@@ -2,18 +2,13 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="EsprinNemo">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0d1117">
     <title>Esprin Nemo</title>
 
-    <script src="./web_host.js"></script>
     <script src="./window_appearance.js"></script>
     <script src="./boot.js"></script>
-    <link rel="stylesheet" href="../../node_modules/material-symbols/rounded.css">
+    <link rel="stylesheet" href="../../../node_modules/material-symbols/rounded.css">
     <link rel="stylesheet" href="./styles/tokens.css">
     <link rel="stylesheet" href="./styles/base.css">
     <link rel="stylesheet" href="./styles/sidebar.css">
@@ -40,7 +35,6 @@
 
     <link rel="stylesheet" href="./styles/motion.css">
 
-    <link rel="stylesheet" href="./styles/mobile.css">
 
     <link rel="stylesheet" href="./styles/filter.css">
 
@@ -87,10 +81,6 @@
                     </button>
                     <button class="btn-action-icon" id="btn-fullscreen" title="全屏">
                         <span class="ms-icon sm">fullscreen</span>
-                    </button>
-
-                    <button class="btn-action-icon mobile-menu-toggle" id="btn-mobile-menu" title="更多">
-                        <span class="ms-icon sm">more_vert</span>
                     </button>
                 </div>
 
@@ -189,7 +179,6 @@
                     </div>
                 </div>
 
-                <div class="mobile-search-mask" id="mobile-search-mask" aria-hidden="true"></div>
                 <div class="notes-list" id="notes-list-box"></div>
 
                 <aside class="settings-sidebar hidden" id="settings-sidebar">
@@ -209,9 +198,6 @@
 <div class="editor-topbar hidden" id="editor-topbar">
 
                     <div class="editor-meta">
-                        <button class="btn-action-icon editor-back" id="btn-editor-back" title="返回笔记列表">
-                            <span class="ms-icon sm">arrow_back</span>
-                        </button>
                         <select class="select-folder" id="editor-folder-select"></select>
                         <div class="note-tags-container" id="editor-tags-container"></div>
                         <button class="btn-action-icon" id="btn-add-tag" title="添加标签">
@@ -255,10 +241,6 @@
                             <span class="ms-icon sm">radio_button_unchecked</span>
                         </button>
                     </div>
-
-                    <button class="btn-action-icon editor-ai" id="btn-editor-ai" title="AI 助手">
-                        <span class="ms-icon sm">chat_bubble</span>
-                    </button>
                 </div>
 
 <div class="voice-bar hidden" id="voice-bar">
@@ -345,15 +327,6 @@
                 </div>
 
                 <div class="settings-content">
-                    <div class="settings-crumb">
-                        <button class="settings-crumb-back" id="btn-settings-crumb" type="button" title="返回设置分类">
-                            <span class="ms-icon sm">arrow_back</span>
-                        </button>
-                        <span class="settings-crumb-title">
-                            <span class="ms-icon sm" id="settings-crumb-icon">palette</span>
-                            <span id="settings-crumb-text">设置</span>
-                        </span>
-                    </div>
                     <div class="settings-header">
                         <div class="settings-title">
                             <span class="ms-icon md">settings</span>
@@ -1168,58 +1141,6 @@
             </div><!-- /.app-chrome -->
 
         </div>
-
-        <div class="mobile-sheet-mask" id="mobile-sheet-mask" aria-hidden="true"></div>
-
-        <div class="mobile-ai-mask" id="mobile-ai-mask"></div>
-
-        <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="主导航">
-            <div class="mobile-sheet" id="mobile-new-sheet">
-                <div class="mobile-sheet-inner">
-                    <button class="mobile-sheet-option" id="mobile-new-note" type="button">
-                        <span class="ms-icon">note_add</span>
-                        <span>新建笔记</span>
-                    </button>
-                    <button class="mobile-sheet-option" id="mobile-new-todo" type="button">
-                        <span class="ms-icon">check_box</span>
-                        <span>新建待办</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="mobile-sheet mobile-sheet-trash" id="mobile-trash-sheet">
-                <div class="mobile-sheet-inner">
-                    <button class="mobile-sheet-option is-danger" id="mobile-trash-clear" type="button">
-                        <span class="ms-icon">delete_forever</span>
-                        <span>清空废纸篓</span>
-                    </button>
-                    <button class="mobile-sheet-option" id="mobile-trash-cancel" type="button">
-                        <span class="ms-icon">close</span>
-                        <span>取消</span>
-                    </button>
-                </div>
-            </div>
-
-            <button class="mobile-tab" type="button" data-filter="all">
-                <span class="ms-icon">description</span>
-                <span>笔记</span>
-            </button>
-            <button class="mobile-tab" type="button" data-filter="todos">
-                <span class="ms-icon">check_box</span>
-                <span>待办</span>
-            </button>
-
-            <button class="mobile-tab mobile-tab-new" id="btn-mobile-fab" type="button"
-                    title="新建笔记或待办" aria-expanded="false" aria-controls="mobile-new-sheet">
-                <span class="fab-circle">
-                    <span class="ms-icon" id="btn-mobile-fab-icon">add</span>
-                </span>
-            </button>
-            <button class="mobile-tab" type="button" data-filter="trash">
-                <span class="ms-icon">delete</span>
-                <span>废纸篓</span>
-            </button>
-        </nav>
     </div>
 
 <div class="context-menu hidden" id="note-context-menu"></div>
@@ -1268,7 +1189,6 @@
     <script src="./scripts/filter.js"></script>
     <script src="./scripts/context_menu.js"></script>
     <script src="./scripts/events.js"></script>
-    <script src="./scripts/mobile.js"></script>
     <script src="./scripts/app.js"></script>
 </body>
 </html>

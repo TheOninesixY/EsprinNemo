@@ -19,9 +19,8 @@ function appIconSvgCandidates() {
     }
     try {
         if (typeof __dirname === 'string' && __dirname) {
-            candidates.push(path.resolve(__dirname, '..', 'assets', 'tray.svg'));
             candidates.push(path.resolve(__dirname, '..', '..', 'assets', 'tray.svg'));
-            candidates.push(path.resolve(__dirname, '..', '..', 'src', 'assets', 'tray.svg'));
+            candidates.push(path.resolve(__dirname, '..', '..', '..', 'assets', 'tray.svg'));
         }
     } catch (err) {
 

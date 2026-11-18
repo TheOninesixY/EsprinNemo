@@ -499,15 +499,14 @@ function createRequestHandler(users, token) {
             return;
         }
 
-        if (pathname.startsWith('/src/main/')) {
+        if (pathname.startsWith('/src/desktop/main/')) {
             const target = assets.resolveAsset(pathname);
             sendStaticAsset(res, assets.webBase(), target ? path.relative(assets.webBase(), target) : '');
             return;
         }
 
         if (pathname.startsWith('/styles/') || pathname.startsWith('/scripts/') || pathname.startsWith('/fonts/')
-            || pathname === '/boot.js' || pathname === '/window_appearance.js' || pathname === '/web_host.js'
-            || pathname === '/sw.js') {
+            || pathname === '/boot.js' || pathname === '/window_appearance.js') {
             const target = assets.resolveAsset(pathname);
             sendStaticAsset(res, assets.rendererDir(), target ? path.relative(assets.rendererDir(), target) : '');
             return;
@@ -913,7 +912,7 @@ async function main(argv = process.argv.slice(2)) {
             '  --port <port>    监听端口，默认取 config.json 的 port，再不行 8686',
             '  --data <dir>     数据目录：账户表与各账户的日志、令牌都在这里（默认 ./data）',
             '  --token <token>  访问令牌，等同内置账户的一份令牌（也可用环境变量 ESPRIN_TOKEN）',
-            '  --web-dir <dir>  网页端所在目录（含 src/renderer），默认自动查找仓库根或服务端同级的 web/',
+            '  --web-dir <dir>  网页端所在目录（含 src/desktop/renderer），默认自动查找仓库根或服务端同级的 web/',
             '  --selftest       跑一遍内置自测后退出',
             ''
         ].join('\n'));

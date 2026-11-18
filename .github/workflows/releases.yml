@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - src/
+      - package.json
   workflow_dispatch:
 
 permissions:
@@ -76,14 +77,13 @@ jobs:
             cp -- "${matches[0]}" release-assets/
           }
 
-          copy_one "EsprinNemo.Web.v${VERSION}.html"
           copy_one "EsprinNemo.v${VERSION}.AppImage"
           copy_one "EsprinNemo.Portable.v${VERSION}.exe"
           copy_one "EsprinNemo.Setup.v${VERSION}.exe"
           copy_one "EsprinSync.v${VERSION}.exe"
           copy_one "EsprinSync.v${VERSION}"
 
-          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 6
+          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 5
           ls -lh release-assets
 
       - name: Publish GitHub Release
@@ -94,7 +94,6 @@ jobs:
           body_path: .github/releases.md
           fail_on_unmatched_files: true
           files: |
-            release-assets/EsprinNemo.Web.v${{ steps.version.outputs.version }}.html
             release-assets/EsprinNemo.v${{ steps.version.outputs.version }}.AppImage
             release-assets/EsprinNemo.Portable.v${{ steps.version.outputs.version }}.exe
             release-assets/EsprinNemo.Setup.v${{ steps.version.outputs.version }}.exe
@@ -109,7 +108,6 @@ jobs:
         run: |
           set -euo pipefail
           rm -f -- \
-            "dist/EsprinNemo.Web.v${VERSION}.html" \
             "dist/EsprinNemo.v${VERSION}.AppImage" \
             "dist/EsprinNemo.Portable.v${VERSION}.exe" \
             "dist/EsprinNemo.Setup.v${VERSION}.exe" \

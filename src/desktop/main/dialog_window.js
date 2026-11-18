@@ -28,7 +28,7 @@ let resolveRadius = () => 'default';
 let resolveStyle = () => 'default';
 
 let resolveFonts = () => ({});
-let iconPath = path.join(__dirname, '..', '..', require('../../package.json').icon);
+let iconPath = path.join(__dirname, '..', '..', require('../../../package.json').icon);
 let ipcRegistered = false;
 
 function configureDialogWindows({ getTheme, getStyle, getAccent, getRadius, getFonts, icon } = {}) {

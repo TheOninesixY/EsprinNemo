@@ -127,7 +127,6 @@ runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('随口记', initVoiceNotes);
 
     runBootStep('事件绑定', setupEvents);
-    runBootStep('手机端布局', initMobile);
     runBootStep('废纸篓保留期限', syncTrashRetentionSelect);
     runBootStep('数据存放位置', refreshDataDirInfo);
     runBootStep('自建同步设置', initSyncServerSettings);

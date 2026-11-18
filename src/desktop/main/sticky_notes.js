@@ -43,7 +43,7 @@ let resolveDataDir = () => '';
 let resolveConfig = () => ({});
 
 let getOwnerWindow = () => null;
-let iconPath = path.join(__dirname, '..', '..', require('../../package.json').icon);
+let iconPath = path.join(__dirname, '..', '..', require('../../../package.json').icon);
 
 let handleWindowClosed = () => {};
 let ipcRegistered = false;

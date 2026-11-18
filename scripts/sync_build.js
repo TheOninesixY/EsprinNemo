@@ -8,14 +8,14 @@ const { spawnSync } = require('child_process');
 
 const MODULE = 'SyncBuild';
 const ROOT = path.resolve(__dirname, '..');
-const SYNC_DIR = path.join(ROOT, 'src', 'sync');
-const RENDERER_DIR = path.join(ROOT, 'src', 'renderer');
+const SYNC_DIR = path.join(ROOT, 'src', 'desktop', 'sync');
+const RENDERER_DIR = path.join(ROOT, 'src', 'desktop', 'renderer');
 const MANAGER_DIR = path.join(SYNC_DIR, 'manager');
 const DIST_DIR = path.join(ROOT, 'dist');
 const BUILD_DIR = path.join(DIST_DIR, '.sync_build');
 const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
 
-const WEB_FILES = ['main.html', 'boot.js', 'window_appearance.js', 'web_host.js', 'sw.js'];
+const WEB_FILES = ['main.html', 'boot.js', 'window_appearance.js'];
 const WEB_DIRS = ['styles', 'scripts', 'fonts'];
 const MATERIAL_FILES = ['rounded.css', 'material-symbols-rounded.woff2'];
 const MAIN_FILES = ['data_path.js', 'secret_store.js', 'sync_server.js'];
@@ -73,7 +73,7 @@ function buildEmbeddedAssets(version) {
         for (const item of collectFiles(source, dir)) add(item.absolute);
     }
     for (const name of MATERIAL_FILES) add(path.join(MATERIAL_DIR, name));
-    for (const name of MAIN_FILES) add(path.join(ROOT, 'src', 'main', name));
+    for (const name of MAIN_FILES) add(path.join(ROOT, 'src', 'desktop', 'main', name));
     if (fs.existsSync(MANAGER_DIR)) {
         for (const item of collectFiles(MANAGER_DIR, 'manager')) add(item.absolute);
     }
@@ -84,8 +84,8 @@ function buildEmbeddedAssets(version) {
     const meta = {
         name: 'esprin_sync',
         version,
-        svg_icon: 'src/assets/icon.svg',
-        icon: 'src/assets/icon.png'
+        svg_icon: 'src/desktop/assets/icon.svg',
+        icon: 'src/desktop/assets/icon.png'
     };
     map.set('package.json', Buffer.from(`${JSON.stringify(meta, null, 2)}\n`, 'utf8').toString('base64'));
 

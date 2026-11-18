@@ -16,7 +16,6 @@ async function openScratchpadWindow() {
 }
 
 function removeDesktopFullscreenButton() {
-    if (IS_WEB_RUNTIME) return;
     const button = document.getElementById('btn-fullscreen');
     if (button) button.remove();
 }
