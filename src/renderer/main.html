@@ -60,12 +60,14 @@
                 <div class="app-brand" aria-hidden="true">EsprinNemo</div>
 
                 <div class="workspace-tabs-bar" id="workspace-tabs-bar">
+                    <div class="workspace-tabs" id="workspace-tabs"></div>
+                    <div class="workspace-tabs-divider" aria-hidden="true"></div>
+                    <!-- 必须排在 .workspace-tabs 之后：拖拽区是按绘制顺序累计的，
+                         放在前面时后面的标签容器（drag 区）会把它的 no-drag 盖掉，点不动 -->
                     <button class="tabs-back" id="btn-tabs-back" title="返回笔记列表">
                         <span class="ms-icon sm tabs-back-icon-back">arrow_back</span>
                         <span class="ms-icon sm tabs-back-icon-home">home</span>
                     </button>
-                    <div class="workspace-tabs" id="workspace-tabs"></div>
-                    <div class="workspace-tabs-divider" aria-hidden="true"></div>
                 </div>
 
                 <div class="titlebar-actions">
@@ -139,6 +141,9 @@
                     </button>
                 </div>
             </aside>
+
+            <!-- 内容区：笔记列表 + 编辑器，是浮在 ChromeBar 上的一整块卡片 -->
+            <div class="content-card" id="content-card">
 
 <section class="notes-panel">
                 <div class="notes-panel-header">
@@ -428,17 +433,6 @@
 
                         <div class="settings-section">
                             <div class="settings-section-title">界面</div>
-
-                            <div class="settings-row">
-                                <div class="settings-row-info">
-                                    <span class="settings-row-label">侧边栏模糊</span>
-                                    <span class="settings-row-desc">桌面壁纸作为窗口背景时，侧边栏与笔记列表使用毛玻璃；关闭后两块区域改为不透明主题底色</span>
-                                </div>
-                                <label class="switch">
-                                    <input type="checkbox" id="setting-sidebar-blur">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
 
 <div class="settings-row">
                                 <div class="settings-row-info">
@@ -1066,14 +1060,14 @@
 
                     <div class="settings-panel hidden" data-settings-panel="developer">
                         <div class="settings-section">
-                            <div class="settings-section-title">毛玻璃调试</div>
+                            <div class="settings-section-title">毛玻璃</div>
                             <div class="settings-row">
                                 <div class="settings-row-info">
-                                    <span class="settings-row-label">毛玻璃透明</span>
-                                    <span class="settings-row-desc">关闭后侧边栏、笔记列表与顶栏不再模糊，直接显示背景，用来检查壁纸透出的效果（仅开发运行可用）</span>
+                                    <span class="settings-row-label">毛玻璃效果</span>
+                                    <span class="settings-row-desc">为 ChromeBar（侧边栏 + 标题栏 + 标签栏）叠加毛玻璃，透出桌面壁纸。默认关闭，仅开发运行时可见，且只在本次运行内生效，不写入配置。</span>
                                 </div>
                                 <label class="switch">
-                                    <input type="checkbox" id="setting-glass-transparent">
+                                    <input type="checkbox" id="setting-sidebar-blur">
                                     <span class="slider"></span>
                                 </label>
                             </div>
@@ -1171,6 +1165,7 @@
                     </div>
                 </div>
             </aside>
+            </div><!-- /.app-chrome -->
 
         </div>
 

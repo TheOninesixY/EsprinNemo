@@ -14,53 +14,31 @@ function syncNewButtonTitles() {
 
 function applySidebarBlur() {
     const root = document.documentElement;
-    root.classList.toggle(SIDEBAR_BLUR_OFF_CLASS, State.sidebarBlur === false);
+    // 默认关闭：只有开发者选项里打开时才去掉这个类
+    root.classList.toggle(SIDEBAR_BLUR_OFF_CLASS, State.sidebarBlur !== true);
 }
 
 function toggleSidebarBlur(enabled) {
-    const next = enabled !== false;
-    if (next === (State.sidebarBlur !== false)) return;
+    const next = enabled === true;
+    if (next === (State.sidebarBlur === true)) return;
 
     State.sidebarBlur = next;
     applySidebarBlur();
-    saveConfig();
+    // 开发者选项里的开关不写入配置，只在本次运行内生效
 
-    showToast(next ? '侧边栏与列表已启用毛玻璃' : '侧边栏与列表已改为不透明背景');
-}
-
-function applyGlassTransparent() {
-    const root = document.documentElement;
-    root.classList.toggle('glass-transparent', State.glassTransparent === true);
-}
-
-function toggleGlassTransparent(enabled) {
-    const next = enabled === true;
-    if (next === (State.glassTransparent === true)) return;
-
-    State.glassTransparent = next;
-    applyGlassTransparent();
-    saveConfig();
-
-    showToast(next ? '毛玻璃已改为直接透出背景（无模糊）' : '毛玻璃已恢复模糊');
+    showToast(next ? '已开启毛玻璃效果' : '已关闭毛玻璃效果');
 }
 
 function syncUiModeUI() {
     const blurToggle = document.getElementById('setting-sidebar-blur');
-    if (blurToggle) blurToggle.checked = State.sidebarBlur !== false;
-
-    const glassToggle = document.getElementById('setting-glass-transparent');
-    if (glassToggle) glassToggle.checked = State.glassTransparent === true;
+    if (blurToggle) blurToggle.checked = State.sidebarBlur === true;
 }
 
 function initUiMode() {
     const blurToggle = document.getElementById('setting-sidebar-blur');
     if (blurToggle) blurToggle.onchange = (event) => toggleSidebarBlur(event.target.checked);
 
-    const glassToggle = document.getElementById('setting-glass-transparent');
-    if (glassToggle) glassToggle.onchange = (event) => toggleGlassTransparent(event.target.checked);
-
     applyUiMode();
     applySidebarBlur();
-    applyGlassTransparent();
     syncUiModeUI();
 }

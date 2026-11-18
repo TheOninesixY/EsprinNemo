@@ -300,8 +300,7 @@ const TAB_ANIM_SLACK_MS = 140;
 
 const TAB_FLY_OVERSHOOT = 12;
 
-const TAB_FLY_UP_CLASS = 'is-flying-up';
-const TAB_FLY_LEFT_CLASS = 'is-flying-left';
+const TAB_FLY_DOWN_CLASS = 'is-flying-down';
 
 let tabCloseShift = null;
 
@@ -313,49 +312,40 @@ function playTabCloseFlyAway(tabId) {
     const tab = tabs.find(el => el.dataset.tabId === tabId);
     if (!tab) return;
 
-    const isOnlyTab = tabs.length === 1;
-
-const rect = tab.getBoundingClientRect();
+    const rect = tab.getBoundingClientRect();
+    const barRect = tabsContainer.getBoundingClientRect();
     const lefts = new Map(tabs.filter(el => el.dataset.tabId)
         .map(el => [el.dataset.tabId, el.getBoundingClientRect().left]));
 
     const ghost = tab.cloneNode(true);
 
-ghost.classList.remove(TAB_SLIDE_IN_CLASS);
+    ghost.classList.remove(TAB_SLIDE_IN_CLASS);
 
-tab.remove();
+    tab.remove();
 
-if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     if (!rect.width || !rect.height) return;
 
-tabCloseShift = { at: performance.now(), lefts };
+    tabCloseShift = { at: performance.now(), lefts };
 
-    ghost.classList.add(isOnlyTab ? TAB_FLY_LEFT_CLASS : TAB_FLY_UP_CLASS);
+    // 关闭动画统一往下滑：把残影放进标签栏的裁切框里，滑到栏底就被切掉
+    ghost.classList.add(TAB_FLY_DOWN_CLASS);
 
-    const barRect = isOnlyTab ? tabsContainer.getBoundingClientRect() : { left: 0, top: 0 };
-    const clip = isOnlyTab ? buildTabFlyClip(barRect) : null;
-    const originLeft = rect.left - barRect.left;
-    const originTop = rect.top - barRect.top;
-    ghost.style.left = `${originLeft}px`;
-    ghost.style.top = `${originTop}px`;
+    const clip = buildTabFlyClip(barRect);
+    ghost.style.left = `${rect.left - barRect.left}px`;
+    ghost.style.top = `${rect.top - barRect.top}px`;
     ghost.style.width = `${rect.width}px`;
     ghost.style.height = `${rect.height}px`;
-    if (isOnlyTab) {
-
-        ghost.style.setProperty('--tab-slide-distance', `${rect.width}px`);
-    } else {
-
-ghost.style.setProperty('--tab-fly-distance', `${rect.top + rect.height + TAB_FLY_OVERSHOOT}px`);
-    }
-    (clip || document.body).appendChild(ghost);
+    ghost.style.setProperty('--tab-fly-distance', `${barRect.top + barRect.height - rect.top + TAB_FLY_OVERSHOOT}px`);
+    clip.appendChild(ghost);
 
     let dismissed = false;
     const dismiss = () => {
         if (dismissed) return;
         dismissed = true;
 
-        (clip || ghost).remove();
+        clip.remove();
     };
     ghost.addEventListener('animationend', dismiss, { once: true });
     setTimeout(dismiss, TAB_FLY_DURATION_MS + TAB_ANIM_SLACK_MS);
@@ -691,7 +681,6 @@ if (token !== listRenderToken) return;
 }
 
 const CARD_TAG_VISIBLE_LIMIT = 2;
-const CARD_NEW_TAG_VALUE = '\u0000new-tag';
 
 function cardTags(item) {
     return Array.isArray(item.tags)
@@ -745,31 +734,21 @@ function createCardFolderSelect(item) {
     return select;
 }
 
-function createCardTagSelect(item) {
-    const applied = new Set(cardTags(item));
-    const choices = getAllTags().filter(tag => !applied.has(tag));
+/* 笔记卡片上的「添加标签」：一个加号按钮，点了直接弹「添加标签」窗口 */
+function createCardTagAddButton(item) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'note-card-tag-add';
+    btn.title = '添加标签';
+    btn.setAttribute('aria-label', '添加标签');
+    btn.innerHTML = '<span class="ms-icon xs">add</span>';
 
-    const select = document.createElement('select');
-    select.className = 'select-folder note-card-tag-select';
-    select.title = '添加标签';
-
-    const placeholder = createCardSelectOption('', '＋ 标签');
-    placeholder.disabled = true;
-    placeholder.selected = true;
-    select.appendChild(placeholder);
-
-    choices.forEach(tag => select.appendChild(createCardSelectOption(tag, `#${tag}`)));
-    select.appendChild(createCardSelectOption(CARD_NEW_TAG_VALUE, '＋ 新建标签…'));
-
-    select.addEventListener('change', (event) => {
-        const value = event.target.value;
-        event.target.value = '';
-        if (!value) return;
-        if (value === CARD_NEW_TAG_VALUE) promptNewItemTag(item.id);
-        else addItemTag(item.id, value);
+    btn.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        await promptAddItemTags(item);
     });
 
-    return select;
+    return btn;
 }
 
 function renderCardFolder(container, item, { editable = false } = {}) {
@@ -811,9 +790,8 @@ function buildCardTags(item, { editable = false } = {}) {
         wrap.appendChild(createCardTagChip(tag, { removable: true, itemId: item.id }));
     });
 
-    const tagSelect = createCardTagSelect(item);
-    wrap.appendChild(tagSelect);
-    upgradeSelectToCustom(tagSelect);
+    const tagAddBtn = createCardTagAddButton(item);
+    wrap.appendChild(tagAddBtn);
 
     wrap.addEventListener('click', (event) => event.stopPropagation());
     wrap.addEventListener('wheel', (event) => {

@@ -430,6 +430,27 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     background: transparent;
     color: var(--text-muted);
 }
+
+/* 笔记卡片上的「添加标签」加号按钮 */
+.note-card-tag-add {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: var(--radius-xs);
+    background: var(--item-hover);
+    color: var(--text-muted);
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.note-card-tag-add:hover {
+    background: var(--accent-bg);
+    color: var(--accent);
+}
+
 .note-card-taxonomy .dropdown {
     max-width: 100%;
 }

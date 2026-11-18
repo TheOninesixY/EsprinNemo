@@ -85,7 +85,6 @@ try {
     let themeStyle = 'default';
     let cornerRadius = 'default';
     let uiScale = 1;
-    let sidebarBlur = true;
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config && config.theme) theme = config.theme;
@@ -94,10 +93,10 @@ try {
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
         if (config && config.uiScale !== undefined) uiScale = config.uiScale;
-        if (config && config.sidebarBlur === false) sidebarBlur = false;
     }
 
-    if (!sidebarBlur) document.documentElement.classList.add(SIDEBAR_BLUR_OFF_CLASS);
+    // 毛玻璃是开发者选项里的内存开关，默认关闭，启动时先按住关闭状态避免闪一下
+    document.documentElement.classList.add(SIDEBAR_BLUR_OFF_CLASS);
     webFrame.setZoomFactor(normalizeUiScale(uiScale));
 
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);

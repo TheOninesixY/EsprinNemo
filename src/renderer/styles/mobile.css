@@ -138,11 +138,11 @@
         padding-right: 4px;
     }
 
-    html.web-mode .app-chrome > .workspace {
+    html.web-mode .app-chrome .workspace {
         display: none !important;
     }
 
-    html.web-mode .app-chrome > .workspace:has(#settings-view:not(.hidden)) {
+    html.web-mode .app-chrome .workspace:has(#settings-view:not(.hidden)) {
         display: flex !important;
         position: fixed;
         inset: 0;
@@ -153,7 +153,7 @@
         background-color: var(--bg-editor);
     }
 
-    html.web-mode .app-chrome > .workspace:has(#editor-topbar:not(.hidden)) {
+    html.web-mode .app-chrome .workspace:has(#editor-topbar:not(.hidden)) {
         display: flex !important;
         position: fixed;
         inset: 0;
@@ -164,7 +164,7 @@
         background-color: var(--bg-editor);
     }
 
-    html.web-mode:not(.modern-layout) .app-chrome > .workspace:has(#editor-topbar:not(.hidden)) {
+    html.web-mode:not(.modern-layout) .app-chrome .workspace:has(#editor-topbar:not(.hidden)) {
         top: calc(40px + env(safe-area-inset-top));
         padding-top: 0;
     }
@@ -914,8 +914,8 @@
     html.web-mode .notes-panel-header,
     html.web-mode .notes-list,
     html.web-mode .mobile-tabbar,
-    html.web-mode .app-chrome > .workspace,
-    html.web-mode .app-chrome > .workspace:has(#editor-topbar:not(.hidden)),
+    html.web-mode .app-chrome .workspace,
+    html.web-mode .app-chrome .workspace:has(#editor-topbar:not(.hidden)),
     html.web-mode .settings-sidebar,
     html.web-mode .settings-content {
         transition: none;

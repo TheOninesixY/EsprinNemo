@@ -832,7 +832,7 @@ ipcMain.handle('app:open-external', (event, key) => {
   return true;
 });
 
-const WINDOW_MIN_WIDTH = 800;
+const WINDOW_MIN_WIDTH = 1300;
 const WINDOW_MIN_HEIGHT = 600;
 
 function resolveUiScale() {

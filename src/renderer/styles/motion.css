@@ -67,24 +67,33 @@ html.appearance-fading *::after {
                 opacity var(--motion-crossfade) ease !important;
 }
 
+/* 标签底部外圆角用的两个颜色属性，只在根元素上过渡，
+   子元素继承到的是逐帧变化的中间值，圆弧就不会跳色 */
+html.appearance-fading {
+    transition: background-color var(--motion-crossfade) ease,
+                border-color var(--motion-crossfade) ease,
+                color var(--motion-crossfade) ease,
+                opacity var(--motion-crossfade) ease,
+                --tab-flare-fill var(--motion-crossfade) ease,
+                --tab-flare-stroke var(--motion-crossfade) ease !important;
+}
+
 .dialog-container,
 .note-container {
     animation: fadeIn var(--motion-slow) var(--ease-out);
 }
 
 @keyframes tabSlideIn {
-    from { opacity: 0; transform: translateX(-12px); }
+    from { opacity: 0; transform: translateY(18px); }
 }
 .tab-item.is-sliding-in {
     animation: tabSlideIn var(--motion-slow) var(--ease-out);
 }
 
-.tab-item.is-flying-up {
-    position: fixed;
+/* 关闭标签：整块往下滑出标签栏（配合 .tab-fly-clip 在栏底裁掉） */
+.tab-item.is-flying-down {
+    position: absolute;
     margin: 0;
-
-    z-index: 200;
-
     pointer-events: none;
     animation: tabFlyAway var(--motion-slow) var(--ease-standard) forwards;
 }
@@ -92,7 +101,7 @@ html.appearance-fading *::after {
 @keyframes tabFlyAway {
     from { opacity: 1; transform: translateY(0) scale(1); }
     55% { opacity: 1; }
-    to { opacity: 0; transform: translateY(calc(-1 * var(--tab-fly-distance, 48px))) scale(0.9); }
+    to { opacity: 0; transform: translateY(var(--tab-fly-distance, 48px)) scale(0.9); }
 }
 
 .tab-fly-clip {
@@ -100,18 +109,6 @@ html.appearance-fading *::after {
     overflow: hidden;
     z-index: 200;
     pointer-events: none;
-}
-.tab-item.is-flying-left {
-    position: absolute;
-    margin: 0;
-    pointer-events: none;
-    animation: tabSlideAway var(--motion-slow) var(--ease-standard) forwards;
-}
-@keyframes tabSlideAway {
-    from { opacity: 1; transform: translateX(0); }
-    30% { opacity: 1; }
-    75% { opacity: 0; }
-    to { opacity: 0; transform: translateX(calc(-1 * var(--tab-slide-distance, 120px))); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -126,8 +123,7 @@ html.appearance-fading *::after {
     #empty-state > .ms-icon,
     #notes-list-box.list-enter > *,
     .tab-item.is-sliding-in,
-    .tab-item.is-flying-up,
-    .tab-item.is-flying-left,
+    .tab-item.is-flying-down,
     .dialog-container,
     .note-container {
         animation: none !important;

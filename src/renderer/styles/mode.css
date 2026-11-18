@@ -2,19 +2,36 @@ html.modern-layout {
     --modern-tabs-height: 40px;
     --modern-drag-top: 0px;
     --modern-rail-width: 48px;
+    --modern-notes-width: 270px;
+    /* AI 助手面板展开时的宽度 */
+    --modern-ai-panel-width: 360px;
+    /* 内容卡片与窗口右侧/底部的间距，让卡片四边都露出 ChromeBar */
+    --modern-content-gap: 8px;
+    /* 内容卡片圆角 */
+    --modern-card-radius: calc(var(--radius-md) * 1.6);
 }
 
+/* ─────────────────────────────────────────────────────────────
+   ChromeBar：侧栏 + 标题栏 + 标签栏共用同一块表面。
+   整窗只有 .app-chrome 这一层背景/玻璃，侧栏与顶栏都是透明的，
+   所以看起来是连续的一整块，而不是几块拼起来的。
+   ───────────────────────────────────────────────────────────── */
 html.modern-layout .app-chrome {
+    position: relative;
     flex: 1;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
     display: grid;
-    grid-template-columns: var(--modern-rail-width) auto minmax(0, 1fr);
+    grid-template-columns: var(--modern-rail-width) minmax(0, 1fr) auto;
     grid-template-rows: var(--modern-tabs-height) minmax(0, 1fr);
 }
 
-/* 顶部一条：拐角块 + 标签栏 + 工具按钮 + 窗口按钮，横跨整个宽度 */
+html.modern-layout.desktop-runtime .app-chrome {
+    background-color: var(--bg-titlebar);
+}
+
+/* 顶部一条：拐角块 + 品牌 + 标签栏 + 工具按钮 + 窗口按钮 */
 html.modern-layout .app-chrome > .topbar {
     grid-column: 1 / -1;
     grid-row: 1;
@@ -23,43 +40,84 @@ html.modern-layout .app-chrome > .topbar {
     align-items: stretch;
     min-width: 0;
     height: var(--modern-tabs-height);
-    background-color: var(--bg-sidebar);
     border-bottom: none;
     z-index: 12;
     -webkit-app-region: drag;
 }
 
-/* 内拐角：内容区左上角做圆角，圆角外侧用一小块同色玻璃补住，避免露出未模糊的壁纸尖角 */
-html.modern-layout .app-chrome {
-    position: relative;
+html.modern-layout.desktop-runtime .app-chrome > .topbar {
+    background-color: transparent;
 }
 
-html.modern-layout .app-chrome > .notes-panel {
-    border-top: 1px solid var(--border-color);
-    border-left: 1px solid var(--border-color);
-    border-top-left-radius: calc(var(--radius-md) * 1.6);
+/* 左侧栏：与顶栏同属 ChromeBar，没有自己的背景和右边框 */
+html.modern-layout .app-chrome > .sidebar {
+    grid-column: 1;
+    grid-row: 2;
+    border-right: none;
 }
 
-html.modern-layout .app-chrome::before {
-    content: '';
-    position: absolute;
-    left: var(--modern-rail-width);
-    top: var(--modern-tabs-height);
-    width: calc(var(--radius-md) * 1.6);
-    height: calc(var(--radius-md) * 1.6);
-    background-color: var(--bg-sidebar);
-    pointer-events: none;
-    z-index: 0;
+html.modern-layout.desktop-runtime .app-chrome > .sidebar {
+    background-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
-html.modern-layout .app-chrome > .notes-panel,
-html.modern-layout .app-chrome > .workspace {
+/* 内容卡片：笔记列表 + 编辑器，浮在 ChromeBar 上的一整块 */
+.content-card {
+    display: contents;
+}
+
+html.modern-layout.desktop-runtime .app-chrome > .content-card {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    margin: 0 var(--modern-content-gap) var(--modern-content-gap) 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--modern-card-radius);
+    background-color: var(--bg-editor);
+    overflow: hidden;
     position: relative;
     z-index: 1;
 }
 
-html.modern-layout .app-chrome > .workspace {
-    border-top: 1px solid var(--border-color);
+html.modern-layout .app-chrome > .content-card > .notes-panel {
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    border-top-left-radius: 0;
+}
+
+html.modern-layout .app-chrome > .content-card > .workspace {
+    border-top: none;
+}
+
+/* AI 助手：和内容卡片同一套造型，作为第二块面板贴在内容卡片右侧 */
+html.modern-layout.desktop-runtime .app-chrome > .ai-panel {
+    grid-column: 3;
+    grid-row: 2;
+    width: var(--modern-ai-panel-width);
+    margin: 0 var(--modern-content-gap) var(--modern-content-gap) 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--modern-card-radius);
+    /* 和内容卡片（编辑器）同色，两块并排才不显得一块深一块浅 */
+    background-color: var(--bg-editor);
+    overflow: hidden;
+    transition: width var(--motion-slow) cubic-bezier(0.22, 0.61, 0.36, 1),
+                margin-right var(--motion-slow) cubic-bezier(0.22, 0.61, 0.36, 1),
+                border-width var(--motion-slow) ease;
+}
+
+html.modern-layout.desktop-runtime .app-chrome > .ai-panel.ai-collapsed {
+    width: 0;
+    margin: 0;
+    border-width: 0;
+}
+
+html.modern-layout .app-chrome > .topbar > .workspace-tabs-bar {
+    position: relative;
+    z-index: 1;
 }
 
 html.modern-layout .app-chrome > .topbar .app-corner {
@@ -87,7 +145,9 @@ html.modern-layout .app-chrome > .topbar .app-corner svg path {
 html.modern-layout .app-chrome > .topbar .app-brand {
     display: flex;
     align-items: center;
-    flex-shrink: 0;
+    flex: 0 0 270px;
+    width: 270px;
+    box-sizing: border-box;
     padding: 0 12px 0 8px;
     font-family: 'Mohave', var(--font-sans);
     font-size: 15px;
@@ -113,35 +173,133 @@ html.modern-layout .app-chrome > .topbar > .titlebar-actions {
     margin-left: auto;
 }
 
-html.modern-layout .app-chrome > .sidebar {
-    grid-column: 1;
-    grid-row: 2;
-    border-right: none;
-}
-
-html.modern-layout .app-chrome > .notes-panel {
-    grid-column: 2;
-    grid-row: 2;
-}
-
 html.modern-layout .app-chrome > .topbar > .workspace-tabs-bar {
     position: relative;
     display: flex;
     align-items: center;
     flex: 1;
     min-width: 0;
-    height: 100%;
+    /* 多出 1px 压住内容卡片的上边框：活动标签会盖住这条线，和内容连成一片 */
+    height: calc(100% + 1px);
     -webkit-app-region: drag;
+}
+
+/* 标签只允许出现在内容卡片（编辑器）上方：AI 面板展开后，标签栏收到内容卡片右边缘为止 */
+html.modern-layout .app-chrome:has(> .ai-panel:not(.hidden):not(.ai-collapsed)) > .topbar > .workspace-tabs-bar {
+    max-width: calc(100% - var(--modern-rail-width) - var(--modern-notes-width) - var(--modern-ai-panel-width) - var(--modern-content-gap) * 2);
 }
 
 html.modern-layout .app-chrome > .topbar > .workspace-tabs-bar > .workspace-tabs {
     flex: 1;
     min-width: 0;
+    align-items: flex-end;
+    gap: 0;
+    padding: 0 8px;
 }
 
-html.modern-layout .app-chrome > .workspace {
-    grid-column: 3;
-    grid-row: 2;
+/* 浏览器式标签：非活动标签不描边；活动标签上/左/右 1px 描边、无底边，和编辑器连成一片 */
+html.modern-layout .workspace-tabs .tab-item {
+    /* 底部外圆角和顶部圆角共用同一个半径，跟着「圆角大小」设置走 */
+    --tab-flare: var(--radius-md);
+    height: 36px;
+    min-width: 96px;
+    max-width: 200px;
+    padding: 0 6px 0 10px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background-color: transparent;
+    color: var(--text-secondary);
+}
+
+/* 相邻标签重叠 1px，避免活动标签的描边和邻居叠成 2px 粗线 */
+html.modern-layout .workspace-tabs .tab-item + .tab-item {
+    margin-left: -1px;
+}
+
+html.modern-layout .workspace-tabs .tab-item:hover {
+    background-color: var(--item-hover);
+    color: var(--text-primary);
+}
+
+html.modern-layout .workspace-tabs .tab-item.active {
+    border-color: var(--border-color);
+    background-color: var(--bg-editor);
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+html.modern-layout .workspace-tabs .tab-item.is-dragging {
+    background-color: var(--bg-editor);
+    border-color: var(--border-color);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* 底部外圆角的两个颜色做成可过渡的自定义属性：
+   主题切换时和标签自身颜色一起渐变，圆弧不会瞬间跳色 */
+@property --tab-flare-fill {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #ffffff;
+}
+@property --tab-flare-stroke {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #d0d7de;
+}
+
+html.modern-layout {
+    --tab-flare-fill: var(--bg-editor);
+    --tab-flare-stroke: var(--border-color);
+}
+
+/* 活动标签底部两侧的外圆角（反向圆角）：白色从标签底边向下、向外翻出，
+   并且描边也跟着圆弧走，不会出现「直边描边 + 圆角背景」的断层 */
+html.modern-layout .workspace-tabs .tab-item.active::before,
+html.modern-layout .workspace-tabs .tab-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    /* 多 1px 盖住标签自身的直边描边，让圆弧描边和上面的直描边正好接上 */
+    width: calc(var(--tab-flare) + 1px);
+    height: var(--tab-flare);
+    pointer-events: none;
+}
+
+html.modern-layout .workspace-tabs .tab-item.active::before {
+    left: calc(-1 * var(--tab-flare));
+    background-image: radial-gradient(circle var(--tab-flare) at 0 0,
+        transparent calc(var(--tab-flare) - 1.3px),
+        var(--tab-flare-stroke) calc(var(--tab-flare) - 0.9px),
+        var(--tab-flare-stroke) calc(var(--tab-flare) - 0.2px),
+        var(--tab-flare-fill) calc(var(--tab-flare) + 0.2px));
+}
+
+html.modern-layout .workspace-tabs .tab-item.active::after {
+    right: calc(-1 * var(--tab-flare));
+    background-image: radial-gradient(circle var(--tab-flare) at 100% 0,
+        transparent calc(var(--tab-flare) - 1.3px),
+        var(--tab-flare-stroke) calc(var(--tab-flare) - 0.9px),
+        var(--tab-flare-stroke) calc(var(--tab-flare) - 0.2px),
+        var(--tab-flare-fill) calc(var(--tab-flare) + 0.2px));
+}
+
+html.modern-layout .workspace-tabs .tab-close-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-xs);
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
+html.modern-layout .workspace-tabs .tab-close-btn:hover {
+    background-color: var(--item-active);
+    color: var(--text-primary);
+    opacity: 1;
 }
 
 html.modern-layout.tabs-disabled {
@@ -158,6 +316,11 @@ html.settings-open {
 
 html.settings-open .tabs-back {
     display: none !important;
+}
+
+/* 打开设置时不显示标签 */
+html.modern-layout.settings-open .app-chrome > .topbar .workspace-tabs {
+    display: none;
 }
 
 html.modern-layout .workspace-tabs {
@@ -261,10 +424,12 @@ html.modern-layout .tabs-back {
     align-items: center;
     justify-content: center;
     position: absolute;
-    top: 6px;
-    left: 6px;
-    width: 28px;
-    height: 28px;
+    /* 按钮 5~35，图标中心 20 —— 正好是 40px 标题栏的垂直中线 */
+    top: 5px;
+    left: 5px;
+    width: 30px;
+    height: 30px;
+    box-sizing: border-box;
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
 
@@ -272,11 +437,16 @@ html.modern-layout .tabs-back {
     transform: translateX(-6px);
     pointer-events: none;
 
-    z-index: 12;
+    z-index: 13;
     -webkit-app-region: no-drag;
     transition: opacity var(--motion-base) var(--ease-out),
                 transform var(--motion-base) var(--ease-out),
                 background-color 0.15s, color 0.15s;
+}
+
+/* no-drag 不会自动继承给子元素，图标也要显式声明，否则点图标时会被标题栏拖拽区吃掉 */
+html.modern-layout .tabs-back * {
+    -webkit-app-region: no-drag;
 }
 html.modern-layout .tabs-back:hover {
     background-color: var(--item-hover);
@@ -339,6 +509,11 @@ html.modern-layout .settings-view {
     flex-direction: column;
 }
 
+/* 设置页在桌面端不要那条「设置 / 分类」的标题栏，直接从内容开始（web 模式仍保留） */
+html.modern-layout.desktop-runtime .settings-view > .settings-topbar {
+    display: none;
+}
+
 html.modern-layout .settings-topbar {
     -webkit-app-region: no-drag;
     padding-right: 0;
@@ -374,9 +549,7 @@ html.modern-layout.tabs-disabled .editor-topbar {
 }
 
 html.modern-layout .ai-panel-drag-strip {
-    display: block;
-    margin-right: 302px;
-    -webkit-app-region: drag;
+    display: none;
 }
 
 html.modern-layout .ai-panel-header {
@@ -384,10 +557,6 @@ html.modern-layout .ai-panel-header {
 }
 html.modern-layout .ai-panel-header .btn-action-icon {
     -webkit-app-region: no-drag;
-}
-
-html.modern-layout .ai-drawer {
-    top: 80px;
 }
 
 html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .empty-drag-surface {

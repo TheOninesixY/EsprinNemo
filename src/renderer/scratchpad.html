@@ -26,7 +26,7 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            background-color: var(--bg-body);
+            background-color: var(--bg-titlebar);
         }
 
 .titlebar-icon {
@@ -243,6 +243,14 @@
         <div class="note-body">
             <textarea id="note-input" placeholder="随手记点什么…（Ctrl+S 保存）" spellcheck="false"></textarea>
 
+            <footer class="note-status">
+                <span class="note-status-text" id="note-status-text"></span>
+                <span class="note-status-right">
+                    <span id="note-binding" title="未关联笔记"></span>
+                    <span id="note-status-hint"></span>
+                </span>
+            </footer>
+
 <div class="picker hidden" id="picker">
                 <div class="picker-head">
                     <span class="ms-icon xs">search</span>
@@ -254,14 +262,6 @@
                 <div class="picker-list" id="picker-list"></div>
             </div>
         </div>
-
-        <footer class="note-status">
-            <span class="note-status-text" id="note-status-text"></span>
-            <span class="note-status-right">
-                <span id="note-binding" title="未关联笔记"></span>
-                <span id="note-status-hint"></span>
-            </span>
-        </footer>
     </div>
 
     <script>

@@ -68,6 +68,37 @@ async function promptNewItemTag(itemId) {
     addItemTag(itemId, name);
 }
 
+/* 「添加标签」窗口：可输入新标签，也可多选已有标签。
+   编辑器顶栏的按钮和笔记卡片上的 + 号共用这一个。 */
+async function promptAddItemTags(item) {
+    if (!item || isReadOnlyItem(item)) return;
+
+    const added = Array.isArray(item.tags) ? item.tags : [];
+    const choices = getAllTags().filter(tag => !added.includes(tag));
+    const picked = await showPromptWithChoices('请输入要添加的标签名称', {
+        title: '添加标签',
+        detail: choices.length
+            ? '可直接输入新标签名，或点选下方已有标签（可多选）。'
+            : '可直接输入新标签名。',
+        placeholder: '标签名称...',
+        confirmLabel: '添加',
+        choices,
+        multiple: true
+    });
+    if (!picked) return;
+
+    const pending = [...picked.selected];
+    if (picked.value) pending.push(picked.value);
+    const newTags = pending.filter(tag => !added.includes(tag));
+    if (!newTags.length) return;
+
+    if (!item.tags) item.tags = [];
+    newTags.forEach(tag => item.tags.push(tag));
+    saveItem(item);
+    renderApp();
+    showToast(newTags.length > 1 ? `已添加 ${newTags.length} 个标签` : '已添加标签');
+}
+
 function createNewNote() {
     const defaults = newNoteDefaults();
     const newNote = {
@@ -203,9 +234,7 @@ function openTab(noteId) {
 }
 
 function openSettingsTab() {
-    if (!State.openNoteIds.includes('settings')) {
-        State.openNoteIds.push('settings');
-    }
+    // 设置不占用标签页，只在工作区里切换视图
     State.activeNoteId = 'settings';
     renderApp();
 }

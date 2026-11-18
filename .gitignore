@@ -2,9 +2,7 @@
 node_modules
 
 # output
-out
-dist
-*.tgz
+dist/
 
 # code coverage
 coverage
@@ -40,4 +38,4 @@ data/
 
 # Agent缓存
 
-.github/agent/
+.github/agent/tmp/

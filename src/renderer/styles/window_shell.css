@@ -123,3 +123,24 @@ input, textarea, select {
     background-color: var(--danger);
     color: #ffffff;
 }
+
+/* ── 对话框 / 小本本：和主窗口一致的卡片式外壳 ──
+   整窗一层顶栏底色，内容是一张带描边和圆角、四周留 8px 的卡片 */
+.dialog-container,
+.note-container {
+    background-color: var(--bg-titlebar);
+}
+
+.dialog-container > .titlebar,
+.note-container > .titlebar {
+    border-bottom: none;
+}
+
+.dialog-body,
+.note-body {
+    margin: 0 8px 8px;
+    background-color: var(--bg-body);
+    border: 1px solid var(--border-color);
+    border-radius: calc(var(--radius-md) * 1.6);
+    overflow: hidden;
+}

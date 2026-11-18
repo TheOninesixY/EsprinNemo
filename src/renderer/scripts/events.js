@@ -381,31 +381,7 @@ document.getElementById('btn-add-folder').onclick = async () => {
     document.getElementById('btn-add-tag').onclick = async () => {
         const item = getActiveItem();
         if (!item || isReadOnlyItem(item)) return;
-
-        const added = Array.isArray(item.tags) ? item.tags : [];
-        const choices = getAllTags().filter(tag => !added.includes(tag));
-        const picked = await showPromptWithChoices('请输入要添加的标签名称', {
-            title: '添加标签',
-            detail: choices.length
-                ? '可直接输入新标签名，或点选下方已有标签（可多选）。'
-                : '可直接输入新标签名。',
-            placeholder: '标签名称...',
-            confirmLabel: '添加',
-            choices,
-            multiple: true
-        });
-        if (!picked) return;
-
-        const pending = [...picked.selected];
-        if (picked.value) pending.push(picked.value);
-        const newTags = pending.filter(tag => !added.includes(tag));
-        if (!newTags.length) return;
-
-        if (!item.tags) item.tags = [];
-        newTags.forEach(tag => item.tags.push(tag));
-        saveItem(item);
-        renderApp();
-        showToast(newTags.length > 1 ? `已添加 ${newTags.length} 个标签` : '已添加标签');
+        await promptAddItemTags(item);
     };
 
     window.onkeydown = (e) => {

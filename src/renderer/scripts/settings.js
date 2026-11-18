@@ -1,6 +1,6 @@
 const SETTINGS_CATEGORIES = [
     { id: 'editor', label: '编辑器', icon: 'edit_note', desc: '拼写检查、随口记（语音转文本）与废纸篓的清理策略' },
-    { id: 'appearance', label: '外观', icon: 'palette', desc: '字号、主题、字体与侧边栏' },
+    { id: 'appearance', label: '外观', icon: 'palette', desc: '字号、主题、字体与界面缩放' },
     { id: 'ai', label: 'AI 助手', icon: 'chat_bubble', desc: '接口、密钥、模型与附带范围' },
     { id: 'secret', label: '秘密本', icon: 'lock', desc: '本地或已加密的文档，离开后项目只在本次运行中可见' },
     { id: 'data', label: '数据与同步', icon: 'folder', desc: '数据存放目录、文件导入、文件日志与自建同步' },

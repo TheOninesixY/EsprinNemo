@@ -40,54 +40,31 @@ html.has-wallpaper .app-container {
 }
 
 :root.has-wallpaper {
-    --sidebar-glass-bg: rgba(13, 17, 23, 0.8);
-    --notes-glass-bg: rgba(16, 20, 27, 0.9);
+    /* ChromeBar 的玻璃底色：深色主题下比内容卡片亮一档，卡片才浮得出来 */
+    --chrome-glass-bg: rgba(22, 27, 34, 0.8);
 }
 
 :root.has-wallpaper.light {
-    --sidebar-glass-bg: rgba(255, 255, 255, 0.8);
-    --notes-glass-bg: rgba(255, 255, 255, 0.9);
+    --chrome-glass-bg: rgba(255, 255, 255, 0.8);
 }
 
-html.has-wallpaper .sidebar {
-    background-color: var(--sidebar-glass-bg);
+/* ChromeBar（侧栏 + 顶栏 + 标签栏）是整窗唯一的一层玻璃，
+   背景只挂在 .app-chrome 上，侧栏/顶栏都是透明的，所以是连续的一整块 */
+html.has-wallpaper:not(.sidebar-blur-off) .app-chrome {
+    background-color: var(--chrome-glass-bg);
     -webkit-backdrop-filter: blur(16px);
     backdrop-filter: blur(16px);
 }
 
-html.has-wallpaper .notes-panel {
-    background-color: transparent;
-    isolation: isolate;
+html.has-wallpaper.sidebar-blur-off .app-chrome {
+    background-color: var(--bg-titlebar);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
-/* 模糊放在不滚动的底层伪元素上：列表滚动时只重绘内容，不重算整块模糊 */
-html.has-wallpaper .notes-panel::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-color: var(--notes-glass-bg);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: -1;
-}
-
-html.has-wallpaper:not(.sidebar-blur-off) .topbar {
-    background-color: var(--sidebar-glass-bg);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-}
-
-/* 内拐角补块：尺寸很小，用同样的毛玻璃盖住圆角外的缺口 */
-html.has-wallpaper:not(.sidebar-blur-off) .app-chrome::before {
-    background-color: var(--sidebar-glass-bg);
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-}
-
-html.has-wallpaper.sidebar-blur-off .app-chrome::before {
-    background-color: var(--bg-sidebar);
+/* 内容卡片是实心的，壁纸只透过 ChromeBar */
+html.has-wallpaper .content-card {
+    background-color: var(--bg-editor);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }
@@ -99,33 +76,6 @@ html.has-wallpaper .settings-sidebar {
 html.has-wallpaper .settings-topbar {
     background-color: transparent;
     border-bottom-color: var(--border-light);
-}
-
-html.has-wallpaper.sidebar-blur-off .sidebar {
-    background-color: var(--bg-sidebar);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-}
-
-html.has-wallpaper.sidebar-blur-off .notes-panel {
-    background-color: var(--bg-list);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-}
-
-/* 开发者选项：毛玻璃透明 —— 保留半透明底色，但去掉模糊，直接透出背景 */
-html.glass-transparent .sidebar,
-html.glass-transparent .notes-panel,
-html.glass-transparent .topbar,
-html.glass-transparent .workspace-tabs-glass {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-}
-
-html.has-wallpaper.sidebar-blur-off .topbar {
-    background-color: var(--bg-sidebar);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
 }
 
 html.has-wallpaper.sidebar-blur-off .settings-topbar {

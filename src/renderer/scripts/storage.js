@@ -962,7 +962,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarBlur: true, glassTransparent: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
+    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
 
 try {
         if (fs.existsSync(CONFIG_FILE)) {
@@ -1129,8 +1129,6 @@ const aiChats = loadAiChats(config.aiActiveChat);
         uiScale: normalizeUiScale(config.uiScale),
         spellcheck: !!config.spellcheck,
 
-        sidebarBlur: config.sidebarBlur !== false,
-    glassTransparent: config.glassTransparent === true,
         sidebarCollapsed: !!config.sidebarCollapsed,
         trashRetentionDays: normalizeTrashRetentionDays(config.trashRetentionDays),
 
@@ -1188,8 +1186,6 @@ function saveConfig() {
             uiScale: normalizeUiScale(State.uiScale),
             spellcheck: State.spellcheck,
 
-            sidebarBlur: State.sidebarBlur !== false,
-            glassTransparent: State.glassTransparent === true,
             sidebarCollapsed: !!State.sidebarCollapsed,
             trashRetentionDays: normalizeTrashRetentionDays(State.trashRetentionDays),
 
