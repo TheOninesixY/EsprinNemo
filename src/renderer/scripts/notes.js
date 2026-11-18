@@ -68,8 +68,6 @@ async function promptNewItemTag(itemId) {
     addItemTag(itemId, name);
 }
 
-/* 「添加标签」窗口：可输入新标签，也可多选已有标签。
-   编辑器顶栏的按钮和笔记卡片上的 + 号共用这一个。 */
 async function promptAddItemTags(item) {
     if (!item || isReadOnlyItem(item)) return;
 
@@ -234,7 +232,6 @@ function openTab(noteId) {
 }
 
 function openSettingsTab() {
-    // 设置不占用标签页，只在工作区里切换视图
     State.activeNoteId = 'settings';
     renderApp();
 }

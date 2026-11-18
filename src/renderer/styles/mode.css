@@ -6,7 +6,7 @@ html.modern-layout {
     /* AI 助手面板展开时的宽度 */
     --modern-ai-panel-width: 360px;
     /* 内容卡片与窗口右侧/底部的间距，让卡片四边都露出 ChromeBar */
-    --modern-content-gap: 8px;
+    --modern-content-gap: 6px;
     /* 内容卡片圆角 */
     --modern-card-radius: calc(var(--radius-md) * 1.6);
 }

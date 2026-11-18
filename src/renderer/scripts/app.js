@@ -56,8 +56,6 @@ let saved = {};
 
     State.uiScale = normalizeUiScale(saved.uiScale);
     State.spellcheck = typeof saved.spellcheck === 'boolean' ? saved.spellcheck : false;
-
-    // 毛玻璃是开发者选项里的内存开关，不从配置读取
     State.sidebarBlur = false;
     State.sidebarCollapsed = true;
     State.trashRetentionDays = normalizeTrashRetentionDays(saved.trashRetentionDays);

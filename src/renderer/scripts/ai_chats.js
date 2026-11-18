@@ -89,11 +89,6 @@ function deriveAiChatTitle(text) {
         ? `${cleaned.slice(0, AI_CHAT_TITLE_MAX_LENGTH)}…`
         : cleaned;
 }
-
-// ---------- 落盘 ----------
-
-// 对话本体在 switchAiConversation / 发消息等处按份保存，这里只管“当前选中哪一份”，
-// 它记在 config.json 中，因此只切对话时不会产生多余的对话文件写入
 function scheduleSaveActiveAiChat() {
     clearTimeout(aiChatsSaveTimer);
     aiChatsSaveTimer = setTimeout(() => {
@@ -108,8 +103,6 @@ function flushActiveAiChatSave() {
     aiChatsSaveTimer = null;
     saveConfig();
 }
-
-// 接管一份对话记录（启动载入、切换数据目录时调用）
 function adoptAiChats(chats) {
     const source = (chats && typeof chats === 'object') ? chats : {};
     State.aiConversations = Array.isArray(source.conversations) ? source.conversations : [];
@@ -117,10 +110,6 @@ function adoptAiChats(chats) {
     ensureAiConversations();
     closeAiDrawer();
 }
-
-// ---------- 对话操作 ----------
-
-// 新建对话：当前对话还是一张白纸时直接复用它，避免连点攒出一堆空对话
 function newAiConversation() {
     const current = activeAiConversation();
     if (current.messages.length) {
@@ -128,7 +117,6 @@ function newAiConversation() {
         State.aiConversations.unshift(chat);
         State.aiActiveConversationId = chat.id;
         trimAiConversations();
-        // 新对话落盘为一份独立文件，当前对话的切换记到 config.json
         saveAiChat(chat);
         saveConfig();
     }
@@ -147,7 +135,6 @@ function switchAiConversation(id) {
     if (!chat) return;
     if (chat.id !== State.aiActiveConversationId) {
         State.aiActiveConversationId = chat.id;
-        // 只换了当前对话，攒一下再写，避免连点产生多次写入
         scheduleSaveActiveAiChat();
     }
     closeAiDrawer();
@@ -172,21 +159,16 @@ async function deleteAiConversation(id) {
         danger: true
     });
     if (!confirmed) return;
-
-    // 正在往这个对话里写回答时先停掉，避免继续写入已被删除的对话
     if (State.aiStreaming && State.aiStreamingChatId === id) stopAiGeneration();
 
     State.aiConversations = State.aiConversations.filter(item => item.id !== id);
-    // 对话文件与其中的图片附件同步删除，不留孤儿数据
     deleteAiChatFile(id);
     releaseAiAttachments(chat.messages);
 
     if (State.aiActiveConversationId === id) {
         State.aiActiveConversationId = State.aiConversations.length ? State.aiConversations[0].id : '';
     }
-    // 删掉最后一个时立刻补一个空白对话，界面不会出现“无对话可用”的状态
     ensureAiConversations();
-    // 当前对话可能已变化，写回 config.json
     saveConfig();
     renderAiMessages();
     renderAiChatList();
@@ -214,8 +196,6 @@ async function renameAiConversation(id) {
     showToast(value ? '已重命名对话' : '已恢复自动标题');
 }
 
-// ---------- 对话记录抽屉 ----------
-
 function openAiDrawer() {
     const drawer = document.getElementById('ai-drawer');
     if (!drawer) return;
@@ -242,7 +222,7 @@ function createAiChatActionButton(icon, title, handler) {
     btn.title = title;
     btn.innerHTML = `<span class="ms-icon xs">${icon}</span>`;
     btn.onclick = (event) => {
-        event.stopPropagation(); // 避免顺带触发所在条目的“切换对话”
+        event.stopPropagation();
         handler();
     };
     return btn;

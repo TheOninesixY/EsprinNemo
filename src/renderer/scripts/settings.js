@@ -14,10 +14,9 @@ let activeSettingsCategory = SETTINGS_CATEGORIES[0].id;
 function isDevRunActive() {
     if (typeof dataDirInfo !== 'undefined' && dataDirInfo && dataDirInfo.isDevRun) return true;
     try {
-        // `electron .` 开发运行时 defaultApp 为 true；打包后为 undefined
         if (typeof process !== 'undefined' && process && process.defaultApp === true) return true;
     } catch (err) {
-        /* ignore */
+
     }
     return false;
 }

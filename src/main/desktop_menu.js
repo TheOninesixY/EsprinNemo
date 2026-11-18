@@ -122,17 +122,12 @@ function commandLine(extraArgs) {
   const target = launchTarget();
   return [quoteArg(target.exe), ...target.args.map(quoteArg), ...extraArgs].join(' ');
 }
-
-// 菜单项文字：去掉首尾空白，过长截断，空标题给一个兜底名称
 function menuLabel(title) {
   const text = String(title || '').replace(/\s+/g, ' ').trim();
   if (!text) return UNTITLED;
   return text.length > LABEL_MAX ? `${text.slice(0, LABEL_MAX - 1)}…` : text;
 }
 
-/* 整棵菜单树的 .reg 文本：先删旧树（三棵键都要删，上一版的子项就挂在菜单键自己的
-   shell 子键下），再按当前列表写回。顺序即菜单里的顺序：
-   新建 → 各张（显示）→ 各张（关闭）→ 批量显示 / 收起。 */
 function buildRegFile(items) {
   const lines = [
     'Windows Registry Editor Version 5.00',
@@ -144,16 +139,13 @@ function buildRegFile(items) {
     `@="${regEscape(MENU_LABEL)}"`,
     `"MUIVerb"="${regEscape(MENU_LABEL)}"`,
     `"Icon"="${regEscape(menuIconValue())}"`,
-    // 排在桌面右键菜单靠下的位置，不挤动系统原有的项
     '"Position"="Bottom"',
-    // 子菜单在另一棵键上（见文件头的说明）
     `"ExtendedSubCommandsKey"="${ITEMS_KEY_NAME}"`
   ];
 
   const entries = [
     { verb: '01-new', label: '贴上便利贴', args: [`${ACTION_PREFIX}pick`] }
   ];
-  // 每张便利贴占两条：先是「显示」（收起状态下贴回来），后是「关闭并移除」
   items.forEach((item, index) => {
     entries.push({
       verb: `20-${String(index + 1).padStart(3, '0')}-${item.id}`,
@@ -185,15 +177,12 @@ function buildRegFile(items) {
 
   return `${lines.join('\r\n')}\r\n`;
 }
-
-// 把菜单树写进注册表：一次 reg import（文件为 UTF-16LE + BOM，标题里的中文才不会走样）
 function applyMenu(items) {
   if (!isSupported()) return false;
 
   let file = '';
   try {
     file = path.join(app.getPath('temp'), TEMP_FILE_NAME);
-    // BOM 不能省：reg import 靠它认出 UTF-16
     fs.writeFileSync(file, Buffer.from(`\ufeff${buildRegFile(items)}`, 'utf16le'));
   } catch (error) {
     console.error('[ERROR] [DesktopMenu] 写入注册表脚本失败:', error);
@@ -203,8 +192,7 @@ function applyMenu(items) {
   try {
     execFileSync(REG_EXE, ['import', file], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   } catch (error) {
-    /* 注册表脚本原样留着：双击一下就能看到 regedit 报的是哪一行，
-       比只看一段 stderr 好定位得多（下次写入会覆盖它） */
+
     const detail = [error && error.stdout, error && error.stderr, error && error.message]
       .map((part) => String(part || '').trim().split(/\r?\n/).filter(Boolean).pop() || '')
       .find(Boolean) || '';
@@ -215,7 +203,6 @@ function applyMenu(items) {
   try {
     fs.unlinkSync(file);
   } catch (error) {
-    // 临时文件删不掉只影响临时目录的整洁，忽略
   }
   return true;
 }
@@ -229,8 +216,6 @@ function currentItems() {
     return [];
   }
 }
-
-// 「id + 标题」清单：没变就不重复写注册表（正文改动不会走到这里）
 function signatureOf(items) {
   return items.map((item) => `${item.id}\u0000${item.title || ''}`).join('\u0001');
 }
@@ -245,8 +230,6 @@ function flushMenu() {
   lastSignature = signature;
 }
 
-/* 便利贴增删或换标题后调用：防抖后再重建菜单。
-   调用点见 sticky_notes.js 的记录写入，正文与窗口位置的变化不会改变清单签名。 */
 function syncDesktopMenu() {
   if (!enabled) return;
   if (timer) clearTimeout(timer);
@@ -255,8 +238,6 @@ function syncDesktopMenu() {
     flushMenu();
   }, SYNC_DELAY);
 }
-
-// 注册菜单并写入当前清单；平台不支持时只留一条日志，其余功能不受影响
 function registerDesktopMenu() {
   if (!isSupported()) {
     console.warn('[WARN] [DesktopMenu] 当前平台没有可用的 reg.exe，跳过桌面右键菜单注册');
@@ -274,8 +255,6 @@ function registerDesktopMenu() {
   console.log(`[INFO] [DesktopMenu] Registered desktop context menu (items=${items.length} icon=${menuIcon ? 'generated' : 'exe'})`);
   return true;
 }
-
-// 应用退出：删除整棵菜单树，桌面上不再留下指向本应用的菜单项
 function unregisterDesktopMenu() {
   enabled = false;
   if (timer) {
@@ -283,8 +262,6 @@ function unregisterDesktopMenu() {
     timer = null;
   }
   if (!isSupported()) return;
-
-  // 两棵键都要删：菜单本身，以及子项所在的那棵树
   [MENU_KEY_FULL, ITEMS_KEY_FULL].forEach((key) => {
     try {
       execFileSync(REG_EXE, ['delete', key, '/f'], { windowsHide: true, stdio: 'ignore' });

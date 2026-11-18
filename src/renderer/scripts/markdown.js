@@ -37,20 +37,14 @@ function escapeLinkAttribute(value) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 }
-
-// 返回可安全写入 href 的地址；协议不被放行时返回空字符串（调用方降级为纯文本）
 function sanitizeLinkUrl(raw) {
     const decoded = decodeLinkEntities(raw).trim();
     if (!decoded) return '';
     const compact = decoded.replace(LINK_INVISIBLE_PATTERN, '').toLowerCase();
     const scheme = compact.match(LINK_SCHEME_PATTERN);
-    // 允许 http(s), mailto, tel，或站内相对路径（以 assets/、./、/ 或普通文件名开头）
     if (scheme && !SAFE_LINK_SCHEME.test(scheme[0])) return '';
     return escapeLinkAttribute(decoded);
 }
-
-// 解析并转换图片或媒体资源地址：
-// 若为相对路径（如 assets/xxx.png），转为带有 file:// 协议的真实文件 URL，以便 Chromium 正常展示本地媒体
 function resolveMediaSrc(raw) {
     const decoded = decodeLinkEntities(raw).trim();
     if (!decoded) return '';
@@ -62,20 +56,14 @@ function resolveMediaSrc(raw) {
         }
         return '';
     }
-    // 相对路径：直接返回原始路径，由各调用方（editor.js 等）根据当前笔记 ID 解析到正确目录
     return escapeLinkAttribute(decoded);
 }
 
 const marked = {
     parse(value = '') {
         if (!value) return '';
-
-        // 占位符不能包含 * _ ~ ` [ ] 等 Markdown 语义字符，
-        // 否则会被后续的加粗/斜体等正则改写，导致无法还原
         const CODE_BLOCK_TOKEN = (i) => `@@ESPRINCODEBLOCK${i}@@`;
         const INLINE_CODE_TOKEN = (i) => `@@ESPRININLINECODE${i}@@`;
-
-        // 1. 暂存代码块，避免代码块内容被其他正则破坏
         const codeBlocks = [];
         let text = String(value).replace(/```([a-zA-Z0-9_-]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
             const id = CODE_BLOCK_TOKEN(codeBlocks.length);
@@ -88,8 +76,6 @@ const marked = {
             codeBlocks.push(`<pre><code class="language-${lang || 'text'}">${escapedCode}</code></pre>`);
             return id;
         });
-
-        // 2. 暂存行内代码
         const inlineCodes = [];
         text = text.replace(/`([^`\n]+)`/g, (match, code) => {
             const id = INLINE_CODE_TOKEN(inlineCodes.length);
@@ -100,8 +86,6 @@ const marked = {
             inlineCodes.push(`<code>${escapedCode}</code>`);
             return id;
         });
-
-        // 3. 基础 HTML 转义
         text = text
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')

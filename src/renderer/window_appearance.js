@@ -42,15 +42,10 @@ function quoteFontFamily(name) {
         const safe = name.trim().replace(/["\\;{}]/g, '');
         return safe ? '"' + safe + '"' : '';
     }
-
-    // 明暗主题：light / dark（system 由调用方折算为实际明暗色）。未传值时保持现状，不擅自改动
     function applyTheme(theme) {
         if (theme !== 'light' && theme !== 'dark') return;
         document.documentElement.classList.toggle('light', theme === 'light');
     }
-
-    // 主题风格（皮肤）：只挂属性，配色交给 styles/alom.css 与 styles/magic_style.css 的
-    // :root[data-theme-style="..."] 解析
     function applyThemeStyle(style) {
         const known = style === 'alom' || style === 'magic' ? style : 'default';
         document.documentElement.dataset.themeStyle = known;

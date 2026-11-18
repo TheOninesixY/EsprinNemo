@@ -1,28 +1,3 @@
-# Esprin Nemo - Windows system speech recognition bridge (one process per dictation session).
-#
-# Why this file is ASCII-only with English comments:
-#   Windows PowerShell 5.1 reads BOM-less .ps1 files as ANSI, so non-ASCII source breaks parsing.
-#   The host script (src/main/speech_windows.js) therefore never runs this file from disk:
-#   it reads the text, encodes it as UTF-16LE base64 and passes it via -EncodedCommand,
-#   which also removes every command-line quoting question.
-#
-# Engine: System.Speech.Recognition.SpeechRecognitionEngine + DictationGrammar.
-#   The desktop recognizer runs entirely on this machine (no service, no network):
-#   dictation audio never leaves the machine, which is what the app promises.
-#   The Windows.Media.SpeechRecognition (WinRT) dictation scenario is not used on purpose:
-#   its topic grammar is provided by an online service, and its Constraints collection
-#   cannot be built from PowerShell (the COM projection exposes no Add).
-#
-# Protocol: one JSON object per line on stdout, all non-ASCII escaped as \uXXXX so the
-#   console code page cannot corrupt the stream. Types:
-#   status  - engines[] / systemCulture          (one-shot -Mode status)
-#   ready   - engine id + culture                (listen mode, after audio input is armed)
-#   partial - interim text for the current utterance
-#   final   - finalized text with confidence
-#   rejected- utterance was heard but not matched
-#   error   - code + message, followed by exit 1
-#
-# Injected by the host before encoding: $mode ('status' | 'listen') and $culture ('zh-CN', ...).
 if (-not $mode) { $mode = 'status' }
 if (-not $culture) { $culture = '' }
 
@@ -74,7 +49,6 @@ if ($mode -eq 'status') {
     exit 0
 }
 
-# ---- listen mode ----
 $engine = $null
 try {
     if ($culture) {
@@ -89,7 +63,7 @@ try {
 }
 
 try {
-    # DictationGrammar is the free-form grammar; it is evaluated by the local engine.
+
     $engine.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar))
     $engine.SetInputToDefaultAudioDevice()
 } catch {
@@ -103,7 +77,7 @@ Register-ObjectEvent -InputObject $engine -EventName SpeechHypothesized -SourceI
 Register-ObjectEvent -InputObject $engine -EventName SpeechRecognitionRejected -SourceIdentifier EsprinSpeechRejected | Out-Null
 
 try {
-    # Multiple: keep recognizing until the session is cancelled, so the caller can dictate for as long as it likes.
+
     $engine.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)
 } catch {
     Write-EventLine 'error' @{ code = 'Recognition'; message = $_.Exception.Message }

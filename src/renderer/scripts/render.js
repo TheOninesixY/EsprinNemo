@@ -197,7 +197,6 @@ State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || !!getIte
 
 const signature = `${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
         const item = id === 'settings' ? null : getItemById(id);
-        // 加密状态（含本轮是否已解锁）跟着进签名：上锁 / 解锁后标题没变，图标也要换
         const secret = item && item.locked === true ? (item.unlocked === true ? 2 : 1) : 0;
         return `${id}\u0002${item ? (item.title || '') : ''}\u0002${secret}`;
     }).join('\u0001')}`;
@@ -328,8 +327,6 @@ function playTabCloseFlyAway(tabId) {
     if (!rect.width || !rect.height) return;
 
     tabCloseShift = { at: performance.now(), lefts };
-
-    // 关闭动画统一往下滑：把残影放进标签栏的裁切框里，滑到栏底就被切掉
     ghost.classList.add(TAB_FLY_DOWN_CLASS);
 
     const clip = buildTabFlyClip(barRect);
@@ -734,7 +731,6 @@ function createCardFolderSelect(item) {
     return select;
 }
 
-/* 笔记卡片上的「添加标签」：一个加号按钮，点了直接弹「添加标签」窗口 */
 function createCardTagAddButton(item) {
     const btn = document.createElement('button');
     btn.type = 'button';

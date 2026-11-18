@@ -14,7 +14,6 @@ function syncNewButtonTitles() {
 
 function applySidebarBlur() {
     const root = document.documentElement;
-    // 默认关闭：只有开发者选项里打开时才去掉这个类
     root.classList.toggle(SIDEBAR_BLUR_OFF_CLASS, State.sidebarBlur !== true);
 }
 
@@ -24,7 +23,6 @@ function toggleSidebarBlur(enabled) {
 
     State.sidebarBlur = next;
     applySidebarBlur();
-    // 开发者选项里的开关不写入配置，只在本次运行内生效
 
     showToast(next ? '已开启毛玻璃效果' : '已关闭毛玻璃效果');
 }

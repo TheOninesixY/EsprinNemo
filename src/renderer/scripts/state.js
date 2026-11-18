@@ -30,8 +30,6 @@ uiScale: 1,
 
 filterFolder: '',
     filterTag: '',
-
-    // 开发者选项里的毛玻璃开关：只在内存里，不写入配置，默认关闭
     sidebarBlur: false,
 
     sidebarCollapsed: true,

@@ -56,8 +56,6 @@ function quoteFontFamily(name) {
     const safe = name.trim().replace(/["\\;{}]/g, '');
     return safe ? `"${safe}"` : '';
 }
-
-// 写入 CSS 变量；留空表示移除内联覆盖，回落到样式表中定义的默认字体栈
 function applyFonts() {
     const rootStyle = document.documentElement.style;
     const fonts = normalizeFonts(State.fonts);
@@ -75,8 +73,6 @@ function applyFonts() {
         }
     });
 }
-
-// 西文与 CJK 分开选择，但两者共用同一份系统字体列表
 const FONT_SELECT_CONFIG = [
     { id: 'setting-font-ui-latin', key: 'uiLatin' },
     { id: 'setting-font-ui-cjk', key: 'uiCjk' },
@@ -125,8 +121,6 @@ function populateFontSelects(families) {
         appendFontGroup(select, '常用字体', common);
         appendFontGroup(select, '中日韩字体', cjk);
         appendFontGroup(select, '其他字体', others);
-
-        // 已保存但本机已卸载/未枚举到的字体仍保留为选项，避免配置被静默丢弃
         const selected = fonts[config.key];
         if (selected && !known.has(lower(selected))) {
             appendFontGroup(select, '当前设置', [selected]);
@@ -139,8 +133,6 @@ function populateFontSelects(families) {
 }
 
 function syncFontSelects() {
-    // 字体列表用到时才枚举：本机字体可能有上千个，枚举会占用启动阶段的时间，
-    // 而字体下拉框只在「设置 → 字体」里出现
     ensureFontListLoaded();
     if (!fontListPopulated) return;
     const fonts = normalizeFonts(State.fonts);
@@ -149,8 +141,6 @@ function syncFontSelects() {
         if (select) select.value = fonts[config.key] || '';
     });
 }
-
-// 枚举本机字体并填充下拉框（结果与失败都会写入设置页的状态行）
 async function loadFontList() {
     try {
         let families = await queryFontsViaApi();

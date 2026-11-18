@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# husky 钩子必须用 LF，否则 Windows 上 sh 会解析失败
+.husky/* text eol=lf
