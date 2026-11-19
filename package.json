@@ -9,6 +9,8 @@
   "scripts": {
     "start": "bun x electron .",
     "build": "electron-builder --win --linux --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:linux": "electron-builder --linux --publish never",
     "build:all": "bun run build&&bun build:sync",
     "start:sync": "bun src/sync/server.js",
     "start:mobile": "bun scripts/mobile_serve.js",

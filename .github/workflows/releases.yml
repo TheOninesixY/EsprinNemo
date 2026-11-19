@@ -1,4 +1,3 @@
-
 name: Build and Release
 
 on:
@@ -18,11 +17,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    container:
-      image: electronuserland/builder:wine
-    timeout-minutes: 60
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -30,6 +27,125 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid package version: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build Windows artifacts
+        run: bun run build:win
+        env:
+          CI: "false"
+
+      - name: Collect artifacts
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp -- "dist/EsprinNemo.Setup.v${VERSION}.exe" release-assets/
+          cp -- "dist/EsprinNemo.Portable.v${VERSION}.exe" release-assets/
+          ls -lh release-assets
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: release-assets/*
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid package version: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build Linux artifacts
+        run: |
+          bun run build:linux
+          bun run build:sync
+        env:
+          CI: "false"
+
+      - name: Collect artifacts
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp -- "dist/EsprinNemo.v${VERSION}.AppImage" release-assets/
+          cp -- "dist/EsprinSync.v${VERSION}.exe" release-assets/
+          cp -- "dist/EsprinSync.v${VERSION}" release-assets/
+          ls -lh release-assets
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: release-assets/*
+          if-no-files-found: error
+
+  publish:
+    needs:
+      - windows
+      - linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Read package version
         id: version
@@ -43,46 +159,16 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
 
-      - name: Build all
-        run: bun build:all
-        env:
-          CI: "false"
-          HOME: /tmp
-          WINEPREFIX: /tmp/.wine
-
-      - name: Prepare release assets
+      - name: Check assets
         shell: bash
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          mkdir -p release-assets
-
-          copy_one() {
-            local pattern="$1"
-            local -a matches=()
-            shopt -s nullglob
-            matches=(dist/$pattern)
-            shopt -u nullglob
-
-            if [[ ${#matches[@]} -ne 1 ]]; then
-              echo "::error::Expected one file matching dist/$pattern; found ${#matches[@]}"
-              printf '%s\n' "${matches[@]}"
-              exit 1
-            fi
-
-            cp -- "${matches[0]}" release-assets/
-          }
-
-          copy_one "EsprinNemo.v${VERSION}.AppImage"
-          copy_one "EsprinNemo.Portable.v${VERSION}.exe"
-          copy_one "EsprinNemo.Setup.v${VERSION}.exe"
-          copy_one "EsprinSync.v${VERSION}.exe"
-          copy_one "EsprinSync.v${VERSION}"
-
           test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 5
           ls -lh release-assets
 
@@ -99,20 +185,3 @@ jobs:
             release-assets/EsprinNemo.Setup.v${{ steps.version.outputs.version }}.exe
             release-assets/EsprinSync.v${{ steps.version.outputs.version }}.exe
             release-assets/EsprinSync.v${{ steps.version.outputs.version }}
-
-      - name: Clean release files
-        if: success()
-        shell: bash
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          set -euo pipefail
-          rm -f -- \
-            "dist/EsprinNemo.v${VERSION}.AppImage" \
-            "dist/EsprinNemo.Portable.v${VERSION}.exe" \
-            "dist/EsprinNemo.Setup.v${VERSION}.exe" \
-            "dist/EsprinSync.v${VERSION}.exe" \
-            "dist/EsprinSync.v${VERSION}" \
-            "dist/EsprinNemo.Setup.v${VERSION}.exe.blockmap"
-
-          rm -rf release-assets

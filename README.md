@@ -262,7 +262,7 @@ bun start
 bun run build
 ```
 
-`bun run build` 按当前平台构建（也可显式指定 `bun run build:win` / `bun run build:linux`），产物位于 `dist/`：
+`bun run build` 同时构建 Windows 与 Linux 产物，也可以用 `bun run build:win` / `bun run build:linux` 只构建其中一个平台，产物位于 `dist/`：
 
 | 产物 | 说明 |
 | --- | --- |
@@ -279,7 +279,7 @@ bun run build
 ### 发布新版本
 
 1. 修改 `package.json` 的 `version`，并将本版说明写入 [`.github/releases.md`](.github/releases.md)
-2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 分两个作业：`windows-latest` 上安装依赖、执行 `bun run build`，产物 `dist/*.exe` 随 tag `v<版本>` 发布到 GitHub Releases（Release 说明取自 `.github/releases.md`；该 tag 已存在时跳过，不重复发布）；随后 `ubuntu-latest` 上构建 AppImage 并以 `gh release upload` 附加到同一个 Release（Windows 作业被跳过时，Linux 作业也随之跳过）
+2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 分三个作业：`windows` 在 `windows-latest` 上原生构建安装包与便携版（`bun run build:win`），`linux` 在 `ubuntu-latest` 上构建 AppImage 与同步端可执行文件（`bun run build:linux` 加 `bun run build:sync`），两者并行；随后 `publish` 把五个文件统一发布到 tag `v<版本>` 的 Release（说明取自 `.github/releases.md`）。两个构建作业都用 `actions/cache` 复用 Electron 与 electron-builder 的下载缓存
 3. 旧版本应用的自动更新会检测到该 Release 并升级（Linux 上会把新 AppImage 下载到下载目录，由用户自行替换），见[应用更新](#应用更新)
 
 官网源码位于 [`.github/pages`](.github/pages)，是一份纯静态站点，没有构建步骤：`index.html` + `styles.css` + `material-symbols-rounded.woff2`，图片与字体通过 `assets/`、`about/` 两个软链接指向仓库根目录的同名文件夹。
