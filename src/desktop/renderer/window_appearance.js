@@ -25,7 +25,6 @@ function readArg(name) {
 function readWindowAppearanceFromArgs() {
         return {
             theme: readArg('theme'),
-            style: readArg('style'),
             radius: readArg('radius'),
             accent: readArg('accent'),
             fonts: {
@@ -45,10 +44,6 @@ function quoteFontFamily(name) {
     function applyTheme(theme) {
         if (theme !== 'light' && theme !== 'dark') return;
         document.documentElement.classList.toggle('light', theme === 'light');
-    }
-    function applyThemeStyle(style) {
-        const known = style === 'alom' || style === 'magic' ? style : 'default';
-        document.documentElement.dataset.themeStyle = known;
     }
 
 function applyRadius(radius) {
@@ -126,7 +121,6 @@ function applyFonts(fonts) {
 function applyWindowAppearance(options) {
         const source = options && typeof options === 'object' ? options : {};
         applyTheme(source.theme);
-        applyThemeStyle(source.style);
         applyRadius(source.radius);
         applyAccent(source.accent);
         applyFonts(source.fonts);

@@ -3,15 +3,18 @@
   "version": "3.4.0",
   "main": "src/desktop/main/main.js",
   "description": "Note, Nothing.",
-  "icon": "src/desktop/assets/icon.png",
-  "svg_icon": "src/desktop/assets/icon.svg",
+  "icon": "assets/icon.png",
+  "svg_icon": "assets/icon.svg",
   "author": "TheOninesixY <oninesixy@qq.com>",
   "scripts": {
-    "start": "electron .",
+    "start": "bun x electron .",
     "build": "electron-builder --win --linux --publish never",
     "build:all": "bun run build&&bun build:sync",
-    "start:sync": "bun src/desktop/sync/server.js",
+    "start:sync": "bun src/sync/server.js",
+    "start:mobile": "bun scripts/mobile_serve.js",
+    "start:website": "bun scripts/website_serve.js",
     "build:sync": "bun scripts/sync_build.js",
+    "build:mobile": "bun scripts/mobile_build.js",
     "prepare": "husky"
   },
   "private": true,
@@ -25,7 +28,8 @@
     "productName": "Esprin Nemo",
     "files": [
       "src/desktop/",
-      "!src/desktop/sync/**",
+      "assets/",
+      "!src/sync/**",
       "!src/mobile/**"
     ],
     "win": {
@@ -59,6 +63,7 @@
     }
   },
   "dependencies": {
-    "material-symbols": "^0.47.4"
+    "material-symbols": "^0.47.4",
+    "ui-ux-pro-max-cli": "^2.15.0"
   }
 }

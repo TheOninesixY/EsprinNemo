@@ -76,13 +76,11 @@ try {
     let theme = 'system';
     let fonts = null;
     let accentColor = 'system';
-    let themeStyle = 'default';
     let cornerRadius = 'default';
     let uiScale = 1;
     if (fs.existsSync(configPath)) {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
         if (config && config.theme) theme = config.theme;
-        if (config && typeof config.themeStyle === 'string') themeStyle = config.themeStyle;
         if (config && config.fonts && typeof config.fonts === 'object') fonts = config.fonts;
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
@@ -94,7 +92,6 @@ try {
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
     applyWindowAppearance({
         theme: isLight ? 'light' : 'dark',
-        style: themeStyle,
         radius: cornerRadius,
         accent: accentColor,
         fonts

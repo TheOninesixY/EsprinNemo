@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="theme-color" content="#161b22">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="EsprinNemo">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>Esprin Nemo</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="stylesheet" href="/node_modules/material-symbols/rounded.css">
+    <link rel="stylesheet" href="./styles/tokens.css">
+    <link rel="stylesheet" href="./styles/base.css">
+    <link rel="stylesheet" href="./styles/list.css">
+    <link rel="stylesheet" href="./styles/editor.css">
+    <link rel="stylesheet" href="./styles/settings.css">
+</head>
+<body>
+    <div class="app" id="app">
+
+        <section class="pane pane-list" id="pane-list">
+            <header class="topbar">
+                <div class="app-brand" aria-hidden="true">
+                    <span class="app-brand-icon" id="app-brand-icon"></span>
+                    <span class="app-brand-name">EsprinNemo</span>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-action-icon" id="btn-sync" type="button" title="立即同步" hidden>
+                        <span class="ms-icon ms-s16">sync</span>
+                    </button>
+                    <button class="btn-action-icon" id="btn-search" type="button" title="搜索">
+                        <span class="ms-icon ms-s16">search</span>
+                    </button>
+                    <button class="btn-action-icon" id="btn-menu" type="button" title="菜单" aria-expanded="false">
+                        <span class="ms-icon ms-s16">menu</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="menu-scrim" id="menu-scrim" hidden></div>
+            <div class="menu-pop" id="menu-pop" role="menu" hidden>
+                <div class="menu-pop-section">
+                    <span class="menu-pop-label">主题</span>
+                    <div class="segmented" id="menu-theme">
+                        <button type="button" data-theme="system">系统</button>
+                        <button type="button" data-theme="light">浅色</button>
+                        <button type="button" data-theme="dark">深色</button>
+                    </div>
+                </div>
+                <div class="menu-pop-section">
+                    <span class="menu-pop-label">排序</span>
+                    <div class="segmented" id="menu-sort">
+                        <button type="button" data-sort="updated-desc">修改</button>
+                        <button type="button" data-sort="created-desc">创建</button>
+                        <button type="button" data-sort="title-asc">标题</button>
+                    </div>
+                </div>
+                <button class="menu-pop-item" id="menu-filter" type="button" role="menuitem">
+                    <span class="ms-icon ms-s18">filter_list</span>
+                    <span id="filter-label">筛选</span>
+                    <span class="ms-icon ms-s16 menu-pop-arrow">chevron_right</span>
+                </button>
+                <button class="menu-pop-item" id="menu-settings" type="button" role="menuitem">
+                    <span class="ms-icon ms-s18">settings</span>
+                    <span>设置</span>
+                    <span class="ms-icon ms-s16 menu-pop-arrow">chevron_right</span>
+                </button>
+            </div>
+
+            <div class="list-scroll" id="list-scroll">
+                <div class="cards" id="cards"></div>
+                <div class="list-empty" id="list-empty" hidden>
+                    <span class="ms-icon ms-s48" id="list-empty-icon">description</span>
+                    <span class="list-empty-title" id="list-empty-title">还没有笔记</span>
+                    <span class="list-empty-text" id="list-empty-text">点 + 开始记录</span>
+                </div>
+            </div>
+
+            <nav class="tabbar" id="tabbar" aria-label="分类">
+                <button class="tab" type="button" data-filter="notes">
+                    <span class="tab-icon">
+                        <span class="ms-icon ms-s20">description</span>
+                    </span>
+                    <span class="tab-label">笔记</span>
+                </button>
+                <button class="tab" type="button" data-filter="todos">
+                    <span class="tab-icon">
+                        <span class="ms-icon ms-s20">check_box</span>
+                    </span>
+                    <span class="tab-label">待办</span>
+                </button>
+                <button class="tab" type="button" data-filter="pinned">
+                    <span class="tab-icon">
+                        <span class="ms-icon ms-s20">keep</span>
+                    </span>
+                    <span class="tab-label">置顶</span>
+                </button>
+                <button class="tab" type="button" data-filter="trash">
+                    <span class="tab-icon">
+                        <span class="ms-icon ms-s20">delete</span>
+                    </span>
+                    <span class="tab-label">废纸篓</span>
+                </button>
+            </nav>
+
+            <div class="compose" id="compose">
+                <div class="compose-actions" id="compose-actions">
+                    <button class="compose-action" id="btn-new-note" type="button">
+                        <span class="compose-circle"><span class="ms-icon ms-s18">description</span></span>
+                        <span class="compose-label">新建笔记</span>
+                    </button>
+                    <button class="compose-action" id="btn-new-todo" type="button">
+                        <span class="compose-circle"><span class="ms-icon ms-s18">check_box</span></span>
+                        <span class="compose-label">新建待办</span>
+                    </button>
+                </div>
+                <button class="fab" id="btn-compose" type="button" title="新建" aria-expanded="false">
+                    <span class="ms-icon ms-s24">add</span>
+                </button>
+            </div>
+        </section>
+
+        <section class="pane pane-editor" id="pane-editor">
+            <header class="topbar editor-topbar">
+                <button class="btn-action-icon" id="btn-editor-back" type="button" title="返回列表">
+                    <span class="ms-icon ms-s18">arrow_back</span>
+                </button>
+                <div class="editor-head">
+                    <span class="editor-kind">
+                        <span class="ms-icon ms-s13" id="editor-kind-icon">description</span>
+                        <span id="editor-kind">笔记</span>
+                    </span>
+                    <span class="editor-saved" id="editor-saved">已保存</span>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-action-icon" id="btn-editor-pin" type="button" title="置顶">
+                        <span class="ms-icon ms-s16">keep</span>
+                    </button>
+                    <button class="btn-action-icon" id="btn-editor-tag" type="button" title="标签">
+                        <span class="ms-icon ms-s16">label</span>
+                    </button>
+                    <button class="btn-action-icon" id="btn-editor-more" type="button" title="更多">
+                        <span class="ms-icon ms-s16">more_vert</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="editor-empty" id="editor-empty">
+                <span class="ms-icon ms-s48">edit_note</span>
+                <p>从左侧选一条笔记，或点 + 新建</p>
+            </div>
+
+            <div class="editor-meta" id="editor-meta" hidden></div>
+
+            <div class="editor-scroll" id="editor-scroll" hidden>
+                <div class="editor-title-area">
+                    <input class="editor-title-input" id="editor-title" type="text" placeholder="标题" spellcheck="false">
+                </div>
+                <div class="editor-content">
+                    <textarea class="editor-textarea" id="editor-body" placeholder="开始写点什么…" spellcheck="false"></textarea>
+                    <div class="editor-preview markdown-body" id="editor-preview" hidden></div>
+                </div>
+            </div>
+
+            <footer class="editor-footer" id="editor-foot" hidden>
+                <div class="footer-actions">
+                    <button class="footer-btn" id="btn-editor-mode" type="button">
+                        <span class="ms-icon ms-s13" id="editor-mode-icon">visibility</span>
+                        <span id="editor-mode-label">预览</span>
+                    </button>
+                    <button class="footer-btn" id="btn-editor-folder" type="button">
+                        <span class="ms-icon ms-s13">folder</span>
+                        <span id="editor-folder-label">默认</span>
+                    </button>
+                </div>
+                <span class="footer-stat" id="editor-stats"></span>
+            </footer>
+        </section>
+
+        <section class="pane pane-settings" id="pane-settings" hidden>
+            <div class="settings-dialog" role="dialog" aria-modal="true" aria-label="设置">
+                <header class="topbar">
+                    <button class="btn-action-icon" id="btn-settings-back" type="button" title="返回">
+                        <span class="ms-icon ms-s18">arrow_back</span>
+                    </button>
+                    <div class="topbar-title">
+                        <span class="ms-icon ms-s16">settings</span>
+                        <span>设置</span>
+                    </div>
+                    <div class="topbar-actions"></div>
+                </header>
+
+                <nav class="settings-nav" id="settings-nav" aria-label="设置分类">
+                    <button class="settings-nav-item active" type="button" data-section="appearance">
+                        <span class="ms-icon ms-s16">palette</span>
+                        <span>外观</span>
+                    </button>
+                    <button class="settings-nav-item" type="button" data-section="sync">
+                        <span class="ms-icon ms-s16">sync</span>
+                        <span>同步</span>
+                    </button>
+                    <button class="settings-nav-item" type="button" data-section="data">
+                        <span class="ms-icon ms-s16">storage</span>
+                        <span>数据</span>
+                    </button>
+                    <button class="settings-nav-item" type="button" data-section="about">
+                        <span class="ms-icon ms-s16">info</span>
+                        <span>关于</span>
+                    </button>
+                </nav>
+
+                <div class="settings-scroll" id="settings-scroll">
+                    <div class="settings-header">
+                        <span class="settings-title">
+                            <span class="ms-icon ms-s20" id="settings-title-icon">palette</span>
+                            <span id="settings-title">外观</span>
+                        </span>
+                        <span class="settings-desc" id="settings-desc">主题与排序</span>
+                    </div>
+
+                    <section class="settings-section" data-section="appearance">
+                        <div class="settings-rows">
+                            <div class="settings-row stack">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">主题</span>
+                                    <span class="settings-row-desc">跟随系统时随设备深色模式切换</span>
+                                </div>
+                                <div class="segmented" id="theme-segmented">
+                                    <button type="button" data-theme="system">跟随系统</button>
+                                    <button type="button" data-theme="light">浅色</button>
+                                    <button type="button" data-theme="dark">深色</button>
+                                </div>
+                            </div>
+                            <div class="settings-row stack">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">排序</span>
+                                    <span class="settings-row-desc">置顶的条目始终排在前面</span>
+                                </div>
+                                <div class="segmented" id="sort-segmented">
+                                    <button type="button" data-sort="updated-desc">最近修改</button>
+                                    <button type="button" data-sort="created-desc">创建时间</button>
+                                    <button type="button" data-sort="title-asc">标题</button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-section" data-section="sync" hidden>
+                        <div class="settings-rows">
+                            <div class="settings-row stack">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">服务器地址</span>
+                                    <span class="settings-row-desc">EsprinSync 的地址，与桌面端填同一个</span>
+                                </div>
+                                <input class="settings-field" id="sync-url" type="url" inputmode="url"
+                                       placeholder="http://192.168.1.10:8686" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="settings-row stack">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">账户与密码</span>
+                                    <span class="settings-row-desc">登录后换取本机长期令牌，密码不落盘</span>
+                                </div>
+                                <input class="settings-field" id="sync-account" type="text" placeholder="账户名"
+                                       autocomplete="username" spellcheck="false">
+                                <input class="settings-field" id="sync-password" type="password" placeholder="密码"
+                                       autocomplete="current-password">
+                            </div>
+                            <div class="settings-row stack">
+                                <div class="settings-status" id="sync-status">尚未配置</div>
+                                <div class="settings-actions">
+                                    <button class="settings-btn primary" id="btn-sync-login" type="button">
+                                        <span class="ms-icon ms-s14">login</span>
+                                        <span>登录</span>
+                                    </button>
+                                    <button class="settings-btn" id="btn-sync-now" type="button">
+                                        <span class="ms-icon ms-s14">sync</span>
+                                        <span>立即同步</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">退出同步</span>
+                                    <span class="settings-row-desc">只清除本机令牌，笔记不会被删除</span>
+                                </div>
+                                <button class="settings-btn danger" id="btn-sync-logout" type="button">退出</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-section" data-section="data" hidden>
+                        <div class="settings-rows">
+                            <div class="settings-row">
+                                <div class="settings-row-info"><span class="settings-row-label">笔记</span></div>
+                                <span class="settings-value" id="stat-notes">0</span>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info"><span class="settings-row-label">待办</span></div>
+                                <span class="settings-value" id="stat-todos">0</span>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info"><span class="settings-row-label">废纸篓</span></div>
+                                <span class="settings-value" id="stat-trash">0</span>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">占用空间</span>
+                                    <span class="settings-row-desc" id="stat-backend">IndexedDB</span>
+                                </div>
+                                <span class="settings-value" id="stat-size">0 B</span>
+                            </div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">清空本机数据</span>
+                                    <span class="settings-row-desc">下次同步会从服务器重新拉取</span>
+                                </div>
+                                <button class="settings-btn danger" id="btn-clear-local" type="button">清空</button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="settings-section" data-section="about" hidden>
+                        <p class="settings-note">
+                            与桌面端共用同一份条目文件：<code>items/&lt;id&gt;.md</code> 的
+                            <code>EsprinData</code> 头 + Markdown 正文，写入的字节完全一致；
+                            同步走同一个 EsprinSync 协议，任一侧的改动都能被另一侧原样读取。
+                        </p>
+                        <p class="settings-foot">Esprin Nemo · 移动版</p>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <section class="search-overlay" id="search-overlay" hidden>
+            <header class="topbar search-topbar">
+                <button class="btn-action-icon" id="btn-search-back" type="button" title="返回">
+                    <span class="ms-icon ms-s18">arrow_back</span>
+                </button>
+                <div class="search-field">
+                    <span class="ms-icon ms-s16">search</span>
+                    <input id="search-input" type="text" placeholder="搜索标题、正文、标签…"
+                           autocomplete="off" spellcheck="false">
+                    <button class="search-clear" id="btn-search-clear" type="button" title="清除" hidden>
+                        <span class="ms-icon ms-s13">close</span>
+                    </button>
+                </div>
+            </header>
+            <div class="search-body" id="search-body">
+                <p class="search-hint" id="search-hint">输入关键词开始搜索</p>
+                <p class="search-summary" id="search-summary" hidden></p>
+                <div class="cards" id="search-cards"></div>
+                <div class="list-empty" id="search-empty" hidden>
+                    <span class="ms-icon ms-s48">search_off</span>
+                    <span class="list-empty-title">没有找到结果</span>
+                    <span class="list-empty-text" id="search-empty-text"></span>
+                </div>
+            </div>
+        </section>
+
+        <div class="sheet-mask" id="sheet-mask" hidden></div>
+        <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden>
+            <div class="sheet-grip"></div>
+            <h2 class="sheet-title" id="sheet-title"></h2>
+            <div class="sheet-body" id="sheet-body"></div>
+        </div>
+
+        <div class="toast" id="toast" role="status" hidden></div>
+    </div>
+
+    <script type="module" src="./scripts/app.js"></script>
+</body>
+</html>

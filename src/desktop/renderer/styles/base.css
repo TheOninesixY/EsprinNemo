@@ -269,6 +269,9 @@ body.is-fullscreen .titlebar-tabs {
     background-color: var(--danger);
     color: #ffffff;
 }
+#win-max .ms-icon {
+    font-size: 12px;
+}
 
 .app-body {
     display: flex;

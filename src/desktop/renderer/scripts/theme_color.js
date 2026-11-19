@@ -127,10 +127,7 @@ function applyAccentColor() {
 function currentAccentColor() {
     const custom = resolveAccentHex(State.accentColor);
     if (custom) return custom;
-    const style = normalizeThemeStyle(State.themeStyle);
     const light = isLightThemeActive();
-    if (style === 'magic') return light ? '#7c3aed' : '#8b5cf6';
-    if (style === 'alom') return light ? '#007aff' : '#0a84ff';
     return light ? '#0969da' : '#58a6ff';
 }
 

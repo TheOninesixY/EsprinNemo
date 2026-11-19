@@ -8,18 +8,18 @@ const { spawnSync } = require('child_process');
 
 const MODULE = 'SyncBuild';
 const ROOT = path.resolve(__dirname, '..');
-const SYNC_DIR = path.join(ROOT, 'src', 'desktop', 'sync');
-const RENDERER_DIR = path.join(ROOT, 'src', 'desktop', 'renderer');
+const SYNC_DIR = path.join(ROOT, 'src', 'sync');
+const MOBILE_DIR = path.join(ROOT, 'src', 'mobile');
+const ASSETS_DIR = path.join(ROOT, 'assets');
+const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
 const MANAGER_DIR = path.join(SYNC_DIR, 'manager');
 const DIST_DIR = path.join(ROOT, 'dist');
 const BUILD_DIR = path.join(DIST_DIR, '.sync_build');
-const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
 
-const WEB_FILES = ['main.html', 'boot.js', 'window_appearance.js'];
-const WEB_DIRS = ['styles', 'scripts', 'fonts'];
+const WEB_FILES = ['index.html', 'manifest.webmanifest'];
+const WEB_DIRS = ['styles', 'scripts'];
 const MATERIAL_FILES = ['rounded.css', 'material-symbols-rounded.woff2'];
 const MAIN_FILES = ['data_path.js', 'secret_store.js', 'sync_server.js'];
-
 function readOption(name, fallback) {
     const index = process.argv.indexOf(`--${name}`);
     if (index !== -1 && process.argv[index + 1]) return process.argv[index + 1];
@@ -66,9 +66,9 @@ function buildEmbeddedAssets(version) {
         map.set(key, fs.readFileSync(absolute).toString('base64'));
     };
 
-    for (const name of WEB_FILES) add(path.join(RENDERER_DIR, name));
+    for (const name of WEB_FILES) add(path.join(MOBILE_DIR, name));
     for (const dir of WEB_DIRS) {
-        const source = path.join(RENDERER_DIR, dir);
+        const source = path.join(MOBILE_DIR, dir);
         if (!fs.existsSync(source)) continue;
         for (const item of collectFiles(source, dir)) add(item.absolute);
     }
@@ -77,15 +77,16 @@ function buildEmbeddedAssets(version) {
     if (fs.existsSync(MANAGER_DIR)) {
         for (const item of collectFiles(MANAGER_DIR, 'manager')) add(item.absolute);
     }
-    add(path.join(ROOT, 'src', 'assets', 'icon.svg'));
-    add(path.join(ROOT, 'src', 'assets', 'icon.png'));
+    if (fs.existsSync(ASSETS_DIR)) {
+        for (const item of collectFiles(ASSETS_DIR, 'assets')) add(item.absolute);
+    }
     add(path.join(ROOT, '.github', 'releases.md'));
 
     const meta = {
         name: 'esprin_sync',
         version,
-        svg_icon: 'src/desktop/assets/icon.svg',
-        icon: 'src/desktop/assets/icon.png'
+        svg_icon: 'assets/icon.svg',
+        icon: 'assets/icon.png'
     };
     map.set('package.json', Buffer.from(`${JSON.stringify(meta, null, 2)}\n`, 'utf8').toString('base64'));
 

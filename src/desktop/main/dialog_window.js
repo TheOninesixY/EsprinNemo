@@ -25,15 +25,13 @@ let resolveAccent = () => '';
 
 let resolveRadius = () => 'default';
 
-let resolveStyle = () => 'default';
 
 let resolveFonts = () => ({});
 let iconPath = path.join(__dirname, '..', '..', require('../../../package.json').icon);
 let ipcRegistered = false;
 
-function configureDialogWindows({ getTheme, getStyle, getAccent, getRadius, getFonts, icon } = {}) {
+function configureDialogWindows({ getTheme, getAccent, getRadius, getFonts, icon } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
-  if (typeof getStyle === 'function') resolveStyle = getStyle;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
   if (typeof getRadius === 'function') resolveRadius = getRadius;
   if (typeof getFonts === 'function') resolveFonts = getFonts;
@@ -43,7 +41,6 @@ function configureDialogWindows({ getTheme, getStyle, getAccent, getRadius, getF
 function currentAppearance() {
   return buildWindowAppearance({
     theme: safeResolve(resolveTheme, 'dark', '主题'),
-    style: safeResolve(resolveStyle, 'default', '主题风格'),
     accent: safeResolve(resolveAccent, '', '主题色'),
     radius: safeResolve(resolveRadius, 'default', '圆角尺度'),
     fonts: safeResolve(resolveFonts, {}, '字体')

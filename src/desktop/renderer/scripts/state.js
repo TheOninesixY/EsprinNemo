@@ -19,8 +19,6 @@ currentFilter: 'all',
     viewMode: 'edit',
     theme: 'system',
 
-    themeStyle: 'default',
-
     accentColor: 'system',
 
     cornerRadius: 'default',

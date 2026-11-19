@@ -310,7 +310,6 @@ function syncStickyNotesAppearance() {
     try {
         ipcRenderer.send('sticky:appearance', {
             theme: getEffectiveTheme(),
-            style: normalizeThemeStyle(State.themeStyle),
             accent: normalizeAccentColor(State.accentColor),
             radius: normalizeCornerRadius(State.cornerRadius),
             fonts: typeof normalizeFonts === 'function' ? normalizeFonts(State.fonts) : {}

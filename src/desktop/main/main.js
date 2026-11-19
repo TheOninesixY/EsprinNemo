@@ -209,10 +209,6 @@ function resolveAccentColor() {
   return `#${hex.toUpperCase()}`;
 }
 
-function resolveThemeStyle() {
-  const raw = readUserConfig().themeStyle;
-  return raw === 'alom' || raw === 'magic' ? raw : 'default';
-}
 
 function resolveCornerRadius() {
   const raw = readUserConfig().cornerRadius;
@@ -226,7 +222,6 @@ function resolveWindowFonts() {
 
 configureDialogWindows({
   getTheme: resolveEffectiveTheme,
-  getStyle: resolveThemeStyle,
   getAccent: resolveAccentColor,
   getRadius: resolveCornerRadius,
   getFonts: resolveWindowFonts,
@@ -235,7 +230,6 @@ configureDialogWindows({
 
 configureScratchpadWindow({
   getTheme: resolveEffectiveTheme,
-  getStyle: resolveThemeStyle,
   getAccent: resolveAccentColor,
   getRadius: resolveCornerRadius,
   getFonts: resolveWindowFonts,
@@ -249,7 +243,6 @@ configureScratchpadWindow({
 
 configureStickyNotes({
   getTheme: resolveEffectiveTheme,
-  getStyle: resolveThemeStyle,
   getAccent: resolveAccentColor,
   getRadius: resolveCornerRadius,
   getFonts: resolveWindowFonts,
@@ -963,7 +956,6 @@ function createWindow() {
 
   const appearance = buildWindowAppearance({
     theme: resolveEffectiveTheme(),
-    style: resolveThemeStyle(),
     radius: resolveCornerRadius(),
     accent: resolveAccentColor(),
     fonts: resolveWindowFonts()

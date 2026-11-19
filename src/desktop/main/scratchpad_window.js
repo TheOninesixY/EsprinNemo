@@ -20,7 +20,6 @@ const BRIDGE_TIMEOUT = 5000;
 
 let noteWin = null;
 let resolveTheme = () => 'dark';
-let resolveStyle = () => 'default';
 let resolveAccent = () => '';
 let resolveRadius = () => 'default';
 
@@ -34,9 +33,8 @@ let ipcRegistered = false;
 
 let dragOrigin = null;
 
-function configureScratchpadWindow({ getTheme, getStyle, getAccent, getRadius, getFonts, getDataDir, getOwner, icon, onClosed } = {}) {
+function configureScratchpadWindow({ getTheme, getAccent, getRadius, getFonts, getDataDir, getOwner, icon, onClosed } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
-  if (typeof getStyle === 'function') resolveStyle = getStyle;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
   if (typeof getRadius === 'function') resolveRadius = getRadius;
   if (typeof getFonts === 'function') resolveFonts = getFonts;
@@ -49,7 +47,6 @@ function configureScratchpadWindow({ getTheme, getStyle, getAccent, getRadius, g
 function currentAppearance() {
   return buildWindowAppearance({
     theme: safeResolve(resolveTheme, 'dark', '主题'),
-    style: safeResolve(resolveStyle, 'default', '主题风格'),
     accent: safeResolve(resolveAccent, '', '主题色'),
     radius: safeResolve(resolveRadius, 'default', '圆角尺度'),
     fonts: safeResolve(resolveFonts, {}, '字体')
@@ -268,7 +265,6 @@ function updateScratchpadAppearance(payload) {
   if (!noteWin.webContents.isDestroyed()) {
     noteWin.webContents.send('scratchpad:appearance', {
       theme: appearance.theme,
-      style: appearance.style,
       radius: appearance.radius,
       accent: appearance.accent,
       fonts: appearance.fonts

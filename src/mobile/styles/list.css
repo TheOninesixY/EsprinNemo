@@ -1,0 +1,416 @@
+.pane-list {
+    position: relative;
+    background-color: var(--bg-list);
+}
+
+.list-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 8px calc(112px + var(--safe-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+.tabbar {
+    display: flex;
+    align-items: stretch;
+    flex: 0 0 auto;
+    gap: 2px;
+    padding: 4px 6px calc(4px + var(--safe-bottom));
+    background-color: var(--bg-titlebar);
+    border-top: 1px solid var(--border-color);
+}
+
+.tab {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    height: 46px;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.tab:active {
+    background-color: var(--item-hover);
+}
+
+.tab.active {
+    color: var(--accent);
+    background-color: var(--accent-bg);
+}
+
+.tab-icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10.5px;
+    line-height: 1.2;
+}
+
+.tab.active .tab-label {
+    font-weight: 600;
+}
+
+.cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    background-color: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.card:active {
+    background-color: var(--item-hover);
+    border-color: var(--border-color);
+}
+
+.card.active {
+    background-color: var(--item-active);
+    border-color: var(--border-color);
+}
+
+.card.is-todo {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.card-check {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-top: -1px;
+    margin-left: -3px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.card-check:active {
+    background-color: var(--item-hover);
+}
+
+.card-check.done {
+    color: var(--accent);
+}
+
+.card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+}
+
+.card-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.card-title-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.card-title-meta .ms-icon {
+    flex-shrink: 0;
+}
+
+.card-preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
+
+.card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 6px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+
+.card-date {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.card-taxonomy {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.card-folder {
+    flex-shrink: 0;
+    max-width: 9em;
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+    background-color: var(--item-hover);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card-tag {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    max-width: 9em;
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+    background-color: var(--accent-bg);
+    color: var(--accent);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card.done .card-title {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
+
+.card.done .card-preview {
+    color: var(--text-muted);
+    opacity: 0.85;
+}
+
+.list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 56px 24px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.list-empty .ms-icon {
+    color: var(--text-muted);
+    opacity: 0.35;
+}
+
+.list-empty-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.list-empty-text {
+    max-width: 220px;
+    font-size: 11.5px;
+    line-height: 1.6;
+}
+
+.compose {
+    position: absolute;
+    right: calc(10px + var(--safe-right));
+    bottom: calc(66px + var(--safe-bottom));
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.compose-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.compose.open .compose-actions {
+    pointer-events: auto;
+}
+
+.compose-action {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px) scale(0.85);
+    transform-origin: bottom right;
+    transition:
+        opacity 0.12s var(--ease-standard),
+        visibility 0s linear 0.2s,
+        transform 0.2s var(--ease-out);
+}
+
+.compose.open .compose-action {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition:
+        opacity 0.12s var(--ease-standard),
+        visibility 0s linear 0s,
+        transform 0.2s var(--ease-out);
+}
+
+.compose.open .compose-action:nth-child(1) {
+    transition-delay: 0.06s;
+}
+
+.compose.open .compose-action:nth-child(2) {
+    transition-delay: 0.01s;
+}
+
+.compose-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    background-color: var(--bg-list);
+    color: var(--text-secondary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.12s, color 0.15s, border-color 0.15s;
+}
+
+.compose-action:active .compose-circle {
+    transform: scale(0.92);
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+.compose-label {
+    padding: 2px 7px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-list);
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.fab {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s var(--ease-out), opacity 0.15s;
+}
+
+.fab:active {
+    transform: scale(0.94);
+}
+
+.fab .ms-icon {
+    transition: transform 0.2s var(--ease-out);
+}
+
+.compose.open .fab .ms-icon {
+    transform: rotate(135deg);
+}
+
+@media (min-width: 860px) {
+    .app.wide .compose {
+        right: 10px;
+        bottom: calc(14px + var(--safe-bottom));
+    }
+
+    .app.wide .pane-list > .topbar {
+        order: 1;
+    }
+
+    .app.wide .tabbar {
+        order: 2;
+        gap: 4px;
+        padding: 6px 8px;
+        background-color: var(--bg-list);
+        border-top: none;
+        border-bottom: 1px solid var(--border-color);
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+    }
+
+    .app.wide .tabbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .app.wide .list-scroll {
+        order: 3;
+        padding-bottom: calc(76px + var(--safe-bottom));
+    }
+
+    .app.wide .tab {
+        flex: 0 0 auto;
+        flex-direction: row;
+        gap: 0;
+        height: 28px;
+        padding: 0 10px;
+        border-radius: var(--radius-sm);
+    }
+
+    .app.wide .tab-icon {
+        display: none;
+    }
+
+    .app.wide .tab-label {
+        font-size: 12px;
+    }
+}

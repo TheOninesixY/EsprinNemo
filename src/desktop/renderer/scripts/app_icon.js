@@ -12,14 +12,14 @@ function appIconSvgCandidates() {
     try {
         if (APP_ICON_SCRIPT_SRC) {
             const scriptPath = decodeURIComponent(new URL(APP_ICON_SCRIPT_SRC).pathname).replace(/^\//, '');
-            candidates.push(path.resolve(path.dirname(scriptPath), '..', '..', 'assets', 'tray.svg'));
+            candidates.push(path.resolve(path.dirname(scriptPath), '..', '..', '..', '..', 'assets', 'tray.svg'));
         }
     } catch (err) {
 
     }
     try {
         if (typeof __dirname === 'string' && __dirname) {
-            candidates.push(path.resolve(__dirname, '..', '..', 'assets', 'tray.svg'));
+            candidates.push(path.resolve(__dirname, '..', '..', '..', '..', 'assets', 'tray.svg'));
             candidates.push(path.resolve(__dirname, '..', '..', '..', 'assets', 'tray.svg'));
         }
     } catch (err) {

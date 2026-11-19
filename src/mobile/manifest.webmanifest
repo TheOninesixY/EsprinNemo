@@ -1,0 +1,12 @@
+{
+  "name": "Esprin Nemo",
+  "short_name": "Nemo",
+  "description": "笔记，仅此而已。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117"
+}

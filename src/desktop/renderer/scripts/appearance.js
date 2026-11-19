@@ -1,5 +1,3 @@
-const THEME_STYLE_VALUES = ['default', 'alom', 'magic'];
-
 const APPEARANCE_FADE_CLASS = 'appearance-fading';
 
 const APPEARANCE_FADE_MS = 250;
@@ -16,40 +14,6 @@ function beginAppearanceFade() {
         appearanceFadeTimer = null;
         root.classList.remove(APPEARANCE_FADE_CLASS);
     }, APPEARANCE_FADE_MS + 60);
-}
-
-function normalizeThemeStyle(value) {
-    return THEME_STYLE_VALUES.includes(value) ? value : 'default';
-}
-
-function applyThemeStyle() {
-    document.documentElement.dataset.themeStyle = normalizeThemeStyle(State.themeStyle);
-}
-
-function syncThemeStyleSelect() {
-    const select = document.getElementById('setting-theme-style');
-    if (select) select.value = normalizeThemeStyle(State.themeStyle);
-}
-
-function setThemeStyle(value) {
-
-    beginAppearanceFade();
-    State.themeStyle = normalizeThemeStyle(value);
-    applyThemeStyle();
-    syncThemeStyleSelect();
-
-    applyAccentColor();
-    syncAccentControls();
-    saveConfig();
-
-    syncScratchpadAppearance();
-}
-
-function initThemeStyle() {
-    const select = document.getElementById('setting-theme-style');
-    if (select) select.onchange = (e) => setThemeStyle(e.target.value);
-    applyThemeStyle();
-    syncThemeStyleSelect();
 }
 
 function getEffectiveTheme() {
@@ -119,7 +83,6 @@ function syncScratchpadAppearance() {
     try {
         ipcRenderer.send('scratchpad:appearance', {
             theme: getEffectiveTheme(),
-            style: normalizeThemeStyle(State.themeStyle),
             accent: normalizeAccentColor(State.accentColor),
             radius: normalizeCornerRadius(State.cornerRadius),
 

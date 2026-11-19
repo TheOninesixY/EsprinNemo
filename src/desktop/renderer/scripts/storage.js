@@ -962,7 +962,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', themeStyle: 'default', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
+    let config = { theme: 'system', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
 
 try {
         if (fs.existsSync(CONFIG_FILE)) {
@@ -1122,8 +1122,7 @@ const aiChats = loadAiChats(config.aiActiveChat);
 
     return {
         theme: config.theme || 'system',
-        themeStyle: normalizeThemeStyle(config.themeStyle),
-        accentColor: normalizeAccentColor(config.accentColor),
+            accentColor: normalizeAccentColor(config.accentColor),
         cornerRadius: normalizeCornerRadius(config.cornerRadius),
 
         uiScale: normalizeUiScale(config.uiScale),
@@ -1179,8 +1178,7 @@ function saveConfig() {
     try {
         const config = {
             theme: State.theme,
-            themeStyle: normalizeThemeStyle(State.themeStyle),
-            accentColor: normalizeAccentColor(State.accentColor),
+                    accentColor: normalizeAccentColor(State.accentColor),
             cornerRadius: normalizeCornerRadius(State.cornerRadius),
 
             uiScale: normalizeUiScale(State.uiScale),

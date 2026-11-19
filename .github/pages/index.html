@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Esprin Nemo — Note, Nothing.</title>
+    <meta name="description" content="本地优先、离线可用的极简 Markdown 笔记应用。笔记与待办是普通 .md 文件，任何编辑器都能打开，复制一个目录就完成迁移。">
+    <meta name="theme-color" content="#0d1117">
+    <link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+        <link rel="stylesheet" href="./styles.css">
+    <meta property="og:title" content="Esprin Nemo — Note, Nothing.">
+    <meta property="og:description" content="本地优先、离线可用的极简 Markdown 笔记应用。">
+    <meta property="og:image" content="./about/screenshot_dark.png">
+    <meta property="og:type" content="website">
+    <script>
+        (function () {
+            try {
+                var saved = localStorage.getItem('nemo-site-theme') || 'system';
+                var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var light = saved === 'light' || (saved === 'system' && !dark);
+                if (light) document.documentElement.classList.add('light');
+            } catch (err) {}
+        })();
+    </script>
+</head>
+<body>
+
+<header class="topbar">
+    <a class="brand" href="#top">
+        <img class="brand-icon" src="./assets/icon.svg" alt="" width="20" height="20">
+        <span>EsprinNemo</span>
+    </a>
+    <nav class="topbar-nav">
+        <a href="#data">数据</a>
+        <a href="#sync">同步</a>
+        <button class="topbar-dl" type="button" data-dl-open>
+            <span class="ms-icon">download</span>
+            <span>下载</span>
+        </button>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题">
+            <span class="ms-icon" id="theme-icon">brightness_auto</span>
+        </button>
+    </nav>
+    <span class="topbar-progress" id="scroll-progress" aria-hidden="true"></span>
+</header>
+
+<main id="top">
+
+    <section class="hero wrap">
+        <span class="hero-eyebrow" id="hero-eyebrow">Windows 与 Linux</span>
+        <h1>笔记是<em>普通文件</em>，<br>不是一个账号。</h1>
+        <p class="hero-lead">
+            Esprin Nemo 把笔记与待办写成 Markdown，标题、文件夹、标签、置顶与废纸篓状态以内嵌注释放在文件开头。
+            打开就能写，不需要设置向导；想带走时，复制一个目录就够了。
+        </p>
+        <div class="hero-actions">
+            <button class="btn btn-primary" type="button" data-dl-open>
+                <span class="ms-icon">download</span>
+                <span>下载最新版本</span>
+            </button>
+            <a class="btn" href="https://github.com/TheOninesixY/EsprinNemo">
+                <span class="ms-icon">code</span>
+                <span>查看源码</span>
+            </a>
+        </div>
+        <p class="hero-note">免费、无账号、无遥测。除自动更新检查外，不主动联网。</p>
+
+        <div class="shot">
+            <img class="shot-theme shot-dark" src="./about/screenshot_dark.png"
+                 alt="Esprin Nemo 深色主题主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板"
+                 width="1298" height="797" loading="eager" decoding="async">
+            <img class="shot-theme shot-light" src="./about/screenshot_light.png"
+                 alt="Esprin Nemo 浅色主题主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板"
+                 width="1298" height="797" loading="lazy" decoding="async">
+        </div>
+    </section>
+
+    <section class="section wrap" id="data">
+        <div class="section-head">
+            <h2>数据先于界面</h2>
+            <p>没有索引文件，没有私有格式，没有需要导出的步骤。</p>
+        </div>
+
+        <div class="split">
+            <div class="split-body">
+                <h3>一个条目就是一个 .md 文件</h3>
+                <p>
+                    数据目录里只有 <code>items/&lt;id&gt;.md</code>、<code>config.json</code> 与少量对话记录。
+                    标题、标签、置顶这些状态写在文件开头的注释里，正文是干净的 Markdown。用 VS Code、Obsidian 或记事本打开，看到的都是同一份内容。
+                </p>
+                <ul>
+                    <li>用任意编辑器直接改，改完回到应用里就是最新状态</li>
+                    <li>整目录复制即完成迁移，换机器不用导出导入</li>
+                    <li>同步与本地是同一份文件格式，不存在「导出后的样子」</li>
+                </ul>
+            </div>
+            <div class="split-media">
+                <div class="file-card">
+                    <div class="file-card-head">
+                        <span class="ms-icon">description</span>
+                        <span>items/8fK2pQx1.md</span>
+                    </div>
+                    <pre><i>&lt;!--EsprinData</i>
+    <b>type</b>: "note"
+    <b>title</b>: "季度复盘"
+    <b>folder</b>: "工作"
+    <b>tags</b>: ["复盘", "计划"]
+    <b>isPinned</b>: false
+    <b>isTrashed</b>: false
+    <b>createdAt</b>: 1794936683215
+    <b>updatedAt</b>: 1794936767664
+<i>--&gt;</i>
+
+把这一季的关键决策整理一遍，
+重点是同步的删除语义。</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section wrap">
+        <div class="section-head">
+            <h2>打开即写</h2>
+            <p>没有第一次运行向导，没有必填项，也没有需要理解的概念。</p>
+        </div>
+
+        <div class="grid grid-3">
+            <div class="card">
+                <h3><span class="ms-icon">description</span>笔记与待办</h3>
+                <p>两者共用一个数据目录、一个废纸篓。待办多一个勾选状态，其余完全一致。</p>
+            </div>
+            <div class="card">
+                <h3><span class="ms-icon">tab</span>浏览器式标签</h3>
+                <p>同时打开多篇，活动标签与编辑器连成一片。拖动可重排，关闭不影响文件。</p>
+            </div>
+            <div class="card">
+                <h3><span class="ms-icon">search</span>即时搜索</h3>
+                <p><kbd>Ctrl</kbd> + <kbd>K</kbd> 聚焦搜索框，标题、正文与标签一起匹配，输入即筛选。</p>
+            </div>
+            <div class="card">
+                <h3><span class="ms-icon">palette</span>外观</h3>
+                <p>浅色 / 深色 / 跟随系统，主题色与四档圆角可调，界面与文档字体分别设置。</p>
+            </div>
+            <div class="card">
+                <h3><span class="ms-icon">sticky_note_2</span>常驻与便利贴</h3>
+                <p>托盘驻留后台，关窗不退出；桌面便利贴贴在窗口之下，小本本随时记一句。</p>
+            </div>
+            <div class="card">
+                <h3><span class="ms-icon">mic</span>随口记</h3>
+                <p>Windows 上由系统本机识别引擎完成语音转文本，音频不出本机。</p>
+            </div>
+        </div>
+
+        <div class="split note-row">
+            <div class="note-window">
+                <img class="shot-theme shot-dark" src="./about/scratchpad_dark.png"
+                     alt="小本本窗口：标题「课堂笔记」，正文里记着一句话，底部显示「已保存」「未关联 25 字」"
+                     width="318" height="377" loading="lazy" decoding="async">
+                <img class="shot-theme shot-light" src="./about/scratchpad_light.png"
+                     alt="小本本窗口（浅色）：标题「课堂笔记」，正文里记着一句话，底部显示「已保存」「未关联 25 字」"
+                     width="318" height="377" loading="lazy" decoding="async">
+            </div>
+            <div class="split-body">
+                <h3>小本本，记一句就走</h3>
+                <p>
+                    标题栏一键唤出屏幕右下角的小窗口，始终置顶。自动保存，不需要想放在哪个文件夹。
+                    底部一直显示状态：存了没有、有没有关联笔记、写了多少字。
+                </p>
+                <ul>
+                    <li>未关联时内容属于小本本自己，保存即在后台新建一篇笔记并关联</li>
+                    <li><kbd>Ctrl</kbd> + <kbd>O</kbd> 搜索并打开已有笔记，此后改的就是那一篇</li>
+                    <li>小本本开着时关掉主窗口不会退出应用，主窗口只是收起</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="section wrap" id="sync">
+        <div class="section-head">
+            <h2>同步是可选项</h2>
+            <p>需要它时才配置，不需要时一个字节都不上传。</p>
+        </div>
+
+        <div class="split reverse">
+            <div class="split-body">
+                <h3>自建服务端，操作日志模型</h3>
+                <p>
+                    同步端在自己的机器或服务器上运行，客户端与它通信时才联网。
+                    它记录的是操作日志而不是文件快照。删除是一条明确的墓碑，别的设备不会把删掉的内容补回来。
+                </p>
+                <ul>
+                    <li>删除有明确语义，不会在多设备之间「复活」</li>
+                    <li>团队笔记共享的是同一篇，正文不复制，双方改的是同一份</li>
+                    <li>服务器地址、账户与令牌都只在你自己手里</li>
+                </ul>
+            </div>
+            <div class="split-media">
+                <div class="file-card">
+                    <div class="file-card-head">
+                        <span class="ms-icon">terminal</span>
+                        <span>在服务器上启动同步端</span>
+                    </div>
+                    <pre><i># 默认监听 127.0.0.1:8686，数据写在 ./data</i>
+bun run start:sync
+
+<i># 或手动指定地址、端口与数据目录</i>
+bun src/sync/server.js \
+  --host 0.0.0.0 --port 8686 --data ./esprin-data
+
+<i># 也可以在管理后台 /admin 里配置账户与令牌</i></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section wrap">
+        <div class="section-head">
+            <h2>诚实的能力边界</h2>
+            <p>做不到的地方直接说明，不摆出假象，也不静默降级。</p>
+        </div>
+
+        <div class="grid grid-2">
+            <ul class="limits">
+                <li><strong>仅 Windows 与 Linux</strong>不提供 macOS 版本。</li>
+                <li><strong>便利贴在 Linux 上退化</strong>置底依赖 Win32 与注册表；Linux 上便利贴变成普通窗口，桌面右键菜单不出现，其余功能不受影响。</li>
+                <li><strong>随口记仅 Windows</strong>依赖系统自带的语音识别引擎。</li>
+            </ul>
+            <ul class="limits">
+                <li><strong>界面目前只有中文</strong>英语支持尚未接入，不做「即将支持」的承诺。</li>
+                <li><strong>AI 助手需要自备 Key</strong>兼容 OpenAI 协议的接口，默认关闭以外的能力都要手动配置。</li>
+                <li><strong>没有账号体系</strong>也就不存在找回密码、云端备份与跨设备登录这类服务。</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section wrap">
+        <div class="section-head">
+            <h2>快捷键</h2>
+        </div>
+
+        <table class="keys">
+            <thead>
+            <tr>
+                <th>按键</th>
+                <th>作用范围</th>
+                <th>功能</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>N</kbd></td><td>主窗口</td><td>新建笔记</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>N</kbd></td><td>主窗口</td><td>新建待办</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>主窗口</td><td>聚焦搜索框</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>主窗口</td><td>保存当前笔记或待办</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td><td>主窗口</td><td>在打开的标签之间切换</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></td><td>主窗口</td><td>开始 / 停止随口记</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>小本本</td><td>新建并关联，或保存回关联的笔记</td></tr>
+            <tr><td><kbd>Ctrl</kbd> + <kbd>O</kbd></td><td>小本本</td><td>打开笔记选择面板</td></tr>
+            </tbody>
+        </table>
+    </section>
+
+</main>
+
+<footer>
+    <div class="wrap footer-inner">
+        <span class="footer-brand">
+            <img class="footer-icon" src="./assets/icon.svg" alt="" width="15" height="15">
+            <span>Esprin Nemo · Note, Nothing.</span>
+        </span>
+        <a href="https://github.com/TheOninesixY/EsprinNemo">GitHub</a>
+        <a href="https://github.com/TheOninesixY/EsprinNemo/releases">发布记录</a>
+        <a href="https://github.com/TheOninesixY/EsprinNemo/issues">反馈</a>
+        <span class="footer-spacer"></span>
+        <span>品牌字体 Mohave 遵循 SIL Open Font License</span>
+    </div>
+</footer>
+
+<div class="dl-modal" id="dl-modal" hidden>
+    <div class="dl-scrim" data-dl-close></div>
+    <div class="dl-panel" role="dialog" aria-modal="true" aria-labelledby="dl-title">
+        <div class="dl-head">
+            <h2 id="dl-title">下载</h2>
+            <button class="dl-close" type="button" aria-label="关闭下载窗口" data-dl-close>
+                <span class="ms-icon">close</span>
+            </button>
+        </div>
+
+        <div class="dl-group">
+            <h3>Windows</h3>
+            <a class="dl-item" data-download="setup" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                <span class="ms-icon">download</span>
+                <span class="dl-meta">
+                    <strong>安装包</strong>
+                    <span data-desc="安装时可选数据目录">安装时可选数据目录</span>
+                </span>
+            </a>
+            <a class="dl-item" data-download="portable" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                <span class="ms-icon">download</span>
+                <span class="dl-meta">
+                    <strong>便携版</strong>
+                    <span data-desc="数据放在程序目录，整个目录可搬走">数据放在程序目录，整个目录可搬走</span>
+                </span>
+            </a>
+        </div>
+
+        <div class="dl-group">
+            <h3>Linux</h3>
+            <a class="dl-item" data-download="appimage" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                <span class="ms-icon">download</span>
+                <span class="dl-meta">
+                    <strong>AppImage</strong>
+                    <span data-desc="免安装，chmod +x 后直接运行">免安装，chmod +x 后直接运行</span>
+                </span>
+            </a>
+        </div>
+
+        <div class="dl-group">
+            <h3>Sync</h3>
+            <a class="dl-item" data-download="sync-exe" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                <span class="ms-icon">download</span>
+                <span class="dl-meta">
+                    <strong>Windows x64</strong>
+                    <span data-desc="单文件服务端，双击启动">单文件服务端，双击启动</span>
+                </span>
+            </a>
+            <a class="dl-item" data-download="sync-bin" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                <span class="ms-icon">download</span>
+                <span class="dl-meta">
+                    <strong>Linux x64</strong>
+                    <span data-desc="可执行文件，chmod +x 后运行">可执行文件，chmod +x 后运行</span>
+                </span>
+            </a>
+        </div>
+
+        <p class="dl-note">安装包发布在 GitHub Releases，这里的版本号与文件名随最新一次发布自动更新。</p>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var KEY = 'nemo-site-theme';
+        var ORDER = ['system', 'light', 'dark'];
+        var GLYPH = { system: 'brightness_auto', light: 'light_mode', dark: 'dark_mode' };
+        var LABEL = { system: '跟随系统', light: '浅色', dark: '深色' };
+
+        function stored() {
+            try {
+                var value = localStorage.getItem(KEY);
+                return ORDER.indexOf(value) === -1 ? 'system' : value;
+            } catch (err) {
+                return 'system';
+            }
+        }
+
+        function isLight(mode) {
+            if (mode === 'light') return true;
+            if (mode === 'dark') return false;
+            return !(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        }
+
+        function apply(mode) {
+            var light = isLight(mode);
+            document.documentElement.classList.toggle('light', light);
+
+            var icon = document.getElementById('theme-icon');
+            if (icon) icon.textContent = GLYPH[mode] || GLYPH.system;
+
+            var button = document.getElementById('theme-toggle');
+            if (button) button.setAttribute('aria-label', '主题：' + (LABEL[mode] || LABEL.system) + '（点击切换）');
+
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', light ? '#ffffff' : '#0d1117');
+        }
+
+        apply(stored());
+
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = ORDER[(ORDER.indexOf(stored()) + 1) % ORDER.length];
+                try {
+                    localStorage.setItem(KEY, next);
+                } catch (err) {}
+                apply(next);
+            });
+        }
+
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+                if (stored() === 'system') apply('system');
+            });
+        }
+    })();
+
+    (function () {
+        var REPO = 'TheOninesixY/EsprinNemo';
+        var API = 'https://api.github.com/repos/' + REPO + '/releases/latest';
+        var PROXY = 'https://gh-proxy.com/';
+        var RULES = [
+            ['setup', /setup.*\.exe$/i],
+            ['portable', /portable.*\.exe$/i],
+            ['appimage', /\.appimage$/i],
+            ['sync-exe', /^esprinsync.*\.exe$/i],
+            ['sync-bin', /^esprinsync(\.v[\w.]+)?$/i]
+        ];
+
+        function getJSON(url) {
+            return fetch(url, { credentials: 'omit' }).then(function (response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            });
+        }
+
+        function applyRelease(release) {
+            if (!release || !release.tag_name) return;
+
+            var label = document.getElementById('hero-eyebrow');
+            if (label) label.textContent = release.tag_name + ' · Windows 与 Linux';
+
+            var assets = Array.isArray(release.assets) ? release.assets : [];
+            RULES.forEach(function (rule) {
+                var row = document.querySelector('[data-download="' + rule[0] + '"]');
+                if (!row) return;
+
+                var asset = null;
+                for (var i = 0; i < assets.length; i += 1) {
+                    if (rule[1].test(assets[i].name)) {
+                        asset = assets[i];
+                        break;
+                    }
+                }
+                if (!asset) return;
+
+                if (asset.browser_download_url) row.setAttribute('href', asset.browser_download_url);
+
+                var desc = row.querySelector('[data-desc]');
+                if (desc) desc.textContent = asset.name + ' · ' + desc.getAttribute('data-desc');
+            });
+        }
+
+        getJSON(API)
+            .catch(function () { return getJSON(PROXY + API); })
+            .then(applyRelease)
+            .catch(function () {});
+    })();
+
+    (function () {
+        var modal = document.getElementById('dl-modal');
+        if (!modal) return;
+
+        var lastFocus = null;
+        var hideTimer = 0;
+
+        function openModal() {
+            lastFocus = document.activeElement;
+            window.clearTimeout(hideTimer);
+            modal.hidden = false;
+            document.documentElement.classList.add('dl-open');
+
+            window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(function () {
+                    modal.classList.add('is-open');
+                });
+            });
+
+            var target = modal.querySelector('.dl-item') || modal.querySelector('[data-dl-close]');
+            if (target && target.focus) target.focus();
+        }
+
+        function closeModal() {
+            if (modal.hidden || !modal.classList.contains('is-open')) return;
+            modal.classList.remove('is-open');
+            document.documentElement.classList.remove('dl-open');
+
+            hideTimer = window.setTimeout(function () {
+                modal.hidden = true;
+                if (lastFocus && lastFocus.focus) lastFocus.focus();
+            }, 340);
+        }
+
+        Array.prototype.forEach.call(document.querySelectorAll('[data-dl-open]'), function (button) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                openModal();
+            });
+        });
+
+        modal.addEventListener('click', function (event) {
+            var closer = event.target.closest('[data-dl-close]');
+            if (closer) closeModal();
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeModal();
+        });
+    })();
+
+    (function () {
+        var bar = document.getElementById('scroll-progress');
+        if (!bar) return;
+
+        var frame = 0;
+
+        function update() {
+            frame = 0;
+            var doc = document.documentElement;
+            var total = doc.scrollHeight - window.innerHeight;
+            var ratio = total > 0 ? window.scrollY / total : 0;
+            var percent = Math.min(1, Math.max(0, ratio)) * 100;
+            bar.style.width = percent.toFixed(2) + '%';
+        }
+
+        function schedule() {
+            if (frame) return;
+            frame = window.requestAnimationFrame(update);
+        }
+
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        update();
+    })();
+</script>
+
+</body>
+</html>

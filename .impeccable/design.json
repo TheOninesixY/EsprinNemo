@@ -1,0 +1,682 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T12:00:12.410Z",
+  "title": "Design System: Esprin Nemo",
+  "extensions": {
+    "colorMeta": {
+      "signal-blue": {
+        "role": "primary",
+        "displayName": "Signal Blue",
+        "canonical": "#58a6ff",
+        "tonalRamp": [
+          "#0e1e2f",
+          "#103156",
+          "#0c488d",
+          "#0560c7",
+          "#0b7dff",
+          "#4f9ef7",
+          "#9fc4ef",
+          "#d9e5f2"
+        ]
+      },
+      "signal-blue-light": {
+        "role": "primary",
+        "displayName": "Signal Blue (Light)",
+        "canonical": "#0969da",
+        "tonalRamp": [
+          "#101d2e",
+          "#133053",
+          "#114888",
+          "#0d5fbf",
+          "#147bf5",
+          "#569df0",
+          "#a2c4ec",
+          "#dae5f1"
+        ]
+      },
+      "signal-blue-tint": {
+        "role": "primary",
+        "displayName": "Signal Tint",
+        "canonical": "rgba(56, 139, 253, 0.15)"
+      },
+      "signal-blue-tint-light": {
+        "role": "primary",
+        "displayName": "Signal Tint (Light)",
+        "canonical": "rgba(9, 105, 218, 0.1)"
+      },
+      "on-signal": {
+        "role": "primary",
+        "displayName": "On Signal",
+        "canonical": "#1f2328",
+        "tonalRamp": [
+          "#1d1e21",
+          "#2f3337",
+          "#444c55",
+          "#5a6572",
+          "#758394",
+          "#99a2ae",
+          "#c2c6cc",
+          "#e4e5e7"
+        ]
+      },
+      "on-signal-light": {
+        "role": "primary",
+        "displayName": "On Signal (Light)",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#666666",
+          "#858585",
+          "#a3a3a3",
+          "#c7c7c7",
+          "#e6e6e6"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#0d1117",
+        "tonalRamp": [
+          "#1a1e23",
+          "#29313d",
+          "#3b495e",
+          "#4b6181",
+          "#637ea6",
+          "#8c9fbb",
+          "#bcc5d2",
+          "#e2e5e9"
+        ]
+      },
+      "canvas-light": {
+        "role": "neutral",
+        "displayName": "Canvas (Light)",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#666666",
+          "#858585",
+          "#a3a3a3",
+          "#c7c7c7",
+          "#e6e6e6"
+        ]
+      },
+      "surface-titlebar": {
+        "role": "neutral",
+        "displayName": "Surface Titlebar",
+        "canonical": "#161b22",
+        "tonalRamp": [
+          "#1b1e22",
+          "#2c323a",
+          "#3f4a5a",
+          "#51637b",
+          "#6a809f",
+          "#91a0b5",
+          "#bec5d0",
+          "#e3e5e8"
+        ]
+      },
+      "surface-titlebar-light": {
+        "role": "neutral",
+        "displayName": "Surface Titlebar (Light)",
+        "canonical": "#f6f8fa",
+        "tonalRamp": [
+          "#1a1f23",
+          "#29333d",
+          "#3a4d5f",
+          "#4a6682",
+          "#6285a7",
+          "#8ba3bb",
+          "#bbc7d2",
+          "#e2e6e9"
+        ]
+      },
+      "surface-rail": {
+        "role": "neutral",
+        "displayName": "Surface Rail",
+        "canonical": "#0d1117",
+        "tonalRamp": [
+          "#1a1e23",
+          "#29313d",
+          "#3b495e",
+          "#4b6181",
+          "#637ea6",
+          "#8c9fbb",
+          "#bcc5d2",
+          "#e2e5e9"
+        ]
+      },
+      "surface-rail-light": {
+        "role": "neutral",
+        "displayName": "Surface Rail (Light)",
+        "canonical": "#f6f8fa",
+        "tonalRamp": [
+          "#1a1f23",
+          "#29333d",
+          "#3a4d5f",
+          "#4a6682",
+          "#6285a7",
+          "#8ba3bb",
+          "#bbc7d2",
+          "#e2e6e9"
+        ]
+      },
+      "surface-list": {
+        "role": "neutral",
+        "displayName": "Surface List",
+        "canonical": "#161b22",
+        "tonalRamp": [
+          "#1b1e22",
+          "#2c323a",
+          "#3f4a5a",
+          "#51637b",
+          "#6a809f",
+          "#91a0b5",
+          "#bec5d0",
+          "#e3e5e8"
+        ]
+      },
+      "surface-list-light": {
+        "role": "neutral",
+        "displayName": "Surface List (Light)",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#666666",
+          "#858585",
+          "#a3a3a3",
+          "#c7c7c7",
+          "#e6e6e6"
+        ]
+      },
+      "surface-elevated": {
+        "role": "neutral",
+        "displayName": "Surface Elevated",
+        "canonical": "#21262d",
+        "tonalRamp": [
+          "#1c1e21",
+          "#2e3238",
+          "#434b56",
+          "#576475",
+          "#728197",
+          "#96a1b0",
+          "#c1c6cd",
+          "#e4e5e7"
+        ]
+      },
+      "surface-elevated-light": {
+        "role": "neutral",
+        "displayName": "Surface Elevated (Light)",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#666666",
+          "#858585",
+          "#a3a3a3",
+          "#c7c7c7",
+          "#e6e6e6"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#30363d",
+        "tonalRamp": [
+          "#1d1e21",
+          "#2f3337",
+          "#454c54",
+          "#5a6572",
+          "#768393",
+          "#99a2ad",
+          "#c2c7cc",
+          "#e4e5e7"
+        ]
+      },
+      "hairline-light": {
+        "role": "neutral",
+        "displayName": "Hairline (Light)",
+        "canonical": "#d0d7de",
+        "tonalRamp": [
+          "#1c1f21",
+          "#2d3339",
+          "#414d58",
+          "#556677",
+          "#6f859a",
+          "#95a3b2",
+          "#c0c7ce",
+          "#e3e6e8"
+        ]
+      },
+      "hairline-soft": {
+        "role": "neutral",
+        "displayName": "Hairline Soft",
+        "canonical": "rgba(255, 255, 255, 0.08)"
+      },
+      "hairline-soft-light": {
+        "role": "neutral",
+        "displayName": "Hairline Soft (Light)",
+        "canonical": "rgba(0, 0, 0, 0.06)"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#f0f6fc",
+        "tonalRamp": [
+          "#141f29",
+          "#1c334a",
+          "#224d77",
+          "#2566a7",
+          "#3385d6",
+          "#6ba3db",
+          "#acc7e2",
+          "#dde6ee"
+        ]
+      },
+      "ink-light": {
+        "role": "neutral",
+        "displayName": "Ink (Light)",
+        "canonical": "#1f2328",
+        "tonalRamp": [
+          "#1d1e21",
+          "#2f3337",
+          "#444c55",
+          "#5a6572",
+          "#758394",
+          "#99a2ae",
+          "#c2c6cc",
+          "#e4e5e7"
+        ]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Ink Secondary",
+        "canonical": "#8b949e",
+        "tonalRamp": [
+          "#1d1f20",
+          "#303336",
+          "#474c52",
+          "#5d666f",
+          "#7a848f",
+          "#9ca3ab",
+          "#c3c7cb",
+          "#e4e5e7"
+        ]
+      },
+      "ink-secondary-light": {
+        "role": "neutral",
+        "displayName": "Ink Secondary (Light)",
+        "canonical": "#656d76",
+        "tonalRamp": [
+          "#1d1f20",
+          "#303336",
+          "#474c52",
+          "#5e666e",
+          "#7b848e",
+          "#9da3aa",
+          "#c4c7ca",
+          "#e5e5e6"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Ink Muted",
+        "canonical": "#6e7681",
+        "tonalRamp": [
+          "#1d1e20",
+          "#303336",
+          "#474c52",
+          "#5e656e",
+          "#7b838e",
+          "#9da2aa",
+          "#c4c6ca",
+          "#e5e5e6"
+        ]
+      },
+      "ink-muted-light": {
+        "role": "neutral",
+        "displayName": "Ink Muted (Light)",
+        "canonical": "#8c959f",
+        "tonalRamp": [
+          "#1d1f20",
+          "#303336",
+          "#474c52",
+          "#5d666f",
+          "#7a8490",
+          "#9ca3ab",
+          "#c3c7cb",
+          "#e4e5e7"
+        ]
+      },
+      "wash-hover": {
+        "role": "neutral",
+        "displayName": "Wash Hover",
+        "canonical": "rgba(255, 255, 255, 0.04)"
+      },
+      "wash-hover-light": {
+        "role": "neutral",
+        "displayName": "Wash Hover (Light)",
+        "canonical": "rgba(0, 0, 0, 0.04)"
+      },
+      "wash-active": {
+        "role": "neutral",
+        "displayName": "Wash Active",
+        "canonical": "rgba(255, 255, 255, 0.08)"
+      },
+      "wash-active-light": {
+        "role": "neutral",
+        "displayName": "Wash Active (Light)",
+        "canonical": "rgba(0, 0, 0, 0.08)"
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Danger",
+        "canonical": "#f85149",
+        "tonalRamp": [
+          "#2e1110",
+          "#531613",
+          "#881611",
+          "#c0140c",
+          "#f61e14",
+          "#f15d56",
+          "#eca5a1",
+          "#f1dbda"
+        ]
+      },
+      "danger-light": {
+        "role": "tertiary",
+        "displayName": "Danger (Light)",
+        "canonical": "#cf222e",
+        "tonalRamp": [
+          "#2a1315",
+          "#4c1a1d",
+          "#7b1e25",
+          "#ac202a",
+          "#dc2d39",
+          "#df676f",
+          "#e4aaae",
+          "#eeddde"
+        ]
+      },
+      "danger-tint": {
+        "role": "tertiary",
+        "displayName": "Danger Tint",
+        "canonical": "rgba(248, 81, 73, 0.15)"
+      },
+      "danger-tint-light": {
+        "role": "tertiary",
+        "displayName": "Danger Tint (Light)",
+        "canonical": "rgba(207, 34, 46, 0.1)"
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Warning",
+        "canonical": "#d29922",
+        "tonalRamp": [
+          "#2a2313",
+          "#4c3c1a",
+          "#7b5d1e",
+          "#ac7f20",
+          "#dda42d",
+          "#e0b967",
+          "#e4d1aa",
+          "#eee9dd"
+        ]
+      },
+      "warning-light": {
+        "role": "tertiary",
+        "displayName": "Warning (Light)",
+        "canonical": "#bf8700",
+        "tonalRamp": [
+          "#2f250e",
+          "#564110",
+          "#8d670c",
+          "#c78e05",
+          "#ffb70b",
+          "#f7c64f",
+          "#efd89f",
+          "#f2ebd9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "仅左上角品牌字 EsprinNemo。"
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "编辑器笔记标题与设置页大标题。"
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "界面正文与控件文字。"
+      },
+      "doc": {
+        "displayName": "Document",
+        "purpose": "编辑器正文与 Markdown 预览。"
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "导航项、设置分类、常规按钮。"
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "笔记卡片页脚、标签片、时间戳。"
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "需要纵向对齐的数字。"
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0 8px 24px rgba(0, 0, 0, 0.25)",
+        "purpose": "右键菜单、自绘下拉、设置弹出面板。"
+      },
+      {
+        "name": "light-float",
+        "value": "0 4px 12px rgba(0, 0, 0, 0.15)",
+        "purpose": "Toast、拖拽中的标签。"
+      },
+      {
+        "name": "drag-tab",
+        "value": "0 4px 12px rgba(0, 0, 0, 0.18)",
+        "purpose": "拖拽中的标签页悬空态。"
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px var(--accent-bg)",
+        "purpose": "键盘焦点与输入框聚焦，替代 outline。"
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.22, 0.61, 0.36, 1)",
+        "purpose": "默认过渡曲线。"
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "位移与淡出。"
+      },
+      {
+        "name": "motion-base",
+        "value": "180ms",
+        "purpose": "状态变化的默认时长。"
+      },
+      {
+        "name": "motion-slow",
+        "value": "260ms",
+        "purpose": "面板与标签进场。"
+      },
+      {
+        "name": "motion-crossfade",
+        "value": "250ms",
+        "purpose": "主题切换的全局颜色渐变。"
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "window-min",
+        "value": "scaleMinWindowSize(uiScale)",
+        "purpose": "窗口最小尺寸，随界面缩放联动；不重排布局。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary New Button",
+      "kind": "button",
+      "refersTo": "button-new",
+      "description": "新建笔记的主按钮，强调色底、深色图标。",
+      "html": "<button class=\"ds-btn-new\" type=\"button\" aria-label=\"新建笔记\"><span class=\"ds-ico\">add</span></button>",
+      "css": ".ds-btn-new{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:none;border-radius:6px;background:var(--accent,#58a6ff);color:var(--accent-fg,#1f2328);cursor:pointer;transition:opacity .15s,transform .1s}\n.ds-btn-new .ds-ico{font-family:'Material Symbols Rounded';font-size:16px;line-height:1;font-feature-settings:'liga'}\n.ds-btn-new:hover{opacity:.92}\n.ds-btn-new:active{transform:scale(.94)}\n.ds-btn-new:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-bg,rgba(56,139,253,.15))}"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "标题栏、编辑器顶栏、工具栏的图标按钮。",
+      "html": "<button class=\"ds-btn-icon\" type=\"button\" aria-label=\"设置\"><span class=\"ds-ico\">settings</span></button>",
+      "css": ".ds-btn-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border:none;border-radius:6px;background:transparent;color:var(--text-secondary,#8b949e);cursor:pointer;transition:background-color .15s,color .15s,transform .1s}\n.ds-btn-icon .ds-ico{font-family:'Material Symbols Rounded';font-size:16px;line-height:1;font-feature-settings:'liga'}\n.ds-btn-icon:hover{background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-primary,#f0f6fc)}\n.ds-btn-icon:active{transform:scale(.94)}\n.ds-btn-icon:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-bg,rgba(56,139,253,.15))}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "设置页与对话框的次级按钮。",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">重新检测</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 12px;border:1px solid var(--border-color,#30363d);border-radius:6px;background:var(--bg-body,#0d1117);color:var(--text-secondary,#8b949e);font-family:inherit;font-size:12px;white-space:nowrap;cursor:pointer;transition:border-color .15s,color .15s}\n.ds-btn-outline:hover{border-color:var(--text-muted,#6e7681);color:var(--text-primary,#f0f6fc)}\n.ds-btn-outline:focus-visible{outline:none;border-color:var(--accent,#58a6ff)}\n.ds-btn-outline:disabled{opacity:.45;cursor:not-allowed}"
+    },
+    {
+      "name": "Note Card",
+      "kind": "card",
+      "refersTo": "card-note",
+      "description": "笔记列表卡片：标题、预览、页脚三段；描边是状态的一部分。",
+      "html": "<article class=\"ds-note-card\"><div class=\"ds-note-title\">Hello, world.</div><div class=\"ds-note-preview\">This is a test note.</div><div class=\"ds-note-foot\"><span>01:32</span><span class=\"ds-note-tags\"><span class=\"ds-note-folder\">默认</span><span class=\"ds-note-tag\">#Test</span></span></div></article>",
+      "css": ".ds-note-card{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid transparent;border-radius:8px;background:transparent;cursor:pointer;transition:background-color .15s,border-color .15s}\n.ds-note-card:hover{background:var(--item-hover,rgba(255,255,255,.04));border-color:var(--border-light,rgba(255,255,255,.08))}\n.ds-note-card.is-active{background:var(--item-active,rgba(255,255,255,.08));border-color:var(--border-color,#30363d)}\n.ds-note-title{font-size:13px;font-weight:500;color:var(--text-primary,#f0f6fc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.ds-note-preview{font-size:11.5px;line-height:1.4;color:var(--text-secondary,#8b949e);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}\n.ds-note-foot{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px;font-size:10.5px;color:var(--text-muted,#6e7681)}\n.ds-note-tags{display:flex;gap:4px;margin-left:auto}\n.ds-note-folder{padding:1px 4px;border-radius:4px;background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-secondary,#8b949e);font-size:11px;font-weight:500}\n.ds-note-tag{padding:1px 4px;border-radius:4px;background:var(--accent-bg,rgba(56,139,253,.15));color:var(--accent,#58a6ff);font-size:11px}"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "筛选芯片，胶囊形；选中态换成强调色底与描边。",
+      "html": "<button class=\"ds-chip\" type=\"button\">全部笔记</button>\n<button class=\"ds-chip is-on\" type=\"button\">待办</button>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border:1px solid transparent;border-radius:999px;background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-secondary,#8b949e);font-family:inherit;font-size:12px;cursor:pointer;transition:background-color .15s,color .15s,border-color .15s}\n.ds-chip:hover{background:var(--item-active,rgba(255,255,255,.08));color:var(--text-primary,#f0f6fc)}\n.ds-chip.is-on{background:var(--accent-bg,rgba(56,139,253,.15));border-color:var(--accent,#58a6ff);color:var(--accent,#58a6ff)}\n.ds-chip:focus-visible{outline:none;box-shadow:0 0 0 3px var(--accent-bg,rgba(56,139,253,.15))}"
+    },
+    {
+      "name": "Tag Chip",
+      "kind": "chip",
+      "refersTo": "chip-tag",
+      "description": "笔记卡片上的标签片，界面上唯一有颜色的标签元素。",
+      "html": "<span class=\"ds-tag\">#Test</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;gap:2px;max-width:9em;padding:1px 4px;border-radius:4px;background:var(--accent-bg,rgba(56,139,253,.15));color:var(--accent,#58a6ff);font-size:11px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "field-search",
+      "description": "笔记列表顶部的搜索框，无描边的洗色填充。",
+      "html": "<label class=\"ds-search\"><span class=\"ds-search-ico\">search</span><input class=\"ds-search-input\" type=\"text\" placeholder=\"搜索笔记… (Ctrl+K)\"></label>",
+      "css": ".ds-search{display:flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:6px;background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-muted,#6e7681)}\n.ds-search .ds-search-ico{font-family:'Material Symbols Rounded';font-size:16px;line-height:1;font-feature-settings:'liga'}\n.ds-search-input{flex:1;min-width:0;width:0;padding:0 6px;border:none;outline:none;background:transparent;color:var(--text-primary,#f0f6fc);font-family:inherit;font-size:12px}\n.ds-search-input::placeholder{color:var(--text-muted,#6e7681)}\n.ds-search:focus-within{box-shadow:0 0 0 1px var(--border-color,#30363d) inset}"
+    },
+    {
+      "name": "Settings Row",
+      "kind": "card",
+      "refersTo": "row-settings",
+      "description": "设置页的单行：左侧标签与描述，右侧控件。",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-info\"><span class=\"ds-row-label\">启用随口记</span><span class=\"ds-row-desc\">识别结果按句插入光标处，关闭后入口与快捷键一并失效</span></div><label class=\"ds-switch\"><input type=\"checkbox\" checked><span class=\"ds-slider\"></span></label></div>",
+      "css": ".ds-row{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:680px;padding:14px 16px;border:1px solid var(--border-color,#30363d);border-radius:8px;background:var(--bg-list,#161b22);transition:border-color .15s}\n.ds-row:hover{border-color:var(--text-muted,#6e7681)}\n.ds-row-info{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}\n.ds-row-label{font-size:14px;font-weight:500;color:var(--text-primary,#f0f6fc)}\n.ds-row-desc{font-size:12px;line-height:1.5;color:var(--text-secondary,#8b949e)}\n.ds-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}\n.ds-switch input{opacity:0;width:0;height:0}\n.ds-slider{position:absolute;inset:0;border-radius:999px;background:var(--border-color,#30363d);transition:.2s}\n.ds-slider:before{content:\"\";position:absolute;left:3px;bottom:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}\n.ds-switch input:checked+.ds-slider{background:var(--accent,#58a6ff)}\n.ds-switch input:checked+.ds-slider:before{transform:translateX(20px)}"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "图标栏与设置导航的条目，活动态只加一层洗色。",
+      "html": "<div class=\"ds-nav\"><button class=\"ds-nav-item is-active\" type=\"button\"><span class=\"ds-ico\">description</span><span>全部笔记</span><span class=\"ds-badge\">12</span></button><button class=\"ds-nav-item\" type=\"button\"><span class=\"ds-ico\">check_box</span><span>待办</span><span class=\"ds-badge\">3</span></button></div>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:2px;width:220px}\n.ds-nav-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border:none;border-radius:6px;background:transparent;color:var(--text-secondary,#8b949e);font-family:inherit;font-size:12.5px;text-align:left;cursor:pointer;transition:background-color .15s,color .15s}\n.ds-nav-item .ds-ico{font-family:'Material Symbols Rounded';font-size:18px;line-height:1;font-feature-settings:'liga'}\n.ds-nav-item:hover{background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-primary,#f0f6fc)}\n.ds-nav-item.is-active{background:var(--item-active,rgba(255,255,255,.08));color:var(--text-primary,#f0f6fc);font-weight:500}\n.ds-badge{padding:1px 6px;border-radius:999px;background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-muted,#6e7681);font-family:\"JetBrains Mono\",Consolas,monospace;font-size:11px}"
+    },
+    {
+      "name": "Browser Tab",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "内容卡片上方的标签页；活动态与编辑器连成一片，两侧带反向圆角。",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab\" type=\"button\"><span class=\"ds-ico\">description</span><span class=\"ds-tab-title\">Hello, world.</span><span class=\"ds-tab-x\">close</span></button><button class=\"ds-tab is-active\" type=\"button\"><span class=\"ds-ico\">description</span><span class=\"ds-tab-title\">移动端测试笔记</span><span class=\"ds-tab-x\">close</span></button></div>",
+      "css": ".ds-tabs{display:flex;align-items:flex-end;gap:0;padding:0 8px;height:40px;background:var(--bg-titlebar,#161b22);border-bottom:1px solid var(--border-color,#30363d)}\n.ds-tab{position:relative;display:flex;align-items:center;gap:6px;height:36px;min-width:96px;max-width:200px;padding:0 6px 0 10px;border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;background:transparent;color:var(--text-secondary,#8b949e);font-family:inherit;font-size:12px;cursor:pointer;margin-bottom:-1px;transition:background-color .15s,color .15s,border-color .15s}\n.ds-tab+.ds-tab{margin-left:-1px}\n.ds-tab .ds-ico{font-family:'Material Symbols Rounded';font-size:16px;line-height:1;font-feature-settings:'liga'}\n.ds-tab-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.ds-tab-x{font-family:'Material Symbols Rounded';font-size:14px;line-height:1;opacity:.6}\n.ds-tab:hover{background:var(--item-hover,rgba(255,255,255,.04));color:var(--text-primary,#f0f6fc)}\n.ds-tab.is-active{border-color:var(--border-color,#30363d);background:var(--bg-editor,#0d1117);color:var(--text-primary,#f0f6fc);font-weight:500}"
+    }
+  ],
+  "narrative": {
+    "northStar": "纸盘 The Paper Tray",
+    "overview": "整个窗口是一张摊开的桌面。左侧 48px 图标栏与顶部 40px 标签栏是同一种材质的一整块表面（代码里叫 ChromeBar），内容卡片像一张纸压在上面，四周露出 6px 的底，四角 12.8px 圆角，1px 描边。标签是这张纸的分隔页：非活动标签不描边，活动标签只有上、左、右三边描边并向下延伸 1px 压住纸的上沿，两侧带一段反向圆角，于是标签和编辑器连成一片，看不出接缝。\n\n界面不做表演。没有渐变、没有装饰图形、没有入场动画的炫耀；强调色在整屏的占比被压得很低，只在活动标签、选中项、主按钮和极少数确认元素上出现。信息密度优先于留白：正文 13px、卡片标题 13px、页脚 10.5px，控件高度集中在 26–30px。\n\n层次的表达几乎完全依赖 1px 描边与三级表面色（画布 / 列表 / 标题栏），而不是阴影。阴影被严格限制在真正悬浮于界面之上的层：弹出菜单、下拉、Toast、拖拽中的标签、对话框外壳。",
+    "keyCharacteristics": [
+      "单套固定布局：48px 图标栏 + 270px 笔记列表 + 弹性编辑器，无布局切换",
+      "1px 描边分割一切，静止状态零阴影",
+      "13px 基准字号，控件 26–30px 高，密度优先",
+      "四档圆角 4 / 6 / 8 / 999px，内容卡片与对话框用 md × 1.6 = 12.8px",
+      "强调色默认 #58a6ff（浅色 #0969da），可自定义，但始终稀缺",
+      "所有下拉、菜单、对话框自绘，不使用 Chromium 原生 select 弹出层",
+      "图标一律 material-symbols 圆体"
+    ],
+    "rules": [
+      {
+        "name": "The Scarcity of Signal Blue",
+        "body": "强调色在任意一屏的覆盖面积不超过 10%。它标记「当前」和「可提交」，不用于装饰、不用来做图标默认色、不给整块面板上色。稀有性是它唯一的作用。",
+        "section": "colors"
+      },
+      {
+        "name": "The Two-Tier Surface Rule",
+        "body": "界面只有三级表面：画布、列表、标题栏。新增面板时先用现有表面色，不要发明第四种深浅；需要区分时加 1px hairline，不要改底色。",
+        "section": "colors"
+      },
+      {
+        "name": "The 13px Rule",
+        "body": "界面基准字号固定 13px。需要更小的信息时用 11px / 10.5px 加次要色，不要用 14px 去「强调」；需要更强层级时先加字重，再加字号。",
+        "section": "typography"
+      },
+      {
+        "name": "The Numbers Are Mono Rule",
+        "body": "任何会纵向对齐或需要逐位比较的数字（时间、字数、百分比、序列号、令牌摘要）一律使用 --font-mono 与 font-variant-numeric: tabular-nums。",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "静止状态没有任何阴影。深度由 1px 描边加三级表面色表达；只有当元素真的脱离文档流、浮在界面之上时才允许阴影，而且只用一档。",
+        "section": "elevation"
+      },
+      {
+        "name": "The One Hairline Rule",
+        "body": "所有边界都是 1px。没有 2px 分割线、没有 3px 描边（blockquote 的 3px 强调色左边线与分组标题的 3px 竖条是唯一的例外，它们是标记而非边界）。",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do 用 1px --border-color 分割区域；需要更弱的分割时用 --border-light。",
+      "Do 把新面板放进现有的三级表面（画布 / 列表 / 标题栏）之一，需要浮起时才加 0 8px 24px rgba(0,0,0,0.25)。",
+      "Do 把控件高度控制在 26 / 28 / 30px 三档，内边距用 6 / 8 / 10 / 12 / 16 这几个步长。",
+      "Do 让强调色保持在 10% 以内，并且只用于「当前」与「可提交」。",
+      "Do 数字用 --font-mono + tabular-nums。",
+      "Do 图标用 material-symbols 圆体，14 / 16 / 18px 三档，font-variation-settings 保持 wght 400。",
+      "Do 用 calc(var(--radius-md) * 1.6) 给内容卡片与对话框，保持「纸」的一致感。",
+      "Do 所有下拉、菜单、确认框自绘，保持与现有弹出层同一套描边、圆角与阴影。"
+    ],
+    "donts": [
+      "Don't 给静止状态的卡片、面板、按钮加阴影。",
+      "Don't 发明第四级表面色，或把 --bg-elevated 用在整块面板上。",
+      "Don't 用 2px 以上的描边做分隔（blockquote 左边线与分组竖条除外）。",
+      "Don't 把强调色用作图标默认色、大面积底色或页面背景。",
+      "Don't 把基准字号提到 13px 以上来做层级；先加字重。",
+      "Don't 使用 Chromium 原生 select 弹出层或自绘 SVG 图标（应用图标与托盘图标除外）。",
+      "Don't 给整行设置项加位移或缩放反馈；描边变色已经够了。",
+      "Don't 引入第二套圆角刻度或第二种阴影强度。"
+    ]
+  }
+}

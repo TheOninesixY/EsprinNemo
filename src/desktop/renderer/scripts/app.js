@@ -50,7 +50,6 @@ let saved = {};
     markItemKinds(State.notes, State.todos);
     State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
     State.theme = saved.theme || 'system';
-    State.themeStyle = normalizeThemeStyle(saved.themeStyle);
     State.accentColor = normalizeAccentColor(saved.accentColor);
     State.cornerRadius = normalizeCornerRadius(saved.cornerRadius);
 
@@ -109,7 +108,6 @@ const purgedTrashItems = runBootStep('清理废纸篓', purgeExpiredTrashItems) 
 runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('主题', initTheme);
     runBootStep('明暗模式', initThemeMode);
-    runBootStep('界面风格', initThemeStyle);
     runBootStep('主题色', initAccentColor);
     runBootStep('圆角尺度', initCornerRadius);
     runBootStep('界面缩放', initUiScale);

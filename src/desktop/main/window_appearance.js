@@ -10,9 +10,8 @@ const FONT_ARG_NAMES = {
 };
 
 const THEME_BG = {
-  default: { dark: '#0d1117', light: '#ffffff' },
-  alom: { dark: '#1c1c1e', light: '#ffffff' },
-  magic: { dark: '#0a0d1f', light: '#f7f5ff' }
+  dark: '#0d1117',
+  light: '#ffffff'
 };
 
 function safeResolve(resolver, fallback, label) {
@@ -28,10 +27,6 @@ function safeResolve(resolver, fallback, label) {
 
 function normalizeTheme(value) {
   return value === 'light' ? 'light' : 'dark';
-}
-
-function normalizeStyle(value) {
-  return value === 'alom' || value === 'magic' ? value : 'default';
 }
 
 function normalizeRadius(value) {
@@ -54,14 +49,12 @@ function normalizeFonts(value) {
 function buildWindowAppearance(values) {
   const source = values && typeof values === 'object' ? values : {};
   const theme = normalizeTheme(source.theme);
-  const style = normalizeStyle(source.style);
   const radius = normalizeRadius(source.radius);
   const accent = normalizeAccent(source.accent);
   const fonts = normalizeFonts(source.fonts);
 
   const args = [
     `${ARG_PREFIX}theme=${theme}`,
-    `${ARG_PREFIX}style=${style}`,
     `${ARG_PREFIX}radius=${radius}`,
     `${ARG_PREFIX}accent=${accent}`
   ];
@@ -71,12 +64,11 @@ function buildWindowAppearance(values) {
 
   return {
     theme,
-    style,
     radius,
     accent,
     fonts,
     args,
-    backgroundColor: THEME_BG[style][theme]
+    backgroundColor: THEME_BG[theme]
   };
 }
 

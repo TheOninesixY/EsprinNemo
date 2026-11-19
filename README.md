@@ -13,9 +13,12 @@
 | 资源 | 地址 |
 | --- | --- |
 | 下载与更新 | [GitHub Releases](https://github.com/TheOninesixY/EsprinNemo/releases) |
-| 同步服务端 | 本仓库 [`src/desktop/sync/`](src/desktop/sync)（`bun run start:sync`，打包 `bun run build:sync`） |
+| 同步服务端 | 本仓库 [`src/sync/`](src/sync)（`bun run start:sync`，打包 `bun run build:sync`） |
 
-![主界面](readme/screenshot-3.0.1.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="about/screenshot_dark.png">
+  <img src="about/screenshot_light.png" alt="Esprin Nemo 主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板">
+</picture>
 
 ## 目录
 
@@ -39,7 +42,7 @@
   - [团队笔记（共享）](#团队笔记共享)
 - [AI 助手](#ai-助手)
 - [应用更新](#应用更新)
-- [网页版](#网页版)
+- [移动端](#移动端)
 - [项目结构](#项目结构)
 - [技术栈](#技术栈)
 - [许可与致谢](#许可与致谢)
@@ -65,7 +68,7 @@
 - **标签栏**：位于工作区顶部（笔记列表搜索栏所在行），支持点击切换、中键关闭、左右拖动排序与滚轮横向滚动；未打开任何标签时该行自动收起。标签栏底部有一条贯穿整宽的细分隔线，与下方编辑器顶栏分开；设置页打开时该线随标签栏一起隐藏。启用桌面壁纸时，标签栏与侧边栏使用同一套毛玻璃（`--sidebar-glass-bg` + `blur(26px)`），壁纸透上来；「侧边栏模糊」关闭后回退为不透明编辑器底色
 - **设置标签页**：设置相当于侧边栏里的一个 Tab（底部齿轮按钮）。打开后标签栏整条隐藏，笔记列原地变成设置分类侧边栏（直接就是分类列表，与笔记列共用同一套毛玻璃背景）。右侧显示当前分类的设置内容，顶部有一条只读标题栏（面包屑「设置 / 当前分类」）；没有返回按钮——点侧边栏「笔记 / 待办 / 废纸篓」任一 Tab 即等于关闭设置并切到该视图
 - **侧边栏模糊**：开关写入 `config.json` 的 `sidebarBlur`（默认开启）。开启时侧边栏与笔记列表使用毛玻璃透出桌面壁纸；关闭后两块区域改为不透明主题底色，壁纸只在窗口其余区域可见
-- **悬浮工具组**：窗口操作键与工具按钮（AI 助手 / 小本本 / 桌面便利贴 / 主题）悬浮于窗口右上角，占用标签栏所在行，因此标签栏与设置内容各让出右侧 312px 走廊。桌面端没有全屏按钮（全屏入口只保留在网页模式，网页全屏时窗口按钮不显示、走廊收窄至工具按钮组宽度）；AI 面板打开时该走廊归面板所有，面板顶部另有 40px 拖动空白
+- **悬浮工具组**：窗口操作键与工具按钮（AI 助手 / 小本本 / 桌面便利贴 / 主题）悬浮于窗口右上角，占用标签栏所在行，因此标签栏与设置内容各让出右侧 312px 走廊。桌面端没有全屏按钮（全屏入口只在移动端界面里提供）；AI 面板打开时该走廊归面板所有，面板顶部另有 40px 拖动空白
 - **编辑器顶栏**：位于标签栏下方一行，左右内边距均为 8px（与标签栏、侧边栏一致）；标签栏隐藏时上移至工具按钮行，右侧走廊随之恢复。格式化工具栏（加粗 / 斜体 / H1–H3 / 列表 / 引用 / 代码块 / 分割线 / 插入文件 / 文件管理器）已并入这一行，位于文件夹与标签之后、右侧视图模式按钮之前，不再单独占一行
 - **返回**：返回列表由标签栏最左端的纯图标按钮承担（编辑器打开时滑入，关闭时滑出；编辑器未打开时不出现）。设置打开时标签栏整条隐藏，改用侧边栏 Tab 切换离开设置。应用名只出现在网页标题与弹窗标题栏
 - **拖动窗口**：由编辑器顶栏空闲段、工作区标签栏空白、笔记列表顶部搜索栏行、设置页顶端的拖动空白与分类侧边栏、空状态工作区、AI 面板顶栏上方留白承担
@@ -95,9 +98,9 @@
 ### 外观与个性化
 
 - **主题**：浅色 / 深色 / 跟随系统，首屏渲染前同步注入，切换无闪屏
-- **窗口背景**：桌面端在主进程里把系统桌面壁纸按窗口所在显示器的屏幕尺寸铺满，窗口只截取自己所在的那一块：窗口移动、缩放或换显示器时，背景按屏幕坐标实时重新截取，相当于窗口是屏幕壁纸上的一个洞。毛玻璃只做在左侧侧边栏与笔记列表两块区域：侧边栏更透（0.8），笔记列表更实（0.9，透明度更低、文字更易读）；编辑器、设置页、标题栏等其余区域保持主题纯色。壁纸切换后自动更新，无需重启；读取失败或当前壁纸不可用时回退为纯色主题背景，不报错、不黑屏。多显示器时按窗口所在那台显示器的屏幕尺寸截取（所有显示器共用同一张壁纸文件，不区分每台显示器的独立壁纸）。网页模式拿不到系统壁纸，保持主题纯色背景
-- **主题风格**：「设置 → 外观与主题色 → 主题风格」可在默认配色与 Alom 风格之间切换。Alom 以柔和投影与层次区分卡片、浮层与背景，配合更大的圆角与半透明材质；两种风格并存，小本本与弹窗同步换肤
-- **圆角尺度**：四档（纯方 / 微圆角 / 默认 / 大圆），拖动时连续跟随，松手后吸附至最近档位，也可直接点击档位文字。卡片、按钮、输入框、标签、开关、进度条与滚动条一并跟随，并与主题风格叠加（如 Alom + 大圆）
+- **窗口背景**：桌面端在主进程里把系统桌面壁纸按窗口所在显示器的屏幕尺寸铺满，窗口只截取自己所在的那一块：窗口移动、缩放或换显示器时，背景按屏幕坐标实时重新截取，相当于窗口是屏幕壁纸上的一个洞。毛玻璃只做在左侧侧边栏与笔记列表两块区域：侧边栏更透（0.8），笔记列表更实（0.9，透明度更低、文字更易读）；编辑器、设置页、标题栏等其余区域保持主题纯色。壁纸切换后自动更新，无需重启；读取失败或当前壁纸不可用时回退为纯色主题背景，不报错、不黑屏。多显示器时按窗口所在那台显示器的屏幕尺寸截取（所有显示器共用同一张壁纸文件，不区分每台显示器的独立壁纸）。移动端界面拿不到系统壁纸，保持主题纯色背景
+- **主题风格**：已移除（原 Alom / 魔幻两种风格与「设置 → 外观与主题色 → 主题风格」入口一并删除，只保留默认风格）
+- **圆角尺度**：四档（纯方 / 微圆角 / 默认 / 大圆），拖动时连续跟随，松手后吸附至最近档位，也可直接点击档位文字。卡片、按钮、输入框、标签、开关、进度条与滚动条一并跟随
 - **主题色**：预设色板或自定义取色（支持 `#RRGGBB` / `#RGB`），实时预览并即时落盘；深浅主题下自动换算背景透明度与按钮文字色，弹窗同步生效
 - **自绘下拉菜单**：所有下拉（主题风格、字体、废纸篓保留天数、列表排序、笔记文件夹、AI 附带范围等）均为自绘的触发器与弹出列表，不使用 Chromium 原生 `<select>` 弹出层，因此与主题、主题风格、圆角尺度同步变化，并支持键盘上下键 / Enter / Esc 操作。AI 助手的模型输入框（`datalist` 候选）同样使用自绘候选菜单，输入即筛选；原生 `<select>` 与 `<datalist>` 仍保留在页面中充当数据源与事件源
 - **字体自定义**：界面字体与文档字体可分别设置，西文与 CJK 分开配置，按字符逐个回退，并带实时预览
@@ -112,7 +115,10 @@
 - 点击「选择」可搜索并打开已有笔记，此后小本本编辑的即为该篇笔记
 - 小本本开启时关闭主窗口不会退出应用：主窗口仅被收起，应用继续在小本本中运行；期间再次启动应用会唤回主窗口（不会另起进程），直到小本本也被关闭，应用才退出
 
-![小本本](readme/scratchpad.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="about/scratchpad_dark.png">
+  <img src="about/scratchpad_light.png" alt="小本本窗口：标题、正文与底部状态">
+</picture>
 
 ### 桌面便利贴
 
@@ -175,7 +181,7 @@
 
 默认关闭，可在「设置 → 数据与存储 → 自建同步」中开启；未填写服务器地址时不会发起任何请求。
 
-- **自建服务端**：服务端在本仓库的 [`src/desktop/sync/`](src/desktop/sync)（Node/JavaScript，只用运行时自带模块；`bun run start:sync` 启动，`bun run build:sync` 打出 Windows exe 与无扩展名的可执行文件，网页端与管理页都内嵌在其中）。数据以「操作日志」形式保存在服务端目录，将日志从头重放一遍即为全部数据
+- **自建服务端**：服务端在本仓库的 [`src/sync/`](src/sync)（Node/JavaScript，只用运行时自带模块；`bun run start:sync` 启动，`bun run build:sync` 打出 Windows exe 与无扩展名的可执行文件，网页端与管理页都内嵌在其中）。数据以「操作日志」形式保存在服务端目录，将日志从头重放一遍即为全部数据
 - **删除即删除**：每次保存与删除都会生成一条操作（put / del），服务端为每条操作分配全局递增序号并追加进日志；客户端只记录「已应用到第几号」，同步时拉取其后的操作并重放。删除是一条明确的 tombstone，重放结果与提交方一致，不会出现「A 删除的笔记被 B 依据本地缺文件重新补回」
 - **回收 ID**：条目被彻底删除后，服务端把它的路径留在删除记录里（老副本因此不会被推回来），同时把那个 ID 作为「可复用 ID」收进回收池；**删掉它的那台设备本地立刻就能把这个 ID 用在下一次新建上**（不必等同步往返，新建的条目直接就是同一个 ID）。服务端会给其他设备发放回收池里的 ID，领走的会被占住一会儿（条目落盘即释放，过期自动回到池子），两台设备同时新建不会撞到同一个 ID；只有「服务端见过那条删除」的设备才能领，所以不会出现刚用回收 ID 建的条目被自己还没拉到的删除又擦掉
 - **重放不回退**：本机自己推上去、服务端已受理的操作，在重放时会跳过（本地早就落盘了）——这正是「删掉一个条目、又用它的 ID 新建」之后，那条删除不会把新条目一起删掉的原因
@@ -266,20 +272,9 @@ bun run build
 
 打包实现细节见 [`src/desktop/win_installer/README.md`](src/desktop/win_installer/README.md)（Linux 侧不需要额外的安装脚本，electron-builder 直接产出 AppImage）。
 
-### 网页版
+### 移动端（网页界面）
 
-
-
-- 网页版没有「数据存放位置」这一栏：数据在浏览器存储里，没有可切换的目录（设置页里那一行连同说明一起隐藏，桌面端不受影响）
-- 由 EsprinSync 托管时（浏览器打开 `http://服务器地址:端口/`），页面在脚本加载时探测一次 `/sync/health`：确认是 EsprinSync 就把 `syncServer.url` 填成当前地址并**强制打开自建同步**，同时隐藏设置里的「自建同步」整块 —— 这一份网页版的权威副本在服务端，没什么可配置的
-- 被托管的网页版要求先登录：没登录（本机还没有令牌）就挡一层登录框，可填账户名 + 密码（调 `/admin/api/tokens/generate` 换令牌），也可切到「改用访问令牌」；登录成功后立即同步一次并显示内容。之后打开本页会自动用本机保存的令牌同步，令牌失效或换了账户时再把登录框叫回来
-- 从别处打开的页面（包括单文件产物）不受这套约束：同步卡片照常显示，`syncServer.url` 需要自己填。服务端会返回 `src/desktop/main/*.js` 并带上 `Access-Control-Allow-Origin`，所以这类页面也连得上同一个服务端
-- **离线可用**：页面会登记一份离线缓存（[`src/desktop/renderer/sw.js`](src/desktop/renderer/sw.js)，`/sw.js`），把页面本身、脚本、样式、字体与 `src/desktop/main/*.js` 一起放进浏览器缓存 —— 设备断网、服务端崩了或被关机时，打开同一个地址仍能进到界面，数据来自浏览器里的本地副本；期间的新建、修改、删除都记进待推送队列（服务端那台上没写任何东西），等下次接上服务端时自动推送，拉取也会补上期间别人做的改动
-  - 服务端连不上时不再弹登录框（认不出凭据就不要拦着离线使用）；网络恢复时（`online` 事件）会自动重连、补推本地改动
-  - 浏览器只在 `https://` 或 `http://localhost` 下允许登记离线缓存，用局域网 IP + http 打开时这条不生效（浏览器限制，非本项目可控）
-  - 离线缓存只覆盖静态资源，`/sync`、`/admin`、`/health` 与带 `Authorization` 的请求一律直连网络，不会被缓存
-- 网页版没有系统密钥环，令牌以明文写在浏览器存储里（面板的「强保护」一栏据此为否）；权威副本在服务端，本地那份只是缓存
-- 团队笔记（共享）尚未移植到 JavaScript 服务端，`/sync/shares*` 返回 501，网页版与桌面端此刻都不可用
+手机、平板用的界面在 [`src/mobile/`](src/mobile)，由 EsprinSync 托管在根路径，浏览器打开 `http://服务器地址:端口/` 即可使用，详见[移动端](#移动端)。
 
 ### 发布新版本
 
@@ -287,7 +282,16 @@ bun run build
 2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 分两个作业：`windows-latest` 上安装依赖、执行 `bun run build`，产物 `dist/*.exe` 随 tag `v<版本>` 发布到 GitHub Releases（Release 说明取自 `.github/releases.md`；该 tag 已存在时跳过，不重复发布）；随后 `ubuntu-latest` 上构建 AppImage 并以 `gh release upload` 附加到同一个 Release（Windows 作业被跳过时，Linux 作业也随之跳过）
 3. 旧版本应用的自动更新会检测到该 Release 并升级（Linux 上会把新 AppImage 下载到下载目录，由用户自行替换），见[应用更新](#应用更新)
 
-官网页面位于 [`.github/pages`](.github/pages)，由 [`.github/workflows/pages.yml`](.github/workflows/pages.yml) 自动部署到 GitHub Pages（推送到 `main` 且页面文件有改动时触发，也可手动触发）。
+官网源码位于 [`.github/pages`](.github/pages)，是一份纯静态站点，没有构建步骤：`index.html` + `styles.css` + `material-symbols-rounded.woff2`，图片与字体通过 `assets/`、`about/` 两个软链接指向仓库根目录的同名文件夹。
+
+```bash
+# 本地预览（直接托管 .github/pages，不做任何构建）
+bun run start:website
+```
+
+Cloudflare Pages 不需要构建命令，输出目录填 `.github/pages` 即可。页面图标全部用 `material-symbols` 字体连字，不手写 SVG，也不从 `node_modules` 取任何东西。
+
+品牌字体 Mohave 来自 `assets/Mohave.ttf`（可变字体，SIL Open Font License），图标字体来自 `.github/pages/material-symbols-rounded.woff2`，两者都由 `styles.css` 里的 `@font-face` 直接引用。
 
 ## 数据存储
 
@@ -434,17 +438,17 @@ data_path.json 中的位置（安装时选择或应用内更改）
 
 ### 服务端
 
-服务端在本仓库内（[`src/desktop/sync/`](src/desktop/sync)，Node/JavaScript 实现，只依赖运行时自带模块）。在存放数据的机器上运行：
+服务端在本仓库内（[`src/sync/`](src/sync)，Node/JavaScript 实现，只依赖运行时自带模块）。在存放数据的机器上运行：
 
 ```bash
 # 开发运行：默认 127.0.0.1:8686，数据写入 ./data
 bun run start:sync
 
 # 等价的手工调用：指定监听地址、端口、数据目录与网页端目录
-bun src/desktop/sync/server.js --host 0.0.0.0 --port 8686 --data ./esprin-data
+bun src/sync/server.js --host 0.0.0.0 --port 8686 --data ./esprin-data
 
 # 离线自测：覆盖同步接口、账户与令牌、管理后台
-bun src/desktop/sync/server.js --selftest
+bun src/sync/server.js --selftest
 
 # 打包：Windows exe + 无扩展名的可执行文件（产物在 dist/）
 bun run build:sync
@@ -466,9 +470,9 @@ bun run build:sync
 
 ### 管理后台
 
-启动后在浏览器中打开「服务器地址 + `/admin`」（例如 `http://192.168.1.10:8686/admin`）。根路径 `/` 留给网页端（同一份 Nemo 界面，服务端直接读 `src/desktop/renderer/` 或打包产物的 `web/`），管理后台与它分开挂在 `/admin` 下。管理页面是 `src/desktop/sync/manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。服务端可以供多个账户使用，各自的笔记与待办互不可见；面板上的「正在管理的账户」决定令牌与日志两节作用在哪个账户上。
+启动后在浏览器中打开「服务器地址 + `/admin`」（例如 `http://192.168.1.10:8686/admin`）。根路径 `/` 留给网页端（同一份 Nemo 界面，服务端直接读 `src/desktop/renderer/` 或打包产物的 `web/`），管理后台与它分开挂在 `/admin` 下。管理页面是 `src/sync/manager/` 目录下的静态文件（`index.html`、`app.css`、`app.js`、`fonts/`），由服务端按请求读取后原样返回，因此修改页面无需改动或重启服务端。服务端可以供多个账户使用，各自的笔记与待办互不可见；面板上的「正在管理的账户」决定令牌与日志两节作用在哪个账户上。
 
-- **账户**：服务端默认只有内置账户 `admin`，其余账户只能由管理员在面板的「账户」一节新建（账户名 1~32 个字符、不能重名，密码至少 8 位）。新建的账户是普通账户，只能登录网页版客户端同步自己的数据；勾选「管理员」后它也能进入管理面板。内置账户不可删除、不可停用、不可取消管理员、不可改名（它的名字同时是数据目录名），且至少保留一个账户
+- **账户**：服务端默认只有内置账户 `admin`，其余账户只能由管理员在面板的「账户」一节新建（账户名 1~32 个字符、不能重名，密码至少 8 位）。新建的账户是普通账户，只能登录移动端界面同步自己的数据；勾选「管理员」后它也能进入管理面板。内置账户不可删除、不可停用、不可取消管理员、不可改名（它的名字同时是数据目录名），且至少保留一个账户
 - **首次打开**引导设置内置账户的密码（至少 8 位），随后进入管理面板；密码以 PBKDF2-HMAC-SHA256（20 万次迭代 + 随机盐）按账户各自存为摘要写入 `<data>/users.json`，不可反推原文，后续登录在同一页面完成（输入账户名 + 密码；本页只让管理员登录，非管理员可用登录卡片上的「生成令牌」取令牌）
 - **令牌**：支持新建、改名、重置（生成新明文，旧明文立即失效）、停用 / 启用与删除；每个账户一套，建面板上先用「正在管理的账户」选中归属；明文仅在创建或重置时显示一次，服务端只保存 HMAC-SHA256 摘要（密钥为 `users.json` 中的随机密钥）。此外还提供了一个给客户端用的入口：提交账户名 + 密码即由服务端为该账户签发一份令牌（`POST /admin/api/tokens/generate`），桌面客户端据此把密码换成令牌
 - **设备绑定**：创建令牌时可指定设备（例如 `dev-office`；填客户端「设置 → 数据与存储 → 自建同步」里显示的设备 ID 即可）。绑定后，以该令牌提交的操作均记为该设备，客户端自报的设备名无法覆盖，便于在令牌泄露时定位写入来源
@@ -482,7 +486,7 @@ bun run build:sync
 
 | 地址 | 说明 |
 | --- | --- |
-| `GET /` | 网页版客户端页面（`/index.html` 同效；`/styles/*`、`/scripts/*`、`/fonts/*`、`/Main.new.svg`、`/Main.new.png` 是它的静态资源） |
+| `GET /` | 移动端界面（`/index.html` 同效；`/styles/*`、`/scripts/*`、`/manifest.webmanifest` 是它的静态资源） |
 | `GET /admin` | 管理页面（`/admin/index.html` 同效；`/admin/app.css`、`/admin/app.js`、`/admin/Main.new.svg`、`/admin/fonts/*` 是它的静态资源） |
 | `GET /admin/api/status` | 是否已设密码、当前登录的账户与它是不是管理员（页面靠它决定显示哪一屏） |
 | `GET /admin/api/users` | 账户列表：角色、启用状态、令牌数、创建与最近登录时间、各自的数据量（需管理员） |
@@ -517,7 +521,7 @@ bun run build:sync
 
 ### 客户端
 
-配置项（除令牌外都随 `config.json` 落盘；桌面端与网页版读写的是同一份 `config.json`，网页版里那份在浏览器存储中）：
+桌面端配置项（除令牌外都随 `config.json` 落盘）：
 
 | 字段 | 说明 |
 | --- | --- |
@@ -622,12 +626,55 @@ IPC 通道：
 # 服务端：接口与幂等、越界路径、回收 ID 的领取、日志整理、重启后重建索引、
 # 管理后台（设密码 / 登录 / 账户登录换令牌 / 令牌增删改查）
 # 团队笔记（共享）尚未移植到 JavaScript 版，相关接口一律 501，自测不再覆盖这一节
-# 页面一节看 src/desktop/renderer：网页端托管失败时跳过，不算通过
-bun src/desktop/sync/server.js --selftest
+# 页面一节看 src/mobile：网页端托管失败时跳过，不算通过
+bun src/sync/server.js --selftest
 
 # 客户端同步逻辑：删除不复活、远端更新覆盖本地、本地更新不被旧操作覆盖，以及日志文件的解析、重放与导出目标校验
 node sync-selftest.js
 ```
+
+## 移动端
+
+手机和平板用的触屏界面在 [`src/mobile/`](src/mobile)，是纯静态页面（原生 ES Modules，无框架、无构建步骤、无外部依赖），由同步服务端直接托管在根路径：
+
+```bash
+# 启动同步服务端（同时在 / 提供移动端界面）
+bun run start:sync
+
+# 或者只预览移动端界面（开发时调试 UI，不带同步服务端）
+bun run start:mobile
+
+# 打包成单个 HTML 文件
+bun run build:mobile
+```
+
+在手机上打开 `http://<服务器地址>:8686/` 即可使用；「添加到主屏幕」后会以独立窗口运行（`manifest.webmanifest`）。
+
+
+### 单文件产物
+
+`bun run build:mobile` 会产出 `dist/EsprinNemo_Mobile_v<版本>.html`：样式、脚本、图标字体与品牌图标全部内联进同一个文件，不发任何外部请求，可以直接拷到手机上打开，也可以塞进 WebView。
+
+- **脚本**：按 `import` 依赖图从 `scripts/app.js` 出发收集模块，按依赖顺序拼进一个 IIFE 运行时，`import` / `export` 全部改写掉，不依赖 `<script type="module">`（`file://` 下也能跑）
+- **样式**：`material-symbols/rounded.css` 与 `styles/` 下 5 个样式表按原顺序内联成 `<style>`
+- **字体**：`material-symbols-rounded.woff2` 以 base64 data URI 塞进 `@font-face`，因此单文件约 7 MB
+- **图标**：品牌标记取自 `assets/tray.svg`，直接写进 HTML；`assets/icon.svg` 以 data URI 作为 favicon
+- **清单**：单文件没有有意义的 `scope`，`manifest` 链接在打包时移除
+
+### 与 Desktop 的关系
+
+- **数据完全通用**：移动端写出的文件与 Desktop 的 `serializeItemFile` 逐字节一致——`<!--EsprinData` 头（`type` / `title` / `folder` / `tags` / `isPinned` / `isTrashed` / `createdAt` / `updatedAt`，以及按需出现的 `isHidden` / `isLocked` / `isDone`）+ 空行 + Markdown 正文。`src/mobile/scripts/format.js` 里的 `parseItemFile` / `serializeItem` 与桌面端实现逐条对齐，`unknownMeta` 会保留 Desktop 写入的未知字段，来回同步不丢数据
+- **同步协议完全通用**：同一个 `/sync/ops`（`{device, ops:[{opId, op, path, time, hash, encoding, data}]}`）、`/sync/ops?since=&limit=`、`/sync/state`、`/sync/health`、`/admin/api/tokens/generate`；冲突判定沿用桌面端规则（本地有更新的待推送操作时保留本地，否则远端覆盖）
+- **界面重写**：没有复用任何 Desktop 的渲染层文件。列表是卡片流，手机底部是「笔记 / 待办 / 置顶 / 废纸篓」四个分类，平板（≥860px）自动切成左右双栏并把分类移到列表顶部横排；编辑器是标题 / 正文 / Markdown 预览三段；设置分外观 / 同步 / 数据 / 关于。新建入口是右下角的圆形按钮：点击后向上滑出「新建笔记」「新建待办」两个圆形按钮（+ 同时转成 ×），不弹抽屉
+- **触屏适配**：桌面端靠 hover 才显示卡片描边，触屏没有 hover，因此移动端把描边放到静止态（`--border-light`），选中态才用 `--item-active` + `--border-color`；菜单行、筛选芯片同样给出静止态底色，避免整屏只剩文字
+- **图标**：与桌面端一样使用 `material-symbols` 圆体（`/node_modules/material-symbols/rounded.css`，由同步服务端托管），不引入自绘 SVG
+- **存储**：浏览器里没有 `fs`，移动端用 IndexedDB 存一张「路径 → 内容」表（键名与磁盘路径一致，如 `items/<id>.md`），写入的仍是同样的 UTF-8 文本；IndexedDB 不可用时退回 localStorage
+
+### 已知边界
+
+- 加密笔记（`isLocked`）在移动端只显示为「已加密」，不支持解密与编辑（PBKDF2 + AES-GCM 的密钥派生在桌面端完成）
+- 团队笔记（共享）在移动端暂未提供界面，服务端这部分也仍是 501
+- 移动端不读取 Desktop 的 `config.json`（主题等外观设置各自独立），只共用条目文件与同步协议
 
 ## AI 助手
 
@@ -743,59 +790,76 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 ## 项目结构
 
 ```text
-├── package.json            # "main" 指向 src/desktop/main/main.js；icon 与 svg_icon 指向应用图标（位图 / 矢量），代码里不再各自拼图标路径
+├── .github/
+│   └── pages/              # 官网源码：index.html、styles.css、assets/（截图与应用图标）；构建产物在同目录 dist/（已 gitignore）
+├── package.json            # "main" 指向 src/desktop/main/main.js；icon 与 svg_icon 指向应用图标（位图 / 矢量）
+├── assets/                 # 桌面端与移动端共用的应用资源
+│   ├── icon.svg            # 应用图标矢量源（package.json 的 svg_icon），服务端据此生成 favicon
+│   ├── icon.png            # 同图形的位图版（package.json 的 icon，窗口、安装包与桌面右键菜单用它）
+│   ├── tray.svg            # 单色品牌标记，桌面端左上角与移动端顶栏都用它
+│   ├── Mohave.ttf          # 品牌字体（可变字体，SIL Open Font License）
+│   └── Mohave_OFL.txt      # 该字体的授权全文
 ├── src/
-│   ├── assets/
-│   │   ├── icon.svg        # 应用图标矢量源（package.json 的 svg_icon，网页端据此内联 favicon）
-│   │   └── icon.png        # 同图形的位图版（package.json 的 icon，窗口、托盘、安装包与桌面右键菜单用它）
-│   ├── main/               # 主进程
-│   │   ├── main.js         # 窗口、菜单、数据目录解析与迁移、主窗口生命周期（did-finish-load 后显示、退出清理）、IPC
-│   │   ├── ai_secret.js    # AI 密钥：旧版明文收编与密钥文件迁移（加解密由 secret_store.js 负责）
-│   │   ├── ai_service.js   # AI 助手：兼容 OpenAI 协议的对话代理与模型列表
-│   │   ├── secret_store.js # 通用密钥存储：系统密钥链 / safeStorage 加密落盘（AI Key 与同步令牌共用）
-│   │   ├── sync_server.js  # 自建同步：操作日志（outbox / 序号 / 重放）、与服务端通信，以及团队笔记（共享）的接口
-│   │   ├── speech_windows.js # 随口记：系统语音识别桥（拉起识别进程、把识别结果转成 IPC 事件）
-│   │   ├── speech_windows.ps1 # 随口记：Windows 桌面识别引擎脚本（System.Speech，ASCII 源码）
-│   │   ├── auto_launch.js  # 开机自启：Windows / macOS 读写系统登录启动项，Linux 写 XDG autostart 的 .desktop
-│   │   ├── data_path.js    # 数据目录解析：安装版 / 便携版 / 开发版的位置（Windows `%APPDATA%\esprin_nemo`，Linux `~/.local/share/EsprinNemo`）、自定义位置记录与启动可写性检查
-│   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入 / 勾选）
-│   │   ├── scratchpad_window.js # 小本本：右下角置顶便利贴小窗口与内容读写
-│   │   ├── sticky_notes.js # 桌面便利贴：每张便利贴一个窗口，记录读写与条目桥接
-│   │   ├── desktop_layer.js # 桌面层：把便利贴窗口压到所有窗口之下（常驻 PowerShell 子进程，调 Win32 SetWindowPos；非 Windows 下停用）
-│   │   ├── desktop_layer.ps1 # 桌面层：Win32 SetWindowPos(HWND_BOTTOM) 脚本（ASCII 源码）
-│   │   ├── desktop_menu.js # 桌面右键菜单：写 / 删 DesktopBackground 注册表项，按当前便利贴清单重建子项（仅 Windows）
-│   │   ├── tray.js         # 系统托盘：托盘图标、右键菜单（小本本 / 桌面便利贴 / 新建笔记 / 新建待办 / 设置 / 退出）
-│   │   ├── updater.js      # 应用更新：检查 GitHub Releases、读取当前版本发布说明、下载安装包（Windows 为 Setup.exe，Linux 为 AppImage）、静默升级（仅 Windows）
-│   │   ├── font_list.js    # 跨平台本机字体枚举（Windows 字体目录 / Linux 的 /usr/share/fonts 等，解析字体文件 name 表）
-│   │   ├── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
-│   │   ├── wallpaper.js    # 窗口背景：读取系统桌面壁纸（注册表与转码缓存）、跟随壁纸切换、缓存归一化图片
-│   │   └── window_appearance.js # 主题 / 风格 / 圆角 / 主题色 / 字体的统一换算
-│   ├── win_installer/      # Windows 安装器：NSIS 自定义向导页（数据存放位置）
-│   │   ├── installer.nsh   # electron-builder nsis.include
-│   │   └── README.md       # 安装器说明
-└── renderer/           # 渲染进程（Electron 主窗口与各弹窗）
-│       ├── main.html       # 主窗口：界面骨架 + 外链样式与脚本（桌面端与网页模式的唯一入口页）
-│       ├── dialog.html     # 弹窗窗口页面
-│       ├── scratchpad.html # 小本本窗口页面（标题 + 正文、选择笔记、Ctrl+S 保存）
-│       ├── sticky.html     # 桌面便利贴窗口页面（标题栏 + 纸面预览 / 编辑、待办勾选、纸张颜色、右键菜单）
-│       ├── boot.js         # 首屏引导：数据目录解析、主题 / 主题风格 / 主题色 / 圆角尺度 / 字体 / 界面布局预注入（无闪屏）
-│       ├── fonts/          # 随应用分发的品牌字体（Mohave）
-│       ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown（自绘下拉菜单）/ settings / ai / sync（自建同步面板）/ voice（随口记：语音转文本）/ alom（Alom 风格）/ radius（圆角尺度）/ mode（界面布局，含网页模式下的入口裁剪）/ motion（动效：进场动画与换肤交叉淡入）/ mobile（网页模式手机端布局）/ filter（筛选抽屉：文件夹 / 标签选择）/ wallpaper（屏幕对齐壁纸 + 侧边栏与列表毛玻璃）
-│       └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / wallpaper（接收主进程下发的壁纸并校验可用性）/ mode / notes / scratchpad / sticky_notes（桌面便利贴：标题栏入口、设置分区与条目桥接）/ sticky_window（桌面便利贴窗口逻辑）/ tray / auto_launch / sync_server / team_notes（团队笔记：共享请求与共享列表）/ editor / voice_notes / ai / ai_chats / ai_files / ai_agent / update / filter（筛选抽屉的渲染与筛选切换）/ mobile（网页模式手机端交互：底部标签栏、安全区与软键盘适配）/ render …
+│   ├── desktop/            # 桌面端（Electron）：主进程、渲染进程、同步端、安装脚本
+│   │   ├── main/           # 主进程
+│   │   │   ├── main.js     # 窗口、菜单、数据目录、单实例迁移、更新检查、主窗口生命周期与 IPC
+│   │   │   ├── ai_secret.js    # AI 密钥：旧版明文收编与密钥文件迁移（加解密由 secret_store.js 负责）
+│   │   │   ├── ai_service.js   # AI 助手：兼容 OpenAI 协议的对话代理与模型列表
+│   │   │   ├── secret_store.js # 通用密钥存储：系统密钥链 / safeStorage 加密落盘（AI Key 与同步令牌共用）
+│   │   │   ├── sync_server.js  # 自建同步：操作日志（outbox / 序号 / 重放）、与服务端通信，以及团队笔记接口
+│   │   │   ├── speech_windows.js  # 随口记：系统语音识别桥（拉起识别进程、把识别结果转成 IPC 事件）
+│   │   │   ├── speech_windows.ps1 # 随口记：Windows 桌面识别引擎脚本（System.Speech，ASCII 源码）
+│   │   │   ├── auto_launch.js  # 开机自启：Windows / macOS 读写系统登录启动项，Linux 写 XDG autostart
+│   │   │   ├── data_path.js    # 数据目录解析：安装版 / 便携版 / 开发版位置、自定义位置记录与可写性检查
+│   │   │   ├── dialog_window.js# 自绘标题栏的消息弹窗（提示 / 确认 / 输入 / 勾选）
+│   │   │   ├── scratchpad_window.js # 小本本：右下角置顶便利贴小窗口与内容读写
+│   │   │   ├── sticky_notes.js # 桌面便利贴：每张便利贴一个窗口，记录读写与条目桥接
+│   │   │   ├── desktop_layer.js # 桌面层：把便利贴窗口压到所有窗口之下（常驻 PowerShell 子进程）
+│   │   │   ├── desktop_layer.ps1 # 桌面层：Win32 SetWindowPos(HWND_BOTTOM) 脚本（ASCII 源码）
+│   │   │   ├── desktop_menu.js # 桌面右键菜单：写 / 删 DesktopBackground 注册表项（仅 Windows）
+│   │   │   ├── tray.js         # 系统托盘：托盘图标、右键菜单
+│   │   │   ├── updater.js      # 应用更新：检查 GitHub Releases、发布说明、下载与静默升级
+│   │   │   ├── font_list.js    # 跨平台本机字体枚举
+│   │   │   ├── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
+│   │   │   ├── wallpaper.js    # 窗口背景：读取系统桌面壁纸、跟随切换、缓存归一化图片
+│   │   │   └── window_appearance.js # 主题 / 风格 / 圆角 / 主题色 / 字体的统一换算
+│   │   ├── renderer/       # 渲染进程（Electron 主窗口与各弹窗）
+│   │   │   ├── main.html       # 主窗口：列表 + 编辑器 + 设置 + 各种浮层
+│   │   │   ├── dialog.html     # 弹窗窗口页面
+│   │   │   ├── scratchpad.html # 小本本窗口页面（标题 + 正文、选择笔记、Ctrl+S 保存）
+│   │   │   ├── sticky.html     # 桌面便利贴窗口页面
+│   │   │   ├── boot.js         # 首屏引导：数据目录解析、主题 / 圆角 / 字体 / 布局预注入（无闪屏）
+│   │   │   ├── window_appearance.js # 首屏外观预注入（避免窗口尺寸 / 圆角闪动）
+│   │   │   ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown / settings / ai /
+│   │   │   │                   # sync / voice / radius / mode / motion / filter / wallpaper
+│   │   │   └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / wallpaper / mode /
+│   │   │                       # notes / scratchpad / sticky_notes / sticky_window / tray / auto_launch /
+│   │   │                       # sync_server / team_notes / editor / voice_notes / ai / ai_chats / ai_files /
+│   │   │                       # ai_agent / update / filter / render / app …
+│   │   └── win_installer/  # Windows 安装器：NSIS 自定义向导页（数据存放位置）
+│   │       ├── installer.nsh
+│   │       └── README.md
 │   ├── sync/               # 自建同步服务端（Node/JavaScript，`bun run start:sync`）
-│   │   ├── server.js       # HTTP 服务、路由、同步/管理接口与启动流程（含 --selftest）
+│   │   ├── server.js       # HTTP 与路由：同步 / 管理接口、静态资源、命令行（含 --selftest）
 │   │   ├── lib.js          # 常量、日志、密码摘要、路径校验等公共工具
 │   │   ├── store.js        # 账户、访问令牌、登录会话与密码校验
 │   │   ├── journal.js      # 操作日志：追加、索引、增量读取、回收 ID、整理
-│   │   ├── assets.js       # 网页端（src/desktop/renderer）与管理页的静态资源与注入
+│   │   ├── assets.js       # 网页端（src/mobile）与管理页的静态资源与注入
 │   │   └── manager/        # 管理后台静态文件（挂在 /admin）
-├── scripts/                # 构建辅助工具：sync_build.js（把同步端打成 Windows exe + 无扩展名可执行文件）
+│   └── mobile/             # 移动端网页界面（手机 / 平板，触屏优先）
+│       ├── index.html      # 唯一页面：列表 / 编辑器 / 设置三块屏幕
+│       ├── manifest.webmanifest # 添加到主屏幕时的名称、主题色与显示模式
+│       ├── styles/         # tokens（配色与尺寸）/ base（外壳、浮层、图标字体）/ list / editor / settings
+│       └── scripts/        # app（界面与交互）/ store（IndexedDB 文件仓库）/ sync（同步客户端）/
+│                           # format（与 Desktop 完全一致的条目文件读写）/ markdown（预览渲染）/ icons（图标名映射）
+├── scripts/                # 构建辅助工具：sync_build.js（把同步端打成可执行文件）、mobile_build.js / mobile_serve.js（移动端打包与本地预览）、website_serve.js（官网本地预览）
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
-└── readme/                 # 文档配图
+├── DESIGN.md               # 桌面端设计系统（配色 / 字体 / 圆角 / 层次 / 组件规范），改界面前先对照它
+└── about/                  # 文档配图
 ```
 
-自建同步服务端在本仓库内（[`src/desktop/sync/`](src/desktop/sync)）：`server.js` 是 HTTP 与路由，`lib.js` / `store.js` / `journal.js` 分别放公共常量与工具、账户与令牌会话、操作日志，`assets.js` 负责网页端与管理页的静态资源；`manager/` 是管理页面静态文件（挂在 `/admin`）。网页端没有独立的源码目录，与桌面端共用同一个 `src/desktop/renderer/`，服务端直接托管它，不再克隆外部仓库；打包产物里的 `web/` 供独立部署使用。
+自建同步服务端在本仓库内（[`src/sync/`](src/sync)）：`server.js` 是 HTTP 与路由，`lib.js` / `store.js` / `journal.js` 分别放公共常量与工具、账户与令牌会话、操作日志，`assets.js` 负责网页端与管理页的静态资源；`manager/` 是管理页面静态文件（挂在 `/admin`）。网页端就是 [`src/mobile/`](src/mobile) —— 手机连上同步服务器后直接打开 `http://<服务器地址>:<端口>/` 即可使用，打包产物里也会把这套静态文件内嵌进去，不再需要外部仓库或单独的 `web/` 目录。
 
 > 渲染进程按「经典脚本」方式拆分：`src/desktop/renderer/scripts/` 下的文件共享同一个全局作用域，`state.js`
 > 必须在其它脚本之前加载，`app.js` 负责在 `window.onload` 时启动应用。
@@ -806,12 +870,14 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 - **窗口生命周期**：主窗口以 `show: false` 创建，等 `webContents` 的 `did-finish-load` 才显示（另有超时兜底，且只执行一次，页面重载不会重复显示）；退出在 `before-quit` / `will-quit` 里依次清理语音识别、桌面层、桌面便利贴、壁纸监视器与桌面右键菜单，正常退出输出 `[INFO] [Nemo] 资源清理完成，正常退出` 并以 0 退出码结束，重复的 `app.quit()` 调用被合并
 - **原生 JavaScript / HTML / CSS**：界面基于 CSS 变量实现主题、风格、圆角、主题色与字体切换
 - **Node.js 文件系统直读直写**：渲染进程通过 `require('fs')` 直接读写数据目录
-- **material-symbols**：图标字体
+- **material-symbols**：桌面端图标字体（移动端自带内联 SVG 图标，不依赖字体）
 - **Mohave**：左上角品牌字体（SIL Open Font License）
+- **移动端**：原生 ES Modules + IndexedDB，无构建步骤、无框架、无外部依赖
+- **设计系统**：[`DESIGN.md`](DESIGN.md) 记录桌面端的配色、字体、圆角、层次与组件规范；改界面前先对照它，不要另起一套视觉
 
 ## 许可与致谢
 
-- 品牌字体 [Mohave](src/desktop/renderer/fonts/Mohave/) 遵循 SIL Open Font License，授权全文见 `src/desktop/renderer/fonts/Mohave/OFL.txt`
+- 品牌字体 [Mohave](assets/Mohave.ttf) 遵循 SIL Open Font License，授权全文见 `assets/Mohave_OFL.txt`
 - 图标来自 [material-symbols](https://github.com/google/material-design-icons)
 - 仓库当前未包含 `LICENSE` 文件；如需在授权范围外使用或分发，请先通过 Issue 联系作者
 

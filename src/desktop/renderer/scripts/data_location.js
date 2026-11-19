@@ -98,7 +98,6 @@ async function refreshDataDirInfo() {
 function adoptDataDir(dir, options = {}) {
     const prefs = {
         theme: State.theme,
-        themeStyle: State.themeStyle,
         accentColor: State.accentColor,
         cornerRadius: State.cornerRadius,
 
@@ -126,7 +125,6 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
 
     if (hasConfig) {
         State.theme = saved.theme;
-        State.themeStyle = saved.themeStyle;
         State.accentColor = saved.accentColor;
         State.cornerRadius = saved.cornerRadius;
         State.uiScale = saved.uiScale;
@@ -150,7 +148,6 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
             : { ...State.syncServer, lastSyncAt: loadedSync.lastSyncAt, lastSyncSummary: loadedSync.lastSyncSummary };
         State.syncServerLoaded = true;
     } else {
-        State.themeStyle = prefs.themeStyle;
         State.theme = prefs.theme;
         State.accentColor = prefs.accentColor;
         State.cornerRadius = prefs.cornerRadius;
@@ -201,7 +198,6 @@ if (State.currentFilter.startsWith('folder:')) {
     }
 
     applyTheme();
-    applyThemeStyle();
     applyCornerRadius();
     applyUiScale();
     applySpellcheck();
@@ -212,7 +208,6 @@ if (State.currentFilter.startsWith('folder:')) {
     applySidebarBlur();
     syncFontSelects();
     syncAccentControls();
-    syncThemeStyleSelect();
     syncCornerRadiusControl();
     syncUiScaleControl();
     syncTrashRetentionSelect();
