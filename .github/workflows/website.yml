@@ -1,0 +1,68 @@
+name: Publish Website
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/pages/**
+      - assets/**
+      - about/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: website
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Collect site files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site
+
+          for entry in .github/pages/*; do
+            name="$(basename "$entry")"
+            cp -aL "$entry" "site/$name"
+          done
+
+          for name in assets about; do
+            if [ ! -d "site/$name" ]; then
+              rm -f "site/$name"
+              cp -aL "$name" "site/$name"
+            fi
+          done
+
+          rm -rf site/dist
+
+      - name: Push branch
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd site
+          git init -q
+          git checkout -q -b website
+          git add -A
+
+          if git -c user.name="github-actions[bot]" \
+                 -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                 commit -q -m "chore: publish website from ${GITHUB_SHA::7}"; then
+            git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git push -f origin website
+          else
+            echo "No changes to publish"
+          fi
