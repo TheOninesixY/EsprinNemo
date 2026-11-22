@@ -1,2 +1,18 @@
-bun scripts/clean.js src/
-git add .
+#!/bin/sh
+
+if ! command -v bun >/dev/null 2>&1; then
+  for candidate in "$HOME/.bun/bin/bun" "/opt/homebrew/bin/bun" "/usr/local/bin/bun"; do
+    if [ -x "$candidate" ]; then
+      PATH="$(dirname "$candidate"):$PATH"
+      export PATH
+      break
+    fi
+  done
+fi
+
+if command -v bun >/dev/null 2>&1; then
+  bun scripts/clean.js src/ || exit $?
+  git add .
+else
+  echo "husky: bun 未找到，跳过 scripts/clean.js src/ 与自动暂存" >&2
+fi

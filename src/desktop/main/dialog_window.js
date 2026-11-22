@@ -297,7 +297,7 @@ if (parentWin) {
     });
 
     win.loadFile(DIALOG_HTML).catch((error) => {
-      console.error('[Esprin Nemo] 加载弹窗页面失败:', error);
+      console.error('[EsprinNemo] 加载弹窗页面失败:', error);
       finishDialog(entry, canceledResult(entry));
     });
   });

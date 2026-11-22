@@ -5,6 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小本本</title>
 
+    <script>
+        (function () {
+            try {
+                const prefix = '--esprin-nemo-titlebar-lead=';
+                const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(prefix));
+                if (!matched) return;
+                const lead = parseInt(matched.slice(prefix.length), 10);
+                if (!Number.isFinite(lead) || lead <= 0) return;
+                document.documentElement.classList.add('native-window-controls');
+                document.documentElement.style.setProperty('--titlebar-lead', lead + 'px');
+            } catch (error) {
+            }
+        })();
+    </script>
+
     <script src="./window_appearance.js"></script>
     <script>window.applyWindowAppearance(window.readWindowAppearanceFromArgs());</script>
     <link rel="stylesheet" href="../../../node_modules/material-symbols/rounded.css">
@@ -17,7 +32,7 @@
     <style>
         :root {
 
-            --win-btn-width: 36px;
+            --win-btn-width: 44px;
         }
 
         .note-container {
@@ -29,6 +44,45 @@
 
 .titlebar-icon {
             font-size: 16px;
+        }
+
+        html.native-window-controls .titlebar {
+            padding-left: var(--titlebar-lead, 78px);
+        }
+
+        html.native-window-controls .titlebar-icon {
+            display: none;
+        }
+
+        html.native-window-controls .window-controls {
+            display: none;
+        }
+
+        .note-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px;
+            flex-shrink: 0;
+            -webkit-app-region: no-drag;
+        }
+
+        .note-actions .btn-action-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            transition: background-color 0.15s, color 0.15s, transform 0.1s;
+            -webkit-app-region: no-drag;
+        }
+
+        .note-actions .btn-action-icon:hover {
+            background-color: var(--item-hover);
+            color: var(--text-primary);
+        }
+
+        .note-actions .btn-action-icon:active {
+            transform: scale(0.94);
         }
 
         #note-title {
@@ -222,13 +276,15 @@
         <header class="titlebar" id="note-titlebar">
             <span class="ms-icon titlebar-icon">sticky_note_2</span>
             <input type="text" id="note-title" placeholder="标题" spellcheck="false">
+            <div class="note-actions">
+                <button class="btn-action-icon" id="note-select" title="选择笔记（Ctrl+O）">
+                    <span class="ms-icon sm">library_books</span>
+                </button>
+                <button class="btn-action-icon" id="note-save" title="保存（Ctrl+S）">
+                    <span class="ms-icon sm">save</span>
+                </button>
+            </div>
             <div class="window-controls">
-                <button class="win-btn" id="note-select" title="选择笔记（Ctrl+O）">
-                    <span class="ms-icon xs">library_books</span>
-                </button>
-                <button class="win-btn" id="note-save" title="保存（Ctrl+S）">
-                    <span class="ms-icon xs">save</span>
-                </button>
                 <button class="win-btn" id="note-min" title="最小化">
                     <span class="ms-icon xs">remove</span>
                 </button>

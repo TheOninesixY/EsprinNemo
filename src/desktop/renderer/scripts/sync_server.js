@@ -366,7 +366,7 @@ if (State.syncTokenSaved) {
             account: config.account,
             password,
 
-            tokenName: config.device ? `Esprin Nemo · ${config.device}` : 'Esprin Nemo'
+            tokenName: config.device ? `EsprinNemo · ${config.device}` : 'EsprinNemo'
         });
         if (!result || !result.ok) {
             setSyncStatus(`登录失败：${(result && result.error) || '与主进程通信异常，请重试'}`, 'error');

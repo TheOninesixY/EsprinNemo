@@ -1,6 +1,6 @@
 {
   "name": "esprin_nemo",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "main": "src/desktop/main/main.js",
   "description": "Note, Nothing.",
   "icon": "assets/icon.png",
@@ -11,6 +11,7 @@
     "build": "electron-builder --win --linux --publish never",
     "build:win": "electron-builder --win --publish never",
     "build:linux": "electron-builder --linux --publish never",
+    "build:mac": "electron-builder --mac --universal --publish never",
     "build:all": "bun run build&&bun build:sync",
     "start:sync": "bun src/sync/server.js",
     "start:mobile": "bun scripts/mobile_serve.js",
@@ -27,7 +28,8 @@
   },
   "build": {
     "appId": "io.github.theoninesixy.esprin_nemo",
-    "productName": "Esprin Nemo",
+    "productName": "EsprinNemo",
+    "afterPack": "scripts/mac_after_pack.js",
     "files": [
       "src/desktop/",
       "assets/",
@@ -49,7 +51,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "uninstallDisplayName": "Esprin Nemo"
+      "uninstallDisplayName": "EsprinNemo"
     },
     "linux": {
       "target": [
@@ -59,6 +61,39 @@
       "category": "Utility",
       "synopsis": "Note, Nothing.",
       "maintainer": "TheOninesixY <oninesixy@qq.com>"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "EsprinNemo.v${version}.${ext}",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "darkModeSupport": true,
+      "extendInfo": {
+        "NSHighResolutionCapable": true,
+        "NSHumanReadableCopyright": "Copyright © 2026 TheOninesixY"
+      }
+    },
+    "dmg": {
+      "artifactName": "EsprinNemo.v${version}.${ext}",
+      "title": "EsprinNemo",
+      "backgroundColor": "#0d1117",
+      "iconSize": 96,
+      "contents": [
+        {
+          "x": 140,
+          "y": 200
+        },
+        {
+          "x": 400,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "directories": {
       "buildResources": "assets"

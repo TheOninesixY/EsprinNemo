@@ -38,9 +38,9 @@
     --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
     --font-ui-latin: "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
-    --font-ui-cjk: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+    --font-ui-cjk: "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC", sans-serif;
     --font-doc-latin: "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
-    --font-doc-cjk: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+    --font-doc-cjk: "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC", sans-serif;
 
     --font-sans: var(--font-ui-latin), var(--font-ui-cjk), sans-serif;
     --font-doc: var(--font-doc-latin), var(--font-doc-cjk), var(--font-ui-cjk), sans-serif;

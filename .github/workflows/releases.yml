@@ -6,7 +6,9 @@ on:
       - main
     paths:
       - src/
+      - scripts/
       - package.json
+      - assets/
   workflow_dispatch:
 
 permissions:
@@ -136,10 +138,69 @@ jobs:
           path: release-assets/*
           if-no-files-found: error
 
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Read package version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid package version: $VERSION"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build macOS artifacts
+        run: bun run build:mac
+        env:
+          CI: "false"
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Collect artifacts
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          cp -- "dist/EsprinNemo.v${VERSION}.dmg" release-assets/
+          ls -lh release-assets
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: release-assets/*
+          if-no-files-found: error
+
   publish:
     needs:
       - windows
       - linux
+      - macos
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -169,7 +230,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 5
+          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -eq 6
           ls -lh release-assets
 
       - name: Publish GitHub Release
@@ -181,6 +242,7 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release-assets/EsprinNemo.v${{ steps.version.outputs.version }}.AppImage
+            release-assets/EsprinNemo.v${{ steps.version.outputs.version }}.dmg
             release-assets/EsprinNemo.Portable.v${{ steps.version.outputs.version }}.exe
             release-assets/EsprinNemo.Setup.v${{ steps.version.outputs.version }}.exe
             release-assets/EsprinSync.v${{ steps.version.outputs.version }}.exe

@@ -3,8 +3,15 @@ const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./data_path.js');
 const { buildWindowAppearance, safeResolve } = require('./window_appearance.js');
+const { trafficLightPosition } = require('./window_controls.js');
 
 const NOTE_HTML = path.join(__dirname, '..', 'renderer', 'scratchpad.html');
+
+const IS_MAC = process.platform === 'darwin';
+
+const TITLEBAR_LEAD_ARG = '--esprin-nemo-titlebar-lead=';
+
+const TRAFFIC_LIGHT_GAP = 62;
 
 const STATE_FILE_NAME = 'scratchpad.json';
 
@@ -25,6 +32,7 @@ let resolveRadius = () => 'default';
 
 let resolveFonts = () => ({});
 let resolveDataDir = () => '';
+let resolveUiScale = () => 1;
 let getOwnerWindow = () => null;
 let iconPath = path.join(__dirname, '..', '..', require('../../../package.json').icon);
 
@@ -33,15 +41,21 @@ let ipcRegistered = false;
 
 let dragOrigin = null;
 
-function configureScratchpadWindow({ getTheme, getAccent, getRadius, getFonts, getDataDir, getOwner, icon, onClosed } = {}) {
+function configureScratchpadWindow({ getTheme, getAccent, getRadius, getFonts, getDataDir, getUiScale, getOwner, icon, onClosed } = {}) {
   if (typeof getTheme === 'function') resolveTheme = getTheme;
   if (typeof getAccent === 'function') resolveAccent = getAccent;
   if (typeof getRadius === 'function') resolveRadius = getRadius;
   if (typeof getFonts === 'function') resolveFonts = getFonts;
   if (typeof getDataDir === 'function') resolveDataDir = getDataDir;
+  if (typeof getUiScale === 'function') resolveUiScale = getUiScale;
   if (typeof getOwner === 'function') getOwnerWindow = getOwner;
   if (typeof icon === 'string' && icon) iconPath = icon;
   if (typeof onClosed === 'function') handleWindowClosed = onClosed;
+}
+
+function titlebarLead() {
+  const position = trafficLightPosition(safeResolve(resolveUiScale, 1, '界面缩放'));
+  return Math.round(position.x + TRAFFIC_LIGHT_GAP);
 }
 
 function currentAppearance() {
@@ -76,7 +90,7 @@ const legacy = path.join(resolveDataDir(), LEGACY_FILE_NAME);
       return { noteId: '', title: '', content: fs.readFileSync(legacy, 'utf8') };
     }
   } catch (error) {
-    console.error('[Esprin Nemo] 读取小本本状态失败:', error);
+    console.error('[EsprinNemo] 读取小本本状态失败:', error);
   }
   return { noteId: '', title: '', content: '' };
 }
@@ -89,7 +103,7 @@ function writeNoteState(raw) {
     writeFileAtomic(stateFilePath(), JSON.stringify(state, null, 2));
     return { ok: true };
   } catch (error) {
-    console.error('[Esprin Nemo] 保存小本本状态失败:', error);
+    console.error('[EsprinNemo] 保存小本本状态失败:', error);
     return { ok: false, error: String(error && error.message ? error.message : error) };
   }
 }
@@ -156,11 +170,13 @@ function createScratchpadWindow() {
 
 const appearance = currentAppearance();
 
-  const win = new BrowserWindow({
+  const additionalArgs = [...appearance.args];
+  if (IS_MAC) additionalArgs.push(`${TITLEBAR_LEAD_ARG}${titlebarLead()}`);
+
+  const windowOptions = {
     ...dockBounds(),
     minWidth: NOTE_MIN_WIDTH,
     minHeight: NOTE_MIN_HEIGHT,
-    frame: false,
     show: false,
     resizable: true,
     minimizable: true,
@@ -175,13 +191,26 @@ const appearance = currentAppearance();
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      additionalArguments: appearance.args
+      additionalArguments: additionalArgs
     }
-  });
+  };
+
+  if (IS_MAC) {
+    windowOptions.titleBarStyle = 'hidden';
+    windowOptions.trafficLightPosition = trafficLightPosition(resolveUiScale());
+  } else {
+    windowOptions.frame = false;
+  }
+
+  const win = new BrowserWindow(windowOptions);
 
   noteWin = win;
   win.setAlwaysOnTop(true, 'floating');
   win.setMenuBarVisibility(false);
+  if (IS_MAC) {
+    win.setMaximizable(false);
+    win.setFullScreenable(false);
+  }
 
   win.once('ready-to-show', () => win.show());
   win.once('closed', () => {
@@ -191,7 +220,7 @@ const appearance = currentAppearance();
   });
 
   win.loadFile(NOTE_HTML).catch((error) => {
-    console.error('[Esprin Nemo] 加载小本本页面失败:', error);
+    console.error('[EsprinNemo] 加载小本本页面失败:', error);
     if (!win.isDestroyed()) win.destroy();
   });
 

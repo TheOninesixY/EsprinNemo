@@ -30,10 +30,10 @@ function applyUiDefaults(webContents) {
   if (!webContents || webContents.isDestroyed()) return;
 
   webContents.insertCSS(GLOBAL_CSS).catch((error) => {
-    console.error('[Esprin Nemo] 注入全局样式失败:', error);
+    console.error('[EsprinNemo] 注入全局样式失败:', error);
   });
   webContents.executeJavaScript(GLOBAL_JS, false).catch((error) => {
-    console.error('[Esprin Nemo] 注入全局脚本失败:', error);
+    console.error('[EsprinNemo] 注入全局脚本失败:', error);
   });
 }
 

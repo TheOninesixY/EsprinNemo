@@ -205,7 +205,6 @@ if (State.currentFilter.startsWith('folder:')) {
     applySidebarCollapsed();
 
     applyUiMode();
-    applySidebarBlur();
     syncFontSelects();
     syncAccentControls();
     syncCornerRadiusControl();
@@ -213,7 +212,6 @@ if (State.currentFilter.startsWith('folder:')) {
     syncTrashRetentionSelect();
     syncAiSettingsUI();
     syncSyncServerSettingsUI();
-    syncUiModeUI();
 
     syncUpdateSettingsUI();
     ipcRenderer.invoke('update:set-auto', { enabled: State.autoUpdate !== false }).catch((err) => {

@@ -49,9 +49,9 @@
     --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
     --font-ui-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Ubuntu", "Roboto", "Helvetica Neue", Arial;
-    --font-ui-cjk: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "WenQuanYi Micro Hei";
+    --font-ui-cjk: "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", "Noto Sans SC", "WenQuanYi Micro Hei";
     --font-sans: var(--font-ui-latin), var(--font-ui-cjk), sans-serif;
-    --font-mono: "JetBrains Mono", "SF Mono", Consolas, "Fira Code", monospace;
+    --font-mono: "JetBrains Mono", Consolas, "Fira Code", ui-monospace, monospace;
 }
 
 :root.light {

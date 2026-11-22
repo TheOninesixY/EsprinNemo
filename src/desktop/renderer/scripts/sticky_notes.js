@@ -250,7 +250,7 @@ if (State.activeNoteId === itemId) flushPendingSave();
     }
 
     if (!result || !result.ok) {
-        showToast(result && result.reason === 'disabled' ? '桌面便利贴已关闭' : '贴到桌面失败');
+        showToast(result && result.reason === 'disabled' ? '桌面便利贴已关闭：可在「设置 → 系统 → 桌面便利贴」中开启' : '贴到桌面失败');
         return;
     }
 
@@ -320,7 +320,7 @@ function syncStickyNotesAppearance() {
 }
 
 function isStickyFeatureSupported() {
-    return process.platform === 'win32';
+    return process.platform === 'win32' || process.platform === 'darwin';
 }
 
 function hideStickyFeatureUI() {
@@ -371,7 +371,9 @@ function initStickyNoteSettings() {
     applyStickySettingsUI();
 
     const layerDesc = document.getElementById('sticky-layer-desc');
-    if (layerDesc && process.platform !== 'win32') {
+    if (layerDesc && process.platform === 'darwin') {
+        layerDesc.textContent = '便利贴固定在所有桌面空间，并压在普通窗口之下：打开任何应用都不会被它挡住。按住鼠标时会临时浮到普通窗口之上，松开或失焦后回到最底层。它不进入 Mission Control 与「窗口」菜单；关闭某张便利贴：在它上面右键选「关闭并移除」。';
+    } else if (layerDesc && process.platform !== 'win32') {
         layerDesc.textContent = '便利贴按普通窗口显示（不出现在任务栏）：Linux 没有「置底」窗口接口，因此它不会始终沉在其他窗口之下。关闭某张便利贴：在它上面右键选「关闭并移除」。';
     }
 

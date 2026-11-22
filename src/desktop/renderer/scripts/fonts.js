@@ -2,7 +2,7 @@ const COMMON_FONT_FAMILIES = [
     'Inter', 'Segoe UI', 'Helvetica Neue', 'Arial', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Noto Sans',
     'Georgia', 'Times New Roman', 'Cambria', 'Source Serif 4', 'Palatino Linotype',
     'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Cascadia Mono', 'Consolas', 'Source Code Pro',
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Microsoft YaHei UI', 'SimSun', 'SimHei', 'KaiTi', 'FangSong',
+    'Microsoft YaHei', 'Microsoft YaHei UI', 'SimSun', 'SimHei', 'KaiTi', 'FangSong',
     'Noto Sans SC', 'Noto Serif SC', 'Source Han Sans SC', 'Source Han Serif SC', 'LXGW WenKai', 'Microsoft JhengHei'
 ];
 

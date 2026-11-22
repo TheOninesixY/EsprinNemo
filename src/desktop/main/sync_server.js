@@ -140,7 +140,7 @@ function writeJsonAtomic(file, value) {
     fs.renameSync(temp, file);
     return true;
   } catch (error) {
-    console.warn('[Esprin Nemo] 写入同步文件失败:', file, error.message);
+    console.warn('[EsprinNemo] 写入同步文件失败:', file, error.message);
     return false;
   }
 }
@@ -162,7 +162,7 @@ function readState() {
   try {
     parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch (error) {
-    console.warn('[Esprin Nemo] 读取同步位置失败，将按首次同步处理:', error.message);
+    console.warn('[EsprinNemo] 读取同步位置失败，将按首次同步处理:', error.message);
     return empty;
   }
   if (!parsed || parsed.version !== STATE_VERSION) return empty;
@@ -226,7 +226,7 @@ function readOutbox() {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
-    console.warn('[Esprin Nemo] 读取待推送队列失败:', error.message);
+    console.warn('[EsprinNemo] 读取待推送队列失败:', error.message);
     return [];
   }
 }
@@ -368,7 +368,7 @@ async function loginWithAccount({ account, password, tokenName } = {}) {
       name,
       password: secret,
 
-      tokenName: tokenName || 'Esprin Nemo',
+      tokenName: tokenName || 'EsprinNemo',
       device: currentState().deviceId
     }
   });
@@ -410,7 +410,7 @@ function schedulePush() {
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
     pushTimer = null;
-    pushOutbox().catch((error) => console.warn('[Esprin Nemo] 推送本地改动失败:', error.message));
+    pushOutbox().catch((error) => console.warn('[EsprinNemo] 推送本地改动失败:', error.message));
   }, PUSH_DEBOUNCE_MS);
 }
 
@@ -445,7 +445,7 @@ async function pushOutbox() {
 
 const rejected = (result.data.accepted || []).filter((item) => item && item.error);
     if (rejected.length) {
-      console.warn('[Esprin Nemo] 服务端拒绝了部分操作:', rejected.map((item) => item.error).join('；'));
+      console.warn('[EsprinNemo] 服务端拒绝了部分操作:', rejected.map((item) => item.error).join('；'));
     }
     writeOutbox(readOutbox().filter((op) => !accepted.has(op.opId)
       && !rejected.some((item) => item.opId === op.opId)));
@@ -554,7 +554,7 @@ function writeFileAtomicBuffer(file, buffer) {
     } catch (cleanupError) {
 
     }
-    console.error('[Esprin Nemo] 重放写入失败:', file, error.message);
+    console.error('[EsprinNemo] 重放写入失败:', file, error.message);
     return false;
   }
 }
@@ -887,7 +887,7 @@ async function ensureJournalIdentity() {
   if (idChanged || seqRewound) {
 
     saveState({ journalId: remoteId, lastSeq: 0, selfPushed: [] });
-    console.warn('[Esprin Nemo] 服务端日志已更换，同步序号已归零，将重新全量重放');
+    console.warn('[EsprinNemo] 服务端日志已更换，同步序号已归零，将重新全量重放');
     return { ok: true, reset: true, remoteId };
   }
 
@@ -1106,7 +1106,7 @@ async function autoSync(reason) {
   const config = readSyncConfig();
   if (validateConfig(config).error) return null;
   const result = await syncNow({ reason });
-  if (!result.ok) console.warn(`[Esprin Nemo] 自建同步（${reason}）未成功:`, result.error);
+  if (!result.ok) console.warn(`[EsprinNemo] 自建同步（${reason}）未成功:`, result.error);
   return result;
 }
 
@@ -1143,7 +1143,7 @@ async function diagnose() {
   const state = currentState({ reload: true });
   const lines = [];
 
-  lines.push('=== Esprin Nemo 自建同步诊断 ===');
+  lines.push('=== EsprinNemo 自建同步诊断 ===');
   lines.push(`时间：${new Date().toLocaleString()}`);
   lines.push(`服务器地址：${config.url || '（未填写）'}`);
   lines.push(`启用：${config.enabled ? '是' : '否'}；自动同步：${config.autoSync}`

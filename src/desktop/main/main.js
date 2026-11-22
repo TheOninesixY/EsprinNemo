@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, session, dialog, shell, nativeTheme, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, session, dialog, shell, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -41,16 +41,19 @@ const { buildWindowAppearance } = require('./window_appearance.js');
 const { configureTray, isTrayEnabled, registerTrayIpc } = require('./tray.js');
 const { configureAutoLaunch, registerAutoLaunchIpc } = require('./auto_launch.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
+const { installAppMenu } = require('./app_menu.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
 const { configureSyncServer, registerSyncIpc, applyAutoSyncRuntime } = require('./sync_server.js');
 const { disposeSpeechWindows, registerSpeechIpc } = require('./speech_windows.js');
 const {
-  disposeWallpaper,
-  getWallpaperSnapshot,
-  startWallpaperWatch,
-  wallpaperArg
-} = require('./wallpaper.js');
+  applyWindowControlStyle,
+  configureWindowControls,
+  registerWindowControlsIpc,
+  setTrafficLightScale,
+  trafficLightPosition,
+  windowControlsArg
+} = require('./window_controls.js');
 const { configureUpdater, registerUpdateIpc, scheduleAutoChecks, isPortableRun, PORTABLE_ARG } = require('./updater.js');
 
 const APP_ROOT = app.getAppPath();
@@ -70,7 +73,7 @@ if (ISOLATED_USER_DATA_DIR) {
 
 fs.mkdirSync(ISOLATED_USER_DATA_DIR, { recursive: true });
   } catch (error) {
-    console.warn('[Esprin Nemo] 创建独立运行时目录失败:', error.message);
+    console.warn('[EsprinNemo] 创建独立运行时目录失败:', error.message);
   }
 
   for (const name of ['userData', 'sessionData', 'crashDumps']) {
@@ -79,13 +82,13 @@ fs.mkdirSync(ISOLATED_USER_DATA_DIR, { recursive: true });
       app.setPath(name, name === 'crashDumps' ? path.join(ISOLATED_USER_DATA_DIR, 'Crashpad') : ISOLATED_USER_DATA_DIR);
     } catch (error) {
 
-      console.warn(`[Esprin Nemo] 设置 ${name} 路径失败:`, error.message);
+      console.warn(`[EsprinNemo] 设置 ${name} 路径失败:`, error.message);
     }
   }
   try {
     app.setAppLogsPath(path.join(ISOLATED_USER_DATA_DIR, 'logs'));
   } catch (error) {
-    console.warn('[Esprin Nemo] 设置日志目录失败:', error.message);
+    console.warn('[EsprinNemo] 设置日志目录失败:', error.message);
   }
 }
 
@@ -131,7 +134,7 @@ stat = fs.statSync(configFile, { bigint: true });
     configCacheValue = (config && typeof config === 'object' && !Array.isArray(config)) ? config : {};
     return configCacheValue;
   } catch (error) {
-    console.error('[Esprin Nemo] 读取用户配置失败:', error);
+    console.error('[EsprinNemo] 读取用户配置失败:', error);
     return {};
   }
 }
@@ -150,7 +153,7 @@ function updateUserConfig(patch) {
     fs.renameSync(tempFile, configFile);
     return true;
   } catch (error) {
-    console.error('[Esprin Nemo] 写入用户配置失败:', error);
+    console.error('[EsprinNemo] 写入用户配置失败:', error);
     return false;
   }
 }
@@ -234,6 +237,7 @@ configureScratchpadWindow({
   getRadius: resolveCornerRadius,
   getFonts: resolveWindowFonts,
   getDataDir: resolveDataDir,
+  getUiScale: resolveUiScale,
 
   getOwner: () => mainWindow,
   icon: APP_ICON_PATH,
@@ -260,6 +264,8 @@ configureDesktopMenu({
   onAction: handleStickyMenuAction,
   icon: APP_ICON_PATH
 });
+
+configureWindowControls({ getWindow: () => mainWindow });
 
 configureAiService({ getDataDir: resolveDataDir });
 
@@ -367,8 +373,40 @@ function showMainWindow() {
   return mainWindow;
 }
 
+function sendRendererAction(action) {
+  const win = showMainWindow();
+  if (!win || win.isDestroyed()) return;
+  const contents = win.webContents;
+  if (!contents || contents.isDestroyed()) return;
+
+  const deliver = () => {
+    if (!contents.isDestroyed()) contents.send('tray:action', action);
+  };
+
+  if (contents.isLoadingMainFrame() || !contents.getURL()) {
+    contents.once('did-finish-load', deliver);
+    return;
+  }
+  deliver();
+}
+
+function appMenuActions() {
+  return {
+    onOpenMain: () => { showMainWindow(); },
+    onOpenScratchpad: () => { openScratchpadWindow(); },
+    onNewNote: () => sendRendererAction('new-note'),
+    onNewTodo: () => sendRendererAction('new-todo'),
+    onOpenSettings: () => sendRendererAction('open-settings'),
+    onOpenAbout: () => sendRendererAction('open-about'),
+    onPickStickyNote: () => sendRendererAction('pick-sticky-note'),
+    onShowStickyNotes: () => { showAllStickyNotes(); },
+    onHideStickyNotes: () => { hideAllStickyNotes(); }
+  };
+}
+
 function quitIfNoVisibleWindow() {
   if (isQuitting || isTrayEnabled()) return;
+  if (process.platform === 'darwin') return;
   if (isScratchpadWindowOpen() || isStickyNoteOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
   requestQuit();
@@ -377,6 +415,7 @@ function quitIfNoVisibleWindow() {
 function handleScratchpadClosed() {
   if (isQuitting) return;
   if (isTrayEnabled()) return;
+  if (process.platform === 'darwin') return;
 
   if (isStickyNoteOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
@@ -386,6 +425,7 @@ function handleScratchpadClosed() {
 function handleStickyNoteClosed() {
   if (isQuitting) return;
   if (isTrayEnabled()) return;
+  if (process.platform === 'darwin') return;
   if (isScratchpadWindowOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
   requestQuit();
@@ -417,7 +457,7 @@ function openExternalUrl(targetUrl) {
   const value = String(targetUrl || '');
   if (!/^https?:\/\//i.test(value)) return;
   shell.openExternal(value).catch((error) => {
-    console.error('[Esprin Nemo] 打开外部链接失败:', error);
+    console.error('[EsprinNemo] 打开外部链接失败:', error);
   });
 }
 
@@ -517,7 +557,7 @@ async function applyDataDirChange(targetPath, win, { persist = true, confirmExis
     try {
       fs.cpSync(current, target, { recursive: true, force: true });
     } catch (error) {
-      console.error('[Esprin Nemo] 迁移数据失败:', error);
+      console.error('[EsprinNemo] 迁移数据失败:', error);
       return { error: `迁移数据失败：${error.message}` };
     }
   }
@@ -563,6 +603,7 @@ ipcMain.handle('window:ui-scale', (event, scale) => {
   if (!win || win.isDestroyed()) return;
   const size = scaleMinWindowSize(Number(scale));
   win.setMinimumSize(size.width, size.height);
+  setTrafficLightScale(Number(scale));
 });
 
 let cachedSystemFonts = null;
@@ -571,7 +612,7 @@ ipcMain.handle('fonts:list', () => {
     try {
       cachedSystemFonts = listSystemFonts();
     } catch (error) {
-      console.error('[Esprin Nemo] 读取系统字体失败:', error);
+      console.error('[EsprinNemo] 读取系统字体失败:', error);
       cachedSystemFonts = [];
     }
   }
@@ -584,53 +625,6 @@ ipcMain.handle('system:get-accent-color', () => {
 
 ipcMain.on('system:get-accent-color-sync', (event) => {
   event.returnValue = getSystemAccentColor();
-});
-
-function wallpaperFramePayload(win) {
-  if (!win || win.isDestroyed()) return null;
-  try {
-    const bounds = win.getBounds();
-    const display = screen.getDisplayMatching(bounds);
-    if (!display) return null;
-    return {
-      originX: bounds.x - display.bounds.x,
-      originY: bounds.y - display.bounds.y,
-      canvasWidth: display.bounds.width,
-      canvasHeight: display.bounds.height
-    };
-  } catch (error) {
-    return null;
-  }
-}
-
-function sendWallpaperFrame(win) {
-  if (!win || win.isDestroyed()) return;
-  const contents = win.webContents;
-  if (!contents || contents.isDestroyed()) return;
-  const payload = wallpaperFramePayload(win);
-  if (!payload) return;
-  contents.send('wallpaper:frame', payload);
-}
-
-let wallpaperFrameTimer = null;
-
-function scheduleWallpaperFrame(win) {
-  if (wallpaperFrameTimer) return;
-  wallpaperFrameTimer = setTimeout(() => {
-    wallpaperFrameTimer = null;
-    sendWallpaperFrame(win);
-  }, 16);
-  if (typeof wallpaperFrameTimer.unref === 'function') wallpaperFrameTimer.unref();
-}
-
-ipcMain.handle('wallpaper:get', (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  try {
-    return { ...getWallpaperSnapshot(), frame: wallpaperFramePayload(win) };
-  } catch (error) {
-    console.warn('[WARN] [Nemo] 读取桌面壁纸失败，回退主题背景:', error.message);
-    return { url: '', signature: '', source: '', reason: 'error', frame: wallpaperFramePayload(win) };
-  }
 });
 
 ipcMain.handle('notes:pick-import', async (event) => {
@@ -808,7 +802,7 @@ ipcMain.handle('data:open-dir', async () => {
     fs.mkdirSync(dir, { recursive: true });
     return await shell.openPath(dir);
   } catch (error) {
-    console.error('[Esprin Nemo] 打开数据目录失败:', error);
+    console.error('[EsprinNemo] 打开数据目录失败:', error);
     return String(error && error.message ? error.message : error);
   }
 });
@@ -824,6 +818,8 @@ ipcMain.handle('app:open-external', (event, key) => {
   openExternalUrl(url);
   return true;
 });
+
+ipcMain.handle('app:get-version', () => app.getVersion());
 
 const WINDOW_MIN_WIDTH = 1300;
 const WINDOW_MIN_HEIGHT = 600;
@@ -924,17 +920,17 @@ dataDir = blocker.dataDir;
     if (!picked) continue;
 
 if (writeStoredDataDir(picked, app)) {
-      console.log('[Esprin Nemo] 数据位置已改为:', picked);
+      console.log('[EsprinNemo] 数据位置已改为:', picked);
       return picked;
     }
 
     if (blocker.kind === 'portable-dir') {
 
-      console.warn('[Esprin Nemo] 程序目录不可写，本次运行临时使用数据位置:', picked);
+      console.warn('[EsprinNemo] 程序目录不可写，本次运行临时使用数据位置:', picked);
       return picked;
     }
 
-console.error('[Esprin Nemo] 位置记录写入失败，新的数据位置无法保存:', picked);
+console.error('[EsprinNemo] 位置记录写入失败，新的数据位置无法保存:', picked);
     blocker = { ...blocker, kind: 'portable-dir', reason: '位置记录无法写入', dataDir: picked };
   }
 }
@@ -949,8 +945,10 @@ function abortStartup(blocker) {
 
 const STARTUP_FALLBACK_MS = 15000;
 
+const IS_MAC = process.platform === 'darwin';
+
 function createWindow() {
-  Menu.setApplicationMenu(null);
+  installAppMenu(appMenuActions());
 
   const currentDataDir = resolveDataDir();
 
@@ -965,23 +963,18 @@ function createWindow() {
 
   const minSize = scaleMinWindowSize(resolveUiScale());
 
+  setTrafficLightScale(resolveUiScale());
+
   const additionalArgs = [...appearance.args];
   if (IS_PORTABLE_RUN) additionalArgs.push(PORTABLE_ARG);
   additionalArgs.push(`${DATA_DIR_ARG}${currentDataDir}`);
-  let wallpaperPreload = '';
-  try {
-    wallpaperPreload = wallpaperArg(getWallpaperSnapshot());
-  } catch (error) {
-    console.warn('[WARN] [Nemo] 准备桌面壁纸失败，使用主题背景:', error.message);
-  }
-  if (wallpaperPreload) additionalArgs.push(wallpaperPreload);
+  additionalArgs.push(windowControlsArg());
 
-  const win = new BrowserWindow({
+  const windowOptions = {
     width: 1200,
     height: 800,
     minWidth: minSize.width,
     minHeight: minSize.height,
-    frame: false,
     show: false,
     autoHideMenuBar: true,
     icon: APP_ICON_PATH,
@@ -994,7 +987,18 @@ function createWindow() {
       allowRunningInsecureContent: false,
       additionalArguments: additionalArgs
     }
-  });
+  };
+
+  if (IS_MAC) {
+    windowOptions.titleBarStyle = 'hidden';
+    windowOptions.trafficLightPosition = trafficLightPosition(resolveUiScale());
+  } else {
+    windowOptions.frame = false;
+  }
+
+  const win = new BrowserWindow(windowOptions);
+
+  applyWindowControlStyle(win);
 
   let revealed = false;
   let startupInitialized = false;
@@ -1008,14 +1012,9 @@ function createWindow() {
   };
 
   win.webContents.on('did-finish-load', () => {
-    sendWallpaperFrame(win);
     if (startupInitialized) return;
     startupInitialized = true;
     reveal('did-finish-load');
-  });
-
-  ['move', 'resize', 'moved', 'resized'].forEach((name) => {
-    win.on(name, () => scheduleWallpaperFrame(win));
   });
 
   const revealTimer = setTimeout(() => reveal('超时兜底'), STARTUP_FALLBACK_MS);
@@ -1040,12 +1039,10 @@ win.on('close', (event) => {
 
   win.on('enter-full-screen', () => {
     win.webContents.send('window:fullscreen-changed', true);
-    scheduleWallpaperFrame(win);
   });
 
   win.on('leave-full-screen', () => {
     win.webContents.send('window:fullscreen-changed', false);
-    scheduleWallpaperFrame(win);
   });
 
 win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'desktop', 'renderer', 'main.html')).href);
@@ -1058,7 +1055,7 @@ win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'desktop', 'renderer', 'mai
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
 
-  console.warn('[Esprin Nemo] 已有实例在运行（单实例锁被占用），本次启动已交给它，进程退出');
+  console.warn('[EsprinNemo] 已有实例在运行（单实例锁被占用），本次启动已交给它，进程退出');
   app.exit(0);
 }
 
@@ -1079,7 +1076,7 @@ function runStartupStep(label, run) {
   try {
     return run();
   } catch (error) {
-    console.error(`[Esprin Nemo] 启动步骤「${label}」失败:`, error);
+    console.error(`[EsprinNemo] 启动步骤「${label}」失败:`, error);
     return null;
   }
 }
@@ -1100,8 +1097,8 @@ const startupBlocker = getStartupBlocker(APP_ROOT, app);
       pickedDir = await resolveStartupBlock(startupBlocker);
     } catch (error) {
 
-      console.error('[Esprin Nemo] 显示启动失败弹窗失败:', error);
-      dialog.showErrorBox('Esprin Nemo 无法启动', `${startupBlocker.reason}：\n${startupBlocker.dataDir}`);
+      console.error('[EsprinNemo] 显示启动失败弹窗失败:', error);
+      dialog.showErrorBox('EsprinNemo 无法启动', `${startupBlocker.reason}：\n${startupBlocker.dataDir}`);
     }
 
     if (!pickedDir) {
@@ -1122,7 +1119,7 @@ const ALLOWED_PERMISSIONS = new Set(['local-fonts']);
       return ALLOWED_PERMISSIONS.has(permission);
     });
   } catch (error) {
-    console.error('[Esprin Nemo] 注册字体权限处理器失败:', error);
+    console.error('[EsprinNemo] 注册字体权限处理器失败:', error);
   }
 
 registerDialogIpc();
@@ -1157,26 +1154,13 @@ runStartupStep('自建同步自动同步', () => applyAutoSyncRuntime());
 
 runStartupStep('界面默认值', () => registerUiDefaults());
 
+runStartupStep('窗口控件', () => registerWindowControlsIpc());
+
 if (!IS_PORTABLE_RUN) runStartupStep('应用更新', () => registerUpdateIpc());
-
-runStartupStep('桌面壁纸', () => {
-  startWallpaperWatch((snapshot) => {
-    if (mainWindowClosed || !mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.send('wallpaper:changed', {
-      ...snapshot,
-      frame: wallpaperFramePayload(mainWindow)
-    });
-  });
-
-  const resendFrame = () => scheduleWallpaperFrame(mainWindow);
-  screen.on('display-metrics-changed', resendFrame);
-  screen.on('display-added', resendFrame);
-  screen.on('display-removed', resendFrame);
-});
 
 runStartupStep('启动信息', () => {
     const flavor = IS_PORTABLE_DATA_RUN ? '便携版' : (IS_DEV_RUN ? '开发运行' : '安装版');
-    const platform = process.platform === 'linux' ? 'Linux' : (process.platform === 'win32' ? 'Windows' : process.platform);
+    const platform = process.platform === 'linux' ? 'Linux' : (process.platform === 'win32' ? 'Windows' : (process.platform === 'darwin' ? 'macOS' : process.platform));
     console.log(`[INFO] [Nemo] 启动：${flavor}·${platform}，数据目录 ${resolveDataDir()}`);
   });
 
@@ -1195,8 +1179,8 @@ runStartupStep('启动信息', () => {
 try {
     createWindow();
   } catch (error) {
-    console.error('[Esprin Nemo] 创建主窗口失败:', error);
-    dialog.showErrorBox('Esprin Nemo 无法打开窗口', `创建主窗口时出错：\n${(error && error.message) || error}`);
+    console.error('[EsprinNemo] 创建主窗口失败:', error);
+    dialog.showErrorBox('EsprinNemo 无法打开窗口', `创建主窗口时出错：\n${(error && error.message) || error}`);
     app.exit(1);
     return;
   }
@@ -1226,7 +1210,6 @@ app.on('before-quit', () => {
   runQuitStep('语音识别', disposeSpeechWindows);
   runQuitStep('桌面层', disposeDesktopLayer);
   runQuitStep('桌面便利贴', releaseStickyNotes);
-  runQuitStep('桌面壁纸', disposeWallpaper);
 });
 
 app.on('will-quit', () => {
@@ -1241,5 +1224,12 @@ app.on('will-quit', () => {
 
 app.on('window-all-closed', () => {
   if (isTrayEnabled()) return;
+  if (process.platform === 'darwin') return;
   requestQuit();
+});
+
+app.on('activate', () => {
+  if (isQuitting || startupBlocked) return;
+  if (!startupReady) return;
+  showMainWindow();
 });

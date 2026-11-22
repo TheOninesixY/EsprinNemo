@@ -28,7 +28,6 @@ uiScale: 1,
 
 filterFolder: '',
     filterTag: '',
-    sidebarBlur: false,
 
     sidebarCollapsed: true,
 

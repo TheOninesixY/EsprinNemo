@@ -1,5 +1,5 @@
 ---
-name: Esprin Nemo
+name: EsprinNemo
 description: Note, Nothing. 本地优先的极简 Markdown 笔记与待办桌面应用。
 colors:
   signal-blue: "#58a6ff"
@@ -181,7 +181,7 @@ components:
     padding: "0 6px 0 10px"
 ---
 
-# Design System: Esprin Nemo
+# Design System: EsprinNemo
 
 ## Overview
 
@@ -241,7 +241,7 @@ components:
 
 ## Typography
 
-**Display Font:** Segoe UI（回退 `system-ui, "Helvetica Neue", Arial`；中文回退 `Microsoft YaHei, PingFang SC, Noto Sans CJK SC`）
+**Display Font:** Segoe UI（回退 `system-ui, "Helvetica Neue", Arial`；中文回退 `Microsoft YaHei, Noto Sans CJK SC, Source Han Sans SC, Noto Sans SC`）
 **Body Font:** 同上，文档区另有 `--font-doc` 供用户单独替换
 **Label/Mono Font:** JetBrains Mono（回退 `Consolas, "Fira Code"`）
 **Brand Font:** Mohave（随应用分发的可变字重字体，仅用于左上角品牌字）
@@ -284,7 +284,7 @@ components:
 - **焦点环** (`0 0 0 3px var(--accent-bg)`, 强态 `0 0 0 4px`)：键盘焦点与输入框聚焦，替代 outline。
 - **内描边模拟** (`0 0 0 1px var(--border-color)`)：少数需要双层描边的地方。
 
-侧边栏与笔记列表可以叠加壁纸毛玻璃（`backdrop-filter: saturate(180%) blur(20px)`，侧边栏更透 0.8、列表更实 0.9），这是"窗口是屏幕壁纸上的一个洞"的隐喻，不是阴影，也不作用于编辑器与设置页。
+侧边栏、标题栏与标签栏共用同一块 ChromeBar 表面，整窗不叠加桌面壁纸与毛玻璃：深度只由 1px 描边与三级表面色表达，不做「窗口是屏幕壁纸上的一个洞」的效果。
 
 ## Shapes
 

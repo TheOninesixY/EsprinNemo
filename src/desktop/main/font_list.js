@@ -34,8 +34,21 @@ function getLinuxFontDirs() {
   ].filter(isDirectory);
 }
 
+function getMacFontDirs() {
+  const home = os.homedir();
+  return [
+    path.join(home, 'Library', 'Fonts'),
+    '/Library/Fonts',
+    '/Network/Library/Fonts',
+    '/System/Library/Fonts',
+    '/System/Library/Fonts/Supplemental'
+  ].filter(isDirectory);
+}
+
 function getFontDirs() {
-  return process.platform === 'linux' ? getLinuxFontDirs() : getWindowsFontDirs();
+  if (process.platform === 'linux') return getLinuxFontDirs();
+  if (process.platform === 'darwin') return getMacFontDirs();
+  return getWindowsFontDirs();
 }
 
 function collectFontFiles(dir, out, depth) {

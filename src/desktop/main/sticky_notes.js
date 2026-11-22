@@ -53,7 +53,7 @@ let loadedDir = '';
 let items = [];
 
 function isStickyFeatureSupported() {
-  return process.platform === 'win32';
+  return process.platform === 'win32' || process.platform === 'darwin';
 }
 
 function configureStickyNotes({ getTheme, getAccent, getRadius, getFonts, getDataDir, getConfig, getOwner, icon, onClosed } = {}) {
@@ -152,7 +152,7 @@ function readItemsFromDisk(dir) {
     });
     return result;
   } catch (error) {
-    console.error('[Esprin Nemo] 读取桌面便利贴记录失败:', error);
+    console.error('[EsprinNemo] 读取桌面便利贴记录失败:', error);
     return [];
   }
 }
@@ -172,7 +172,7 @@ function writeState() {
     syncDesktopMenu();
     return true;
   } catch (error) {
-    console.error('[Esprin Nemo] 保存桌面便利贴记录失败:', error);
+    console.error('[EsprinNemo] 保存桌面便利贴记录失败:', error);
     return false;
   }
 }
@@ -305,7 +305,23 @@ function boundsForItem(item) {
 
 function applyStickyWindowTraits(win) {
   if (!win || win.isDestroyed()) return;
-  win.setAlwaysOnTop(false);
+
+  if (process.platform === 'darwin') {
+    try {
+      win.setAlwaysOnTop(true, 'normal', -1);
+      if (typeof win.setVisibleOnAllWorkspaces === 'function') {
+        win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false, skipTransformProcessType: true });
+      }
+      if (typeof win.setHiddenInMissionControl === 'function') win.setHiddenInMissionControl(true);
+      win.excludedFromShownWindowsMenu = true;
+    } catch (error) {
+      console.warn('[WARN] [Nemo] 设置便利贴桌面行为失败:', error.message);
+      win.setAlwaysOnTop(false);
+    }
+  } else {
+    win.setAlwaysOnTop(false);
+  }
+
   if (typeof win.setSkipTaskbar === 'function') win.setSkipTaskbar(true);
 }
 
@@ -412,7 +428,7 @@ win.on('close', (event) => {
   });
 
   win.loadFile(STICKY_HTML).catch((error) => {
-    console.error('[Esprin Nemo] 加载桌面便利贴页面失败:', error);
+    console.error('[EsprinNemo] 加载桌面便利贴页面失败:', error);
     if (!win.isDestroyed()) win.destroy();
   });
 
@@ -771,7 +787,7 @@ ipcMain.on('sticky:flush', (event, payload) => {
     const id = typeof data.id === 'string' ? data.id : '';
     if (!id) return;
     saveStickyNote(id, data).catch((error) => {
-      console.error('[Esprin Nemo] 便利贴关窗保存失败:', error);
+      console.error('[EsprinNemo] 便利贴关窗保存失败:', error);
     });
   });
 }

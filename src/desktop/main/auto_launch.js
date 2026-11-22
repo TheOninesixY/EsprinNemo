@@ -46,6 +46,7 @@ function launchPath() {
 }
 
 function launchOptions() {
+  if (process.platform === 'darwin') return {};
   return { path: launchPath(), args: [] };
 }
 
@@ -59,7 +60,7 @@ function autostartEntry() {
     '[Desktop Entry]',
     'Type=Application',
     'Version=1.0',
-    'Name=Esprin Nemo',
+    'Name=EsprinNemo',
     'Comment=Note, Nothing.',
     `Exec=${quoteExec(launchPath())}`,
     'Terminal=false',
@@ -98,7 +99,7 @@ function readActual() {
     const settings = app.getLoginItemSettings(launchOptions());
     return !!(settings && settings.openAtLogin);
   } catch (error) {
-    console.error('[Esprin Nemo] 读取开机自启状态失败:', error);
+    console.error('[EsprinNemo] 读取开机自启状态失败:', error);
     return false;
   }
 }
@@ -108,7 +109,7 @@ function readConfigured() {
     const config = readUserConfig();
     if (config && typeof config === 'object') return config.autoLaunch === true;
   } catch (error) {
-    console.error('[Esprin Nemo] 读取开机自启设置失败:', error);
+    console.error('[EsprinNemo] 读取开机自启设置失败:', error);
   }
   return false;
 }
@@ -128,7 +129,7 @@ function applyAutoLaunch(enabled) {
   try {
     app.setLoginItemSettings({ openAtLogin: !!enabled, ...launchOptions() });
   } catch (error) {
-    console.error('[Esprin Nemo] 设置开机自启失败:', error);
+    console.error('[EsprinNemo] 设置开机自启失败:', error);
     return { supported: true, enabled: readActual(), error: describeError(error) };
   }
 

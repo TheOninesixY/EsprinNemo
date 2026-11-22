@@ -1,6 +1,6 @@
-<img src="https://raw.githubusercontent.com/EsprinProject/Logos/main/main.svg" width="88" height="88" alt="Esprin Nemo">
+<img src="https://raw.githubusercontent.com/EsprinProject/Logos/main/main.svg" width="88" height="88" alt="EsprinNemo">
 
-# Esprin Nemo
+# EsprinNemo
 
 > Note, Nothing.
 
@@ -8,7 +8,7 @@
 
 网络功能仅有两项，且均需手动配置后才可能发起请求：可选的自建同步（配套 Python 服务端，以操作日志在设备之间同步，删除记录不会被其他设备重新生成）与内置的 AI 助手。两者均未配置时，应用不发起任何外部请求。语音转文本（随口记）不在此列：识别由 Windows 自带的桌面识别引擎在本机完成（因此仅在 Windows 上可用），音频不出本机，也不发起任何网络请求。
 
-桌面端支持 Windows 与 Linux：Windows 产出安装包与便携版，数据默认存放在 `%APPDATA%\esprin_nemo`；Linux 产出 AppImage，数据默认存放在 `~/.local/share/EsprinNemo`。
+桌面端支持 Windows、Linux 与 macOS：Windows 产出安装包与便携版，数据默认存放在 `%APPDATA%\esprin_nemo`；Linux 产出 AppImage，数据默认存放在 `~/.local/share/EsprinNemo`；macOS 产出 dmg，数据默认存放在 `~/Library/Application Support/esprin_nemo`。
 
 | 资源 | 地址 |
 | --- | --- |
@@ -17,7 +17,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="about/screenshot_dark.png">
-  <img src="about/screenshot_light.png" alt="Esprin Nemo 主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板">
+  <img src="about/screenshot_light.png" alt="EsprinNemo 主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板">
 </picture>
 
 ## 目录
@@ -65,15 +65,15 @@
 
 界面固定为单套布局（原「经典布局」已移除）：没有独立标题栏，标签栏位于工作区顶部，工具按钮悬浮于窗口右上角。
 
-- **标签栏**：位于工作区顶部（笔记列表搜索栏所在行），支持点击切换、中键关闭、左右拖动排序与滚轮横向滚动；未打开任何标签时该行自动收起。标签栏底部有一条贯穿整宽的细分隔线，与下方编辑器顶栏分开；设置页打开时该线随标签栏一起隐藏。启用桌面壁纸时，标签栏与侧边栏使用同一套毛玻璃（`--sidebar-glass-bg` + `blur(26px)`），壁纸透上来；「侧边栏模糊」关闭后回退为不透明编辑器底色
-- **设置标签页**：设置相当于侧边栏里的一个 Tab（底部齿轮按钮）。打开后标签栏整条隐藏，笔记列原地变成设置分类侧边栏（直接就是分类列表，与笔记列共用同一套毛玻璃背景）。右侧显示当前分类的设置内容，顶部有一条只读标题栏（面包屑「设置 / 当前分类」）；没有返回按钮——点侧边栏「笔记 / 待办 / 废纸篓」任一 Tab 即等于关闭设置并切到该视图
-- **侧边栏模糊**：开关写入 `config.json` 的 `sidebarBlur`（默认开启）。开启时侧边栏与笔记列表使用毛玻璃透出桌面壁纸；关闭后两块区域改为不透明主题底色，壁纸只在窗口其余区域可见
+- **标签栏**：位于工作区顶部（笔记列表搜索栏所在行），支持点击切换、中键关闭、左右拖动排序与滚轮横向滚动；未打开任何标签时该行自动收起。标签栏底部有一条贯穿整宽的细分隔线，与下方编辑器顶栏分开；设置页打开时该线随标签栏一起隐藏
+- **设置标签页**：设置相当于侧边栏里的一个 Tab（底部齿轮按钮）。打开后标签栏整条隐藏，笔记列原地变成设置分类侧边栏（直接就是分类列表，与笔记列共用同一块 ChromeBar 底色）。右侧显示当前分类的设置内容，顶部有一条只读标题栏（面包屑「设置 / 当前分类」）；没有返回按钮——点侧边栏「笔记 / 待办 / 废纸篓」任一 Tab 即等于关闭设置并切到该视图。分类为编辑器 / 外观 / AI 助手 / 秘密本 / 数据与同步 / 系统 / 关于；macOS 菜单栏里的「关于 EsprinNemo」会直接打开「关于」分类
+- **窗口操作键**：Windows / Linux 固定为右上角原有的自绘最小化 / 最大化 / 关闭；macOS 默认使用系统原生红绿灯并显示在窗口左上角，同时隐藏左上角的图标与「EsprinNemo」名称（进入全屏后红绿灯随系统隐藏，左上角恢复图标与名称）。macOS 上可在「设置 → 开发者选项 → 窗口控件」里切回原有的 Windows 样式按钮，切换只作用于本次运行，不写入 `config.json`；非 macOS 不提供该选项
 - **悬浮工具组**：窗口操作键与工具按钮（AI 助手 / 小本本 / 桌面便利贴 / 主题）悬浮于窗口右上角，占用标签栏所在行，因此标签栏与设置内容各让出右侧 312px 走廊。桌面端没有全屏按钮（全屏入口只在移动端界面里提供）；AI 面板打开时该走廊归面板所有，面板顶部另有 40px 拖动空白
 - **编辑器顶栏**：位于标签栏下方一行，左右内边距均为 8px（与标签栏、侧边栏一致）；标签栏隐藏时上移至工具按钮行，右侧走廊随之恢复。格式化工具栏（加粗 / 斜体 / H1–H3 / 列表 / 引用 / 代码块 / 分割线 / 插入文件 / 文件管理器）已并入这一行，位于文件夹与标签之后、右侧视图模式按钮之前，不再单独占一行
 - **返回**：返回列表由标签栏最左端的纯图标按钮承担（编辑器打开时滑入，关闭时滑出；编辑器未打开时不出现）。设置打开时标签栏整条隐藏，改用侧边栏 Tab 切换离开设置。应用名只出现在网页标题与弹窗标题栏
 - **拖动窗口**：由编辑器顶栏空闲段、工作区标签栏空白、笔记列表顶部搜索栏行、设置页顶端的拖动空白与分类侧边栏、空状态工作区、AI 面板顶栏上方留白承担
-- **功能完整性**：文件夹归类、标签过滤、AI 助手、小本本与托盘菜单入口一致
-- **首屏**：侧边栏收起状态与侧边栏模糊开关都由 `boot.js` 在渲染前写入 `<html>` 类名，因此不会先渲染完整界面再变化
+- **功能完整性**：文件夹归类、标签过滤、AI 助手、小本本与托盘 / 菜单栏入口一致
+- **首屏**：侧边栏收起状态与窗口控件样式都由 `boot.js` 在渲染前写入 `<html>` 类名，因此不会先渲染完整界面再变化
 
 ### 编辑体验
 
@@ -98,7 +98,7 @@
 ### 外观与个性化
 
 - **主题**：浅色 / 深色 / 跟随系统，首屏渲染前同步注入，切换无闪屏
-- **窗口背景**：桌面端在主进程里把系统桌面壁纸按窗口所在显示器的屏幕尺寸铺满，窗口只截取自己所在的那一块：窗口移动、缩放或换显示器时，背景按屏幕坐标实时重新截取，相当于窗口是屏幕壁纸上的一个洞。毛玻璃只做在左侧侧边栏与笔记列表两块区域：侧边栏更透（0.8），笔记列表更实（0.9，透明度更低、文字更易读）；编辑器、设置页、标题栏等其余区域保持主题纯色。壁纸切换后自动更新，无需重启；读取失败或当前壁纸不可用时回退为纯色主题背景，不报错、不黑屏。多显示器时按窗口所在那台显示器的屏幕尺寸截取（所有显示器共用同一张壁纸文件，不区分每台显示器的独立壁纸）。移动端界面拿不到系统壁纸，保持主题纯色背景
+- **窗口背景**：桌面端整窗使用主题底色（ChromeBar 一档、内容卡片一档），不再叠加桌面壁纸与毛玻璃；侧边栏、标题栏与标签栏共用同一块 ChromeBar 表面，编辑器与设置内容浮在其上的内容卡片里
 - **主题风格**：已移除（原 Alom / 魔幻两种风格与「设置 → 外观与主题色 → 主题风格」入口一并删除，只保留默认风格）
 - **圆角尺度**：四档（纯方 / 微圆角 / 默认 / 大圆），拖动时连续跟随，松手后吸附至最近档位，也可直接点击档位文字。卡片、按钮、输入框、标签、开关、进度条与滚动条一并跟随
 - **主题色**：预设色板或自定义取色（支持 `#RRGGBB` / `#RGB`），实时预览并即时落盘；深浅主题下自动换算背景透明度与按钮文字色，弹窗同步生效
@@ -108,7 +108,7 @@
 
 ### 小本本
 
-标题栏一键唤出屏幕右下角的便利贴小窗口，始终置顶，标题栏仅有「选择笔记 / 保存 / 最小化 / 关闭」。
+标题栏一键唤出屏幕右下角的便利贴小窗口，始终置顶，标题栏有「选择笔记 / 保存」，Windows / Linux 上另有自绘的最小化与关闭按钮；macOS 上最小化与关闭改用系统原生红绿灯（位于窗口左上角，标题输入区保留在它右侧，绿色缩放按钮置灰不可用）。两个功能按钮的尺寸与悬浮样式和主窗口右上角的工具按钮一致
 
 - 自带标题与正文输入，自动保存，`Ctrl + S` 保存
 - 未关联笔记时，内容属于小本本自身（数据目录下的 `scratchpad.json`）；点击保存即在后台新建一篇笔记并自动关联
@@ -122,15 +122,16 @@
 
 ### 桌面便利贴
 
-把笔记或待办贴到桌面上：每条内容一张纸，**贴在桌面层**——位于所有窗口之下，只在桌面露出来的地方可见，不会遮挡任何应用窗口。入口在标题栏的图钉按钮、条目右键菜单的「贴到桌面」与托盘菜单的「桌面便利贴」。
+把笔记或待办贴到桌面上：每条内容一张纸。便利贴始终压在普通窗口之下，只在桌面露出来的地方可见，不会遮挡任何应用窗口：Windows 上走 Win32 的 `HWND_BOTTOM`，macOS 上把窗口层级设为普通窗口之下并固定出现在所有桌面空间，切换空间后仍在原处。入口在标题栏的图钉按钮、条目右键菜单的「贴到桌面」，以及菜单栏（macOS）或托盘菜单（Windows）里的「桌面便利贴」。
 
 - **一条数据一张纸**：右键一篇笔记或一项待办选「贴到桌面」即在桌面上贴出它，纸上的标题与正文写回原条目（同一时刻只有一份权威副本，不存在两边各存一份互相覆盖）；空白纸可不关联任何条目，内容只属于它自己
-- **与桌面同级，且始终置底**：便利贴始终压在普通窗口之下，像贴在墙上的纸——打开任何应用都不会被它挡住。点击它同样不会浮到最前：系统在激活瞬间把它抬起一层，随即被按回底层，因此便利贴既不遮挡别人，也不会在点击时跳到别的窗口上面
-- **被盖住时怎么找**：它始终在窗口之下，被别的窗口盖住是常态。想看桌面上的纸，把挡着的窗口最小化，或按 `Win + D` 显示桌面（便利贴会跟着回到桌面）
+- **始终置底，按住时临时抬起**：便利贴始终压在普通窗口之下，像贴在墙上的纸——打开任何应用都不会被它挡住。按住鼠标时它会临时浮到普通窗口之上，方便选中文字、拖动与点按钮；松开鼠标或窗口失焦后立刻回到最底层。Windows 上由 Win32 完成这次抬起与压底，macOS 上通过窗口层级在 `0` 与 `-1` 之间切换实现，行为一致
+- **macOS 的附加行为**：便利贴通过 `setVisibleOnAllWorkspaces` 固定出现在所有桌面空间，切换空间后仍在原处；同时不进入 Mission Control 与「窗口」菜单
+- **被盖住时怎么找**：被别的窗口盖住是常态。想看桌面上的纸，把挡着的窗口最小化；Windows 上还可以按 `Win + D` 显示桌面（便利贴会跟着回到桌面）
 - **默认就是预览**：纸面上是渲染后的 Markdown，点标题栏上的编辑按钮才进入编辑，改完再点一次回到预览。贴在桌面上的东西多半是给人「看」的，不必先点一下才能读
 - **标题就在标题栏**：标题与纸面同一块料，只是落在标题栏里；预览态下它是一行纯文本，整条标题栏都用来拖动窗口（编辑态另留了一小段拖动区，免得进了编辑就搬不动）
 - **纸张颜色**：标题栏最左的圆点即入口；点击后标题先收起来，色板从圆点右侧向右展开，选中颜色即收起并恢复标题
-- **桌面右键菜单**：桌面空白处右键 → 「EsprinNemo 便利贴」，可直接新建便利贴、按标题显示某一张或关闭某一张，以及批量显示与收起；菜单内容随便利贴的增删与标题变化刷新。应用退出时这项注册一并删除，不在系统里留下指向已退出应用的菜单项。Windows 11 的新式右键菜单默认折叠，这一项要经「显示更多选项」才看得到（系统行为，传统菜单项一律进二级菜单）
+- **桌面右键菜单（Windows）**：桌面空白处右键 → 「EsprinNemo 便利贴」，可直接新建便利贴、按标题显示某一张或关闭某一张，以及批量显示与收起；菜单内容随便利贴的增删与标题变化刷新。应用退出时这项注册一并删除，不在系统里留下指向已退出应用的菜单项。Windows 11 的新式右键菜单默认折叠，这一项要经「显示更多选项」才看得到（系统行为，传统菜单项一律进二级菜单）
 - **待办可直接勾选**：贴的是待办时，标题左侧多一个勾选框，勾选结果同时写回列表与编辑器，标题随之划掉
 - **没有底栏与行线**：纸面就是内容本身；保存失败、只读这类需要留意的提示改用一张短暂浮起的提示条说明，不常驻
 - **一条数据一张纸**：一张纸只对应一条内容，同一个条目也只贴一张（重复「贴到桌面」只是把它显示出来）。关联关系在贴出来的那一刻就定了——便利贴窗口里没有「选择关联对象」，也没有「收起」
@@ -144,21 +145,21 @@
 | --- | --- |
 | 贴当前内容 / 贴上便利贴 / 显示与收起全部 | 标题栏的图钉按钮（右侧问答面板旁） |
 | 贴到桌面 | 笔记与待办条目右键菜单 |
-| 贴上便利贴 / 显示全部 / 收起全部 | 托盘图标的右键菜单 → 「桌面便利贴」 |
+| 贴上便利贴 / 显示全部 / 收起全部 | Windows 托盘图标右键菜单 → 「桌面便利贴」；macOS 为菜单栏「文件 → 桌面便利贴」 |
 | 贴上便利贴 / 按标题显示或关闭某一张 / 批量显示与收起 | 桌面空白处右键 → 「EsprinNemo 便利贴」 |
 | 总开关、默认颜色、批量显示与收起、清除全部 | 设置 → 系统 → 桌面便利贴 |
 
-> **实现说明**：Electron 只有「置顶」没有「置底」，也没有桌面窗口类型（`type: 'desktop'` 仅 Linux 有效），因此置底走 Win32 的 `SetWindowPos(hwnd, HWND_BOTTOM, ...)`：主进程维护一个常驻的 Windows PowerShell 子进程（`src/desktop/main/desktop_layer.ps1`，与随口记同一套 `-EncodedCommand` 注入方式），在窗口显示、恢复、获得焦点与界面里的每一次按下后把句柄送过去压底，应用退出时一并收掉。之所以连「每次按下」都要补一次，是因为 Windows 上激活与层级分不开：点击已获焦点的窗口不再触发 `focus`，却照样会把它抬到最前。子进程起不来（非 Windows 或脚本不可用）时便利贴退化为普通的非置顶窗口，其余功能不受影响。
+> **实现说明**：Electron 没有可交互的桌面窗口层级——macOS 与 Linux 的 `type: 'desktop'` 会把窗口放到桌面背景层（`kCGDesktopWindowLevel - 1`），但这类窗口不接收鼠标与键盘事件（只适合壁纸类应用），无法编辑便利贴。因此 Windows 的置底走 Win32 的 `SetWindowPos(hwnd, HWND_BOTTOM, ...)`：主进程维护一个常驻的 Windows PowerShell 子进程（`src/desktop/main/desktop_layer.ps1`，与随口记同一套 `-EncodedCommand` 注入方式），在窗口显示、恢复、获得焦点与界面里的每一次按下后把句柄送过去压底，应用退出时一并收掉。之所以连「每次按下」都要补一次，是因为 Windows 上激活与层级分不开：点击已获焦点的窗口不再触发 `focus`，却照样会把它抬到最前。子进程起不来（非 Windows 或脚本不可用）时便利贴退化为普通的非置顶窗口，其余功能不受影响。macOS 上不便使用 `type: 'desktop'`（不接收鼠标与键盘事件），而是把窗口层级设为 `-1`（`setAlwaysOnTop(true, 'normal', -1)`）：低于所有普通窗口、高于桌面，仍可接收点击与键盘输入。按住鼠标时临时切回普通层级 `0` 并 `moveTop()`，松开或失焦后再回到 `-1`，与 Windows 的「按住抬起、松开压底」一致；再配合 `setVisibleOnAllWorkspaces` 固定到所有桌面空间，并排除在 Mission Control 与「窗口」菜单之外。
 >
 > 桌面右键菜单同样没有 Electron API，只能写注册表（见 `src/desktop/main/desktop_menu.js`），一共两棵键：菜单本身 `HKCU\Software\Classes\DesktopBackground\Shell\EsprinNemoStickies`，子项在 `HKCU\Software\Classes\EsprinNemoStickyMenu\shell\<动词>`，由 `ExtendedSubCommandsKey` 指过去。不用「`SubCommands` 留空 + 自己 `shell` 子键」那套，是因为菜单键的 `shell` 与标准动词共用命名空间，动词名容易踩到 `new`、`open` 这类保留名（同名时整棵子菜单展不开），因此动词名一律带序号前缀（`01-new` / `20-001-<id>`（显示）/ `30-001-<id>`（关闭）/ `90-show-all`）。重建走一次 `reg import`（先在 .reg 里删旧树、再写回当前清单）；菜单图标由应用自己的 PNG 在运行时拼成 ICO——shell 的 `Icon` 只认 .ico / exe / dll，而开发运行下 `process.execPath` 是 electron.exe，直接指过去只会得到 Electron 的默认图标。应用退出时删除整棵子树；卸载脚本另在 `src/desktop/win_installer/installer.nsh` 里补了一次删除，备应用被强杀后留下残项。菜单项点击时以参数（`--sticky-action=…`）启动应用，已在运行时由单实例锁交给它处理，不会把主窗口叫到前台。
 >
-> **Linux 上没有对应的接口**：「置底」依赖 Win32 的 `SetWindowPos`，桌面空白处右键的菜单依赖 Windows 注册表，两者都只在 Windows 上生效。Linux 下便利贴按上面的退化路径运行——以普通窗口显示（仍不进任务栏），桌面空白处右键不会出现「EsprinNemo 便利贴」菜单；贴上、显示、收起的入口仍在标题栏图钉按钮与托盘菜单里，其余功能不受影响，设置页也会就地说明这一点。系统字体列表与开机自启在 Linux 上各有平台实现（`/usr/share/fonts` 等目录、XDG autostart 的 `.desktop`），用法与 Windows 一致。
+> **Linux 上不提供桌面便利贴**：「置底」依赖 Win32 的 `SetWindowPos`，桌面空白处右键菜单依赖 Windows 注册表，两者都只在 Windows 上有实现；macOS 使用独立的窗口层级方案。Linux 下便利贴入口与设置项会隐藏，其余功能不受影响。系统字体列表与开机自启在 Linux 上各有平台实现（`/usr/share/fonts` 等目录、XDG autostart 的 `.desktop`），用法与 Windows 一致。
 
 ### 托盘与驻留后台
 
-- **系统托盘**：默认在任务栏通知区域显示图标，可在「设置 → 系统与托盘」中关闭。右键图标可打开主窗口、小本本、新建 / 显示与收起桌面便利贴、新建笔记 / 新建待办、进入设置或退出；左键单击将主窗口唤回前台
-- **驻留后台**：托盘图标存在时，关闭窗口仅收起界面（应用继续在托盘中运行），完全退出需使用托盘菜单的「退出」。关闭托盘后恢复默认行为：关闭主窗口即退出应用，仅在小本本仍开启或仍贴着便利贴时继续驻留
-- **开机自启**：可在「设置 → 系统与托盘」中开启，登录系统后自动启动并打开主窗口。实现方式为写入系统登录启动项（Windows 注册表 Run 项、macOS 登录项、Linux `~/.config/autostart` 下的 `.desktop`）；默认关闭，开发运行（`bun start`）不提供该开关
+- **系统托盘**：Windows / Linux 默认在任务栏通知区域显示图标，可在「设置 → 系统」中关闭。右键图标可打开主窗口、小本本、新建 / 显示与收起桌面便利贴、新建笔记 / 新建待办、进入设置或退出；左键单击将主窗口唤回前台。macOS 不创建托盘图标，这些入口放在屏幕顶部的菜单栏（EsprinNemo → 文件 / 窗口），设置里也不显示托盘开关
+- **驻留后台**：托盘图标存在时，关闭窗口仅收起界面（应用继续在托盘中运行），完全退出需使用托盘菜单的「退出」。关闭托盘后恢复默认行为：关闭主窗口即退出应用，仅在小本本仍开启或仍贴着便利贴时继续驻留。macOS 没有托盘图标：关窗后应用停留在 Dock，点 Dock 图标即可恢复窗口；完全退出使用菜单栏「EsprinNemo → 退出」
+- **开机自启**：可在「设置 → 系统」中开启，登录系统后自动启动并打开主窗口。实现方式为写入系统登录启动项（Windows 注册表 Run 项、macOS 登录项、Linux `~/.config/autostart` 下的 `.desktop`）；默认关闭，开发运行（`bun start`）不提供该开关
 
 ### AI 助手（可选）
 
@@ -239,7 +240,7 @@
 ### 环境要求
 
 - Node.js 与 bun
-- Windows 与 Linux 均可运行：Windows 产出安装包（NSIS）与便携版（electron-builder 的 `win` 目标），Linux 产出 AppImage（`linux` 目标）。数据目录随之区分：Windows 为 `%APPDATA%\esprin_nemo`，Linux 为 `~/.local/share/EsprinNemo`（跟随 `XDG_DATA_HOME`）
+- Windows、Linux 与 macOS 均可运行：Windows 产出安装包（NSIS）与便携版（electron-builder 的 `win` 目标），Linux 产出 AppImage（`linux` 目标），macOS 产出 dmg（`mac` 目标，Universal 架构）。数据目录随之区分：Windows 为 `%APPDATA%\esprin_nemo`，Linux 为 `~/.local/share/EsprinNemo`（跟随 `XDG_DATA_HOME`），macOS 为 `~/Library/Application Support/esprin_nemo`
 
 ### 安装与运行
 
@@ -254,7 +255,7 @@ bun start
 开发运行（`electron .`）完全绕过安装版 / 便携版的数据位置机制：
 
 - 数据固定为项目内的 `data/`，不读取也不写入 `data_path.json`，设置中的「数据存放位置」整行置灰，避免将正式记录写入开发时的临时位置
-- Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）单独存放于配置目录下的 `dev_user_data`（Windows 为 `%APPDATA%\esprin_nemo\dev_user_data`，Linux 为 `~/.local/share/EsprinNemo/dev_user_data`）。默认位置与安装版一致时会共用同一把单实例锁，安装版驻留托盘时执行 `bun start`，系统会把「再次启动」交给安装版，开发窗口无法创建；隔离后两者可同时运行，互不干扰
+- Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）单独存放于配置目录下的 `dev_user_data`（Windows 为 `%APPDATA%\esprin_nemo\dev_user_data`，Linux 为 `~/.local/share/EsprinNemo/dev_user_data`，macOS 为 `~/Library/Application Support/esprin_nemo/dev_user_data`）。默认位置与安装版一致时会共用同一把单实例锁，安装版驻留托盘时执行 `bun start`，系统会把「再次启动」交给安装版，开发窗口无法创建；隔离后两者可同时运行，互不干扰
 
 ### 打包
 
@@ -262,15 +263,16 @@ bun start
 bun run build
 ```
 
-`bun run build` 同时构建 Windows 与 Linux 产物，也可以用 `bun run build:win` / `bun run build:linux` 只构建其中一个平台，产物位于 `dist/`：
+`bun run build` 同时构建 Windows 与 Linux 产物，也可以用 `bun run build:win` / `bun run build:linux` 只构建其中一个平台；macOS 用 `bun run build:mac` 单独构建（Universal，同时包含 Intel 与 Apple Silicon）。产物位于 `dist/`：
 
 | 产物 | 说明 |
 | --- | --- |
 | `dist/EsprinNemo.Setup.v<版本>.exe` | Windows 安装包。可通过 `nsis.allowToChangeInstallationDirectory` 选择安装位置；首次安装时由 `src/desktop/win_installer/installer.nsh` 提供向导页选择数据存放位置。选择结果写入 `%APPDATA%\esprin_nemo\data_path.json`，该记录已存在时不再询问，此后可在「设置 → 数据存放位置」调整 |
 | `dist/EsprinNemo.Portable.v<版本>.exe` | Windows 便携版。每次启动解压到临时目录运行，数据、配置与 Electron 运行时数据（`data/`、`data_path.json`、`user_data/`）均位于便携版 exe 所在目录，不写入 `%APPDATA%`。便携版没有稳定的升级目标，因此不做更新检查。所在目录不可写（只读位置、无权限）时不回退到 `%APPDATA%`，而是弹窗说明原因并提供「重新选择路径」 |
 | `dist/EsprinNemo.v<版本>.AppImage` | Linux 可执行镜像。免安装，`chmod +x` 后直接双击或命令行运行；数据默认存放在 `~/.local/share/EsprinNemo`（跟随 `XDG_DATA_HOME`），应用内仍可改用其他位置。没有安装向导，也就没有安装时的位置选择页；要放进应用菜单可自行放一份 `.desktop` 文件指向它 |
+| `dist/EsprinNemo.v<版本>.dmg` | macOS 磁盘映像（Universal）。打开后把 EsprinNemo 拖进「应用程序」即可；数据默认存放在 `~/Library/Application Support/esprin_nemo`。构建时会做 ad-hoc 签名（无需 Apple 开发者证书），首次打开可能需要在「系统设置 → 隐私与安全性」里允许 |
 
-打包实现细节见 [`src/desktop/win_installer/README.md`](src/desktop/win_installer/README.md)（Linux 侧不需要额外的安装脚本，electron-builder 直接产出 AppImage）。
+打包实现细节见 [`src/desktop/win_installer/README.md`](src/desktop/win_installer/README.md)（Linux 与 macOS 侧不需要额外的安装脚本，electron-builder 直接产出 AppImage 与 dmg）。
 
 ### 移动端（网页界面）
 
@@ -279,8 +281,8 @@ bun run build
 ### 发布新版本
 
 1. 修改 `package.json` 的 `version`，并将本版说明写入 [`.github/releases.md`](.github/releases.md)
-2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 分三个作业：`windows` 在 `windows-latest` 上原生构建安装包与便携版（`bun run build:win`），`linux` 在 `ubuntu-latest` 上构建 AppImage 与同步端可执行文件（`bun run build:linux` 加 `bun run build:sync`），两者并行；随后 `publish` 把五个文件统一发布到 tag `v<版本>` 的 Release（说明取自 `.github/releases.md`）。两个构建作业都用 `actions/cache` 复用 Electron 与 electron-builder 的下载缓存
-3. 旧版本应用的自动更新会检测到该 Release 并升级（Linux 上会把新 AppImage 下载到下载目录，由用户自行替换），见[应用更新](#应用更新)
+2. 推送到 `main` 分支。[`.github/workflows/releases.yml`](.github/workflows/releases.yml) 分四个作业：`windows` 在 `windows-latest` 上原生构建安装包与便携版（`bun run build:win`），`linux` 在 `ubuntu-latest` 上构建 AppImage 与同步端可执行文件（`bun run build:linux` 加 `bun run build:sync`），`macos` 在 `macos-latest` 上构建 Universal dmg（`bun run build:mac`），三者并行；随后 `publish` 把六个文件统一发布到 tag `v<版本>` 的 Release（说明取自 `.github/releases.md`）。三个构建作业都用 `actions/cache` 复用 Electron 与 electron-builder 的下载缓存
+3. 旧版本应用的自动更新会检测到该 Release 并升级（Linux 上会把新 AppImage 下载到下载目录，macOS 上会下载 dmg 并直接打开，均由用户自行替换），见[应用更新](#应用更新)
 
 官网源码位于 [`.github/pages`](.github/pages)，是一份纯静态站点，没有构建步骤：`index.html` + `styles.css` + `material-symbols-rounded.woff2`，图片与字体通过 `assets/`、`about/` 两个软链接指向仓库根目录的同名文件夹。
 
@@ -299,7 +301,7 @@ Cloudflare Pages 不需要构建命令，输出目录填 `.github/pages` 即可�
 
 ```text
 data/
-├── config.json      # 偏好设置：主题、主题风格、圆角尺度、主题色、字体、拼写检查、侧边栏模糊开关、废纸篓保留天数、自动更新、开机自启、托盘图标、自定义文件夹、AI 接口配置、当前选中的对话等
+├── config.json      # 偏好设置：主题、圆角尺度、主题色、字体、拼写检查、废纸篓保留天数、自动更新、开机自启、托盘图标、自定义文件夹、AI 接口配置、当前选中的对话等
 ├── scratchpad.json  # 小本本：关联的笔记 ID 与标题 / 正文缓存
 ├── stickies.json    # 桌面便利贴：每张纸的绑定条目、纸张颜色、显示状态与窗口位置尺寸
 ├── ai_files/        # AI 图片附件（对话记录中只保存文件名，请求时才读取为 base64）
@@ -389,12 +391,13 @@ AI 对话同样是一份对话一个文件（`ai_chats/<id>.json`，文件名即
 | --- | --- | --- |
 | 安装版（Windows） | `%APPDATA%\esprin_nemo\data_path.json` | `%APPDATA%\esprin_nemo\data` |
 | 安装版（Linux） | `~/.local/share/EsprinNemo/data_path.json`（`$XDG_DATA_HOME/EsprinNemo`） | `~/.local/share/EsprinNemo/data` |
+| 安装版（macOS） | `~/Library/Application Support/esprin_nemo/data_path.json` | `~/Library/Application Support/esprin_nemo/data` |
 | 便携版（Windows） | 便携版所在目录下的 `data_path.json` | 便携版所在目录下的 `data/` |
 | 开发运行（`bun start`） | 不使用记录文件 | 项目内 `data/` |
 
 配置目录的位置由 `src/desktop/main/data_path.js` 按平台解析：Windows 与 macOS 取 Electron 的 `appData`（即 `%APPDATA%` / `~/Library/Application Support`）下的 `esprin_nemo`；Linux 不取 Electron 的 `~/.config`，而是优先用 `$XDG_DATA_HOME`，未设置时用 `~/.local/share`，再拼上 `EsprinNemo` —— 笔记、待办与配置属于「应用数据」而非「配置」，放这里才符合 XDG 的划分，也不会与 Electron 自己的 profile 目录混在一起。
 
-Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）的位置随之区分：安装版保持 Electron 默认位置（Linux 上即 `~/.config/Esprin Nemo`），便携版使用程序目录下的 `user_data/`，开发运行使用配置目录下的 `dev_user_data`（Windows 为 `%APPDATA%\esprin_nemo\dev_user_data`，Linux 为 `~/.local/share/EsprinNemo/dev_user_data`）。便携版单独存放的原因是其定位为「不写入 `%APPDATA%`」，而默认位置中的缓存、Cookie 与崩溃转储均为实际写入，仅迁移数据文件并不充分，且会与安装版共用同一 profile；开发运行单独存放的原因是不与安装版共用同一把单实例锁。
+Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志）的位置随之区分：安装版保持 Electron 默认位置（Linux 上即 `~/.config/EsprinNemo`），便携版使用程序目录下的 `user_data/`，开发运行使用配置目录下的 `dev_user_data`（Windows 为 `%APPDATA%\esprin_nemo\dev_user_data`，Linux 为 `~/.local/share/EsprinNemo/dev_user_data`）。便携版单独存放的原因是其定位为「不写入 `%APPDATA%`」，而默认位置中的缓存、Cookie 与崩溃转储均为实际写入，仅迁移数据文件并不充分，且会与安装版共用同一 profile；开发运行单独存放的原因是不与安装版共用同一把单实例锁。
 
 记录内容：
 
@@ -408,7 +411,7 @@ Electron 运行时数据（缓存、Cookie、GPU 缓存、崩溃转储、日志�
 
 ```text
 data_path.json 中的位置（安装时选择或应用内更改）
-  → %APPDATA%\esprin_nemo\data（Linux：~/.local/share/EsprinNemo/data）
+  → %APPDATA%\esprin_nemo\data（Linux：~/.local/share/EsprinNemo/data，macOS：~/Library/Application Support/esprin_nemo/data）
 ```
 
 据此，「恢复默认」会删除记录并回到当前平台的默认位置。记录文件统一使用正斜杠（安装向导的 NSIS 脚本不便转义反斜杠），应用读取时换算为当前平台的写法。
@@ -763,7 +766,7 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 
 ## 应用更新
 
-更新的检查、下载与安装均由主进程完成（`src/desktop/main/updater.js`），界面在「设置 → 更新与版本」中展示状态与操作。
+更新的检查、下载与安装均由主进程完成（`src/desktop/main/updater.js`），界面在「设置 → 关于」中展示状态与操作。
 
 | 设置项 | 说明 |
 | --- | --- |
@@ -781,9 +784,9 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 - 更新源为 GitHub 仓库 `TheOninesixY/EsprinNemo` 的 Releases（定义在 `src/desktop/main/updater.js` 的 `UPDATE_REPO`，更换仓库时只需修改此处）
 - 检查走 `GET https://api.github.com/repos/{owner}/{repo}/releases/latest`，取该 release 的 tag（形如 `v0.0.0`）与当前版本逐段数值比较（支持 `2.1.10 > 2.1.9`），仅当高于当前版本时提醒更新
 - 当前版本说明走 `GET https://api.github.com/repos/{owner}/{repo}/releases/tags/v<当前版本>`（取不到时按不带 `v` 的写法再试一次），404 视为该版本没有发布记录；同一版本仅请求一次，之后使用缓存
-- 安装包按平台挑选附件：Windows 上文件名需包含独立的 `setup` 段（由点 / 空格 / 连字符 / 下划线分隔，如 `EsprinNemo.Setup.v2.1.5.exe`、`en.Setup.123.exe`）且以 `.exe` 结尾；Linux 上取名字以 `.AppImage` 结尾的附件（即 `EsprinNemo.v<版本>.AppImage`）。发布页没有对应附件时，设置页会提示前往发布页手动下载。Windows 下载至系统临时目录，Linux 下载至下载目录（取不到则退回临时目录），按 `Content-Length` 校验体积，并检查文件头（Windows 为 `MZ`，Linux 为 ELF 魔数），Linux 下载完成后补上可执行权限
+- 安装包按平台挑选附件：Windows 上文件名需包含独立的 `setup` 段（由点 / 空格 / 连字符 / 下划线分隔，如 `EsprinNemo.Setup.v2.1.5.exe`、`en.Setup.123.exe`）且以 `.exe` 结尾；Linux 上取名字以 `.AppImage` 结尾的附件（即 `EsprinNemo.v<版本>.AppImage`）；macOS 上取名字以 `.dmg` 结尾的附件（即 `EsprinNemo.v<版本>.dmg`）。发布页没有对应附件时，设置页会提示前往发布页手动下载。Windows 下载至系统临时目录，Linux 与 macOS 下载至下载目录（取不到则退回临时目录），按 `Content-Length` 校验体积，并检查文件头（Windows 为 `MZ`，Linux 为 ELF 魔数），Linux 下载完成后补上可执行权限
 - 安装时以 `--upgrade --updated --force-run` 运行安装包：`--upgrade` 由安装脚本（`src/desktop/win_installer/installer.nsh`）识别，跳过数据位置向导页、沿用上次的安装范围（不再询问「为谁安装」）、不显示完成页，安装完成后由安装器重新拉起应用；`--updated` / `--force-run` 是 electron-builder 自带的开关，用于跳过许可与安装目录页，并允许安装程序等待旧应用退出。用户侧只会看到一个进度条与「正在更新」提示，`%APPDATA%\esprin_nemo\data_path.json` 与数据目录均不会被改动
-- 开发运行（`bun start`）不参与自动检查与后台下载（源码不经更新包分发），但设置页的「检查更新」仍可手动使用；便携版因为自身不是安装版，只提供下载与手动升级；Linux 上检查、下载、版本说明都照常，只是不做自动安装——AppImage 在运行中无法替换自身，弹窗会引导到下载好的文件，由用户覆盖自己的那份并重启
+- 开发运行（`bun start`）不参与自动检查与后台下载（源码不经更新包分发），但设置页的「检查更新」仍可手动使用；便携版因为自身不是安装版，只提供下载与手动升级；Linux 上检查、下载、版本说明都照常，只是不做自动安装——AppImage 在运行中无法替换自身，弹窗会引导到下载好的文件，由用户覆盖自己的那份并重启；macOS 同理不做自动安装，下载完成后直接打开 dmg，由用户把应用拖进「应用程序」覆盖旧版本
 - 一次发布只需改好 `package.json` 的版本号并推送（见[发布新版本](#发布新版本)），无需额外维护版本清单文件
 - 网络请求仅指向 GitHub（API 与下载地址）；检查失败（离线、代理、频率限制等）仅在设置页显示原因，不会自动重试
 
@@ -821,7 +824,8 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 │   │   │   ├── updater.js      # 应用更新：检查 GitHub Releases、发布说明、下载与静默升级
 │   │   │   ├── font_list.js    # 跨平台本机字体枚举
 │   │   │   ├── ui_defaults.js  # 全局界面默认值注入（焦点描边、Tab 行为）
-│   │   │   ├── wallpaper.js    # 窗口背景：读取系统桌面壁纸、跟随切换、缓存归一化图片
+│   │   │   ├── window_controls.js # 窗口控件：Windows 自绘按钮 / macOS 原生红绿灯切换
+│   │   │   ├── app_menu.js     # macOS 应用菜单（关于跳设置「关于」分类、文件 / 编辑 / 显示 / 窗口）
 │   │   │   └── window_appearance.js # 主题 / 风格 / 圆角 / 主题色 / 字体的统一换算
 │   │   ├── renderer/       # 渲染进程（Electron 主窗口与各弹窗）
 │   │   │   ├── main.html       # 主窗口：列表 + 编辑器 + 设置 + 各种浮层
@@ -831,11 +835,11 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 │   │   │   ├── boot.js         # 首屏引导：数据目录解析、主题 / 圆角 / 字体 / 布局预注入（无闪屏）
 │   │   │   ├── window_appearance.js # 首屏外观预注入（避免窗口尺寸 / 圆角闪动）
 │   │   │   ├── styles/         # tokens / base / sidebar / editor / overlays / dropdown / settings / ai /
-│   │   │   │                   # sync / voice / radius / mode / motion / filter / wallpaper
-│   │   │   └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / wallpaper / mode /
-│   │   │                       # notes / scratchpad / sticky_notes / sticky_window / tray / auto_launch /
-│   │   │                       # sync_server / team_notes / editor / voice_notes / ai / ai_chats / ai_files /
-│   │   │                       # ai_agent / update / filter / render / app …
+│   │   │   │                   # sync / voice / radius / mode / motion / filter / window_controls
+│   │   │   └── scripts/        # state / storage / markdown / ui / dropdown / theme_color / mode /
+│   │   │                       # window_controls / notes / scratchpad / sticky_notes / sticky_window / tray /
+│   │   │                       # auto_launch / sync_server / team_notes / editor / voice_notes / ai / ai_chats /
+│   │   │                       # ai_files / ai_agent / update / filter / render / app …
 │   │   └── win_installer/  # Windows 安装器：NSIS 自定义向导页（数据存放位置）
 │   │       ├── installer.nsh
 │   │       └── README.md
@@ -852,7 +856,7 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 │       ├── styles/         # tokens（配色与尺寸）/ base（外壳、浮层、图标字体）/ list / editor / settings
 │       └── scripts/        # app（界面与交互）/ store（IndexedDB 文件仓库）/ sync（同步客户端）/
 │                           # format（与 Desktop 完全一致的条目文件读写）/ markdown（预览渲染）/ icons（图标名映射）
-├── scripts/                # 构建辅助工具：sync_build.js（把同步端打成可执行文件）、mobile_build.js / mobile_serve.js（移动端打包与本地预览）、website_serve.js（官网本地预览）
+├── scripts/                # 构建辅助工具：sync_build.js（把同步端打成可执行文件）、mobile_build.js / mobile_serve.js（移动端打包与本地预览）、website_serve.js（官网本地预览）、mac_after_pack.js（macOS 打包后的 ad-hoc 签名）
 ├── data/                   # 开发版数据目录（已 gitignore）
 ├── dist/                   # 构建产物（已 gitignore）
 ├── DESIGN.md               # 桌面端设计系统（配色 / 字体 / 圆角 / 层次 / 组件规范），改界面前先对照它
@@ -867,11 +871,11 @@ API Key **不随数据目录保存**，也不写入 `data/config.json`。
 ## 技术栈
 
 - **Electron 44**：主进程（`src/desktop/main/`）+ 渲染进程（`src/desktop/renderer/`），无打包步骤，直接加载 `main.html`
-- **窗口生命周期**：主窗口以 `show: false` 创建，等 `webContents` 的 `did-finish-load` 才显示（另有超时兜底，且只执行一次，页面重载不会重复显示）；退出在 `before-quit` / `will-quit` 里依次清理语音识别、桌面层、桌面便利贴、壁纸监视器与桌面右键菜单，正常退出输出 `[INFO] [Nemo] 资源清理完成，正常退出` 并以 0 退出码结束，重复的 `app.quit()` 调用被合并
+- **窗口生命周期**：主窗口以 `show: false` 创建，等 `webContents` 的 `did-finish-load` 才显示（另有超时兜底，且只执行一次，页面重载不会重复显示）；退出在 `before-quit` / `will-quit` 里依次清理语音识别、桌面层、桌面便利贴与桌面右键菜单，正常退出输出 `[INFO] [Nemo] 资源清理完成，正常退出` 并以 0 退出码结束，重复的 `app.quit()` 调用被合并
 - **原生 JavaScript / HTML / CSS**：界面基于 CSS 变量实现主题、风格、圆角、主题色与字体切换
 - **Node.js 文件系统直读直写**：渲染进程通过 `require('fs')` 直接读写数据目录
 - **material-symbols**：桌面端图标字体（移动端自带内联 SVG 图标，不依赖字体）
-- **Mohave**：左上角品牌字体（SIL Open Font License）
+- **Mohave**：品牌字体（SIL Open Font License），用于 Windows 样式下左上角的「EsprinNemo」名称；macOS 红绿灯模式下该名称隐藏
 - **移动端**：原生 ES Modules + IndexedDB，无构建步骤、无框架、无外部依赖
 - **设计系统**：[`DESIGN.md`](DESIGN.md) 记录桌面端的配色、字体、圆角、层次与组件规范；改界面前先对照它，不要另起一套视觉
 

@@ -1,7 +1,7 @@
 const { app, Tray, Menu, nativeImage, ipcMain } = require('electron');
 
 const ICON_SIZE = 16;
-const TOOLTIP = 'Esprin Nemo';
+const TOOLTIP = 'EsprinNemo';
 
 const ACTION_NEW_NOTE = 'new-note';
 const ACTION_NEW_TODO = 'new-todo';
@@ -23,6 +23,10 @@ let onHideStickyNotes = () => 0;
 let onQuit = () => {};
 let onEnabledChanged = () => {};
 
+function isMacPlatform() {
+  return process.platform === 'darwin';
+}
+
 function configureTray(options = {}) {
   if (typeof options.getConfig === 'function') getConfig = options.getConfig;
   if (typeof options.getOwner === 'function') getOwnerWindow = options.getOwner;
@@ -35,9 +39,15 @@ function configureTray(options = {}) {
   if (typeof options.onQuit === 'function') onQuit = options.onQuit;
   if (typeof options.onEnabledChanged === 'function') onEnabledChanged = options.onEnabledChanged;
 
-app.on('will-quit', destroyTray);
+  app.on('will-quit', destroyTray);
 
-trayEnabled = readConfiguredEnabled();
+  if (isMacPlatform()) {
+    trayEnabled = false;
+    console.log('[INFO] [Nemo] macOS 不创建托盘图标，相关入口放在顶部菜单栏');
+    return;
+  }
+
+  trayEnabled = readConfiguredEnabled();
   applyEnabled(trayEnabled);
 }
 
@@ -46,13 +56,13 @@ function readConfiguredEnabled() {
     const config = getConfig();
     if (config && typeof config === 'object') return config.trayEnabled !== false;
   } catch (error) {
-    console.error('[Esprin Nemo] 读取托盘设置失败:', error);
+    console.error('[EsprinNemo] 读取托盘设置失败:', error);
   }
   return true;
 }
 
 function isTrayEnabled() {
-  return trayEnabled;
+  return !isMacPlatform() && trayEnabled;
 }
 
 function trayIcon() {
@@ -63,7 +73,7 @@ function trayIcon() {
 
 function buildTrayMenu() {
   const template = [
-    { label: '打开 Esprin Nemo', click: () => { onShowMainWindow(); } },
+    { label: '打开 EsprinNemo', click: () => { onShowMainWindow(); } },
     { type: 'separator' },
     { label: '小本本', click: () => { onOpenScratchpad(); } }
   ];
@@ -95,7 +105,7 @@ function createTray() {
   try {
     tray = new Tray(trayIcon());
   } catch (error) {
-    console.error('[Esprin Nemo] 创建托盘图标失败:', error);
+    console.error('[EsprinNemo] 创建托盘图标失败:', error);
     tray = null;
     return false;
   }
@@ -118,6 +128,11 @@ function destroyTray() {
 }
 
 function applyEnabled(enabled) {
+  if (isMacPlatform()) {
+    destroyTray();
+    trayEnabled = false;
+    return false;
+  }
   const wanted = !!enabled;
   if (wanted) {
     if (!createTray()) {

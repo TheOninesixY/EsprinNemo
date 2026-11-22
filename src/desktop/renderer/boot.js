@@ -6,16 +6,11 @@ const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
 const MODERN_LAYOUT_CLASS = 'modern-layout';
 
-const SIDEBAR_BLUR_OFF_CLASS = 'sidebar-blur-off';
-
 const NARROW_WINDOW_THRESHOLD = 900;
 
 const UI_SCALE_MIN = 0.5;
 const UI_SCALE_MAX = 2;
 const UI_SCALE_DEFAULT = 1;
-
-const WALLPAPER_ARG_PREFIX = '--esprin-nemo-wallpaper=';
-const WALLPAPER_CLASS = 'has-wallpaper';
 
 function normalizeUiScale(value) {
     const num = Number(value);
@@ -36,21 +31,47 @@ document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
 
 document.documentElement.classList.add(MODERN_LAYOUT_CLASS);
 
-function readWallpaperUrl() {
+function readWindowControlsArg() {
     try {
-        const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith(WALLPAPER_ARG_PREFIX));
-        if (!matched) return '';
-        return matched.slice(WALLPAPER_ARG_PREFIX.length).trim();
+        const matched = (process.argv || []).find((item) => typeof item === 'string' && item.startsWith('--esprin-nemo-window-controls='));
+        if (matched) return matched.slice('--esprin-nemo-window-controls='.length).trim() === 'mac' ? 'mac' : 'windows';
     } catch (e) {
-        return '';
+
     }
+    return process.platform === 'darwin' ? 'mac' : 'windows';
 }
 
-const initialWallpaperUrl = readWallpaperUrl();
-if (initialWallpaperUrl) {
-    document.documentElement.style.setProperty('--desktop-wallpaper', `url("${initialWallpaperUrl}")`);
-    document.documentElement.classList.add(WALLPAPER_CLASS);
+function readInitialWindowControls() {
+    try {
+        const snapshot = ipcRenderer.sendSync('window:get-controls-sync');
+        if (snapshot && typeof snapshot === 'object') {
+            return {
+                style: snapshot.style === 'mac' ? 'mac' : 'windows',
+                native: !!snapshot.native,
+                mac: !!snapshot.mac
+            };
+        }
+    } catch (e) {
+
+    }
+    const style = readWindowControlsArg();
+    return {
+        style,
+        native: style === 'mac' && process.platform === 'darwin',
+        mac: process.platform === 'darwin'
+    };
 }
+
+const INITIAL_WINDOW_CONTROLS = readInitialWindowControls();
+
+function applyWindowControlsClass(state) {
+    const root = document.documentElement;
+    const isMac = state.style === 'mac';
+    root.classList.toggle('window-controls-mac', isMac);
+    root.classList.toggle('window-controls-windows', !isMac);
+}
+
+applyWindowControlsClass(INITIAL_WINDOW_CONTROLS);
 
 function resolveDataDir() {
     try {
@@ -86,9 +107,7 @@ try {
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
         if (config && config.uiScale !== undefined) uiScale = config.uiScale;
     }
-    document.documentElement.classList.add(SIDEBAR_BLUR_OFF_CLASS);
     webFrame.setZoomFactor(normalizeUiScale(uiScale));
-
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);
     applyWindowAppearance({
         theme: isLight ? 'light' : 'dark',

@@ -1,0 +1,13 @@
+html.window-controls-mac .app-chrome > .topbar .app-corner,
+html.window-controls-mac .app-chrome > .topbar .app-brand {
+    visibility: hidden;
+}
+
+html.window-controls-mac body.is-fullscreen .app-chrome > .topbar .app-corner,
+html.window-controls-mac body.is-fullscreen .app-chrome > .topbar .app-brand {
+    visibility: visible;
+}
+
+html.window-controls-mac .window-controls {
+    display: none !important;
+}

@@ -94,7 +94,19 @@ function ensureChild() {
 }
 
 function setDesktopLevel(win) {
-  if (unavailable || !win || win.isDestroyed()) return false;
+  if (!win || win.isDestroyed()) return false;
+
+  if (process.platform === 'darwin') {
+    try {
+      win.setAlwaysOnTop(true, 'normal', -1);
+      return true;
+    } catch (error) {
+      console.warn('[WARN] [Nemo] 设置 macOS 便利贴置底失败:', error.message);
+      return false;
+    }
+  }
+
+  if (unavailable) return false;
 
   const handle = windowHandle(win);
   if (!handle) return false;
@@ -113,6 +125,17 @@ function setDesktopLevel(win) {
 
 function raiseAboveDesktop(win) {
   if (!win || win.isDestroyed()) return;
+
+  if (process.platform === 'darwin') {
+    try {
+      win.setAlwaysOnTop(false);
+      win.moveTop();
+    } catch (error) {
+      console.warn('[WARN] [Nemo] 抬升 macOS 便利贴失败:', error.message);
+    }
+    return;
+  }
+
   if (!isSupportedPlatform()) return;
   try {
     win.moveTop();
@@ -123,7 +146,7 @@ function raiseAboveDesktop(win) {
 
 function keepDesktopLevel(win) {
   if (!win || win.isDestroyed()) return;
-  if (!isSupportedPlatform()) return;
+  if (!isSupportedPlatform() && process.platform !== 'darwin') return;
 
   const pushDown = () => {
     if (win.isDestroyed()) return;
@@ -133,11 +156,13 @@ function keepDesktopLevel(win) {
   win.on('show', pushDown);
   win.on('restore', pushDown);
   win.on('blur', pushDown);
-  win.on('minimize', () => {
-    if (win.isDestroyed()) return;
-    win.restore();
-    pushDown();
-  });
+  if (isSupportedPlatform()) {
+    win.on('minimize', () => {
+      if (win.isDestroyed()) return;
+      win.restore();
+      pushDown();
+    });
+  }
 }
 
 function disposeDesktopLayer() {

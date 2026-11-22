@@ -26,7 +26,7 @@
 !endif
 
 /* 应用内更新（--upgrade）：应用会把新版本的安装包下载到临时目录，然后以命令行运行它：
-     "Esprin Nemo Setup x.y.z.exe" --upgrade --updated --force-run
+     "EsprinNemo Setup x.y.z.exe" --upgrade --updated --force-run
    --upgrade 由本文件识别（跳过数据位置向导页、沿用上次的安装范围、不显示“完成”页，
    安装结束后自动重新拉起应用），--updated / --force-run 是 electron-builder 自带的开关，
    用于跳过许可与安装目录向导页、并且允许安装程序等待旧进程退出。
@@ -100,8 +100,8 @@
      所以这里定义的 SHOW 回调会被进度页取走。 */
   Function EsprinInstFilesPageShow
     ${If} $EsprinUpgradeMode == "1"
-      !insertmacro MUI_HEADER_TEXT "正在更新 Esprin Nemo" "更新完成后应用会自动重新打开，请稍候…"
-      SendMessage $HWNDPARENT ${WM_SETTEXT} 0 "STR:正在更新 Esprin Nemo…"
+      !insertmacro MUI_HEADER_TEXT "正在更新 EsprinNemo" "更新完成后应用会自动重新打开，请稍候…"
+      SendMessage $HWNDPARENT ${WM_SETTEXT} 0 "STR:正在更新 EsprinNemo…"
     ${EndIf}
   FunctionEnd
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW EsprinInstFilesPageShow
@@ -180,7 +180,7 @@
     ${NSD_CreateLabel} 0 34u 100% 15u "自定义位置（取消上方勾选后生效）："
     Pop $0
 
-    StrCpy $1 "$DOCUMENTS\Esprin Nemo"
+    StrCpy $1 "$DOCUMENTS\EsprinNemo"
     ${If} $EsprinDataDirPath != ""
       StrCpy $1 "$EsprinDataDirPath"
     ${EndIf}
@@ -243,7 +243,7 @@
       StrCpy $5 "1"
     ${EndIf}
     ${If} $5 == "1"
-      MessageBox MB_OK|MB_ICONINFORMATION "所选位置已存在 Esprin Nemo 数据：$\r$\n$EsprinDataDirPath$\r$\n$\r$\n应用会直接使用其中的笔记与配置，不会覆盖任何文件。"
+      MessageBox MB_OK|MB_ICONINFORMATION "所选位置已存在 EsprinNemo 数据：$\r$\n$EsprinDataDirPath$\r$\n$\r$\n应用会直接使用其中的笔记与配置，不会覆盖任何文件。"
     ${EndIf}
 
     StrCpy $EsprinDataDirMode "custom"

@@ -33,6 +33,7 @@ const PROGRESS_INTERVAL_MS = 300;
 const SETUP_SEGMENT_PATTERN = /(^|[.\s_\-])setup([.\s_\-]|$)/i;
 const EXE_FILE_PATTERN = /\.exe$/i;
 const APPIMAGE_FILE_PATTERN = /\.appimage$/i;
+const DMG_FILE_PATTERN = /\.dmg$/i;
 
 const state = {
   status: 'idle',
@@ -103,12 +104,16 @@ function isLinuxPlatform() {
   return process.platform === 'linux';
 }
 
+function isMacPlatform() {
+  return process.platform === 'darwin';
+}
+
 function isPortableRun() {
   return !!(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR);
 }
 
 function canAutoInstall() {
-  return app.isPackaged && !isPortableRun() && !isLinuxPlatform();
+  return app.isPackaged && !isPortableRun() && !isLinuxPlatform() && !isMacPlatform();
 }
 
 function readConfigAutoUpdate() {
@@ -196,7 +201,7 @@ function notifyAutoUpdateDisabled() {
 function disableAutoUpdate() {
   stopAutoChecks();
   const saved = writeUserConfig({ autoUpdate: false });
-  if (!saved) console.error('[Esprin Nemo] 关闭自动更新失败：配置未能写入');
+  if (!saved) console.error('[EsprinNemo] 关闭自动更新失败：配置未能写入');
   notifyAutoUpdateDisabled();
   broadcast();
 }
@@ -298,12 +303,15 @@ async function requestGithubJson(url, { allowNotFound = false } = {}) {
 
 function hasPackageExtension(name) {
   const lower = asString(name).toLowerCase();
-  return isLinuxPlatform() ? APPIMAGE_FILE_PATTERN.test(lower) : lower.endsWith('.exe');
+  if (isLinuxPlatform()) return APPIMAGE_FILE_PATTERN.test(lower);
+  if (isMacPlatform()) return DMG_FILE_PATTERN.test(lower);
+  return lower.endsWith('.exe');
 }
 
 function isPackageName(name) {
   const value = asString(name);
   if (isLinuxPlatform()) return APPIMAGE_FILE_PATTERN.test(value);
+  if (isMacPlatform()) return DMG_FILE_PATTERN.test(value);
   return EXE_FILE_PATTERN.test(value) && SETUP_SEGMENT_PATTERN.test(value);
 }
 
@@ -441,7 +449,7 @@ function removeFileQuietly(target) {
 }
 
 function downloadDir() {
-  if (isLinuxPlatform()) {
+  if (isLinuxPlatform() || isMacPlatform()) {
     try {
       const dir = app.getPath('downloads');
       if (dir) return dir;
@@ -597,7 +605,7 @@ function finishDownload(target, version, total, received, { auto = false } = {})
 if (auto) {
     setTimeout(() => {
       promptInstallReady().catch((error) => {
-        console.error('[Esprin Nemo] 提示安装更新失败:', error);
+        console.error('[EsprinNemo] 提示安装更新失败:', error);
       });
     }, 0);
   }
@@ -615,7 +623,7 @@ async function startDownload({ auto = false } = {}) {
     return { ok: false, error: state.error };
   }
 
-  const ext = path.extname(update.asset.name) || (isLinuxPlatform() ? '.AppImage' : '.exe');
+  const ext = path.extname(update.asset.name) || (isLinuxPlatform() ? '.AppImage' : (isMacPlatform() ? '.dmg' : '.exe'));
   const target = path.join(downloadDir(), `EsprinNemo-Update-${update.version}${ext}`);
 
 const assetSize = update.asset.size || 0;
@@ -683,14 +691,25 @@ downloadPackageFrom(githubUrls(update.asset.url), target, {
   return { ok: true };
 }
 
+function revealPackage(file) {
+  if (!file) return;
+  if (isMacPlatform()) {
+    shell.openPath(file).then((errorMsg) => {
+      if (errorMsg) shell.showItemInFolder(file);
+    }).catch(() => shell.showItemInFolder(file));
+    return;
+  }
+  shell.showItemInFolder(file);
+}
+
 async function installUpdate() {
   const file = state.downloadedFile;
   if (!file || !fs.existsSync(file)) {
     return { ok: false, error: '还没有下载好的安装包' };
   }
 
-if (!canAutoInstall()) {
-    shell.showItemInFolder(file);
+  if (!canAutoInstall()) {
+    revealPackage(file);
     return { ok: true, manual: true, file };
   }
 
@@ -702,7 +721,7 @@ if (!canAutoInstall()) {
     });
     child.unref();
   } catch (error) {
-    console.error('[Esprin Nemo] 启动更新安装程序失败:', error);
+    console.error('[EsprinNemo] 启动更新安装程序失败:', error);
     return { ok: false, error: `启动安装程序失败：${asString(error && error.message)}` };
   }
 
@@ -730,12 +749,14 @@ async function promptInstallReady() {
     type: 'info',
     icon: 'system_update',
     title: '更新已就绪',
-    message: `Esprin Nemo ${version} 已下载完成`,
+    message: `EsprinNemo ${version} 已下载完成`,
     detail: installable
       ? '重启应用即可完成安装：应用会先退出，安装完成后自动重新打开。'
       : (isLinuxPlatform()
         ? '当前系统不支持自动安装：请用文件管理器把下载好的 AppImage 放到你平时运行的位置并覆盖旧文件，再重新启动。'
-        : '当前为开发运行，不支持自动安装，请用下载好的安装包手动升级。'),
+        : (isMacPlatform()
+          ? 'macOS 不支持自动安装：请打开下载好的 dmg，把 EsprinNemo 拖进「应用程序」替换旧版本，再重新启动。'
+          : '当前为开发运行，不支持自动安装，请用下载好的安装包手动升级。')),
 
     checkbox: {
       label: '永不提醒（勾选后关闭本窗口，设置里的「自动检查并下载更新」会一并关闭）',
@@ -757,7 +778,7 @@ async function promptInstallReady() {
     return;
   }
   if (choice.id === 'open') {
-    shell.showItemInFolder(state.downloadedFile);
+    revealPackage(state.downloadedFile);
     return;
   }
 
@@ -832,22 +853,20 @@ ipcMain.handle('update:set-gh-proxy', () => snapshot());
   ipcMain.handle('update:open-release', (event) => {
     const url = state.update && state.update.releaseUrl ? state.update.releaseUrl : RELEASE_PAGE_URL;
     shell.openExternal(url).catch((error) => {
-      console.error('[Esprin Nemo] 打开发布页失败:', error);
+      console.error('[EsprinNemo] 打开发布页失败:', error);
     });
     return true;
   });
 
 ipcMain.handle('update:open-repo', () => {
     shell.openExternal(REPO_URL).catch((error) => {
-      console.error('[Esprin Nemo] 打开项目主页失败:', error);
+      console.error('[EsprinNemo] 打开项目主页失败:', error);
     });
     return true;
   });
 
 ipcMain.handle('update:open-file', () => {
-    if (state.downloadedFile && fs.existsSync(state.downloadedFile)) {
-      shell.showItemInFolder(state.downloadedFile);
-    }
+    revealPackage(state.downloadedFile);
     return true;
   });
 }

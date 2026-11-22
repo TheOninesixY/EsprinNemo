@@ -888,7 +888,6 @@ if (State.activeNoteId === 'settings') {
         syncSyncServerSettingsUI();
 
 if (typeof refreshTeamNotesSoon === 'function') refreshTeamNotesSoon();
-        syncUiModeUI();
         syncUpdateSettingsUI();
         applyAiPanelVisibility();
         applyFileManagerVisibility();

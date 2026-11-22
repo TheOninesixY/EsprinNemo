@@ -13,7 +13,7 @@ html.modern-layout {
 
 /* ─────────────────────────────────────────────────────────────
    ChromeBar：侧栏 + 标题栏 + 标签栏共用同一块表面。
-   整窗只有 .app-chrome 这一层背景/玻璃，侧栏与顶栏都是透明的，
+   整窗只有 .app-chrome 这一层背景，侧栏与顶栏都是透明的，
    所以看起来是连续的一整块，而不是几块拼起来的。
    ───────────────────────────────────────────────────────────── */
 html.modern-layout .app-chrome {
@@ -58,8 +58,6 @@ html.modern-layout .app-chrome > .sidebar {
 
 html.modern-layout.desktop-runtime .app-chrome > .sidebar {
     background-color: transparent;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
 }
 
 /* 内容卡片：笔记列表 + 编辑器，浮在 ChromeBar 上的一整块 */
@@ -532,10 +530,6 @@ html.modern-layout .settings-view .settings-content {
 }
 
 html.modern-layout .workspace-tabs-divider {
-    display: none;
-}
-
-html.modern-layout .workspace-tabs-glass {
     display: none;
 }
 

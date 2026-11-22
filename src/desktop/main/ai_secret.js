@@ -57,7 +57,7 @@ function adoptLegacyKeyFile() {
     fs.copyFileSync(legacyFile, target);
     return true;
   } catch (error) {
-    console.warn('[Esprin Nemo] 迁移旧位置的 AI 密钥文件失败:', error);
+    console.warn('[EsprinNemo] 迁移旧位置的 AI 密钥文件失败:', error);
     return false;
   }
 }
@@ -71,12 +71,12 @@ function adoptLegacyApiKey(config, configFile) {
   if (!stored) {
     const saved = writeApiKey(legacyKey);
     if (!saved.ok) {
-      console.error('[Esprin Nemo] 迁移 API Key 失败，config.json 中的明文暂未清理:', saved.error);
+      console.error('[EsprinNemo] 迁移 API Key 失败，config.json 中的明文暂未清理:', saved.error);
       return '';
     }
     stored = readApiKey();
     pendingMigrationNotice = true;
-    console.warn('[Esprin Nemo] API Key 迁移：config.json 中的明文密钥已收进本机安全存储');
+    console.warn('[EsprinNemo] API Key 迁移：config.json 中的明文密钥已收进本机安全存储');
   }
 
   stripApiKeyFromConfig(config, configFile);
@@ -91,7 +91,7 @@ function stripApiKeyFromConfig(config, configFile) {
     writeFileAtomic(configFile, JSON.stringify(config, null, 2));
     return true;
   } catch (error) {
-    console.error('[Esprin Nemo] 清理 config.json 中的明文 API Key 失败:', error);
+    console.error('[EsprinNemo] 清理 config.json 中的明文 API Key 失败:', error);
     return false;
   }
 }
@@ -102,7 +102,7 @@ function migrateApiKeyFromConfig(configFile) {
   try {
     config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   } catch (error) {
-    console.error('[Esprin Nemo] 解析 config.json 失败，跳过 API Key 迁移:', error);
+    console.error('[EsprinNemo] 解析 config.json 失败，跳过 API Key 迁移:', error);
     return '';
   }
   return adoptLegacyApiKey(config, configFile);

@@ -4,7 +4,8 @@ const SETTINGS_CATEGORIES = [
     { id: 'ai', label: 'AI 助手', icon: 'chat_bubble', desc: '接口、密钥、模型与附带范围' },
     { id: 'secret', label: '秘密本', icon: 'lock', desc: '本地或已加密的文档，离开后项目只在本次运行中可见' },
     { id: 'data', label: '数据与同步', icon: 'folder', desc: '数据存放目录、文件导入、文件日志与自建同步' },
-    { id: 'system', label: '系统', icon: 'dock_to_bottom', desc: '开机自启、托盘、桌面便利贴与更新版本' }
+    { id: 'system', label: '系统', icon: 'dock_to_bottom', desc: '开机自启、托盘与桌面便利贴' },
+    { id: 'about', label: '关于', icon: 'info', desc: '应用版本、软件更新、项目主页与版本说明' }
 ];
 
 const DEVELOPER_SETTINGS_CATEGORY = { id: 'developer', label: '开发者选项', icon: 'developer_mode', desc: '调试用开关，仅在开发运行时出现' };
@@ -58,7 +59,24 @@ function switchSettingsCategory(id) {
     const content = document.querySelector('#settings-view .settings-content');
     if (content) content.scrollTop = 0;
 
-    if (category.id === 'system' && typeof refreshUpdateInfo === 'function') refreshUpdateInfo();
+    if (category.id === 'about' && typeof refreshUpdateInfo === 'function') refreshUpdateInfo();
+    if (category.id === 'about') ensureAboutVersion();
+}
+
+function ensureAboutVersion() {
+    const el = document.getElementById('update-current-version');
+    if (!el || (el.textContent && el.textContent !== '…')) return;
+    ipcRenderer.invoke('app:get-version')
+        .then((version) => {
+            if (el.textContent && el.textContent !== '…') return;
+            el.textContent = `v${version}`;
+        })
+        .catch(() => {});
+}
+
+function openAboutTab() {
+    openSettingsTab();
+    switchSettingsCategory('about');
 }
 
 function renderSettingsNavItems() {
