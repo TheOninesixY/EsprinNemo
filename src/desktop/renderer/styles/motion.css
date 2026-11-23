@@ -134,4 +134,11 @@ html.appearance-fading {
     html.appearance-fading *::after {
         transition: none !important;
     }
+    .editor-view-modes::before,
+    .view-btn,
+    .nav-section-main::before,
+    .nav-icon-line,
+    .nav-icon-solid {
+        transition: none !important;
+    }
 }

@@ -893,14 +893,6 @@ function normalizeAiConfig(raw) {
     };
 }
 
-function normalizeVoiceConfig(raw) {
-    const source = (raw && typeof raw === 'object') ? raw : {};
-    return {
-        enabled: source.enabled === undefined ? true : !!source.enabled,
-        lang: normalizeVoiceLanguage(source.lang)
-    };
-}
-
 const SYNC_AUTO_SYNC_PRESETS = { off: 0, '5s': 5, '1m': 60, '5m': 300 };
 const SYNC_AUTO_SYNC_VALUES = Object.keys(SYNC_AUTO_SYNC_PRESETS).concat('custom');
 const SYNC_AUTO_SYNC_MIN_SECONDS = 5;
@@ -962,7 +954,7 @@ function readAiKeyStatus() {
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, voice: {}, syncServer: {} };
+    let config = { theme: 'system', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, syncServer: {} };
 
 try {
         if (fs.existsSync(CONFIG_FILE)) {
@@ -1143,8 +1135,6 @@ const aiChats = loadAiChats(config.aiActiveChat);
         fonts: normalizeFonts(config.fonts),
         ai: normalizeAiConfig(config.ai),
 
-        voice: normalizeVoiceConfig(config.voice),
-
         syncServer: normalizeSyncServerConfig(config.syncServer),
         aiKeyStatus,
         aiChats: { conversations: aiChats.conversations, activeId: aiChats.activeId },
@@ -1200,9 +1190,7 @@ function saveConfig() {
             aiActiveChat: typeof State.aiActiveConversationId === 'string' ? State.aiActiveConversationId : '',
             folders: normalizeCustomFolders(State.folders),
             fonts: normalizeFonts(State.fonts),
-            ai: normalizeAiConfig(State.ai),
-
-            voice: normalizeVoiceConfig(State.voice)
+            ai: normalizeAiConfig(State.ai)
         };
 
 if (State.syncServerLoaded) config.syncServer = normalizeSyncServerConfig(State.syncServer);

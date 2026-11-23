@@ -1,10 +1,3 @@
-const VOICE_LANGUAGE_VALUES = ['zh-CN', 'en-US', 'ja-JP'];
-const VOICE_DEFAULT_LANGUAGE = 'zh-CN';
-
-function normalizeVoiceLanguage(value) {
-    return VOICE_LANGUAGE_VALUES.includes(value) ? value : VOICE_DEFAULT_LANGUAGE;
-}
-
 const State = {
     notes: [],
 
@@ -79,7 +72,6 @@ aiHasApiKey: false,
 
     aiScope: 'current',
 
-    voice: { enabled: true, lang: VOICE_DEFAULT_LANGUAGE },
     autoSaveTimer: null,
 
     previewTimer: null

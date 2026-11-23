@@ -112,9 +112,7 @@ function adoptDataDir(dir, options = {}) {
         autoLaunch: State.autoLaunch === true,
         trayEnabled: State.trayEnabled !== false,
 
-        fonts: { ...State.fonts },
-
-        voice: { ...State.voice }
+        fonts: { ...State.fonts }
     };
 
     setDataPaths(dir);
@@ -140,8 +138,6 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.ai = saved.ai;
         State.aiScope = State.ai.scope;
 
-        State.voice = saved.voice;
-
         const loadedSync = normalizeSyncServerConfig(saved.syncServer);
         State.syncServer = loadedSync.url
             ? loadedSync
@@ -160,7 +156,6 @@ const hasConfig = fs.existsSync(CONFIG_FILE);
         State.autoLaunch = prefs.autoLaunch;
         State.trayEnabled = prefs.trayEnabled;
         State.fonts = prefs.fonts;
-        State.voice = normalizeVoiceConfig(prefs.voice);
         saveConfig();
     }
 

@@ -18,6 +18,38 @@
 .nav-section-main {
     flex-shrink: 0;
     gap: 6px;
+    position: relative;
+    isolation: isolate;
+}
+
+.nav-section-main::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 10px;
+    left: 8px;
+    right: 8px;
+    height: calc((100% - 26px) / 3);
+    border-radius: var(--radius-sm);
+    background-color: var(--item-active);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform var(--motion-base) var(--ease-out),
+                opacity var(--motion-base) var(--ease-out);
+}
+
+.nav-section-main:has(.nav-item[data-filter="all"].active)::before {
+    opacity: 1;
+}
+
+.nav-section-main:has(.nav-item[data-filter="todos"].active)::before {
+    opacity: 1;
+    transform: translateY(calc(100% + 6px));
+}
+
+.nav-section-main:has(.nav-item[data-filter="trash"].active)::before {
+    opacity: 1;
+    transform: translateY(calc(200% + 12px));
 }
 
 .nav-section-title {
@@ -33,6 +65,8 @@
 }
 
 .nav-item {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -43,14 +77,48 @@
     transition: background-color 0.15s, color 0.15s;
     font-size: 12.5px;
 }
+.nav-icon {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    line-height: 0;
+}
+.nav-icon > .ms-icon {
+    grid-area: 1 / 1;
+}
+.nav-item-left .nav-icon,
+.nav-item-left .nav-icon > .ms-icon {
+    overflow: visible;
+    text-overflow: clip;
+}
+.nav-icon-line,
+.nav-icon-solid {
+    transition: clip-path var(--motion-base) var(--ease-out);
+}
+.nav-icon-line {
+    clip-path: inset(0 0 0 0);
+}
+.nav-item.active .nav-icon-line {
+    clip-path: inset(100% 0 0 0);
+}
+.nav-icon-solid {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+    clip-path: inset(0 0 100% 0);
+}
+.nav-item.active .nav-icon-solid {
+    clip-path: inset(0 0 0 0);
+}
 .nav-item:hover {
     background-color: var(--item-hover);
     color: var(--text-primary);
 }
 .nav-item.active {
-    background-color: var(--item-active);
+    background-color: transparent;
     color: var(--text-primary);
     font-weight: 500;
+}
+.nav-item.active:hover {
+    background-color: transparent;
 }
 .nav-item-left {
     display: flex;

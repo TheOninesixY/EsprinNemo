@@ -45,7 +45,6 @@ const { installAppMenu } = require('./app_menu.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
 const { configureSyncServer, registerSyncIpc, applyAutoSyncRuntime } = require('./sync_server.js');
-const { disposeSpeechWindows, registerSpeechIpc } = require('./speech_windows.js');
 const {
   applyWindowControlStyle,
   configureWindowControls,
@@ -1146,8 +1145,6 @@ migrateApiKeyFromConfig(path.join(resolveDataDir(), 'config.json'));
 
 runStartupStep('AI 助手', () => registerAiIpc());
 
-runStartupStep('系统语音识别', () => registerSpeechIpc());
-
 runStartupStep('自建同步', () => registerSyncIpc());
 
 runStartupStep('自建同步自动同步', () => applyAutoSyncRuntime());
@@ -1207,7 +1204,6 @@ app.on('before-quit', () => {
   if (quitCleanupDone) return;
   quitCleanupDone = true;
 
-  runQuitStep('语音识别', disposeSpeechWindows);
   runQuitStep('桌面层', disposeDesktopLayer);
   runQuitStep('桌面便利贴', releaseStickyNotes);
 });

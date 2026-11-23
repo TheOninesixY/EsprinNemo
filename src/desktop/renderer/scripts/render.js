@@ -892,9 +892,6 @@ if (typeof refreshTeamNotesSoon === 'function') refreshTeamNotesSoon();
         applyAiPanelVisibility();
         applyFileManagerVisibility();
 
-syncVoiceEntry(null);
-        syncVoiceSettingsUI();
-
         syncSecretSettingsUI();
 
         if (typeof updateNarrowLayout === 'function') updateNarrowLayout();
@@ -924,7 +921,6 @@ syncVoiceEntry(null);
         footer.classList.add('hidden');
         updateAiScopeOptions();
 
-        syncVoiceEntry(null);
         return;
     }
 
@@ -1014,8 +1010,6 @@ const doneBtn = document.getElementById('btn-todo-done');
     renderMarkdown();
     updateStats();
     updateViewModeUI();
-
-    syncVoiceEntry(item);
 
     updateAiScopeOptions();
 

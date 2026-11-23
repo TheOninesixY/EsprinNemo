@@ -66,8 +66,6 @@ let saved = {};
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
 
-    State.voice = normalizeVoiceConfig(saved.voice);
-
     State.aiHasApiKey = !!(saved.aiKeyStatus && saved.aiKeyStatus.hasKey);
     State.aiKeyStorage = aiKeyStorageKind(saved.aiKeyStatus);
     State.aiScope = State.ai.scope;
@@ -120,8 +118,6 @@ runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('AI Agent', initAiAgent);
     runBootStep('AI 附件', initAiFiles);
     runBootStep('AI 面板', initAiPanel);
-
-    runBootStep('随口记', initVoiceNotes);
 
     runBootStep('事件绑定', setupEvents);
     runBootStep('废纸篓保留期限', syncTrashRetentionSelect);

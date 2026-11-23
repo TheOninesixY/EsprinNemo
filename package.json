@@ -15,7 +15,7 @@
     "build:all": "bun run build&&bun build:sync",
     "start:sync": "bun src/sync/server.js",
     "start:mobile": "bun build/mobile/serve.js",
-        "build:sync": "bun build/sync/build.js",
+    "build:sync": "bun build/sync/build.js",
     "build:mobile": "bun build/mobile/build.js",
     "prepare": "husky"
   },
@@ -66,7 +66,7 @@
       "target": [
         "dmg"
       ],
-      "icon": "build/macos/icon.icns",
+      "icon": "assets/icon.mac.icns",
       "category": "public.app-category.productivity",
       "artifactName": "EsprinNemo.v${version}.${ext}",
       "identity": null,

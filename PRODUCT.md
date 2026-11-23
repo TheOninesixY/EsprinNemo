@@ -29,7 +29,6 @@ web
 - 桌面常驻：Windows / Linux 有托盘驻留后台，关窗不退出；macOS 使用屏幕顶部菜单栏（不显示托盘图标），关窗后留在 Dock；可开机自启。
 - 笔记与待办共用一个数据目录，同一个废纸篓。
 - 桌面便利贴贴在桌面层（窗口之下），用于把一条内容摊在桌面上看。
-- 随口记（语音转文本）在 Windows 上由系统本机识别引擎完成，音频不出本机。
 - 可选能力都要手动配置后才可能发起请求：自建同步（自建服务端，`src/sync/`）与 AI 助手（OpenAI 兼容接口）。自动更新检查默认开启，可在设置中关闭。
 - 数据目录可在设置中迁移；Windows 安装时也能选位置；便携版把数据放在程序目录，整个目录可搬走。
 - 移动端只有网页界面（`src/mobile/`），由 EsprinSync 托管在服务器根路径。
@@ -38,8 +37,8 @@ web
 
 平台与构建：
 
-- 仅 Windows 与 Linux，禁止增加 macOS 支持。
-- 桌面端为 Electron（`src/desktop/`）：Windows 产出 NSIS 安装包与便携版，Linux 产出 AppImage。
+- 支持 Windows、Linux 与 macOS。
+- 桌面端为 Electron（`src/desktop/`）：Windows 产出 NSIS 安装包与便携版，Linux 产出 AppImage，macOS 产出 Universal dmg。
 - 使用 Bun 开发与打包，禁止 npm 等其他包管理器。
 - 文件名、文件夹名一律用 `_` 下划线分隔；代码中不写注释。
 - 日志统一为 `[INFO]` / `[WARN]` / `[ERROR]` 并带 `[项目]` 前缀，例如 `[INFO] [Nemo] 本地预览已启动。`。
@@ -66,7 +65,6 @@ web
 
 - 窗口操作键：Windows / Linux 固定为右上角原有的自绘最小化 / 最大化 / 关闭；macOS 默认使用系统原生红绿灯（窗口左上角，同时隐藏左上角图标与「EsprinNemo」名称；进入全屏后红绿灯随系统隐藏，图标与名称恢复显示），可在「设置 → 开发者选项 → 窗口控件」里切回原有的 Windows 样式按钮。切换只作用于本次运行，不写入配置；非 macOS 不提供该选项。小本本窗口在 macOS 上同样使用系统原生红绿灯，标题输入区保留在红绿灯右侧，不替换为标题栏；绿色缩放按钮保持不可用（macOS 不提供只隐藏绿色按钮的接口，因此按钮保留但置灰不可点），右上角的「选择笔记 / 保存」与主窗口工具按钮同一套尺寸和悬浮样式。
 - 桌面便利贴：Windows 用 Win32 `SetWindowPos(HWND_BOTTOM)` 置底，并提供桌面空白处右键菜单；macOS 把窗口层级设为 `-1`（`setAlwaysOnTop(true, 'normal', -1)`）压到所有普通窗口之下，按住鼠标时临时回到层级 `0` 并抬到最前、松开或失焦后再次压底，同时固定出现在所有桌面空间、排除在 Mission Control 与「窗口」菜单之外，仍可点击编辑，但没有桌面右键菜单；Linux 不提供桌面便利贴入口。
-- 随口记仅 Windows 可用（`System.Speech`）。
 
 计划中、尚未实现：
 
@@ -76,7 +74,7 @@ web
 
 - 名称：EsprinNemo；标语：Note, Nothing.
 - 声音：中文、短句、直陈做法与限制，不承诺做不到的事，不用营销腔。
-- 既有资产：应用图标 `assets/icon.svg` / `icon.png`（来源 EsprinProject/Logos），README 与 `about/` 下的界面截图。
+- 既有资产：应用图标 `assets/icon.svg` / `icon.png`，macOS 打包专用 `assets/icon.mac.icns`（来源 EsprinProject/Logos），README 与 `about/` 下的界面截图。
 - 界面的克制与统一是承诺：任何新能力都必须融进现有的一套视觉与交互，不另起一套风格。
 
 ## Evidence on Hand

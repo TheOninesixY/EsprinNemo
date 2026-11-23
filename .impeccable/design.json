@@ -594,7 +594,7 @@
       "kind": "card",
       "refersTo": "row-settings",
       "description": "设置页的单行：左侧标签与描述，右侧控件。",
-      "html": "<div class=\"ds-row\"><div class=\"ds-row-info\"><span class=\"ds-row-label\">启用随口记</span><span class=\"ds-row-desc\">识别结果按句插入光标处，关闭后入口与快捷键一并失效</span></div><label class=\"ds-switch\"><input type=\"checkbox\" checked><span class=\"ds-slider\"></span></label></div>",
+      "html": "<div class=\"ds-row\"><div class=\"ds-row-info\"><span class=\"ds-row-label\">启用拼写检查</span><span class=\"ds-row-desc\">在笔记标题与正文中为拼写错误绘制红色波浪下划线</span></div><label class=\"ds-switch\"><input type=\"checkbox\" checked><span class=\"ds-slider\"></span></label></div>",
       "css": ".ds-row{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:680px;padding:14px 16px;border:1px solid var(--border-color,#30363d);border-radius:8px;background:var(--bg-list,#161b22);transition:border-color .15s}\n.ds-row:hover{border-color:var(--text-muted,#6e7681)}\n.ds-row-info{display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}\n.ds-row-label{font-size:14px;font-weight:500;color:var(--text-primary,#f0f6fc)}\n.ds-row-desc{font-size:12px;line-height:1.5;color:var(--text-secondary,#8b949e)}\n.ds-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}\n.ds-switch input{opacity:0;width:0;height:0}\n.ds-slider{position:absolute;inset:0;border-radius:999px;background:var(--border-color,#30363d);transition:.2s}\n.ds-slider:before{content:\"\";position:absolute;left:3px;bottom:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.2s}\n.ds-switch input:checked+.ds-slider{background:var(--accent,#58a6ff)}\n.ds-switch input:checked+.ds-slider:before{transform:translateX(20px)}"
     },
     {
