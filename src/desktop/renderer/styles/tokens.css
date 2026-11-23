@@ -14,6 +14,8 @@
     --bg-list: #161b22;
     --bg-editor: #0d1117;
 
+    --chrome-vibrancy-tint: rgba(13, 17, 23, 0.45);
+
     --bg-elevated: #21262d;
     --border-color: #30363d;
     --border-light: rgba(255, 255, 255, 0.08);
@@ -68,6 +70,8 @@
     --bg-sidebar: #f2f4f3;
     --bg-list: #ffffff;
     --bg-editor: #ffffff;
+
+    --chrome-vibrancy-tint: rgba(242, 244, 243, 0.58);
 
     --bg-elevated: #ffffff;
     --border-color: #d8dee4;

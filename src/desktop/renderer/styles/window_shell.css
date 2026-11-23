@@ -124,19 +124,16 @@ input, textarea, select {
     color: #ffffff;
 }
 
-/* ── 对话框 / 小本本：和主窗口一致的卡片式外壳 ──
-   整窗一层顶栏底色，内容是一张带描边和圆角、四周留 8px 的卡片 */
-.dialog-container,
+/* ── 对话框 / 小本本 ──
+   对话框是一整块平铺的表面，没有卡片外壳；小本本保留顶栏与内容卡片的层次 */
 .note-container {
     background-color: var(--bg-titlebar);
 }
 
-.dialog-container > .titlebar,
 .note-container > .titlebar {
     border-bottom: none;
 }
 
-.dialog-body,
 .note-body {
     margin: 0 6px 6px;
     background-color: var(--bg-body);

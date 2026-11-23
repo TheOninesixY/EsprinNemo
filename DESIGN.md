@@ -202,17 +202,17 @@ components:
 
 **Creative North Star: "纸盘 The Paper Tray"**
 
-整个窗口是一张摊开的桌面。左侧 48px 图标栏与顶部 40px 标签栏是同一种材质的一整块表面（代码里叫 ChromeBar），内容卡片像一张纸压在上面，四周露出 6px 的底，四角 12.8px 圆角，1px 描边。标签是这张纸的分隔页：非活动标签不描边，活动标签只有上、左、右三边描边并向下延伸 1px 压住纸的上沿，两侧带一段反向圆角，于是标签和编辑器连成一片，看不出接缝。
+整个窗口是一张摊开的桌面。左侧 48px 图标栏与顶部 40px 标签栏是同一种材质的一整块表面（代码里叫 ChromeBar），内容卡片像一张纸压在上面，四周露出 6px 的底，四角 12.8px 圆角，1px 描边。macOS 上这块表面换用系统 vibrancy 毛玻璃（`under-window`），磨砂透出桌面，再压一层主题色半透明罩；Windows 与 Linux 仍是纯色表面。标签是这张纸的分隔页：非活动标签不描边，活动标签只有上、左、右三边描边并向下延伸 1px 压住纸的上沿，两侧带一段反向圆角，于是标签和编辑器连成一片，看不出接缝。
 
 界面不做表演。没有渐变、没有装饰图形、没有入场动画的炫耀；强调色在整屏的占比被压得很低，只在活动标签、选中项、主按钮和极少数确认元素上出现。信息密度优先于留白：正文 13px、卡片标题 13px、页脚 10.5px，控件高度集中在 26–30px，一个 1080p 窗口里能同时放下图标栏、笔记列表与编辑器而不显拥挤。
 
-层次的表达几乎完全依赖三档 `--fill-*` 填充的明度差（画布 / 列表 / 标题栏 + 卡片填充），而不是描边或阴影。描边只留给真正需要边界的控件与浮层外壳。阴影被严格限制在真正悬浮于界面之上的层：弹出菜单、下拉、Toast、拖拽中的标签、对话框外壳。
+层次的表达几乎完全依赖三档 `--fill-*` 填充的明度差（画布 / 列表 / 标题栏 + 卡片填充），而不是描边或阴影。描边只留给真正需要边界的控件与浮层外壳。阴影被严格限制在真正悬浮于界面之上的层：弹出菜单、下拉、Toast、拖拽中的标签。
 
 **Key Characteristics:**
 - 单套固定布局：48px 图标栏 + 270px 笔记列表 + 弹性编辑器，无布局切换
 - 层次靠 `--fill-*` 三档填充的明度差，卡片与行不画常驻描边；描边只留给真正需要边界的控件
 - 13px 基准字号，控件 26–30px 高，密度优先
-- 四档圆角 4 / 6 / 8 / 999px，内容卡片与对话框用 `md × 1.6 = 12.8px`
+- 四档圆角 4 / 6 / 8 / 999px，内容卡片用 `md × 1.6 = 12.8px`
 - 强调色默认 `#58a6ff`（浅色 `#0969da`），可自定义，但始终稀缺
 - 所有下拉、菜单、对话框自绘，不使用 Chromium 原生 `<select>` 弹出层
 - 图标一律 `material-symbols` 圆体
@@ -230,7 +230,7 @@ components:
 ### Neutral
 
 - **Canvas** (`#0d1117` / `#ffffff`)：编辑器背景与窗口底层，最"深"的一级。
-- **Surface Titlebar** (`#161b22` / `#f2f4f3`)：标题栏、ChromeBar、toast 底色。
+- **Surface Titlebar** (`#161b22` / `#f2f4f3`)：标题栏、ChromeBar、toast 底色。macOS 的 ChromeBar 改用 `--chrome-vibrancy-tint`（同色 45% / 58% 透明）叠在系统磨砂层上。
 - **Surface Rail** (`#0d1117` / `#f2f4f3`)：左侧图标栏，深色下与画布同色，浅色下比画布深一档。
 - **Surface List** (`#161b22` / `#ffffff`)：笔记列表与弹出菜单底色，比画布高一级。
 - **Surface Elevated** (`#21262d` / `#ffffff`)：标签页的活动态、`pre` 代码块、需要再"浮起一点"的面。
@@ -311,7 +311,7 @@ components:
 - **焦点环** (`0 0 0 3px var(--accent-bg)`, 强态 `0 0 0 4px`)：键盘焦点与输入框聚焦，替代 outline。
 - **内描边模拟** (`0 0 0 1px var(--border-color)`)：少数需要双层描边的地方。
 
-侧边栏、标题栏与标签栏共用同一块 ChromeBar 表面，整窗不叠加桌面壁纸与毛玻璃：深度只由 1px 描边与三级表面色表达，不做「窗口是屏幕壁纸上的一个洞」的效果。
+侧边栏、标题栏与标签栏共用同一块 ChromeBar 表面。Windows / Linux 上它是纯色表面，整窗不叠加桌面壁纸与毛玻璃：深度只由 1px 描边与三级表面色表达，不做「窗口是屏幕壁纸上的一个洞」的效果。macOS 上 ChromeBar 改用系统 vibrancy（`under-window`）磨砂透出桌面，再叠一层 `--chrome-vibrancy-tint` 主题色半透明罩；内容卡片、AI 面板、设置页与所有浮层保持不透明，因此毛玻璃只停留在窗口外框，不会渗进正文。系统开启「降低透明度」或不在 macOS 时，回落到原来的纯色表面。
 
 ## Shapes
 
@@ -323,7 +323,7 @@ components:
 - `--radius-sm` 6px：按钮、输入框、菜单项、导航项、搜索框、`switch` 内部。
 - `--radius-md` 8px：笔记卡片、设置行、弹出菜单外壳、标签页上圆角。
 - `--radius-pill` 999px：筛选芯片、`switch` 外壳、滚动条滑块、徽标。
-- `calc(var(--radius-md) * 1.6)` ≈ 12.8px：内容卡片与对话框外壳，唯一一处"更大"的圆角，用来表达"这是桌面上的纸"。
+- `calc(var(--radius-md) * 1.6)` ≈ 12.8px：内容卡片，唯一一处"更大"的圆角，用来表达"这是桌面上的纸"。
 
 标签页两侧有一段反向圆角（`::before` / `::after` 用 `radial-gradient` 画出外翻的弧），半径等于 `--radius-md`，跟随圆角设置一起变化，主题切换时与标签底色同步渐变，避免跳色。
 
@@ -346,7 +346,7 @@ components:
 
 ### Cards / Containers
 
-- **Corner Style:** `--radius-md`（笔记卡片、设置行）/ 12.8px（内容卡片、对话框）。
+- **Corner Style:** `--radius-md`（笔记卡片、设置行）/ 12.8px（内容卡片）。
 - **Background:** 笔记卡片默认 `transparent`，悬停 `--note-card-hover`，选中 `--note-card-active`（比通用 fill 更轻，避免整块发灰）；设置行固定 `--fill-1`，悬停 `--fill-2`。
 - **Shadow Strategy:** 无。见 Elevation & Depth。
 - **Border:** 无。卡片的层次全部由 `--fill-*` 的明度差表达——描边不再常驻，只在控件可聚焦时出现。
@@ -381,6 +381,17 @@ components:
 
 `--bg-list` 底、`1px var(--border-color)`、`--radius-md`、4px 内边距、`0 8px 24px rgba(0,0,0,0.25)`。菜单项 6px 10px、`--radius-sm`、12px，悬停 `--item-active`；危险项文字 `--danger`，悬停 `--danger-bg`。入场动画 `dropdownIn 0.12s ease-out`。
 
+### Signature: Dialog Window
+
+独立的无边框窗口，整窗只有一层表面，不做卡片：没有标题栏、没有窗口控件、没有内层描边与圆角。底色 `--bg-body`，四周 20px 内边距，内容直接摊在这块面上。
+
+- **标题**：12px / `--text-secondary`，作为消息上方的分类标签，不抢主句。
+- **消息**：13px / 600 / `--text-primary`，是弹窗的主句；详情 12px / 1.6 / `--text-secondary`，可换行。
+- **图标**：20px `material-symbols`，`--accent`，警告转 `--warning`、错误转 `--danger`。
+- **按钮**：28px 高、`--radius-sm`；次要按钮用 `--fill-2` 底、悬停 `--fill-3`；主按钮 `--accent`、危险按钮 `--danger`。
+- **拖动**：整个窗口都是拖动热区，输入框、标签片、勾选框与按钮区声明 `no-drag`，正文文字因此不可选中。
+- **关闭**：只用取消按钮与 `Esc`，不提供关闭控件。
+
 ## Do's and Don'ts
 
 ### Do:
@@ -390,8 +401,8 @@ components:
 - **Do** 让强调色保持在 10% 以内，并且只用于"当前"与"可提交"。
 - **Do** 数字用 `--font-mono` + `tabular-nums`。
 - **Do** 图标用 `material-symbols` 圆体，14 / 16 / 18px 三档，`font-variation-settings` 保持 `wght 400`。
-- **Do** 用 `calc(var(--radius-md) * 1.6)` 给内容卡片与对话框，保持"纸"的一致感。
-- **Do** 所有下拉、菜单、确认框自绘，保持与现有弹出层同一套描边、圆角与阴影。
+- **Do** 用 `calc(var(--radius-md) * 1.6)` 给内容卡片，保持"纸"的一致感。
+- **Do** 所有下拉、菜单、确认框自绘，保持与现有弹出层同一套描边与圆角；确认框本身不做外壳，见 Signature: Dialog Window。
 - **Do** 让输入类控件的描边默认 `transparent`，只在 `:focus` 转 `--accent`。
 
 ### Don't:

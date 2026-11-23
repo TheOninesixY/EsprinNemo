@@ -26,34 +26,24 @@
             display: flex;
             flex-direction: column;
             width: 100%;
-            background-color: var(--bg-titlebar);
+            background-color: var(--bg-body);
+            -webkit-app-region: drag;
         }
 
-.titlebar-title {
-            flex: 1;
-            min-width: 0;
-            margin-left: 10px;
-            font-size: 12px;
-            color: var(--text-secondary);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-.dialog-body {
+        .dialog-body {
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            padding: 20px 20px 18px;
-            background-color: var(--bg-body);
+            gap: 14px;
+            padding: 20px;
         }
+
         .dialog-head {
             display: flex;
             align-items: flex-start;
-            gap: 12px;
+            gap: 10px;
         }
         .dialog-icon {
-            font-size: 22px;
+            font-size: 20px;
             flex-shrink: 0;
             margin-top: 1px;
             color: var(--accent);
@@ -65,14 +55,19 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
+        }
+        .dialog-title {
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            word-break: break-word;
         }
         .dialog-message {
             font-size: 13px;
             font-weight: 600;
-            line-height: 1.5;
+            line-height: 1.55;
             word-break: break-word;
-            user-select: text;
         }
         .dialog-detail {
             font-size: 12px;
@@ -80,7 +75,6 @@
             line-height: 1.6;
             white-space: pre-wrap;
             word-break: break-word;
-            user-select: text;
         }
 
         .dialog-countdown {
@@ -93,6 +87,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            -webkit-app-region: no-drag;
         }
         .dialog-field-label {
             font-size: 12px;
@@ -120,7 +115,7 @@
             opacity: 0.7;
         }
 
-.dialog-choices {
+        .dialog-choices {
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
@@ -157,7 +152,7 @@
             opacity: 1;
         }
 
-.dialog-checkbox {
+        .dialog-checkbox {
             display: flex;
             align-items: flex-start;
             gap: 8px;
@@ -166,6 +161,7 @@
             color: var(--text-secondary);
             cursor: pointer;
             user-select: none;
+            -webkit-app-region: no-drag;
         }
         .dialog-checkbox:hover {
             color: var(--text-primary);
@@ -183,20 +179,23 @@
             display: flex;
             justify-content: flex-end;
             gap: 8px;
+            -webkit-app-region: no-drag;
         }
 
         .dialog-btn {
-            padding: 6px 14px;
+            height: 28px;
+            padding: 0 14px;
             border-radius: var(--radius-sm);
             font-size: 12px;
             border: 1px solid transparent;
             transition: background 0.15s, opacity 0.15s, color 0.15s;
         }
         .dialog-btn.default {
+            background: var(--fill-2);
             color: var(--text-secondary);
         }
         .dialog-btn.default:hover {
-            background: var(--item-hover);
+            background: var(--fill-3);
             color: var(--text-primary);
         }
         .dialog-btn.primary {
@@ -211,25 +210,21 @@
         .dialog-btn.danger:hover {
             opacity: 0.9;
         }
+        .dialog-btn:focus-visible,
+        .dialog-choice:focus-visible {
+            box-shadow: 0 0 0 3px var(--accent-bg);
+        }
 
-.hidden { display: none !important; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
     <div class="dialog-container">
-        <header class="titlebar" id="dialog-titlebar">
-            <div class="titlebar-title" id="dialog-title"></div>
-            <div class="window-controls">
-                <button class="win-btn close" id="dialog-close" title="关闭">
-                    <span class="ms-icon xs">close</span>
-                </button>
-            </div>
-        </header>
-
         <main class="dialog-body">
             <div class="dialog-head">
                 <span class="ms-icon dialog-icon" id="dialog-icon">info</span>
                 <div class="dialog-text">
+                    <div class="dialog-title hidden" id="dialog-title"></div>
                     <div class="dialog-message" id="dialog-message"></div>
                     <div class="dialog-detail hidden" id="dialog-detail"></div>
                     <div class="dialog-countdown hidden" id="dialog-countdown"></div>
@@ -351,7 +346,10 @@ function startCountdown() {
         }
 
         function render(data) {
-            setText(titleEl, data.title || '提示');
+            const title = data.title || '';
+            setText(titleEl, title);
+            titleEl.classList.toggle('hidden', !title);
+
             setText(messageEl, data.message);
             messageEl.classList.toggle('hidden', !data.message);
 
@@ -422,10 +420,6 @@ function requestResize() {
             const target = buttonEls[options ? options.defaultIndex : 0];
             if (target) target.focus();
         }
-
-        document.getElementById('dialog-close').addEventListener('click', () => {
-            respond(options ? options.cancelIndex : 0, true);
-        });
 
         document.addEventListener('keydown', (event) => {
             if (!options) return;

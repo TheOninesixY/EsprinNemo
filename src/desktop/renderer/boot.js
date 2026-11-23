@@ -27,6 +27,10 @@ const IS_WEB_RUNTIME = false;
 
 document.documentElement.classList.add('desktop-runtime');
 
+if (process.platform === 'darwin') {
+    document.documentElement.classList.add('mac-vibrancy');
+}
+
 document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
 
 document.documentElement.classList.add(MODERN_LAYOUT_CLASS);

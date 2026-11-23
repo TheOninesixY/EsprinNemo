@@ -9,13 +9,38 @@ const TYPE_ICONS = { info: 'info', question: 'help', warning: 'warning', error: 
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 640;
 
-const MIN_HEIGHT = 150;
+const MIN_HEIGHT = 104;
 
 const MAX_HEIGHT = 720;
 
 const MAX_TIMEOUT = 120000;
 
 const REVEAL_DELAY = 90;
+
+const IS_MAC = process.platform === 'darwin';
+
+const MAX_SHEET_INSET = 80;
+
+let cachedSheetInset = null;
+
+function macSheetInset() {
+  if (!IS_MAC) return 0;
+  if (cachedSheetInset !== null) return cachedSheetInset;
+  cachedSheetInset = 0;
+  let probe = null;
+  try {
+    probe = new BrowserWindow({ width: 200, height: 200, show: false });
+    const [, frameHeight] = probe.getSize();
+    const [, contentHeight] = probe.getContentSize();
+    const measured = frameHeight - contentHeight;
+    if (measured > 0 && measured <= MAX_SHEET_INSET) cachedSheetInset = measured;
+  } catch (error) {
+    console.error('[ERROR] [Nemo] 测量 macOS 标题栏高度失败:', error && error.message ? error.message : error);
+  } finally {
+    if (probe && !probe.isDestroyed()) probe.destroy();
+  }
+  return cachedSheetInset;
+}
 
 const entries = new Map();
 
@@ -140,24 +165,30 @@ function normalizeOptions(raw) {
 }
 
 function estimateHeight(options) {
-  const TITLEBAR = 40;
-  const BODY_PADDING = 38;
-  const ROW_GAP = 16;
+  const BODY_PADDING = 40;
+  const ROW_GAP = 14;
+  const HEAD_MIN = 20;
+  const TITLE_LINE = 18;
   const MESSAGE_LINE = 20;
-  const DETAIL_LINE = 18;
+  const DETAIL_LINE = 19;
   const INPUT_FIELD = 35;
-  const ACTION_ROW = 30;
+  const ACTION_ROW = 28;
 
-  const messageLines = Math.max(1, Math.ceil(options.message.length / 24));
-  let headHeight = Math.max(22, messageLines * MESSAGE_LINE);
+  const titleLines = options.title ? Math.max(1, Math.ceil(options.title.length / 24)) : 0;
+  const messageLines = options.message ? Math.max(1, Math.ceil(options.message.length / 24)) : 0;
+
+  let headHeight = titleLines * TITLE_LINE + messageLines * MESSAGE_LINE;
+  if (titleLines && messageLines) headHeight += 4;
   if (options.detail) {
     const detailLines = options.detail
       .split('\n')
-      .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 34)), 0);
-    headHeight += 6 + clamp(detailLines, 1, 8) * DETAIL_LINE;
+      .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 30)), 0);
+    headHeight += 4 + clamp(detailLines, 1, 8) * DETAIL_LINE;
   }
+  if (options.timeoutMs) headHeight += 4 + 17;
+  headHeight = Math.max(HEAD_MIN, headHeight);
 
-  const rows = [headHeight + (options.timeoutMs ? 6 + DETAIL_LINE : 0)];
+  const rows = [headHeight];
   if (options.input) {
     let fieldHeight = INPUT_FIELD;
     if (options.input.choices.length) {
@@ -166,11 +197,11 @@ function estimateHeight(options) {
     rows.push(fieldHeight);
   }
   if (options.checkbox) {
-    rows.push(Math.max(1, Math.ceil(options.checkbox.label.length / 34)) * 19 + 4);
+    rows.push(Math.max(1, Math.ceil(options.checkbox.label.length / 30)) * 19 + 4);
   }
   rows.push(ACTION_ROW);
 
-  const height = TITLEBAR + BODY_PADDING
+  const height = BODY_PADDING
     + rows.reduce((total, row) => total + row, 0)
     + ROW_GAP * (rows.length - 1);
   return clamp(height, MIN_HEIGHT, MAX_HEIGHT);
@@ -241,11 +272,12 @@ function showDialogWindow(owner, rawOptions) {
   const parentWin = owner && !owner.isDestroyed() ? owner : null;
 
   const appearance = currentAppearance();
+  const sheetInset = parentWin ? macSheetInset() : 0;
 
   return new Promise((resolve) => {
     const win = new BrowserWindow({
       width: options.width,
-      height: estimateHeight(options),
+      height: estimateHeight(options) + sheetInset,
       useContentSize: true,
       parent: parentWin || undefined,
       modal: !!parentWin,
@@ -274,6 +306,7 @@ function showDialogWindow(owner, rawOptions) {
       resolve,
       settled: false,
       revealed: false,
+      sheetInset,
       timeoutTimer: null,
       onOwnerClosed: null
     };
@@ -334,7 +367,7 @@ ipcMain.handle('dialog:get-options', (event) => {
 ipcMain.on('dialog:resize', (event, payload) => {
     const entry = entries.get(event.sender.id);
     if (!entry || entry.settled || entry.win.isDestroyed()) return;
-    const height = clamp(Math.round(Number(payload && payload.height) || 0), MIN_HEIGHT, MAX_HEIGHT);
+    const height = clamp(Math.round(Number(payload && payload.height) || 0), MIN_HEIGHT, MAX_HEIGHT) + entry.sheetInset;
     const [width] = entry.win.getContentSize();
     entry.win.setContentSize(width, height);
     if (entry.revealed) centerOver(entry.win, entry.owner);

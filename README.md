@@ -35,7 +35,7 @@
 - `Ctrl + K` 即时搜索，标题、正文与标签一起匹配。
 - 浅色 / 深色 / 跟随系统，主题色、四档圆角、界面字体与文档字体均可调。
 - 设置以 Tab 形式打开，分类为：编辑器 / 外观 / AI 助手 / 秘密本 / 数据与同步 / 系统 / 关于。
-- Windows / Linux 使用自绘窗口按钮；macOS 使用系统原生红绿灯。macOS 的开发者选项里可以临时切回 Windows 样式，切换只作用于本次运行。
+- Windows / Linux 使用自绘窗口按钮；macOS 使用系统原生红绿灯。macOS 的开发者选项里可以临时切回 Windows 样式，切换只作用于本次运行。macOS 主窗口的 ChromeBar 使用系统毛玻璃透出桌面，内容区保持不透明。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="about/screenshot_dark.png">

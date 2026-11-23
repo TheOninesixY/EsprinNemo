@@ -991,6 +991,9 @@ function createWindow() {
   if (IS_MAC) {
     windowOptions.titleBarStyle = 'hidden';
     windowOptions.trafficLightPosition = trafficLightPosition(resolveUiScale());
+    windowOptions.vibrancy = 'under-window';
+    windowOptions.visualEffectState = 'active';
+    windowOptions.backgroundColor = 'rgba(0, 0, 0, 0)';
   } else {
     windowOptions.frame = false;
   }

@@ -31,6 +31,23 @@ html.modern-layout.desktop-runtime .app-chrome {
     background-color: var(--bg-titlebar);
 }
 
+/* macOS：整个窗口让给系统 vibrancy 磨砂层，只有 ChromeBar 区域透出来；
+   内容卡片、AI 面板与弹出层保持不透明，毛玻璃不会渗进正文 */
+html.mac-vibrancy,
+html.mac-vibrancy body {
+    background-color: transparent;
+}
+
+html.mac-vibrancy.modern-layout.desktop-runtime .app-chrome {
+    background-color: var(--chrome-vibrancy-tint);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    html.mac-vibrancy.modern-layout.desktop-runtime .app-chrome {
+        background-color: var(--bg-titlebar);
+    }
+}
+
 /* 顶部一条：拐角块 + 品牌 + 标签栏 + 工具按钮 + 窗口按钮 */
 html.modern-layout .app-chrome > .topbar {
     grid-column: 1 / -1;
