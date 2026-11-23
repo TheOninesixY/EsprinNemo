@@ -8,16 +8,15 @@
   "author": "TheOninesixY <oninesixy@qq.com>",
   "scripts": {
     "start": "bun x electron .",
-    "build": "electron-builder --win --linux --publish never",
-    "build:win": "electron-builder --win --publish never",
-    "build:linux": "electron-builder --linux --publish never",
-    "build:mac": "electron-builder --mac --universal --publish never",
+    "build": "electron-builder --win --linux --publish never && bun build/move_intermediates.js",
+    "build:win": "electron-builder --win --publish never && bun build/move_intermediates.js",
+    "build:linux": "electron-builder --linux --publish never && bun build/move_intermediates.js",
+    "build:mac": "bun build/macos/patch_dmgbuild.js && electron-builder --mac --universal --publish never && bun build/move_intermediates.js",
     "build:all": "bun run build&&bun build:sync",
     "start:sync": "bun src/sync/server.js",
-    "start:mobile": "bun scripts/mobile_serve.js",
-    "start:website": "bun scripts/website_serve.js",
-    "build:sync": "bun scripts/sync_build.js",
-    "build:mobile": "bun scripts/mobile_build.js",
+    "start:mobile": "bun build/mobile/serve.js",
+        "build:sync": "bun build/sync/build.js",
+    "build:mobile": "bun build/mobile/build.js",
     "prepare": "husky"
   },
   "private": true,
@@ -29,7 +28,7 @@
   "build": {
     "appId": "io.github.theoninesixy.esprin_nemo",
     "productName": "EsprinNemo",
-    "afterPack": "scripts/mac_after_pack.js",
+    "afterPack": "build/macos/after_pack.js",
     "files": [
       "src/desktop/",
       "assets/",
@@ -40,14 +39,15 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "icon": "build/windows/icon.ico"
     },
     "portable": {
       "artifactName": "EsprinNemo.Portable.v${version}.${ext}"
     },
     "nsis": {
       "artifactName": "EsprinNemo.Setup.v${version}.${ext}",
-      "include": "src/desktop/win_installer/installer.nsh",
+      "include": "build/windows/installer.nsh",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -66,6 +66,7 @@
       "target": [
         "dmg"
       ],
+      "icon": "build/macos/icon.icns",
       "category": "public.app-category.productivity",
       "artifactName": "EsprinNemo.v${version}.${ext}",
       "identity": null,
@@ -80,16 +81,21 @@
     "dmg": {
       "artifactName": "EsprinNemo.v${version}.${ext}",
       "title": "EsprinNemo",
-      "backgroundColor": "#0d1117",
+      "background": "build/macos/dmg_background.tiff",
+      "window": {
+        "width": 660,
+        "height": 420
+      },
       "iconSize": 96,
+      "iconTextSize": 12,
       "contents": [
         {
-          "x": 140,
-          "y": 200
+          "x": 160,
+          "y": 205
         },
         {
-          "x": 400,
-          "y": 200,
+          "x": 500,
+          "y": 205,
           "type": "link",
           "path": "/Applications"
         }

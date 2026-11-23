@@ -14,5 +14,5 @@ if command -v bun >/dev/null 2>&1; then
   bun scripts/clean.js src/ || exit $?
   git add .
 else
-  echo "husky: 未找到 bun（当前 shell PATH 与 ~/.bun/bin 均没有），跳过 scripts/clean.js src/ 与自动暂存" >&2
+  echo "[husky] [WARN] 未找到 bun，已跳过 clean.js" >&2
 fi

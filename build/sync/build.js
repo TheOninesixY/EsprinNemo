@@ -7,14 +7,16 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const MODULE = 'SyncBuild';
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 const SYNC_DIR = path.join(ROOT, 'src', 'sync');
 const MOBILE_DIR = path.join(ROOT, 'src', 'mobile');
 const ASSETS_DIR = path.join(ROOT, 'assets');
 const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
 const MANAGER_DIR = path.join(SYNC_DIR, 'manager');
 const DIST_DIR = path.join(ROOT, 'dist');
-const BUILD_DIR = path.join(DIST_DIR, '.sync_build');
+const CACHE_DIR = path.join(DIST_DIR, 'cache', 'sync_build');
+const BUILD_DIR = CACHE_DIR;
+const EMBED_CACHE_META = path.join(BUILD_DIR, 'manifest.json');
 
 const WEB_FILES = ['index.html', 'manifest.webmanifest'];
 const WEB_DIRS = ['styles', 'scripts'];
@@ -58,12 +60,10 @@ function collectFiles(sourceDir, targetPrefix, list = []) {
     return list;
 }
 
-function buildEmbeddedAssets(version) {
-    const map = new Map();
+function embeddedSources() {
+    const sources = [];
     const add = (absolute) => {
-        if (!fs.existsSync(absolute)) return;
-        const key = path.relative(ROOT, absolute).split(path.sep).join('/');
-        map.set(key, fs.readFileSync(absolute).toString('base64'));
+        if (fs.existsSync(absolute)) sources.push(absolute);
     };
 
     for (const name of WEB_FILES) add(path.join(MOBILE_DIR, name));
@@ -81,6 +81,38 @@ function buildEmbeddedAssets(version) {
         for (const item of collectFiles(ASSETS_DIR, 'assets')) add(item.absolute);
     }
     add(path.join(ROOT, '.github', 'releases.md'));
+    return sources;
+}
+
+function embeddedCacheKey(sources, version) {
+    const parts = [`version:${version}`];
+    for (const file of sources) {
+        const stat = fs.statSync(file);
+        parts.push(`${path.relative(ROOT, file).split(path.sep).join('/')}:${stat.size}:${Math.round(stat.mtimeMs)}`);
+    }
+    return parts.join('|');
+}
+
+function buildEmbeddedAssets(version) {
+    const sources = embeddedSources();
+    const target = path.join(BUILD_DIR, 'embedded_assets.js');
+    const key = embeddedCacheKey(sources, version);
+
+    try {
+        const cached = JSON.parse(fs.readFileSync(EMBED_CACHE_META, 'utf8'));
+        if (cached && cached.key === key && fs.existsSync(target)) {
+            return { target, count: cached.count, cached: true };
+        }
+    } catch (error) {
+    }
+
+    const map = new Map();
+    const add = (absolute) => {
+        const keyName = path.relative(ROOT, absolute).split(path.sep).join('/');
+        map.set(keyName, fs.readFileSync(absolute).toString('base64'));
+    };
+
+    sources.forEach(add);
 
     const meta = {
         name: 'esprin_sync',
@@ -91,15 +123,15 @@ function buildEmbeddedAssets(version) {
     map.set('package.json', Buffer.from(`${JSON.stringify(meta, null, 2)}\n`, 'utf8').toString('base64'));
 
     const lines = ['export default new Map(['];
-    for (const [key, value] of map) {
-        lines.push(`    [${JSON.stringify(key)}, Buffer.from(${JSON.stringify(value)}, "base64")],`);
+    for (const [keyName, value] of map) {
+        lines.push(`    [${JSON.stringify(keyName)}, Buffer.from(${JSON.stringify(value)}, "base64")],`);
     }
     lines.push(']);');
     lines.push('');
 
-    const target = path.join(BUILD_DIR, 'embedded_assets.js');
     fs.writeFileSync(target, lines.join('\n'), 'utf8');
-    return { target, count: map.size };
+    fs.writeFileSync(EMBED_CACHE_META, JSON.stringify({ key, count: map.size }), 'utf8');
+    return { target, count: map.size, cached: false };
 }
 
 function writeEntry(entry) {
@@ -150,7 +182,7 @@ function main() {
     const embedded = buildEmbeddedAssets(version);
     const entry = path.join(BUILD_DIR, 'entry.js');
     writeEntry(entry);
-    log('INFO', `已内嵌网页端与管理页 (files=${embedded.count})`);
+    log('INFO', embedded.cached ? `使用内嵌资源缓存 (files=${embedded.count})` : `已内嵌网页端与管理页 (files=${embedded.count})`);
 
     if (hasFlag('no-exe')) {
         log('INFO', '已跳过 Windows exe（--no-exe）');

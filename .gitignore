@@ -1,15 +1,15 @@
-# dependencies (bun install)
+# 依赖
 node_modules
 .husky/_
 
-# output
+# 构建产物
 dist/
 
 # code coverage
 coverage
 *.lcov
 
-# logs
+# 日志
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
@@ -29,9 +29,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # IntelliJ based IDEs
 .idea
 
-# Finder (MacOS) folder config
+# Finder拉的屎
 .DS_Store
 
+# Node.js 锁文件
 *.lock
 
 # 开发数据
@@ -43,20 +44,20 @@ data/
 
 # impeccable
 
-**/.impeccable/config.local.json
-**/.impeccable/hook.cache.json
-**/.impeccable/hook.pending.json
-**/.impeccable/*.png
-**/.impeccable/review/
-**/.impeccable/questions/
-**/.impeccable/live/server.json
-**/.impeccable/live/sessions/
-**/.impeccable/live/previews/
-**/.impeccable/live/annotations/
-**/.impeccable/live/cache/
-**/.impeccable/live/manual-edit-apply-transaction.json
-**/.impeccable/live/manual-edit-events.jsonl
-**/.impeccable/live/manual-edit-evidence/
-**/.impeccable/live/pending-manual-edits.json
-**/.impeccable/live/deferred-svelte-component-accepts.json
-**/.impeccable/live/*.png
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+.impeccable/*.png
+.impeccable/review/
+.impeccable/questions/
+.impeccable/live/server.json
+.impeccable/live/sessions/
+.impeccable/live/previews/
+.impeccable/live/annotations/
+.impeccable/live/cache/
+.impeccable/live/manual-edit-apply-transaction.json
+.impeccable/live/manual-edit-events.jsonl
+.impeccable/live/manual-edit-evidence/
+.impeccable/live/pending-manual-edits.json
+.impeccable/live/deferred-svelte-component-accepts.json
+.impeccable/live/*.png

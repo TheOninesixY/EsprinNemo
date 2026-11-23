@@ -4,13 +4,16 @@ const fs = require('fs');
 const path = require('path');
 
 const MODULE = 'MobileBuild';
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '..', '..');
 const MOBILE_DIR = path.join(ROOT, 'src', 'mobile');
 const SCRIPT_DIR = path.join(MOBILE_DIR, 'scripts');
 const STYLE_DIR = path.join(MOBILE_DIR, 'styles');
 const ASSETS_DIR = path.join(ROOT, 'assets');
 const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
 const DIST_DIR = path.join(ROOT, 'dist');
+const CACHE_DIR = path.join(DIST_DIR, 'cache', 'mobile');
+const MATERIAL_CACHE_FILE = path.join(CACHE_DIR, 'material.css');
+const MATERIAL_CACHE_META = path.join(CACHE_DIR, 'material.json');
 
 const ENTRY_NAME = 'app.js';
 const FONT_NAME = 'material-symbols-rounded.woff2';
@@ -159,18 +162,46 @@ function buildBundle(modules) {
     return parts.join('\n').replace(/<\/script/gi, '<\\/script');
 }
 
-function buildStyles() {
-    const fontFile = path.join(MATERIAL_DIR, FONT_NAME);
-    if (!fs.existsSync(fontFile)) {
-        log('ERROR', `缺少图标字体 (path=${fontFile})`);
-    }
-    const fontData = fs.existsSync(fontFile)
-        ? `data:font/woff2;base64,${readBase64(fontFile)}`
-        : '';
+function materialCacheKey(fontFile, cssFile) {
+    const font = fs.statSync(fontFile);
+    const css = fs.statSync(cssFile);
+    return `${font.size}:${Math.round(font.mtimeMs)}:${css.size}:${Math.round(css.mtimeMs)}`;
+}
 
-    const materialCss = readText(path.join(MATERIAL_DIR, 'rounded.css'))
+function materialStyles() {
+    const fontFile = path.join(MATERIAL_DIR, FONT_NAME);
+    const cssFile = path.join(MATERIAL_DIR, 'rounded.css');
+    if (!fs.existsSync(fontFile) || !fs.existsSync(cssFile)) {
+        log('ERROR', '缺少 material-symbols 字体或样式');
+        return '';
+    }
+
+    const key = materialCacheKey(fontFile, cssFile);
+    try {
+        const meta = JSON.parse(readText(MATERIAL_CACHE_META));
+        if (meta && meta.key === key && fs.existsSync(MATERIAL_CACHE_FILE)) {
+            log('INFO', '使用字体缓存 (dist/cache/mobile/material.css)');
+            return readText(MATERIAL_CACHE_FILE);
+        }
+    } catch (error) {
+    }
+
+    const fontData = `data:font/woff2;base64,${readBase64(fontFile)}`;
+    const css = readText(cssFile)
         .replace(/url\(\s*["']?\.\/material-symbols-rounded\.woff2["']?\s*\)/g, `url("${fontData}")`);
 
+    try {
+        fs.mkdirSync(CACHE_DIR, { recursive: true });
+        fs.writeFileSync(MATERIAL_CACHE_FILE, css, 'utf8');
+        fs.writeFileSync(MATERIAL_CACHE_META, JSON.stringify({ key }), 'utf8');
+    } catch (error) {
+        log('WARN', `写入字体缓存失败: ${error.message}`);
+    }
+    return css;
+}
+
+function buildStyles() {
+    const materialCss = materialStyles();
     const blocks = [`<style data-part="material-symbols">\n${materialCss}\n</style>`];
 
     for (const name of STYLE_ORDER) {
