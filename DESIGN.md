@@ -11,17 +11,17 @@ colors:
   canvas: "#0d1117"
   canvas-light: "#ffffff"
   surface-titlebar: "#161b22"
-  surface-titlebar-light: "#f6f8fa"
+  surface-titlebar-light: "#f2f4f3"
   surface-rail: "#0d1117"
-  surface-rail-light: "#f6f8fa"
+  surface-rail-light: "#f2f4f3"
   surface-list: "#161b22"
   surface-list-light: "#ffffff"
   surface-elevated: "#21262d"
   surface-elevated-light: "#ffffff"
   hairline: "#30363d"
-  hairline-light: "#d0d7de"
+  hairline-light: "#d8dee4"
   hairline-soft: "rgba(255, 255, 255, 0.08)"
-  hairline-soft-light: "rgba(0, 0, 0, 0.06)"
+  hairline-soft-light: "rgba(0, 0, 0, 0.055)"
   ink: "#f0f6fc"
   ink-light: "#1f2328"
   ink-secondary: "#8b949e"
@@ -29,9 +29,19 @@ colors:
   ink-muted: "#6e7681"
   ink-muted-light: "#8c959f"
   wash-hover: "rgba(255, 255, 255, 0.04)"
-  wash-hover-light: "rgba(0, 0, 0, 0.04)"
+  wash-hover-light: "rgba(0, 0, 0, 0.03)"
   wash-active: "rgba(255, 255, 255, 0.08)"
-  wash-active-light: "rgba(0, 0, 0, 0.08)"
+  wash-active-light: "rgba(0, 0, 0, 0.055)"
+  fill-1: "rgba(255, 255, 255, 0.045)"
+  fill-1-light: "rgba(0, 0, 0, 0.025)"
+  fill-2: "rgba(255, 255, 255, 0.075)"
+  fill-2-light: "rgba(0, 0, 0, 0.04)"
+  fill-3: "rgba(255, 255, 255, 0.11)"
+  fill-3-light: "rgba(0, 0, 0, 0.06)"
+  note-card-hover: "rgba(255, 255, 255, 0.04)"
+  note-card-hover-light: "rgba(0, 0, 0, 0.025)"
+  note-card-active: "rgba(255, 255, 255, 0.08)"
+  note-card-active-light: "rgba(0, 0, 0, 0.05)"
   danger: "#f85149"
   danger-light: "#cf222e"
   danger-tint: "rgba(248, 81, 73, 0.15)"
@@ -125,8 +135,13 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.md}"
     padding: "10px 12px"
+  card-note-hover:
+    backgroundColor: "{colors.note-card-hover}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.md}"
+    padding: "10px 12px"
   card-note-active:
-    backgroundColor: "{colors.wash-active}"
+    backgroundColor: "{colors.note-card-active}"
     textColor: "{colors.ink}"
     rounded: "{rounded.md}"
     padding: "10px 12px"
@@ -191,11 +206,11 @@ components:
 
 界面不做表演。没有渐变、没有装饰图形、没有入场动画的炫耀；强调色在整屏的占比被压得很低，只在活动标签、选中项、主按钮和极少数确认元素上出现。信息密度优先于留白：正文 13px、卡片标题 13px、页脚 10.5px，控件高度集中在 26–30px，一个 1080p 窗口里能同时放下图标栏、笔记列表与编辑器而不显拥挤。
 
-层次的表达几乎完全依赖 1px 描边与三级表面色（画布 / 列表 / 标题栏），而不是阴影。阴影被严格限制在真正悬浮于界面之上的层：弹出菜单、下拉、Toast、拖拽中的标签、对话框外壳。
+层次的表达几乎完全依赖三档 `--fill-*` 填充的明度差（画布 / 列表 / 标题栏 + 卡片填充），而不是描边或阴影。描边只留给真正需要边界的控件与浮层外壳。阴影被严格限制在真正悬浮于界面之上的层：弹出菜单、下拉、Toast、拖拽中的标签、对话框外壳。
 
 **Key Characteristics:**
 - 单套固定布局：48px 图标栏 + 270px 笔记列表 + 弹性编辑器，无布局切换
-- 1px 描边分割一切，静止状态零阴影
+- 层次靠 `--fill-*` 三档填充的明度差，卡片与行不画常驻描边；描边只留给真正需要边界的控件
 - 13px 基准字号，控件 26–30px 高，密度优先
 - 四档圆角 4 / 6 / 8 / 999px，内容卡片与对话框用 `md × 1.6 = 12.8px`
 - 强调色默认 `#58a6ff`（浅色 `#0969da`），可自定义，但始终稀缺
@@ -215,17 +230,29 @@ components:
 ### Neutral
 
 - **Canvas** (`#0d1117` / `#ffffff`)：编辑器背景与窗口底层，最"深"的一级。
-- **Surface Titlebar** (`#161b22` / `#f6f8fa`)：标题栏、ChromeBar、toast 底色。
-- **Surface Rail** (`#0d1117` / `#f6f8fa`)：左侧图标栏，与画布同色，只靠右边线区分。
+- **Surface Titlebar** (`#161b22` / `#f2f4f3`)：标题栏、ChromeBar、toast 底色。
+- **Surface Rail** (`#0d1117` / `#f2f4f3`)：左侧图标栏，深色下与画布同色，浅色下比画布深一档。
 - **Surface List** (`#161b22` / `#ffffff`)：笔记列表与弹出菜单底色，比画布高一级。
 - **Surface Elevated** (`#21262d` / `#ffffff`)：标签页的活动态、`pre` 代码块、需要再"浮起一点"的面。
-- **Hairline** (`#30363d` / `#d0d7de`)：所有 1px 分割线、控件描边、活动标签描边。
-- **Hairline Soft** (`rgba(255,255,255,0.08)` / `rgba(0,0,0,0.06)`)：悬停时出现的二级描边，以及编辑器内部分隔线。
+- **Hairline** (`#30363d` / `#d8dee4`)：所有 1px 分割线、控件描边、活动标签描边。
+- **Hairline Soft** (`rgba(255,255,255,0.08)` / `rgba(0,0,0,0.055)`)：悬停时出现的二级描边，以及编辑器内部分隔线。
 - **Ink** (`#f0f6fc` / `#1f2328`)：正文与标题。
 - **Ink Secondary** (`#8b949e` / `#656d76`)：次要文字、图标默认色、导航项。
 - **Ink Muted** (`#6e7681` / `#8c959f`)：时间戳、页脚、占位符、禁用态。
-- **Wash Hover** (`rgba(255,255,255,0.04)` / `rgba(0,0,0,0.04)`)：悬停底色，也是搜索框、标签片、文件夹片的底色。
-- **Wash Active** (`rgba(255,255,255,0.08)` / `rgba(0,0,0,0.08)`)：按下与选中底色。
+- **Wash Hover** (`rgba(255,255,255,0.04)` / `rgba(0,0,0,0.03)`)：悬停底色，也是搜索框、标签片、文件夹片的底色。
+- **Wash Active** (`rgba(255,255,255,0.08)` / `rgba(0,0,0,0.055)`)：按下与选中底色。
+
+### Fills（填充分层）
+
+描边不再承担"区分层次"的职责。需要让一个面从背景里"浮出来"时，用同一套中性色、三档透明度的填充来表达深浅，而不是画线——这是 Apple 式做法：边界靠明度差，不靠线。
+
+- **Fill 1** (`rgba(255,255,255,0.045)` / `rgba(0,0,0,0.025)`)：卡片、设置行、密钥项、成员项、AI 回复气泡、AI 输入框、预览块的**静止态**底色。
+- **Fill 2** (`rgba(255,255,255,0.075)` / `rgba(0,0,0,0.04)`)：输入框、下拉、次要按钮、标签片的静止态；也是卡片与行的**悬停态**。
+- **Fill 3** (`rgba(255,255,255,0.11)` / `rgba(0,0,0,0.065)`)：输入框悬停、分段控件的滑块。
+
+**Note Card Exception.** 笔记卡是列表里重复次数最多的面，通用 fill 叠满整个卡片仍然偏重。它单独用更轻的一档：悬停 `--note-card-hover`、选中 `--note-card-active`，浅色下只有 2.5% / 5% 黑（约 `#f8f8f8` / `#f2f2f2`），靠标题字重与时间戳维持可读性。
+
+**The Fill-Not-Line Rule.** 一个新面板/行/输入框需要与背景区分时，先加一档 `--fill-*` 底色；只有在"可聚焦控件"上才允许常驻 1px 描边，且默认必须是 `transparent`，只在 `:focus` 时转 `--accent`。
 
 ### Semantic
 
@@ -237,7 +264,7 @@ components:
 
 **The Scarcity of Signal Blue.** 强调色在任意一屏的覆盖面积不超过 10%。它标记"当前"和"可提交"，不用于装饰、不用来做图标默认色、不给整块面板上色。稀有性是它唯一的作用。
 
-**The Two-Tier Surface Rule.** 界面只有三级表面：画布、列表、标题栏。新增面板时先用现有表面色，不要发明第四种深浅；需要区分时加 1px `hairline`，不要改底色。
+**The Two-Tier Surface Rule.** 界面只有三级表面：画布、列表、标题栏。新增面板时先用现有表面色，不要发明第四种深浅；需要区分时加一档 `--fill-*` 填充，不要改底色，也不要画线。
 
 ## Typography
 
@@ -320,15 +347,15 @@ components:
 ### Cards / Containers
 
 - **Corner Style:** `--radius-md`（笔记卡片、设置行）/ 12.8px（内容卡片、对话框）。
-- **Background:** 笔记卡片默认 `transparent`，悬停 `--item-hover`，选中 `--item-active`；设置行固定 `--bg-list`。
+- **Background:** 笔记卡片默认 `transparent`，悬停 `--note-card-hover`，选中 `--note-card-active`（比通用 fill 更轻，避免整块发灰）；设置行固定 `--fill-1`，悬停 `--fill-2`。
 - **Shadow Strategy:** 无。见 Elevation & Depth。
-- **Border:** 笔记卡片默认 `1px solid transparent`，悬停 `--border-light`，选中 `--border-color`——描边是状态的一部分，不是常驻装饰。
+- **Border:** 无。卡片的层次全部由 `--fill-*` 的明度差表达——描边不再常驻，只在控件可聚焦时出现。
 - **Internal Padding:** 10px 12px（笔记卡片）、14px 16px（设置行）。
 
 ### Inputs / Fields
 
-- **Style:** `1px var(--border-color)` 描边、`--bg-body` 底、`--radius-sm`；搜索框例外，用无描边的 `--item-hover` 填充 + 28px 高。
-- **Focus:** 描边转 `--accent`，部分场景叠加 `0 0 0 4px var(--accent-bg)`。
+- **Style:** 无描边的 `--fill-2` 填充 + `--radius-sm`；悬停加深到 `--fill-3`。搜索框同样无描边，用 `--item-hover` 填充。
+- **Focus:** 描边由 `transparent` 转 `--accent`，部分场景叠加 `0 0 0 4px var(--accent-bg)`。
 - **Disabled:** `opacity: 0.45`，不改描边颜色。
 
 ### Navigation
@@ -348,7 +375,7 @@ components:
 
 ### Signature: Settings Row
 
-`--bg-list` 底、`1px var(--border-color)` 描边、`--radius-md`、14px 16px、最大宽 680px。左侧两行：14px/500 标签 + 12px `--text-secondary` 描述；右侧控件（开关 44×24、下拉、30px 按钮）。悬停时描边转 `--text-muted`，整行不位移。分组标题前有一条 3px 宽、13px 高、`--radius-pill`、`--accent` 透明度 0.8 的竖条。
+`--fill-1` 底、无描边、`--radius-md`、14px 16px、最大宽 680px，悬停底色加深到 `--fill-2`。左侧两行：14px/500 标签 + 12px `--text-secondary` 描述；右侧控件（开关 44×24、下拉、30px 按钮）。分组标题前有一条 3px 宽、13px 高、`--radius-pill`、`--accent` 透明度 0.8 的竖条。
 
 ### Signature: Popover Menu
 
@@ -357,7 +384,7 @@ components:
 ## Do's and Don'ts
 
 ### Do:
-- **Do** 用 1px `--border-color` 分割区域；需要更弱的分割时用 `--border-light`。
+- **Do** 需要区分层次时先用 `--fill-1/2/3` 的明度差，而不是画线。
 - **Do** 把新面板放进现有的三级表面（画布 / 列表 / 标题栏）之一，需要浮起时才加 `0 8px 24px rgba(0,0,0,0.25)`。
 - **Do** 把控件高度控制在 26 / 28 / 30px 三档，内边距用 6 / 8 / 10 / 12 / 16 这几个步长。
 - **Do** 让强调色保持在 10% 以内，并且只用于"当前"与"可提交"。
@@ -365,13 +392,15 @@ components:
 - **Do** 图标用 `material-symbols` 圆体，14 / 16 / 18px 三档，`font-variation-settings` 保持 `wght 400`。
 - **Do** 用 `calc(var(--radius-md) * 1.6)` 给内容卡片与对话框，保持"纸"的一致感。
 - **Do** 所有下拉、菜单、确认框自绘，保持与现有弹出层同一套描边、圆角与阴影。
+- **Do** 让输入类控件的描边默认 `transparent`，只在 `:focus` 转 `--accent`。
 
 ### Don't:
 - **Don't** 给静止状态的卡片、面板、按钮加阴影。
+- **Don't** 给卡片、设置行、列表项、消息气泡加常驻描边——它们靠 `--fill-*` 分层。
 - **Don't** 发明第四级表面色，或把 `--bg-elevated` 用在整块面板上。
 - **Don't** 用 2px 以上的描边做分隔（`blockquote` 左边线与分组竖条除外）。
 - **Don't** 把强调色用作图标默认色、大面积底色或页面背景。
 - **Don't** 把基准字号提到 13px 以上来做层级；先加字重。
 - **Don't** 使用 Chromium 原生 `<select>` 弹出层或自绘 SVG 图标（应用图标与托盘图标除外）。
-- **Don't** 给整行设置项加位移或缩放反馈；描边变色已经够了。
+- **Don't** 给整行设置项加位移或缩放反馈；底色加深已经够了。
 - **Don't** 引入第二套圆角刻度或第二种阴影强度。

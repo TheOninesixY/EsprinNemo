@@ -34,6 +34,13 @@
     --item-hover: rgba(255, 255, 255, 0.04);
     --item-active: rgba(255, 255, 255, 0.08);
 
+    --fill-1: rgba(255, 255, 255, 0.045);
+    --fill-2: rgba(255, 255, 255, 0.075);
+    --fill-3: rgba(255, 255, 255, 0.11);
+
+    --note-card-hover: rgba(255, 255, 255, 0.04);
+    --note-card-active: rgba(255, 255, 255, 0.08);
+
 --radius-base-sm: 6px;
     --radius-base-md: 8px;
 
@@ -57,14 +64,14 @@
 
 :root.light {
     --bg-body: #ffffff;
-    --bg-titlebar: #f6f8fa;
-    --bg-sidebar: #f6f8fa;
+    --bg-titlebar: #f2f4f3;
+    --bg-sidebar: #f2f4f3;
     --bg-list: #ffffff;
     --bg-editor: #ffffff;
 
     --bg-elevated: #ffffff;
-    --border-color: #d0d7de;
-    --border-light: rgba(0, 0, 0, 0.06);
+    --border-color: #d8dee4;
+    --border-light: rgba(0, 0, 0, 0.055);
 
     --text-primary: #1f2328;
     --text-secondary: #656d76;
@@ -77,6 +84,13 @@
     --danger-bg: rgba(207, 34, 46, 0.1);
     --warning: #bf8700;
 
-    --item-hover: rgba(0, 0, 0, 0.04);
-    --item-active: rgba(0, 0, 0, 0.08);
+    --item-hover: rgba(0, 0, 0, 0.03);
+    --item-active: rgba(0, 0, 0, 0.055);
+
+    --fill-1: rgba(0, 0, 0, 0.03);
+    --fill-2: rgba(0, 0, 0, 0.045);
+    --fill-3: rgba(0, 0, 0, 0.065);
+
+    --note-card-hover: rgba(0, 0, 0, 0.025);
+    --note-card-active: rgba(0, 0, 0, 0.05);
 }

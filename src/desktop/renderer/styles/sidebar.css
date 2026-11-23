@@ -350,21 +350,19 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
 .note-card {
     padding: 10px 12px;
     background-color: transparent;
-    border: 1px solid transparent;
+    border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s;
+    transition: background-color 0.15s;
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 .note-card:hover {
-    background-color: var(--item-hover);
-    border-color: var(--border-light);
+    background-color: var(--note-card-hover);
 }
 .note-card.active {
-    background-color: var(--item-active);
-    border-color: var(--border-color);
+    background-color: var(--note-card-active);
 }
 
 .note-card-title {

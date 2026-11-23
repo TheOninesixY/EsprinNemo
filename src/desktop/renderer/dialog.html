@@ -100,13 +100,17 @@
         }
         .dialog-input {
             width: 100%;
-            background: var(--item-hover);
-            border: 1px solid var(--border-color);
+            background: var(--fill-2);
+            border: 1px solid transparent;
             border-radius: var(--radius-sm);
             padding: 8px 10px;
             font-size: 13px;
             color: var(--text-primary);
             user-select: text;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .dialog-input:hover {
+            background: var(--fill-3);
         }
         .dialog-input:focus {
             border-color: var(--accent);

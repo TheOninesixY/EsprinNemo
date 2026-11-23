@@ -305,9 +305,9 @@
 }
 .ai-msg-body {
     padding: 9px 11px;
-    border: 1px solid var(--border-color);
+    border: none;
     border-radius: var(--radius-md);
-    background: var(--bg-body);
+    background: var(--fill-1);
     font-size: 12.5px;
     line-height: 1.65;
     color: var(--text-primary);
@@ -317,18 +317,15 @@
 
 .ai-msg-user .ai-msg-body {
     background: var(--accent-bg);
-    border-color: transparent;
     white-space: pre-wrap;
 }
 .ai-msg-failed .ai-msg-body {
     background: var(--danger-bg);
-    border-color: var(--danger);
     color: var(--danger);
 }
 
 .ai-msg-canceled .ai-msg-body {
-    background: transparent;
-    border-style: dashed;
+    background: var(--fill-1);
     color: var(--text-muted);
 }
 
@@ -392,14 +389,18 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    background: var(--bg-body);
+    background: var(--fill-1);
     color: var(--text-primary);
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+.ai-input-wrap:hover {
+    background: var(--fill-2);
 }
 .ai-input-wrap:focus-within {
     border-color: var(--accent);
+    background: var(--fill-2);
 }
 .ai-input {
     width: 100%;
@@ -553,7 +554,7 @@
 }
 
 .ai-msg-agent .ai-msg-body {
-    border-style: dashed;
+    background: var(--fill-2);
 }
 .ai-msg-agent .ai-agent-steps {
     display: flex;
@@ -601,14 +602,17 @@
     flex-shrink: 0;
     width: 260px;
     padding: 7px 10px;
-    border: 1px solid var(--border-color);
+    border: 1px solid transparent;
     border-radius: var(--radius-sm);
-    background: var(--bg-body);
+    background: var(--fill-2);
     color: var(--text-primary);
     font-family: var(--font-sans);
     font-size: 13px;
     user-select: text;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+.settings-input:hover {
+    background: var(--fill-3);
 }
 .settings-input.mono {
     font-family: var(--font-mono);
