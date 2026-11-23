@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if ! command -v bun >/dev/null 2>&1; then
-  for candidate in "$HOME/.bun/bin/bun" "/opt/homebrew/bin/bun" "/usr/local/bin/bun"; do
+  for candidate in "$BUN_INSTALL/bin/bun" "$BUN_INSTALL/bin/bun.exe" "$HOME/.bun/bin/bun" "$HOME/.bun/bin/bun.exe"; do
     if [ -x "$candidate" ]; then
       PATH="$(dirname "$candidate"):$PATH"
       export PATH
@@ -14,5 +14,5 @@ if command -v bun >/dev/null 2>&1; then
   bun scripts/clean.js src/ || exit $?
   git add .
 else
-  echo "husky: bun 未找到，跳过 scripts/clean.js src/ 与自动暂存" >&2
+  echo "husky: 未找到 bun（当前 shell PATH 与 ~/.bun/bin 均没有），跳过 scripts/clean.js src/ 与自动暂存" >&2
 fi
