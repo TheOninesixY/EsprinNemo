@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EsprinNemo — Note, Nothing.</title>
+    <meta name="description" content="本地优先、离线可用的极简 Markdown 笔记应用。笔记与待办是普通 .md 文件，任何编辑器都能打开，复制一个目录就完成迁移。">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" type="image/svg+xml" href="./assets/icon.svg">
+    <link rel="stylesheet" href="./styles.css">
+    <meta property="og:title" content="EsprinNemo — Note, Nothing.">
+    <meta property="og:description" content="本地优先、离线可用的极简 Markdown 笔记应用。">
+    <meta property="og:image" content="./about/screenshot_dark.png">
+    <meta property="og:type" content="website">
+    <script>
+        (function () {
+            document.documentElement.classList.add('js');
+            try {
+                var saved = localStorage.getItem('nemo-site-theme') || 'system';
+                var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var light = saved === 'light' || (saved === 'system' && !dark);
+                if (light) document.documentElement.classList.add('light');
+            } catch (err) {}
+        })();
+    </script>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="#top">
+            <img class="brand-icon" src="./assets/icon.svg" alt="" width="22" height="22">
+            <span>EsprinNemo</span>
+        </a>
+        <nav class="topbar-nav" aria-label="页面导航">
+            <a href="#data">数据</a>
+            <a href="#features">功能</a>
+            <a href="#sync">同步</a>
+            <a href="#shortcuts">快捷键</a>
+        </nav>
+        <div class="topbar-actions">
+            <button class="topbar-dl" type="button" data-dl-open>
+                <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span>
+                <span>下载</span>
+            </button>
+            <button class="theme-toggle" id="theme-toggle" type="button" aria-label="切换主题">
+                <span class="icon" id="theme-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v2"/><path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715"/><path d="M16 12a4 4 0 0 0-4-4"/><path d="m19 5-1.256 1.256"/><path d="M20 12h2"/></svg></span>
+            </button>
+        </div>
+    </div>
+    <span class="topbar-progress" id="scroll-progress" aria-hidden="true"></span>
+</header>
+
+<main id="top">
+
+    <section class="hero">
+        <div class="wrap hero-inner">
+            <h1 class="reveal">做好一个笔记，<br>而非其他。</h1>
+            <p class="hero-lead reveal">
+                EsprinNemo 把笔记与待办写成 Markdown，标题、文件夹、标签、置顶与废纸篓状态以内嵌注释放在文件开头。
+                打开就能写，不需要设置向导；想带走时，复制一个目录就够了。
+            </p>
+            <div class="hero-actions reveal">
+                <button class="btn btn-primary" type="button" data-dl-open>
+                    <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></span>
+                    <span>下载</span>
+                </button>
+                <a class="btn btn-ghost" href="https://github.com/TheOninesixY/EsprinNemo">
+                    <span>查看源码</span>
+                    <span class="chev" aria-hidden="true">›</span>
+                </a>
+            </div>
+            <p class="hero-meta reveal">
+                <span id="hero-eyebrow">Windows、macOS 与 Linux</span>
+                <span class="meta-dot" aria-hidden="true"></span>
+                <span>免费、无账号、无遥测，除自动更新检查外不主动联网</span>
+            </p>
+
+            <div class="hero-visual reveal">
+                <div class="hero-shot">
+                    <img class="shot-theme shot-dark" src="./about/screenshot_dark.png"
+                         alt="EsprinNemo 深色主题主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板"
+                         width="1412" height="912" loading="eager" decoding="async">
+                    <img class="shot-theme shot-light" src="./about/screenshot_light.png"
+                         alt="EsprinNemo 浅色主题主界面：左侧笔记列表、中间编辑器、右侧 AI 助手面板"
+                         width="1412" height="912" loading="lazy" decoding="async">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="band band-alt" id="data">
+        <div class="wrap section">
+            <header class="section-head reveal">
+                <h2>数据先于界面</h2>
+                <p>没有索引文件，没有私有格式，没有需要导出的步骤。</p>
+            </header>
+
+            <div class="split">
+                <div class="split-body reveal">
+                    <h3>一个条目就是一个 .md 文件</h3>
+                    <p>
+                        数据目录里只有 <code>items/&lt;id&gt;.md</code>、<code>config.json</code> 与少量对话记录。
+                        标题、标签、置顶这些状态写在文件开头的注释里，正文是干净的 Markdown。用 VS Code、Obsidian 或记事本打开，看到的都是同一份内容。
+                    </p>
+                    <ul>
+                        <li>用任意编辑器直接改，改完回到应用里就是最新状态</li>
+                        <li>整目录复制即完成迁移，换机器不用导出导入</li>
+                        <li>同步与本地是同一份文件格式，不存在「导出后的样子」</li>
+                    </ul>
+                </div>
+                <div class="split-media reveal">
+                    <div class="file-card">
+                        <div class="file-card-head">
+                            <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+                            <span>items/8fK2pQx1.md</span>
+                        </div>
+                        <pre><i>&lt;!--EsprinData</i>
+    <b>type</b>: "note"
+    <b>title</b>: "季度复盘"
+    <b>folder</b>: "工作"
+    <b>tags</b>: ["复盘", "计划"]
+    <b>isPinned</b>: false
+    <b>isTrashed</b>: false
+    <b>createdAt</b>: 1794936683215
+    <b>updatedAt</b>: 1794936767664
+<i>--&gt;</i>
+
+把这一季的关键决策整理一遍，
+重点是同步的删除语义。</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="band" id="features">
+        <div class="wrap section">
+            <header class="section-head reveal">
+                <h2>打开即写</h2>
+                <p>没有第一次运行向导，没有必填项，也没有需要理解的概念。</p>
+            </header>
+
+            <ul class="specs reveal">
+                <li>
+                    <span class="icon tone-blue" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></span>
+                    <div>
+                        <h3>笔记与待办</h3>
+                        <p>两者共用一个数据目录、一个废纸篓。待办多一个勾选状态，其余完全一致。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="icon tone-purple" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 4v4"/><path d="M2 8h20"/><path d="M6 4v4"/></svg></span>
+                    <div>
+                        <h3>浏览器式标签</h3>
+                        <p>同时打开多篇，活动标签与编辑器连成一片。拖动可重排，关闭不影响文件。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="icon tone-teal" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg></span>
+                    <div>
+                        <h3>即时搜索</h3>
+                        <p><kbd>Ctrl</kbd> + <kbd>K</kbd> 聚焦搜索框，标题、正文与标签一起匹配，输入即筛选。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="icon tone-orange" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
+                    <div>
+                        <h3>外观</h3>
+                        <p>浅色 / 深色 / 跟随系统，主题色与四档圆角可调，界面与文档字体分别设置。</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="icon tone-pink" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><path d="M15 3v5a1 1 0 0 0 1 1h5"/></svg></span>
+                    <div>
+                        <h3>常驻与便利贴</h3>
+                        <p>托盘驻留后台，关窗不退出；桌面便利贴贴在窗口之下，小本本随时记一句。</p>
+                    </div>
+                </li>
+            </ul>
+
+            <div class="showcase">
+                <div class="showcase-media reveal">
+                    <img class="shot-theme shot-dark" src="./about/scratchpad_dark.png"
+                         alt="小本本窗口（深色）：标题「购物清单」，正文是一份蔬菜与文具清单，底部显示「已保存到笔记」「已关联笔记 57 字」"
+                         width="432" height="492" loading="lazy" decoding="async">
+                    <img class="shot-theme shot-light" src="./about/scratchpad_light.png"
+                         alt="小本本窗口（浅色）：标题「购物清单」，正文是一份蔬菜与文具清单，底部显示「已保存到笔记」「已关联笔记 57 字」"
+                         width="432" height="492" loading="lazy" decoding="async">
+                </div>
+                <div class="split-body reveal">
+                    <h3>小本本，记一句就走</h3>
+                    <p>
+                        标题栏一键唤出屏幕右下角的小窗口，始终置顶。自动保存，不需要想放在哪个文件夹。
+                        底部一直显示状态：存了没有、有没有关联笔记、写了多少字。
+                    </p>
+                    <ul>
+                        <li>未关联时内容属于小本本自己，保存即在后台新建一篇笔记并关联</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>O</kbd> 搜索并打开已有笔记，此后改的就是那一篇</li>
+                        <li>小本本开着时关掉主窗口不会退出应用，主窗口只是收起</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="band band-alt" id="sync">
+        <div class="wrap section">
+            <header class="section-head reveal">
+                <h2>同步是可选项</h2>
+                <p>需要它时才配置，不需要时一个字节都不上传。</p>
+            </header>
+
+            <div class="split split-reverse">
+                <div class="split-body reveal">
+                    <h3>自建服务端，操作日志模型</h3>
+                    <p>
+                        同步端在自己的机器或服务器上运行，客户端与它通信时才联网。
+                        它记录的是操作日志而不是文件快照。删除是一条明确的墓碑，别的设备不会把删掉的内容补回来。
+                    </p>
+                    <ul>
+                        <li>删除有明确语义，不会在多设备之间「复活」</li>
+                        <li>团队笔记共享的是同一篇，正文不复制，双方改的是同一份</li>
+                        <li>服务器地址、账户与令牌都只在你自己手里</li>
+                    </ul>
+                </div>
+                <div class="split-media reveal">
+                    <div class="file-card">
+                        <div class="file-card-head">
+                            <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/></svg></span>
+                            <span>在服务器上启动同步端</span>
+                        </div>
+                        <pre><i># 默认监听 127.0.0.1:8686，数据写在 ./data</i>
+bun run start:sync
+
+<i># 或手动指定地址、端口与数据目录</i>
+bun src/sync/server.js \
+  --host 0.0.0.0 --port 8686 --data ./esprin-data
+
+<i># 也可以在管理后台 /admin 里配置账户与令牌</i></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="band">
+        <div class="wrap section">
+            <header class="section-head reveal">
+                <h2>诚实的能力边界</h2>
+                <p>做不到的地方直接说明，不摆出假象，也不静默降级。</p>
+            </header>
+
+            <div class="limits-panel reveal">
+                <ul class="limits">
+                    <li>
+                        <strong>桌面便利贴不提供 Linux 版</strong>
+                        <span>置底依赖 Win32 与注册表；Linux 上入口与设置项隐藏，其余功能不受影响。</span>
+                    </li>
+                </ul>
+                <ul class="limits">
+                    <li>
+                        <strong>界面目前只有中文</strong>
+                        <span>英语支持尚未接入，不做「即将支持」的承诺。</span>
+                    </li>
+                    <li>
+                        <strong>AI 助手需要自备 Key</strong>
+                        <span>兼容 OpenAI 协议的接口，默认关闭以外的能力都要手动配置。</span>
+                    </li>
+                    <li>
+                        <strong>没有账号体系</strong>
+                        <span>也就不存在找回密码、云端备份与跨设备登录这类服务。</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="band band-alt" id="shortcuts">
+        <div class="wrap section">
+            <header class="section-head reveal">
+                <h2>快捷键</h2>
+                <p>手不离键盘，也能把日常写完。</p>
+            </header>
+
+            <div class="keys-wrap reveal">
+                <table class="keys">
+                    <thead>
+                    <tr>
+                        <th>按键</th>
+                        <th>作用范围</th>
+                        <th>功能</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>N</kbd></td>
+                        <td data-label="范围">主窗口</td>
+                        <td data-label="功能">新建笔记</td>
+                    </tr>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>N</kbd></td>
+                        <td data-label="范围">主窗口</td>
+                        <td data-label="功能">新建待办</td>
+                    </tr>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>K</kbd></td>
+                        <td data-label="范围">主窗口</td>
+                        <td data-label="功能">聚焦搜索框</td>
+                    </tr>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+                        <td data-label="范围">主窗口</td>
+                        <td data-label="功能">保存当前笔记或待办</td>
+                    </tr>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>Tab</kbd></td>
+                        <td data-label="范围">主窗口</td>
+                        <td data-label="功能">在打开的标签之间切换</td>
+                    </tr>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>S</kbd></td>
+                        <td data-label="范围">小本本</td>
+                        <td data-label="功能">新建并关联，或保存回关联的笔记</td>
+                    </tr>
+                    <tr>
+                        <td data-label="按键"><kbd>Ctrl</kbd> + <kbd>O</kbd></td>
+                        <td data-label="范围">小本本</td>
+                        <td data-label="功能">打开笔记选择面板</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    <div class="wrap footer-inner">
+        <span class="footer-brand">
+            <img class="footer-icon" src="./assets/icon.svg" alt="" width="16" height="16">
+            <span>EsprinNemo · Note, Nothing.</span>
+        </span>
+        <nav class="footer-links" aria-label="链接">
+            <a href="https://github.com/TheOninesixY/EsprinNemo">GitHub</a>
+            <a href="https://github.com/TheOninesixY/EsprinNemo/releases">发布记录</a>
+            <a href="https://github.com/TheOninesixY/EsprinNemo/issues">反馈</a>
+        </nav>
+        <span class="footer-spacer"></span>
+        <span class="footer-note">MiSans 免费商用 · Space Mono 与 Mohave 遵循 SIL Open Font License</span>
+    </div>
+</footer>
+
+<div class="dl-modal" id="dl-modal" hidden>
+    <div class="dl-scrim" data-dl-close></div>
+    <div class="dl-panel" role="dialog" aria-modal="true" aria-labelledby="dl-title">
+        <div class="dl-head">
+            <h2 id="dl-title">下载</h2>
+            <div class="dl-tabs" role="tablist" aria-label="下载类别" data-active="nemo">
+                <span class="dl-tab-thumb" aria-hidden="true"></span>
+                <button class="dl-tab is-active" type="button" role="tab" id="dl-tab-nemo"
+                        aria-selected="true" aria-controls="dl-panel-nemo" data-dl-tab="nemo">Nemo</button>
+                <button class="dl-tab" type="button" role="tab" id="dl-tab-sync"
+                        aria-selected="false" aria-controls="dl-panel-sync" tabindex="-1" data-dl-tab="sync">Sync</button>
+            </div>
+            <button class="dl-close" type="button" aria-label="关闭下载窗口" data-dl-close>
+                <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+            </button>
+        </div>
+
+        <div class="dl-panels">
+            <div class="dl-tab-panel" id="dl-panel-nemo" role="tabpanel" aria-labelledby="dl-tab-nemo" data-dl-panel="nemo">
+                <section class="dl-platform">
+                    <h3>Windows</h3>
+                    <a class="dl-item" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                        <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></span>
+                        <span class="dl-meta">
+                            <strong>安装包</strong>
+                            <span>安装时可选数据目录</span>
+                        </span>
+                    </a>
+                    <a class="dl-item" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                        <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></span>
+                        <span class="dl-meta">
+                            <strong>便携版</strong>
+                            <span>数据放在程序目录，整个目录可搬走</span>
+                        </span>
+                    </a>
+                </section>
+
+                <section class="dl-platform">
+                    <h3>macOS</h3>
+                    <a class="dl-item" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                        <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></span>
+                        <span class="dl-meta">
+                            <strong>磁盘映像（Universal）</strong>
+                            <span>打开 dmg 把 EsprinNemo 拖进「应用程序」</span>
+                        </span>
+                    </a>
+                </section>
+
+                <section class="dl-platform">
+                    <h3>Linux</h3>
+                    <a class="dl-item" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                        <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></span>
+                        <span class="dl-meta">
+                            <strong>AppImage</strong>
+                            <span>免安装，chmod +x 后直接运行</span>
+                        </span>
+                    </a>
+                </section>
+            </div>
+
+            <div class="dl-tab-panel" id="dl-panel-sync" role="tabpanel" aria-labelledby="dl-tab-sync" data-dl-panel="sync" hidden>
+                <section class="dl-platform">
+                    <h3>Windows</h3>
+                    <a class="dl-item" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                        <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></span>
+                        <span class="dl-meta">
+                            <strong>Windows x64</strong>
+                            <span>单文件服务端，双击启动</span>
+                        </span>
+                    </a>
+                </section>
+
+                <section class="dl-platform">
+                    <h3>Linux</h3>
+                    <a class="dl-item" href="https://github.com/TheOninesixY/EsprinNemo/releases/latest">
+                        <span class="icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></svg></span>
+                        <span class="dl-meta">
+                            <strong>Linux x64</strong>
+                            <span>可执行文件，chmod +x 后运行</span>
+                        </span>
+                    </a>
+                </section>
+            </div>
+        </div>
+
+        <p class="dl-note">所有安装包都发布在 GitHub Releases，点击后前往对应页面下载。</p>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var KEY = 'nemo-site-theme';
+        var ORDER = ['system', 'light', 'dark'];
+        var GLYPH = {
+            system: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M12 2v2\"/><path d=\"M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715\"/><path d=\"M16 12a4 4 0 0 0-4-4\"/><path d=\"m19 5-1.256 1.256\"/><path d=\"M20 12h2\"/></svg>",
+            light: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2\"/><path d=\"M12 20v2\"/><path d=\"m4.93 4.93 1.41 1.41\"/><path d=\"m17.66 17.66 1.41 1.41\"/><path d=\"M2 12h2\"/><path d=\"M20 12h2\"/><path d=\"m6.34 17.66-1.41 1.41\"/><path d=\"m19.07 4.93-1.41 1.41\"/></svg>",
+            dark: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\"/></svg>"
+        };
+        var LABEL = { system: '跟随系统', light: '浅色', dark: '深色' };
+
+        function stored() {
+            try {
+                var value = localStorage.getItem(KEY);
+                return ORDER.indexOf(value) === -1 ? 'system' : value;
+            } catch (err) {
+                return 'system';
+            }
+        }
+
+        function isLight(mode) {
+            if (mode === 'light') return true;
+            if (mode === 'dark') return false;
+            return !(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        }
+
+        function apply(mode) {
+            var light = isLight(mode);
+            document.documentElement.classList.toggle('light', light);
+
+            var icon = document.getElementById('theme-icon');
+            if (icon) icon.innerHTML = GLYPH[mode] || GLYPH.system;
+
+            var button = document.getElementById('theme-toggle');
+            if (button) button.setAttribute('aria-label', '主题：' + (LABEL[mode] || LABEL.system) + '（点击切换）');
+
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', light ? '#ffffff' : '#000000');
+        }
+
+        apply(stored());
+
+        var toggle = document.getElementById('theme-toggle');
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                var next = ORDER[(ORDER.indexOf(stored()) + 1) % ORDER.length];
+                try {
+                    localStorage.setItem(KEY, next);
+                } catch (err) {}
+                apply(next);
+            });
+        }
+
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+                if (stored() === 'system') apply('system');
+            });
+        }
+    })();
+
+    (function () {
+        var modal = document.getElementById('dl-modal');
+        if (!modal) return;
+
+        var lastFocus = null;
+        var hideTimer = 0;
+
+        var tabs = Array.prototype.slice.call(modal.querySelectorAll('[data-dl-tab]'));
+        var panels = Array.prototype.slice.call(modal.querySelectorAll('[data-dl-panel]'));
+        var tabStrip = modal.querySelector('.dl-tabs');
+        var currentTab = 'nemo';
+
+        function selectTab(name, focusTab) {
+            currentTab = name;
+            if (tabStrip) tabStrip.setAttribute('data-active', name);
+
+            tabs.forEach(function (tab) {
+                var active = tab.getAttribute('data-dl-tab') === name;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+                tab.tabIndex = active ? 0 : -1;
+            });
+
+            panels.forEach(function (panel) {
+                panel.hidden = panel.getAttribute('data-dl-panel') !== name;
+            });
+
+            if (focusTab) {
+                for (var i = 0; i < tabs.length; i += 1) {
+                    if (tabs[i].getAttribute('data-dl-tab') === name) {
+                        tabs[i].focus();
+                        break;
+                    }
+                }
+            }
+        }
+
+        tabs.forEach(function (tab, index) {
+            tab.addEventListener('click', function () {
+                selectTab(tab.getAttribute('data-dl-tab'), false);
+            });
+
+            tab.addEventListener('keydown', function (event) {
+                if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+                event.preventDefault();
+                var step = event.key === 'ArrowRight' ? 1 : -1;
+                var next = (index + step + tabs.length) % tabs.length;
+                selectTab(tabs[next].getAttribute('data-dl-tab'), true);
+            });
+        });
+
+        if (tabs.length) selectTab(currentTab, false);
+
+        function openModal() {
+            lastFocus = document.activeElement;
+            window.clearTimeout(hideTimer);
+            modal.hidden = false;
+            document.documentElement.classList.add('dl-open');
+
+            window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(function () {
+                    modal.classList.add('is-open');
+                });
+            });
+
+            var activePanel = modal.querySelector('.dl-tab-panel:not([hidden])');
+            var target = (activePanel && activePanel.querySelector('.dl-item')) || modal.querySelector('.dl-close');
+            if (target && target.focus) target.focus();
+        }
+
+        function closeModal() {
+            if (modal.hidden || !modal.classList.contains('is-open')) return;
+            modal.classList.remove('is-open');
+            document.documentElement.classList.remove('dl-open');
+
+            hideTimer = window.setTimeout(function () {
+                modal.hidden = true;
+                if (lastFocus && lastFocus.focus) lastFocus.focus();
+            }, 340);
+        }
+
+        Array.prototype.forEach.call(document.querySelectorAll('[data-dl-open]'), function (button) {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                openModal();
+            });
+        });
+
+        modal.addEventListener('click', function (event) {
+            var closer = event.target.closest('[data-dl-close]');
+            if (closer) closeModal();
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeModal();
+        });
+    })();
+
+    (function () {
+        var bar = document.getElementById('scroll-progress');
+        var topbar = document.getElementById('topbar');
+
+        function update() {
+            if (bar) {
+                var doc = document.documentElement;
+                var total = doc.scrollHeight - window.innerHeight;
+                var ratio = total > 0 ? window.scrollY / total : 0;
+                bar.style.width = (Math.min(1, Math.max(0, ratio)) * 100).toFixed(2) + '%';
+            }
+            if (topbar) topbar.classList.toggle('is-scrolled', window.scrollY > 8);
+        }
+
+        var frame = 0;
+
+        function schedule() {
+            if (frame) return;
+            frame = window.requestAnimationFrame(function () {
+                frame = 0;
+                update();
+            });
+        }
+
+        window.addEventListener('scroll', schedule, { passive: true });
+        window.addEventListener('resize', schedule);
+        update();
+    })();
+
+    (function () {
+        var items = document.querySelectorAll('.reveal');
+        if (!items.length) return;
+
+        var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var hasObserver = 'IntersectionObserver' in window;
+
+        if (reduce || !hasObserver) {
+            Array.prototype.forEach.call(items, function (item) {
+                item.classList.add('in');
+            });
+            return;
+        }
+
+        var observer = null;
+        try {
+            observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    entry.target.classList.add('in');
+                    observer.unobserve(entry.target);
+                });
+            }, { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
+        } catch (err) {
+            observer = null;
+        }
+
+        if (!observer) {
+            Array.prototype.forEach.call(items, function (item) {
+                item.classList.add('in');
+            });
+            return;
+        }
+
+        Array.prototype.forEach.call(items, function (item) {
+            observer.observe(item);
+        });
+    })();
+</script>
+
+</body>
+</html>
