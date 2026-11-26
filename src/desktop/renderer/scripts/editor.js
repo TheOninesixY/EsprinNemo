@@ -53,25 +53,23 @@ container.querySelectorAll('a').forEach((link) => {
             rawHref.startsWith('mailto:') || rawHref.startsWith('#') || rawHref.startsWith('//')) {
             return;
         }
-        if (rawHref.includes('.')) {
-            link.onclick = (e) => {
-                e.preventDefault();
-                const curItem = getActiveItem();
-                if (!curItem) return;
-                const fullPath = resolveItemAssetPath(curItem.id, rawHref);
-                if (!fs.existsSync(fullPath)) {
-                    showToast('文件不存在: ' + rawHref);
-                    return;
+        link.onclick = (e) => {
+            e.preventDefault();
+            const curItem = getActiveItem();
+            if (!curItem) return;
+            const fullPath = resolveItemAssetPath(curItem.id, rawHref);
+            if (!fs.existsSync(fullPath)) {
+                showToast('文件不存在: ' + rawHref);
+                return;
+            }
+            ipcRenderer.invoke('assets:open-file', { path: rawHref, itemId: curItem.id }).then((res) => {
+                if (res && !res.ok && res.error) {
+                    showToast('打开附件失败: ' + res.error);
                 }
-                ipcRenderer.invoke('assets:open-file', { path: rawHref, itemId: curItem.id }).then((res) => {
-                    if (res && !res.ok && res.error) {
-                        showToast('打开附件失败: ' + res.error);
-                    }
-                }).catch(() => {
-                    showToast('打开附件失败');
-                });
-            };
-        }
+            }).catch(() => {
+                showToast('打开附件失败');
+            });
+        };
     });
 
     container.querySelectorAll('img').forEach((img) => {
@@ -80,11 +78,20 @@ container.querySelectorAll('a').forEach((link) => {
             src.startsWith('data:') || src.startsWith('file://')) {
             return;
         }
-        if (src.includes('.')) {
-            const fullPath = resolveItemAssetPath(itemId, src);
-            const normalized = fullPath.replace(/\\/g, '/');
-            img.src = normalized.startsWith('//') ? `file:${normalized}` : `file:///${normalized.replace(/^\/+/, '')}`;
+        const fullPath = resolveItemAssetPath(itemId, src);
+        const normalized = fullPath.replace(/\\/g, '/');
+        img.src = normalized.startsWith('//') ? `file:${normalized}` : `file:///${normalized.replace(/^\/+/, '')}`;
+    });
+
+    const taskLines = [];
+    let inFence = false;
+    String(item.content || '').split('\n').forEach((line, lineIndex) => {
+        if (/^\s*```/.test(line)) {
+            inFence = !inFence;
+            return;
         }
+        if (inFence) return;
+        if (/^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]\s+/.test(line)) taskLines.push(lineIndex);
     });
 
     container.querySelectorAll('input[type="checkbox"]').forEach((cb, idx) => {
@@ -93,15 +100,11 @@ container.querySelectorAll('a').forEach((link) => {
 
             const active = getActiveItem();
             if (!active || isReadOnlyItem(active)) return;
-            let curIdx = 0;
-            active.content = (active.content || '').replace(/(- \[ ]|- \[x])/gi, (match) => {
-                if (curIdx === idx) {
-                    curIdx++;
-                    return cb.checked ? '- [x]' : '- [ ]';
-                }
-                curIdx++;
-                return match;
-            });
+            const targetLine = taskLines[idx];
+            if (targetLine === undefined) return;
+            const lines = String(active.content || '').split('\n');
+            lines[targetLine] = lines[targetLine].replace(/\[ \]|\[[xX]\]/, cb.checked ? '[x]' : '[ ]');
+            active.content = lines.join('\n');
             document.getElementById('textarea-note-content').value = active.content;
             autoSaveActiveItem();
         };
@@ -153,7 +156,6 @@ function applyEditorReadOnly(item) {
 
     const titleInput = document.getElementById('input-note-title');
     const contentInput = document.getElementById('textarea-note-content');
-    const toolbar = document.getElementById('editor-toolbar');
     const folderSelect = document.getElementById('editor-folder-select');
     const addTagBtn = document.getElementById('btn-add-tag');
     const doneBtn = document.getElementById('btn-todo-done');
@@ -164,7 +166,7 @@ function applyEditorReadOnly(item) {
     addTagBtn.disabled = readOnly;
     if (doneBtn) doneBtn.disabled = readOnly;
 
-toolbar.classList.toggle('hidden', readOnly);
+applyEditorToolbarState();
 
     const saveStatus = document.getElementById('save-status');
     if (readOnly) {
@@ -189,6 +191,21 @@ function applySecretLockUI(item) {
     if (unlockBtn) unlockBtn.onclick = () => unlockItem(item.id);
 }
 
+function applyEditorToolbarState() {
+    const toolbar = document.getElementById('editor-toolbar');
+    if (!toolbar) return;
+    const item = getActiveItem();
+    const readOnly = !item || isReadOnlyItem(item);
+    const preview = State.viewMode === 'preview';
+    toolbar.classList.toggle('hidden', readOnly);
+    toolbar.querySelectorAll('.fmt-btn').forEach((btn) => {
+        btn.disabled = !readOnly && preview && btn.hasAttribute('data-fmt');
+    });
+    toolbar.querySelectorAll('select').forEach((select) => {
+        select.disabled = !readOnly && preview;
+    });
+}
+
 function updateViewModeUI() {
     const editPane = document.getElementById('editor-pane');
     const previewPane = document.getElementById('preview-pane');
@@ -207,34 +224,120 @@ function updateViewModeUI() {
         editPane.classList.add('hidden');
         previewPane.classList.remove('hidden');
     }
+
+    applyEditorToolbarState();
 }
 
 function formatMarkdown(type) {
     const textarea = document.getElementById('textarea-note-content');
-    if (textarea.readOnly) return;
+    if (!textarea || textarea.readOnly) return;
+    if (State.viewMode === 'preview') return;
+
+    const value = textarea.value;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const sel = textarea.value.substring(start, end);
-    let ins = '';
+    const selected = value.substring(start, end);
+    const hadSelection = end > start;
+
+    const applyEdit = (next, nextStart, nextEnd) => {
+        textarea.value = next;
+        textarea.focus();
+        textarea.setSelectionRange(nextStart, nextEnd);
+        autoSaveActiveItem();
+        flushRenderMarkdown();
+    };
+
+    const wrapInline = (prefix, suffix, placeholder) => {
+        const inner = hadSelection ? selected : placeholder;
+        const inserted = prefix + inner + suffix;
+        const next = value.substring(0, start) + inserted + value.substring(end);
+        const innerStart = start + prefix.length;
+        applyEdit(next, innerStart, innerStart + inner.length);
+    };
+
+    const stripMarker = (content) => content.replace(/^(?:#{1,6}[ \t]+|[-*+][ \t]+\[[ xX]\][ \t]+|[-*+][ \t]+|\d+[.)][ \t]+|>[ \t]?)/, '');
+
+    const applyLineFormat = (prefixFor) => {
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        let lineEnd = value.indexOf('\n', end);
+        if (lineEnd === -1) lineEnd = value.length;
+        const block = value.substring(lineStart, lineEnd);
+        let counter = 0;
+        const replaced = block.split('\n').map((line) => {
+            if (!line.trim()) return line;
+            const indentMatch = /^([ \t]*)([\s\S]*)$/.exec(line);
+            const prefix = prefixFor(counter);
+            counter += 1;
+            return indentMatch[1] + prefix + stripMarker(indentMatch[2]);
+        }).join('\n');
+        const next = value.substring(0, lineStart) + replaced + value.substring(lineEnd);
+        const blockEnd = lineStart + replaced.length;
+        applyEdit(next, hadSelection ? lineStart : blockEnd, blockEnd);
+    };
+
+    const insertLink = () => {
+        const label = hadSelection ? selected : '链接文本';
+        const url = 'https://';
+        const inserted = `[${label}](${url})`;
+        const next = value.substring(0, start) + inserted + value.substring(end);
+        if (hadSelection) {
+            const urlStart = start + label.length + 3;
+            applyEdit(next, urlStart, urlStart + url.length);
+        } else {
+            applyEdit(next, start + 1, start + 1 + label.length);
+        }
+    };
+
+    const insertCodeBlock = () => {
+        const body = hadSelection ? selected : '';
+        const before = start > 0 && value[start - 1] !== '\n' ? '\n' : '';
+        const after = end < value.length && value[end] !== '\n' ? '\n' : '';
+        const inserted = `${before}\`\`\`\n${body}\n\`\`\`${after}`;
+        const next = value.substring(0, start) + inserted + value.substring(end);
+        const bodyStart = start + before.length + 4;
+        applyEdit(next, bodyStart, bodyStart + body.length);
+    };
+
+    const insertTable = () => {
+        const table = '| 列 1 | 列 2 | 列 3 |\n| --- | --- | --- |\n|  |  |  |';
+        const before = start > 0 && value[start - 1] !== '\n' ? '\n' : '';
+        const after = end < value.length && value[end] !== '\n' ? '\n' : '';
+        const next = value.substring(0, start) + before + table + after + value.substring(end);
+        const caret = start + before.length + table.length;
+        applyEdit(next, caret, caret);
+    };
+
+    const insertRule = () => {
+        const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+        let lineEnd = value.indexOf('\n', end);
+        if (lineEnd === -1) lineEnd = value.length;
+        const lineEmpty = !value.substring(lineStart, lineEnd).trim();
+        const rule = lineEmpty ? '---' : '\n\n---';
+        const next = value.substring(0, lineEnd) + rule + value.substring(lineEnd);
+        const caret = lineEnd + rule.length;
+        applyEdit(next, caret, caret);
+    };
 
     switch (type) {
-        case 'bold': ins = `**${sel || '加粗文本'}**`; break;
-        case 'italic': ins = `*${sel || '斜体文本'}*`; break;
-        case 'h1': ins = `# ${sel || '一级标题'}`; break;
-        case 'h2': ins = `## ${sel || '二级标题'}`; break;
-        case 'h3': ins = `### ${sel || '三级标题'}`; break;
-        case 'ul': ins = `- ${sel || '列表项目'}`; break;
-        case 'ol': ins = `1. ${sel || '列表项目'}`; break;
-        case 'task': ins = `- [ ] ${sel || '待办项'}`; break;
-        case 'quote': ins = `> ${sel || '引用内容'}`; break;
-        case 'code': ins = `\`\`\`javascript\n${sel || '// 代码块'}\n\`\`\``; break;
-        case 'hr': ins = `\n---\n`; break;
+        case 'bold': wrapInline('**', '**', '加粗文本'); break;
+        case 'italic': wrapInline('*', '*', '斜体文本'); break;
+        case 'strike': wrapInline('~~', '~~', '删除文本'); break;
+        case 'inline-code': wrapInline('`', '`', '行内代码'); break;
+        case 'link': insertLink(); break;
+        case 'h1': applyLineFormat(() => '# '); break;
+        case 'h2': applyLineFormat(() => '## '); break;
+        case 'h3': applyLineFormat(() => '### '); break;
+        case 'h4': applyLineFormat(() => '#### '); break;
+        case 'h5': applyLineFormat(() => '##### '); break;
+        case 'h6': applyLineFormat(() => '###### '); break;
+        case 'ul': applyLineFormat(() => '- '); break;
+        case 'ol': applyLineFormat((index) => `${index + 1}. `); break;
+        case 'task': applyLineFormat(() => '- [ ] '); break;
+        case 'quote': applyLineFormat(() => '> '); break;
+        case 'code': insertCodeBlock(); break;
+        case 'table': insertTable(); break;
+        case 'hr': insertRule(); break;
     }
-
-    textarea.value = textarea.value.substring(0, start) + ins + textarea.value.substring(end);
-    textarea.focus();
-    autoSaveActiveItem();
-    flushRenderMarkdown();
 }
 
 const IMAGE_EXT_LIST = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico'];
@@ -264,8 +367,21 @@ function resolveUniqueFileName(itemId, baseName) {
     return name;
 }
 
-function saveAssetFile(sourcePath, buffer = null, originalName = '') {
+function ensureActiveItemCommitted() {
     const item = getActiveItem();
+    if (!item) return null;
+    if (!isDraftId(item.id)) return item;
+
+    flushPendingSave();
+    const stillDraft = getDraft(item.id);
+    const committed = stillDraft ? commitDraft(item.id, { force: true }) : null;
+    if (stillDraft && !committed) return null;
+    renderApp();
+    return getItemById(committed ? committed.id : State.activeNoteId);
+}
+
+function saveAssetFile(sourcePath, buffer = null, originalName = '') {
+    const item = ensureActiveItemCommitted();
     if (!item) return null;
     const itemId = item.id;
     const dir = ensureItemAssetsDir(itemId);
@@ -315,12 +431,12 @@ function insertAssetReferences(assetList) {
 }
 
 async function pickAndInsertAssets() {
-    const item = getActiveItem();
-    if (!item) {
+    const active = getActiveItem();
+    if (!active) {
         showToast('请先打开或新建一篇笔记');
         return;
     }
-    if (isReadOnlyItem(item)) {
+    if (isReadOnlyItem(active)) {
         showToast('废纸篓中的内容为只读');
         return;
     }
@@ -329,7 +445,7 @@ async function pickAndInsertAssets() {
     try {
         picked = await ipcRenderer.invoke('assets:pick-files');
     } catch (err) {
-        console.error('打开文件选择对话框失败:', err);
+        console.error('[Desktop:ERROR] 打开文件选择对话框失败:', err);
         showToast('打开文件选择对话框失败');
         return;
     }
@@ -341,7 +457,7 @@ async function pickAndInsertAssets() {
             const asset = saveAssetFile(filePath);
             if (asset) saved.push(asset);
         } catch (err) {
-            console.error('保存附件失败:', filePath, err);
+            console.error('[Desktop:ERROR] 保存附件失败:', filePath, err);
         }
     });
 
@@ -461,8 +577,8 @@ function renderFileManager() {
         });
 
         const icon = document.createElement('span');
-        icon.className = 'ms-icon sm fm-file-icon';
-        icon.textContent = isImageFileName(file.name) ? 'image' : 'description';
+        icon.className = 'icon sm fm-file-icon';
+        setLucideIcon(icon, isImageFileName(file.name) ? 'image' : 'file-text');
 
         const info = document.createElement('div');
         info.className = 'fm-file-info';
@@ -485,19 +601,19 @@ function renderFileManager() {
         const renameBtn = document.createElement('button');
         renameBtn.className = 'btn-action-icon fm-file-action';
         renameBtn.title = '重命名';
-        renameBtn.innerHTML = '<span class="ms-icon xs">edit</span>';
+        renameBtn.innerHTML = '<span class="icon xs" data-lucide="pencil" aria-hidden="true"></span>';
         renameBtn.onclick = () => promptRenameItemFile(item, file.name);
 
         const downloadBtn = document.createElement('button');
         downloadBtn.className = 'btn-action-icon fm-file-action';
         downloadBtn.title = '下载/另存为';
-        downloadBtn.innerHTML = '<span class="ms-icon xs">download</span>';
+        downloadBtn.innerHTML = '<span class="icon xs" data-lucide="download" aria-hidden="true"></span>';
         downloadBtn.onclick = () => downloadItemFile(item.id, file.name);
 
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'btn-action-icon fm-file-action fm-file-action-danger';
         deleteBtn.title = '删除';
-        deleteBtn.innerHTML = '<span class="ms-icon xs">delete</span>';
+        deleteBtn.innerHTML = '<span class="icon xs" data-lucide="trash-2" aria-hidden="true"></span>';
         deleteBtn.onclick = () => confirmDeleteItemFile(item, file.name);
 
         actions.appendChild(renameBtn);
@@ -526,7 +642,7 @@ async function downloadItemFile(itemId, filename) {
             showToast(`下载失败: ${result.error}`);
         }
     } catch (err) {
-        console.error('下载文件失败:', err);
+        console.error('[Desktop:ERROR] 下载文件失败:', err);
         showToast('下载文件失败');
     }
 }
@@ -549,7 +665,7 @@ function deleteItemFile(item, filename) {
         renderFileManager();
         showToast(`已删除「${filename}」`);
     } catch (err) {
-        console.error('删除文件失败:', err);
+        console.error('[Desktop:ERROR] 删除文件失败:', err);
         showToast('删除文件失败');
     }
 }
@@ -595,7 +711,7 @@ function renameItemFile(item, oldName, newName) {
         renderFileManager();
         showToast(`已重命名为「${newName}」`);
     } catch (err) {
-        console.error('重命名文件失败:', err);
+        console.error('[Desktop:ERROR] 重命名文件失败:', err);
         showToast('重命名文件失败');
     }
 }

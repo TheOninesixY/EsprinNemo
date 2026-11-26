@@ -88,7 +88,7 @@ function applyLinuxAutoStart(enabled) {
     }
     return { supported: true, enabled: readLinuxActual(), error: '' };
   } catch (error) {
-    console.error('[ERROR] [Nemo] 写入开机自启文件失败:', error);
+    console.error('[Desktop:ERROR] 写入开机自启文件失败:', error);
     return { supported: true, enabled: readLinuxActual(), error: describeError(error) };
   }
 }
@@ -99,7 +99,7 @@ function readActual() {
     const settings = app.getLoginItemSettings(launchOptions());
     return !!(settings && settings.openAtLogin);
   } catch (error) {
-    console.error('[EsprinNemo] 读取开机自启状态失败:', error);
+    console.error('[Desktop:ERROR] 读取开机自启状态失败:', error);
     return false;
   }
 }
@@ -109,7 +109,7 @@ function readConfigured() {
     const config = readUserConfig();
     if (config && typeof config === 'object') return config.autoLaunch === true;
   } catch (error) {
-    console.error('[EsprinNemo] 读取开机自启设置失败:', error);
+    console.error('[Desktop:ERROR] 读取开机自启设置失败:', error);
   }
   return false;
 }
@@ -129,7 +129,7 @@ function applyAutoLaunch(enabled) {
   try {
     app.setLoginItemSettings({ openAtLogin: !!enabled, ...launchOptions() });
   } catch (error) {
-    console.error('[EsprinNemo] 设置开机自启失败:', error);
+    console.error('[Desktop:ERROR] 设置开机自启失败:', error);
     return { supported: true, enabled: readActual(), error: describeError(error) };
   }
 

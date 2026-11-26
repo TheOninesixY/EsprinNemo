@@ -18,7 +18,7 @@ function aiAttachmentFileUrl(file) {
     try {
         return require('url').pathToFileURL(resolveAiAttachmentPath(name)).href;
     } catch (err) {
-        console.error('生成附件地址失败:', err);
+        console.error('[Desktop:ERROR] 生成附件地址失败:', err);
         return '';
     }
 }
@@ -32,8 +32,8 @@ function formatAiFileSize(bytes) {
 
 function aiAttachmentIcon(kind) {
     const icon = document.createElement('span');
-    icon.className = 'ms-icon sm';
-    icon.textContent = kind === 'image' ? 'image' : 'description';
+    icon.className = 'icon sm';
+    setLucideIcon(icon, kind === 'image' ? 'image' : 'file-text');
     return icon;
 }
 
@@ -42,7 +42,7 @@ async function importAiAttachments(payload) {
     try {
         result = await ipcRenderer.invoke('ai:import-attachments', payload);
     } catch (err) {
-        console.error('导入附件失败:', err);
+        console.error('[Desktop:ERROR] 导入附件失败:', err);
         showToast('导入附件失败');
         return;
     }
@@ -78,7 +78,7 @@ async function pickAiAttachments() {
     try {
         picked = await ipcRenderer.invoke('ai:pick-attachments');
     } catch (err) {
-        console.error('打开文件选择框失败:', err);
+        console.error('[Desktop:ERROR] 打开文件选择框失败:', err);
         showToast('打开文件选择框失败');
         return;
     }
@@ -140,7 +140,7 @@ async function importAiAttachmentsFromFiles(files) {
                 data: new Uint8Array(buffer)
             });
         } catch (err) {
-            console.error('读取拖入文件失败:', err);
+            console.error('[Desktop:ERROR] 读取拖入文件失败:', err);
             skipped++;
         }
     }
@@ -218,7 +218,7 @@ function createAiAttachmentChip(file, options = {}) {
         removeBtn.type = 'button';
         removeBtn.className = 'ai-attach-remove';
         removeBtn.title = '移除附件';
-        removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
+        removeBtn.innerHTML = '<span class="icon xs" data-lucide="x" aria-hidden="true"></span>';
         removeBtn.onclick = options.onRemove;
         chip.appendChild(removeBtn);
     }
@@ -245,7 +245,7 @@ function releaseAiAttachments(messages) {
     if (!files.length) return;
 
     ipcRenderer.invoke('ai:delete-attachments', { files }).catch((err) => {
-        console.error('清理 AI 附件失败:', err);
+        console.error('[Desktop:ERROR] 清理 AI 附件失败:', err);
     });
 }
 

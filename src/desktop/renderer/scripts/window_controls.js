@@ -75,7 +75,7 @@ async function refreshWindowControlsState() {
         const snapshot = await ipcRenderer.invoke('window:get-controls');
         applyWindowControlsState(snapshot);
     } catch (err) {
-        console.error('读取窗口控件设置失败:', err);
+        console.error('[Desktop:ERROR] 读取窗口控件设置失败:', err);
     }
 }
 
@@ -85,7 +85,7 @@ async function setWindowControlsStyle(style) {
         applyWindowControlsState(snapshot);
         showToast(snapshot.style === 'mac' ? '窗口控件已切换为 macOS 原生红绿灯' : '窗口控件已切换为原有 Windows 样式');
     } catch (err) {
-        console.error('切换窗口控件失败:', err);
+        console.error('[Desktop:ERROR] 切换窗口控件失败:', err);
         showToast('切换窗口控件失败');
     }
 }
@@ -100,6 +100,15 @@ function initWindowControls() {
     const closeBtn = document.getElementById('win-close');
     if (closeBtn) closeBtn.onclick = winControls.close;
 
+    const settingsMinBtn = document.getElementById('settings-win-min');
+    if (settingsMinBtn) settingsMinBtn.onclick = winControls.min;
+
+    const settingsMaxBtn = document.getElementById('settings-win-max');
+    if (settingsMaxBtn) settingsMaxBtn.onclick = winControls.max;
+
+    const settingsCloseBtn = document.getElementById('settings-win-close');
+    if (settingsCloseBtn) settingsCloseBtn.onclick = winControls.close;
+
     const select = document.getElementById('setting-window-controls');
     if (select) select.onchange = (event) => setWindowControlsStyle(event.target.value);
 
@@ -111,7 +120,7 @@ async function openScratchpadWindow() {
     try {
         return await ipcRenderer.invoke('scratchpad:toggle');
     } catch (err) {
-        console.error('打开小本本失败:', err);
+        console.error('[Desktop:ERROR] 打开小本本失败:', err);
         showToast('打开小本本失败');
         return false;
     }
@@ -125,14 +134,14 @@ function removeDesktopFullscreenButton() {
 function updateFullscreenState(isFullscreen) {
     if (isFullscreen) {
         document.body.classList.add('is-fullscreen');
-        const fsIcon = document.querySelector('#btn-fullscreen .ms-icon');
-        if (fsIcon) fsIcon.textContent = 'fullscreen_exit';
+        const fsIcon = document.querySelector('#btn-fullscreen .icon');
+        if (fsIcon) setLucideIcon(fsIcon, 'minimize');
         const fsBtn = document.getElementById('btn-fullscreen');
         if (fsBtn) fsBtn.title = '退出全屏';
     } else {
         document.body.classList.remove('is-fullscreen');
-        const fsIcon = document.querySelector('#btn-fullscreen .ms-icon');
-        if (fsIcon) fsIcon.textContent = 'fullscreen';
+        const fsIcon = document.querySelector('#btn-fullscreen .icon');
+        if (fsIcon) setLucideIcon(fsIcon, 'maximize');
         const fsBtn = document.getElementById('btn-fullscreen');
         if (fsBtn) fsBtn.title = '全屏';
     }
@@ -154,6 +163,16 @@ const appTitlebar = document.getElementById('app-titlebar');
 if (appTitlebar) {
     appTitlebar.ondblclick = (e) => {
         if (document.body.classList.contains('is-fullscreen')) return;
+        if (windowControlsState.native) return;
+        if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;
+
+        winControls.max();
+    };
+}
+
+const settingsWindowBar = document.getElementById('settings-window-bar');
+if (settingsWindowBar) {
+    settingsWindowBar.ondblclick = (e) => {
         if (windowControlsState.native) return;
         if (e.target.closest('button') || e.target.closest('input') || e.target.closest('label')) return;
 

@@ -125,7 +125,7 @@ async function refreshSyncStatus() {
     try {
         applySyncStatus(await ipcRenderer.invoke('sync:status'));
     } catch (err) {
-        console.error('读取同步状态失败:', err);
+        console.error('[Desktop:ERROR] 读取同步状态失败:', err);
     }
 }
 
@@ -133,7 +133,7 @@ async function syncSyncAutoSetting() {
     try {
         applySyncStatus(await ipcRenderer.invoke('sync:apply-auto-sync'));
     } catch (err) {
-        console.error('应用同步设置失败:', err);
+        console.error('[Desktop:ERROR] 应用同步设置失败:', err);
     }
 }
 
@@ -155,7 +155,7 @@ function copySyncDeviceId() {
         require('electron').clipboard.writeText(value);
         showToast('已复制设备 ID');
     } catch (err) {
-        console.error('复制设备 ID 失败:', err);
+        console.error('[Desktop:ERROR] 复制设备 ID 失败:', err);
         showToast('复制失败');
     }
 }
@@ -189,7 +189,7 @@ async function refillRecycledIds(kind = '', retry = true) {
             .map((item) => ({ id: String(item.id), kind: String(item.kind || '') }));
         if (ids.length) recycledIdPool = ids;
     } catch (err) {
-        console.error('领取可复用 ID 失败:', err);
+        console.error('[Desktop:ERROR] 领取可复用 ID 失败:', err);
     } finally {
         recycledRefillPending = false;
     }
@@ -256,7 +256,7 @@ async function refreshSyncTokenStatus() {
     try {
         applySyncTokenStatus(await ipcRenderer.invoke('sync:token-status'));
     } catch (err) {
-        console.error('读取同步令牌状态失败:', err);
+        console.error('[Desktop:ERROR] 读取同步令牌状态失败:', err);
     }
 }
 
@@ -280,7 +280,7 @@ async function commitSyncTokenFromForm() {
         showToast('同步令牌已保存');
         return true;
     } catch (err) {
-        console.error('保存同步令牌失败:', err);
+        console.error('[Desktop:ERROR] 保存同步令牌失败:', err);
         setSyncStatus('保存令牌失败：与主进程通信异常，请重试', 'error');
         return false;
     }
@@ -305,7 +305,7 @@ async function clearSyncToken() {
         refreshSyncStatus();
         showToast('同步令牌已清除');
     } catch (err) {
-        console.error('清除同步令牌失败:', err);
+        console.error('[Desktop:ERROR] 清除同步令牌失败:', err);
         setSyncStatus('清除令牌失败：与主进程通信异常，请重试', 'error');
     }
 }
@@ -381,7 +381,7 @@ if (State.syncTokenSaved) {
         setSyncStatus(`已登录账户「${name}」，访问令牌已生成并保存；若该账户在服务端还没有数据，可接着点「首次接入」。`, 'ok');
         showToast('已登录并保存访问令牌');
     } catch (err) {
-        console.error('账户登录失败:', err);
+        console.error('[Desktop:ERROR] 账户登录失败:', err);
         setSyncStatus('登录失败：与主进程通信异常，请重试', 'error');
     } finally {
         setSyncBusy(false);
@@ -428,7 +428,7 @@ const tokenInput = document.getElementById('setting-sync-token');
         tokenInput.type = 'password';
     }
     const tokenToggle = document.getElementById('btn-sync-token-toggle');
-    if (tokenToggle) tokenToggle.innerHTML = '<span class="ms-icon xs">visibility</span>';
+    if (tokenToggle) tokenToggle.innerHTML = '<span class="icon xs" data-lucide="eye" aria-hidden="true"></span>';
 
 const passwordInput = document.getElementById('setting-sync-password');
     if (passwordInput) passwordInput.value = '';
@@ -500,7 +500,7 @@ async function testSyncConnection() {
             + `服务端已有 ${result.fileCount} 个文件${result.deletedCount ? `、${result.deletedCount} 条删除记录` : ''}。`, 'ok');
         showToast('同步服务器连接正常');
     } catch (err) {
-        console.error('测试同步连接失败:', err);
+        console.error('[Desktop:ERROR] 测试同步连接失败:', err);
         setSyncStatus('连接失败：请检查服务器地址与网络', 'error');
     } finally {
         setSyncBusy(false);
@@ -530,6 +530,7 @@ async function runSyncNow() {
 
 if (result.written || result.deleted) {
             adoptDataDir(DATA_DIR, { message: result.summary });
+            ipcRenderer.send('settings:data-changed');
         }
         const resetNote = result.journalReset
             ? '服务端日志已更换（序号从头开始），本轮已重新完整重放。'
@@ -537,7 +538,7 @@ if (result.written || result.deleted) {
         setSyncStatus(`${result.summary}（已应用到序号 ${result.lastSeq}）${resetNote}`, 'ok');
         showToast(result.summary);
     } catch (err) {
-        console.error('同步失败:', err);
+        console.error('[Desktop:ERROR] 同步失败:', err);
         setSyncStatus('同步失败，请检查服务器地址与网络', 'error');
     } finally {
         setSyncBusy(false);
@@ -576,10 +577,11 @@ async function importFromServer() {
             return;
         }
         adoptDataDir(DATA_DIR, { message: result.summary });
+        ipcRenderer.send('settings:data-changed');
         setSyncStatus(`${result.summary}（重放 ${result.pulled} 条，推送 ${result.pushed} 个本地文件）`, 'ok');
         showToast(result.summary);
     } catch (err) {
-        console.error('首次接入失败:', err);
+        console.error('[Desktop:ERROR] 首次接入失败:', err);
         setSyncStatus('接入失败，请检查服务器地址与网络', 'error');
     } finally {
         setSyncBusy(false);
@@ -605,7 +607,7 @@ async function runSyncDiagnose() {
             : '诊断报告已生成，但没能写入文件（配置目录不可用）', 'ok');
         showToast('同步诊断报告已生成');
     } catch (err) {
-        console.error('生成同步诊断报告失败:', err);
+        console.error('[Desktop:ERROR] 生成同步诊断报告失败:', err);
         setSyncStatus('生成诊断报告失败：与主进程通信异常，请重试', 'error');
     } finally {
         setSyncBusy(false);
@@ -614,7 +616,7 @@ async function runSyncDiagnose() {
 
 function openSyncServerRepo() {
     ipcRenderer.invoke('app:open-external', 'serverRepo').catch((err) => {
-        console.error('打开服务端项目主页失败:', err);
+        console.error('[Desktop:ERROR] 打开服务端项目主页失败:', err);
     });
 }
 
@@ -655,7 +657,7 @@ const tokenInput = document.getElementById('setting-sync-token');
             const input = document.getElementById('setting-sync-token');
             const reveal = input.type === 'password';
             input.type = reveal ? 'text' : 'password';
-            tokenToggle.innerHTML = `<span class="ms-icon xs">${reveal ? 'visibility_off' : 'visibility'}</span>`;
+            tokenToggle.innerHTML = `<span class="icon xs" data-lucide="${reveal ? 'eye-off' : 'eye'}" aria-hidden="true"></span>`;
         };
     }
 

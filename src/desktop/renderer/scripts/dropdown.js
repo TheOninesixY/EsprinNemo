@@ -14,6 +14,52 @@ function customSelectOptions(entry) {
     return Array.from(entry.menu.querySelectorAll('.dropdown-option')).filter((option) => !option.disabled);
 }
 
+function usesNativeMenu() {
+    return typeof nativeMenuBridge !== 'undefined' && !!nativeMenuBridge && nativeMenuBridge.isMac;
+}
+
+function nativeOptionEntry(option) {
+    const label = (option.textContent || '').trim();
+    if (!label) return null;
+    return {
+        action: String(option.value),
+        label,
+        disabled: !!option.disabled
+    };
+}
+
+function nativeSelectEntries(entry) {
+    const entries = [];
+    Array.from(entry.select.children).forEach((child) => {
+        if (child.tagName === 'OPTGROUP') {
+            const items = Array.from(child.children)
+                .filter((option) => option.tagName === 'OPTION' && !option.hasAttribute('data-placeholder'))
+                .map(nativeOptionEntry)
+                .filter(Boolean);
+            if (items.length) entries.push({ type: 'submenu', label: child.label || '…', items });
+            return;
+        }
+        if (child.tagName !== 'OPTION' || child.hasAttribute('data-placeholder')) return;
+        const option = nativeOptionEntry(child);
+        if (option) entries.push(option);
+    });
+    return entries;
+}
+
+let nativeMenuOpening = false;
+
+function openNativeSelect(entry) {
+    if (nativeMenuOpening) return;
+    const entries = nativeSelectEntries(entry);
+    if (!entries.length) return;
+    nativeMenuOpening = true;
+    nativeMenuBridge.popup(entries).then((action) => {
+        if (typeof action === 'string') chooseCustomSelectValue(entry, action);
+    }).catch(() => {}).finally(() => {
+        nativeMenuOpening = false;
+    });
+}
+
 function createCustomSelectOption(entry, option) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -28,8 +74,8 @@ const text = document.createElement('span');
     text.textContent = (option.textContent || '').trim();
 
     const check = document.createElement('span');
-    check.className = 'ms-icon xs dropdown-check';
-    check.textContent = 'check';
+    check.className = 'icon xs dropdown-check';
+    setLucideIcon(check, 'check');
 
     button.append(text, check);
     button.onclick = () => chooseCustomSelectValue(entry, option.value);
@@ -46,11 +92,13 @@ function buildCustomSelectMenu(entry) {
             groupLabel.textContent = child.label || '';
             menu.appendChild(groupLabel);
             Array.from(child.children).forEach((option) => {
+                if (option.hasAttribute('data-placeholder')) return;
                 menu.appendChild(createCustomSelectOption(entry, option));
             });
             return;
         }
         if (child.tagName === 'OPTION') {
+            if (child.hasAttribute('data-placeholder')) return;
             menu.appendChild(createCustomSelectOption(entry, child));
         }
     });
@@ -173,6 +221,14 @@ function confirmCustomSelectValue(entry, options) {
 }
 
 function handleCustomSelectKeydown(entry, event) {
+    if (usesNativeMenu()) {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            openNativeSelect(entry);
+        }
+        return;
+    }
+
     const isOpen = activeCustomSelect === entry;
     const options = customSelectOptions(entry);
 
@@ -237,8 +293,8 @@ const trigger = document.createElement('button');
     const label = document.createElement('span');
     label.className = 'dropdown-label';
     const arrow = document.createElement('span');
-    arrow.className = 'ms-icon xs dropdown-arrow';
-    arrow.textContent = 'expand_more';
+    arrow.className = 'icon xs dropdown-arrow';
+    setLucideIcon(arrow, 'chevron-down');
     trigger.append(label, arrow);
 
     const menu = document.createElement('div');
@@ -258,6 +314,10 @@ select.dataset.customDropdown = '1';
 
     trigger.addEventListener('click', (event) => {
         event.preventDefault();
+        if (usesNativeMenu()) {
+            openNativeSelect(entry);
+            return;
+        }
         toggleCustomSelect(entry);
     });
     trigger.addEventListener('keydown', (event) => handleCustomSelectKeydown(entry, event));

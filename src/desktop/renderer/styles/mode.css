@@ -329,10 +329,6 @@ html.settings-open {
     --modern-drag-top: 0px;
 }
 
-html.settings-open .tabs-back {
-    display: none !important;
-}
-
 /* 打开设置时不显示标签 */
 html.modern-layout.settings-open .app-chrome > .topbar .workspace-tabs {
     display: none;
@@ -404,80 +400,6 @@ html.modern-layout .workspace-tabs.tabs-fade-right {
     --tabs-fade: 32px;
 }
 
-html.modern-layout .workspace-tabs-bar:has(#editor-topbar) .workspace-tabs,
-html.modern-layout .app-chrome:has(#editor-topbar:not(.hidden)) .workspace-tabs {
-    -webkit-mask-image: linear-gradient(to right,
-        transparent calc(var(--tabs-back-slot) - 6px),
-        #000 calc(var(--tabs-back-slot) - 6px + var(--tabs-fade-left)),
-        #000 calc(100% - var(--tabs-fade)),
-        transparent 100%);
-    mask-image: linear-gradient(to right,
-        transparent calc(var(--tabs-back-slot) - 6px),
-        #000 calc(var(--tabs-back-slot) - 6px + var(--tabs-fade-left)),
-        #000 calc(100% - var(--tabs-fade)),
-        transparent 100%);
-}
-
-html.modern-layout {
-    --tabs-back-slot: 40px;
-}
-.tabs-back {
-    display: none;
-}
-
-.tabs-back .tabs-back-icon-home {
-    display: none;
-}
-html.modern-layout:not(.tabs-disabled) .tabs-back .tabs-back-icon-back {
-    display: none;
-}
-html.modern-layout:not(.tabs-disabled) .tabs-back .tabs-back-icon-home {
-    display: inline-flex;
-}
-html.modern-layout .tabs-back {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    /* 按钮 5~35，图标中心 20 —— 正好是 40px 标题栏的垂直中线 */
-    top: 5px;
-    left: 5px;
-    width: 30px;
-    height: 30px;
-    box-sizing: border-box;
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-
-    opacity: 0;
-    transform: translateX(-6px);
-    pointer-events: none;
-
-    z-index: 13;
-    -webkit-app-region: no-drag;
-    transition: opacity var(--motion-base) var(--ease-out),
-                transform var(--motion-base) var(--ease-out),
-                background-color 0.15s, color 0.15s;
-}
-
-/* no-drag 不会自动继承给子元素，图标也要显式声明，否则点图标时会被标题栏拖拽区吃掉 */
-html.modern-layout .tabs-back * {
-    -webkit-app-region: no-drag;
-}
-html.modern-layout .tabs-back:hover {
-    background-color: var(--item-hover);
-    color: var(--text-primary);
-}
-
-html.modern-layout .app-chrome:has(#editor-topbar:not(.hidden)):has(#workspace-tabs:not(:empty)) .tabs-back,
-html.modern-layout.tabs-disabled .app-chrome:has(#editor-topbar:not(.hidden)) .tabs-back {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-}
-html.modern-layout .app-chrome:has(#editor-topbar:not(.hidden)) .workspace-tabs {
-    padding-left: var(--tabs-back-slot);
-}
-
 html.modern-layout .notes-panel-header {
     min-height: 40px;
     justify-content: space-between;
@@ -491,13 +413,14 @@ html.modern-layout .editor-meta,
 html.modern-layout .editor-actions,
 html.modern-layout .editor-toolbar,
 html.modern-layout .notes-panel-header,
-html.modern-layout .settings-sidebar {
+html.modern-layout .settings-window-drag {
     -webkit-app-region: drag;
 }
 
 html.modern-layout .editor-meta > *,
 html.modern-layout .editor-actions > *,
 html.modern-layout .editor-toolbar > *,
+html.modern-layout .editor-toolbar .dropdown-trigger,
 html.modern-layout .notes-panel-header .search-box,
 html.modern-layout .notes-panel-header .dropdown,
 html.modern-layout .notes-panel-header .filter-drawer,
@@ -524,22 +447,12 @@ html.modern-layout .settings-view {
     flex-direction: column;
 }
 
-/* 设置页在桌面端不要那条「设置 / 分类」的标题栏，直接从内容开始（web 模式仍保留） */
-html.modern-layout.desktop-runtime .settings-view > .settings-topbar {
-    display: none;
-}
-
-html.modern-layout .settings-topbar {
-    -webkit-app-region: no-drag;
-    padding-right: 0;
-}
-
-html.modern-layout .settings-topbar-drag {
-    display: block;
-    flex: 1;
-    align-self: stretch;
-    min-width: 0;
+html.modern-layout .settings-sidebar {
     -webkit-app-region: drag;
+}
+
+html.modern-layout .settings-main {
+    min-width: 0;
 }
 
 html.modern-layout .settings-view .settings-content {
@@ -552,11 +465,6 @@ html.modern-layout .workspace-tabs-divider {
 
 html.modern-layout .editor-topbar {
     padding: 0 8px;
-}
-
-html.modern-layout.tabs-disabled .editor-topbar {
-    padding-left: var(--tabs-back-slot);
-    transition: padding-left var(--motion-base) var(--ease-out);
 }
 
 html.modern-layout .ai-panel-drag-strip {
@@ -576,9 +484,7 @@ html.modern-layout .app-body:has(#ai-panel:not(.hidden):not(.ai-collapsed)) .emp
 }
 
 @media (prefers-reduced-motion: reduce) {
-    html.modern-layout .workspace-tabs,
-    html.modern-layout .tabs-back,
-    html.modern-layout.tabs-disabled .editor-topbar {
+    html.modern-layout .workspace-tabs {
         transition: none !important;
     }
 }

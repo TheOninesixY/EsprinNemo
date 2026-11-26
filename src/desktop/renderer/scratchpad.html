@@ -22,7 +22,6 @@
 
     <script src="./window_appearance.js"></script>
     <script>window.applyWindowAppearance(window.readWindowAppearanceFromArgs());</script>
-    <link rel="stylesheet" href="../../../node_modules/material-symbols/rounded.css">
 
     <link rel="stylesheet" href="./styles/tokens.css">
     <link rel="stylesheet" href="./styles/window_shell.css">
@@ -172,7 +171,7 @@
             cursor: default;
         }
         #note-binding.bound { color: var(--accent); }
-        #note-binding .ms-icon { font-size: 12px; }
+        #note-binding .icon { font-size: 12px; }
 
 .picker {
             position: absolute;
@@ -274,22 +273,22 @@
 <body>
     <div class="note-container">
         <header class="titlebar" id="note-titlebar">
-            <span class="ms-icon titlebar-icon">sticky_note_2</span>
+            <span class="icon titlebar-icon" data-lucide="sticky-note" aria-hidden="true"></span>
             <input type="text" id="note-title" placeholder="标题" spellcheck="false">
             <div class="note-actions">
                 <button class="btn-action-icon" id="note-select" title="选择笔记（Ctrl+O）">
-                    <span class="ms-icon sm">library_books</span>
+                    <span class="icon sm" data-lucide="library-big" aria-hidden="true"></span>
                 </button>
                 <button class="btn-action-icon" id="note-save" title="保存（Ctrl+S）">
-                    <span class="ms-icon sm">save</span>
+                    <span class="icon sm" data-lucide="save" aria-hidden="true"></span>
                 </button>
             </div>
             <div class="window-controls">
                 <button class="win-btn" id="note-min" title="最小化">
-                    <span class="ms-icon xs">remove</span>
+                    <span class="icon xs" data-lucide="minus" aria-hidden="true"></span>
                 </button>
                 <button class="win-btn close" id="note-close" title="关闭">
-                    <span class="ms-icon xs">close</span>
+                    <span class="icon xs" data-lucide="x" aria-hidden="true"></span>
                 </button>
             </div>
         </header>
@@ -307,10 +306,10 @@
 
 <div class="picker hidden" id="picker">
                 <div class="picker-head">
-                    <span class="ms-icon xs">search</span>
+                    <span class="icon xs" data-lucide="search" aria-hidden="true"></span>
                     <input type="text" id="picker-search" placeholder="搜索笔记…" spellcheck="false">
                     <button class="picker-close" id="picker-close" title="关闭">
-                        <span class="ms-icon xs">close</span>
+                        <span class="icon xs" data-lucide="x" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="picker-list" id="picker-list"></div>
@@ -318,6 +317,8 @@
         </div>
     </div>
 
+    <script src="../../../node_modules/lucide/dist/umd/lucide.min.js"></script>
+    <script src="./scripts/icons.js"></script>
     <script>
         const { ipcRenderer } = require('electron');
 
@@ -355,8 +356,8 @@ let boundNoteId = '';
 
 function updateBinding() {
             const icon = document.createElement('span');
-            icon.className = 'ms-icon xs';
-            icon.textContent = boundNoteId ? 'link' : 'link_off';
+            icon.className = 'icon xs';
+            setLucideIcon(icon, boundNoteId ? 'link' : 'unlink');
 
             const label = document.createElement('span');
             label.textContent = boundNoteId ? '已关联笔记' : '未关联';
@@ -490,7 +491,7 @@ async function confirmDiscardUnsaved() {
 
             const result = await ipcRenderer.invoke('dialog:message', {
                 type: 'question',
-                icon: 'help',
+                icon: 'circle-help',
                 title: '小本本',
                 message: '小本本里还有内容没成为笔记',
                 detail: '继续打开其它笔记会丢掉这些内容。也可以先返回，用保存（Ctrl+S）把它们新建为一篇笔记。',
@@ -518,8 +519,8 @@ async function confirmDiscardUnsaved() {
             el.className = 'picker-item action';
 
             const iconEl = document.createElement('span');
-            iconEl.className = 'ms-icon xs';
-            iconEl.textContent = icon;
+            iconEl.className = 'icon xs';
+            setLucideIcon(iconEl, icon);
 
             const textEl = document.createElement('span');
             textEl.className = 'picker-item-text';
@@ -532,9 +533,9 @@ async function confirmDiscardUnsaved() {
 
         function renderPickerList(keyword) {
             pickerListEl.innerHTML = '';
-            pickerListEl.appendChild(pickerAction('用当前内容新建笔记', 'add', createFromPicker));
+            pickerListEl.appendChild(pickerAction('用当前内容新建笔记', 'plus', createFromPicker));
             if (boundNoteId) {
-                pickerListEl.appendChild(pickerAction('取消关联，回到空白小本本', 'link_off', () => {
+                pickerListEl.appendChild(pickerAction('取消关联，回到空白小本本', 'unlink', () => {
                     closePicker();
                     unbind();
                 }));
@@ -563,8 +564,8 @@ async function confirmDiscardUnsaved() {
                 el.className = 'picker-item' + (note.id === boundNoteId ? ' current' : '');
 
                 const iconEl = document.createElement('span');
-                iconEl.className = note.isPinned ? 'ms-icon xs fill' : 'ms-icon xs';
-                iconEl.textContent = note.isPinned ? 'push_pin' : 'description';
+                iconEl.className = 'icon xs';
+                setLucideIcon(iconEl, note.isPinned ? 'pin' : 'file-text');
 
                 const textEl = document.createElement('span');
                 textEl.className = 'picker-item-text';

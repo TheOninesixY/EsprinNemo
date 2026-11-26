@@ -44,9 +44,9 @@ function resolveTarget(pathname) {
     }
     if (decoded === '/' || decoded === '') decoded = '/index.html';
 
-    if (decoded.startsWith('/node_modules/material-symbols/')) {
+    if (decoded.startsWith('/node_modules/lucide/')) {
         const target = path.resolve(ROOT_DIR, `.${decoded}`);
-        const base = path.join(ROOT_DIR, 'node_modules', 'material-symbols');
+        const base = path.join(ROOT_DIR, 'node_modules', 'lucide');
         if (target !== base && !target.startsWith(base + path.sep)) return null;
         return target;
     }
@@ -103,11 +103,11 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, host, () => {
-    process.stdout.write(`[INFO] [${MODULE}] 移动端预览地址: http://${host}:${port}/\n`);
-    process.stdout.write(`[INFO] [${MODULE}] 文档根目录: ${ROOT}\n`);
+    process.stdout.write(`[Mobile:INFO] ${MODULE}：移动端预览地址: http://${host}:${port}/\n`);
+    process.stdout.write(`[Mobile:INFO] ${MODULE}：文档根目录: ${ROOT}\n`);
 });
 
 server.on('error', (error) => {
-    process.stderr.write(`[ERROR] [${MODULE}] 启动失败: ${error.message}\n`);
+    process.stderr.write(`[Mobile:ERROR] ${MODULE}：启动失败: ${error.message}\n`);
     process.exitCode = 1;
 });

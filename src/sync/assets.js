@@ -10,7 +10,7 @@ const CLIENT_REL = path.join('src', 'mobile');
 const ENTRY_NAME = 'index.html';
 const CLIENT_FILES = new Set(['index.html', 'manifest.webmanifest']);
 const CLIENT_PREFIXES = ['styles/', 'scripts/', 'fonts/'];
-const NODE_PREFIX = 'node_modules/material-symbols/';
+const NODE_PREFIX = 'node_modules/lucide/';
 const SHARED_PREFIX = 'assets/';
 
 let webBase = path.resolve(__dirname, '..', '..', '..');
@@ -154,8 +154,8 @@ function webClientSummary() {
     for (const relative of [ENTRY_NAME, 'styles/tokens.css', 'styles/base.css', 'scripts/app.js']) {
         if (!readFileOrEmbedded(path.join(rendererDir(), relative))) missing.push(relative);
     }
-    const font = readFileOrEmbedded(path.join(webBase, NODE_PREFIX, 'material-symbols-rounded.woff2'));
-    if (!font) missing.push(`${NODE_PREFIX}material-symbols-rounded.woff2`);
+    const runtime = readFileOrEmbedded(path.join(webBase, NODE_PREFIX, 'dist', 'umd', 'lucide.min.js'));
+    if (!runtime) missing.push(`${NODE_PREFIX}dist/umd/lucide.min.js`);
     return { version: meta.version, base: webBase, missing };
 }
 

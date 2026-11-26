@@ -8,7 +8,6 @@
 
     <script src="./window_appearance.js"></script>
     <script src="./boot.js"></script>
-    <link rel="stylesheet" href="../../../node_modules/material-symbols/rounded.css">
     <link rel="stylesheet" href="./styles/tokens.css">
     <link rel="stylesheet" href="./styles/base.css">
     <link rel="stylesheet" href="./styles/sidebar.css">
@@ -29,6 +28,8 @@
 
     <link rel="stylesheet" href="./styles/motion.css">
 
+    <link rel="stylesheet" href="./styles/settings_window.css">
+
 
     <link rel="stylesheet" href="./styles/filter.css">
 
@@ -36,6 +37,25 @@
 </head>
 <body>
     <div class="app-container">
+
+        <header class="settings-window-bar" id="settings-window-bar">
+            <div class="app-corner settings-window-corner" aria-hidden="true"></div>
+            <div class="settings-window-title">
+                <span>设置</span>
+            </div>
+            <div class="settings-window-drag" aria-hidden="true"></div>
+            <div class="window-controls">
+                <button class="win-btn" id="settings-win-min" title="最小化">
+                    <span class="icon xs" data-lucide="minus" aria-hidden="true"></span>
+                </button>
+                <button class="win-btn" id="settings-win-max" title="最大化">
+                    <span class="icon xs" data-lucide="square" aria-hidden="true"></span>
+                </button>
+                <button class="win-btn close" id="settings-win-close" title="关闭">
+                    <span class="icon xs" data-lucide="x" aria-hidden="true"></span>
+                </button>
+            </div>
+        </header>
 
 <div class="app-body">
             <div class="app-chrome">
@@ -47,43 +67,37 @@
                 <div class="workspace-tabs-bar" id="workspace-tabs-bar">
                     <div class="workspace-tabs" id="workspace-tabs"></div>
                     <div class="workspace-tabs-divider" aria-hidden="true"></div>
-                    <!-- 必须排在 .workspace-tabs 之后：拖拽区是按绘制顺序累计的，
-                         放在前面时后面的标签容器（drag 区）会把它的 no-drag 盖掉，点不动 -->
-                    <button class="tabs-back" id="btn-tabs-back" title="返回笔记列表">
-                        <span class="ms-icon sm tabs-back-icon-back">arrow_back</span>
-                        <span class="ms-icon sm tabs-back-icon-home">home</span>
-                    </button>
                 </div>
 
                 <div class="titlebar-actions">
                     <button class="btn-action-icon" id="btn-ai-assistant" title="AI 助手">
-                        <span class="ms-icon sm">chat_bubble</span>
+                        <span class="icon sm" data-lucide="message-circle" aria-hidden="true"></span>
                     </button>
 
                     <button class="btn-action-icon" id="btn-scratchpad" title="小本本">
-                        <span class="ms-icon sm">sticky_note_2</span>
+                        <span class="icon sm" data-lucide="sticky-note" aria-hidden="true"></span>
                     </button>
 
                     <button class="btn-action-icon" id="btn-sticky-notes" title="桌面便利贴">
-                        <span class="ms-icon sm">keep</span>
+                        <span class="icon sm" data-lucide="pin" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-theme-toggle" title="切换主题">
-                        <span class="ms-icon sm" id="theme-icon">computer</span>
+                        <span class="icon sm" id="theme-icon" data-lucide="monitor" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-fullscreen" title="全屏">
-                        <span class="ms-icon sm">fullscreen</span>
+                        <span class="icon sm" data-lucide="maximize" aria-hidden="true"></span>
                     </button>
                 </div>
 
                 <div class="window-controls">
                     <button class="win-btn" id="win-min" title="最小化">
-                        <span class="ms-icon xs">remove</span>
+                        <span class="icon xs" data-lucide="minus" aria-hidden="true"></span>
                     </button>
                     <button class="win-btn" id="win-max" title="最大化">
-                        <span class="ms-icon xs">crop_square</span>
+                        <span class="icon xs" data-lucide="square" aria-hidden="true"></span>
                     </button>
                     <button class="win-btn close" id="win-close" title="关闭">
-                        <span class="ms-icon xs">close</span>
+                        <span class="icon xs" data-lucide="x" aria-hidden="true"></span>
                     </button>
                 </div>
             </header>
@@ -94,8 +108,7 @@
                     <div class="nav-item active" data-filter="all" title="全部笔记">
                         <div class="nav-item-left">
                             <span class="nav-icon">
-                                <span class="ms-icon sm nav-icon-line">description</span>
-                                <span class="ms-icon sm nav-icon-solid" aria-hidden="true">description</span>
+                                <span class="icon sm" data-lucide="file-text" aria-hidden="true"></span>
                             </span>
                             <span class="nav-text">笔记</span>
                         </div>
@@ -104,8 +117,7 @@
                     <div class="nav-item" data-filter="todos" title="全部待办">
                         <div class="nav-item-left">
                             <span class="nav-icon">
-                                <span class="ms-icon sm nav-icon-line">check_box</span>
-                                <span class="ms-icon sm nav-icon-solid" aria-hidden="true">check_box</span>
+                                <span class="icon sm" data-lucide="square-check" aria-hidden="true"></span>
                             </span>
                             <span class="nav-text">待办</span>
                         </div>
@@ -114,8 +126,7 @@
                     <div class="nav-item" data-filter="trash" title="废纸篓（笔记与待办共用）">
                         <div class="nav-item-left">
                             <span class="nav-icon">
-                                <span class="ms-icon sm nav-icon-line">delete</span>
-                                <span class="ms-icon sm nav-icon-solid" aria-hidden="true">delete</span>
+                                <span class="icon sm" data-lucide="trash-2" aria-hidden="true"></span>
                             </span>
                             <span class="nav-text">废纸篓</span>
                         </div>
@@ -127,9 +138,13 @@
                     <span id="sidebar-stat" class="nav-text">共 0 篇笔记</span>
 
                     <button class="btn-sidebar-bottom btn-sidebar-settings" id="btn-open-settings" title="设置">
-                        <span class="ms-icon">settings</span>
+                        <span class="icon" data-lucide="settings" aria-hidden="true"></span>
                     </button>
                 </div>
+            </aside>
+
+            <aside class="settings-sidebar" id="settings-sidebar">
+                <nav class="settings-nav" id="settings-nav" aria-label="设置分类"></nav>
             </aside>
 
             <!-- 内容区：笔记列表 + 编辑器，是浮在 ChromeBar 上的一整块卡片 -->
@@ -139,15 +154,15 @@
                 <div class="notes-panel-header">
                     <div class="notes-panel-search-row">
                         <div class="search-box">
-                            <span class="ms-icon sm" style="color: var(--text-muted);">search</span>
+                            <span class="icon sm" style="color: var(--text-muted);" data-lucide="search" aria-hidden="true"></span>
                             <input type="text" id="input-search" placeholder="搜索笔记... (Ctrl+K)" spellcheck="false">
-                            <span class="ms-icon xs btn-clear hidden" id="btn-search-clear">close</span>
+                            <span class="icon xs btn-clear hidden" id="btn-search-clear" data-lucide="x" aria-hidden="true"></span>
                         </div>
                         <button class="btn-action-icon search-new" id="btn-new-item" title="新建笔记 (Ctrl+N)">
-                            <span class="ms-icon sm">add</span>
+                            <span class="icon sm" data-lucide="plus" aria-hidden="true"></span>
                         </button>
                         <button class="btn-action-icon hidden" id="btn-empty-trash" title="彻底清空废纸篓">
-                            <span class="ms-icon sm">delete_forever</span>
+                            <span class="icon sm" data-lucide="trash" aria-hidden="true"></span>
                         </button>
                     </div>
 
@@ -157,7 +172,7 @@
                                 <div class="filter-section-title">
                                     <span>文件夹</span>
                                     <button class="filter-add-folder" id="btn-add-folder" title="新建文件夹">
-                                        <span class="ms-icon xs">add</span>
+                                        <span class="icon xs" data-lucide="plus" aria-hidden="true"></span>
                                     </button>
                                 </div>
                                 <div class="filter-chips" id="filter-folder-chips"></div>
@@ -180,10 +195,6 @@
                 </div>
 
                 <div class="notes-list" id="notes-list-box"></div>
-
-                <aside class="settings-sidebar hidden" id="settings-sidebar">
-                    <nav class="settings-nav" id="settings-nav" aria-label="设置分类"></nav>
-                </aside>
             </section>
 
 <main class="workspace" id="workspace-box">
@@ -191,7 +202,7 @@
                 <div class="empty-placeholder" id="empty-state">
 
                     <div class="empty-drag-surface" aria-hidden="true"></div>
-                    <span class="ms-icon">edit_note</span>
+                    <span class="icon" data-lucide="file-pen-line" aria-hidden="true"></span>
                     <p>选择一篇笔记或一项待办</p>
                 </div>
 
@@ -201,45 +212,58 @@
                         <select class="select-folder" id="editor-folder-select"></select>
                         <div class="note-tags-container" id="editor-tags-container"></div>
                         <button class="btn-action-icon" id="btn-add-tag" title="添加标签">
-                            <span class="ms-icon sm">label</span>
+                            <span class="icon sm" data-lucide="tag" aria-hidden="true"></span>
                         </button>
                     </div>
 
                     <div class="editor-toolbar hidden" id="editor-toolbar">
-                        <button class="fmt-btn" data-fmt="bold" title="加粗">B</button>
-                        <button class="fmt-btn" data-fmt="italic" style="font-style: italic;" title="斜体">I</button>
+                        <select class="fmt-select" id="fmt-heading-menu" title="段落格式">
+                            <option value="" selected data-placeholder>标题</option>
+                            <option value="h1">标题 1</option>
+                            <option value="h2">标题 2</option>
+                            <option value="h3">标题 3</option>
+                            <option value="h4">标题 4</option>
+                            <option value="h5">标题 5</option>
+                            <option value="h6">标题 6</option>
+                        </select>
                         <div class="fmt-divider"></div>
-                        <button class="fmt-btn" data-fmt="h1">H1</button>
-                        <button class="fmt-btn" data-fmt="h2">H2</button>
-                        <button class="fmt-btn" data-fmt="h3">H3</button>
+                        <button class="fmt-btn" data-fmt="bold" title="加粗"><span class="icon sm" data-lucide="bold" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="italic" title="斜体"><span class="icon sm" data-lucide="italic" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="strike" title="删除线"><span class="icon sm" data-lucide="strikethrough" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="inline-code" title="行内代码"><span class="icon sm" data-lucide="code" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="link" title="链接"><span class="icon sm" data-lucide="link" aria-hidden="true"></span></button>
                         <div class="fmt-divider"></div>
-                        <button class="fmt-btn" data-fmt="ul" title="无序列表"><span class="ms-icon sm">format_list_bulleted</span></button>
-                        <button class="fmt-btn" data-fmt="ol" title="有序列表"><span class="ms-icon sm">format_list_numbered</span></button>
-                        <button class="fmt-btn" data-fmt="task" title="待办清单"><span class="ms-icon sm">check_box</span></button>
-                        <button class="fmt-btn" data-fmt="quote" title="引用"><span class="ms-icon sm">format_quote</span></button>
-                        <button class="fmt-btn" data-fmt="code" title="代码块"><span class="ms-icon sm">code</span></button>
-                        <button class="fmt-btn" data-fmt="hr" title="分割线"><span class="ms-icon sm">horizontal_rule</span></button>
+                        <button class="fmt-btn" data-fmt="ul" title="无序列表"><span class="icon sm" data-lucide="list" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="ol" title="有序列表"><span class="icon sm" data-lucide="list-ordered" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="task" title="待办清单"><span class="icon sm" data-lucide="square-check" aria-hidden="true"></span></button>
+                        <button class="fmt-btn" data-fmt="quote" title="引用"><span class="icon sm" data-lucide="text-quote" aria-hidden="true"></span></button>
                         <div class="fmt-divider"></div>
-                        <button class="fmt-btn" id="btn-insert-file" title="插入文件或图片"><span class="ms-icon sm">attach_file</span></button>
-                        <button class="fmt-btn" id="btn-file-manager" title="文件管理器"><span class="ms-icon sm">folder_open</span></button>
+                        <select class="fmt-select" id="fmt-insert-menu" title="插入">
+                            <option value="" selected data-placeholder>插入</option>
+                            <option value="code">代码块</option>
+                            <option value="table">表格</option>
+                            <option value="hr">分割线</option>
+                            <option value="asset">图片或文件</option>
+                        </select>
+                        <button class="fmt-btn" id="btn-file-manager" title="文件管理器"><span class="icon sm" data-lucide="folder-open" aria-hidden="true"></span></button>
                     </div>
 
 <div class="editor-actions">
 
                         <div class="editor-view-modes">
                             <button class="view-btn active" id="btn-mode-edit" title="编辑" aria-label="编辑">
-                                <span class="ms-icon sm">edit</span>
+                                <span class="icon sm" data-lucide="pencil" aria-hidden="true"></span>
                             </button>
                             <button class="view-btn" id="btn-mode-split" title="分屏" aria-label="分屏">
-                                <span class="ms-icon sm">view_column_2</span>
+                                <span class="icon sm" data-lucide="columns-2" aria-hidden="true"></span>
                             </button>
                             <button class="view-btn" id="btn-mode-preview" title="预览" aria-label="预览">
-                                <span class="ms-icon sm">visibility</span>
+                                <span class="icon sm" data-lucide="eye" aria-hidden="true"></span>
                             </button>
                         </div>
 
                         <button class="btn-action-icon hidden" id="btn-todo-done" title="标记为已完成">
-                            <span class="ms-icon sm">radio_button_unchecked</span>
+                            <span class="icon sm" data-lucide="circle" aria-hidden="true"></span>
                         </button>
                     </div>
                 </div>
@@ -260,7 +284,7 @@
                     </div>
 
 <div class="secret-lock-overlay hidden" id="secret-lock-overlay">
-                        <span class="ms-icon secret-lock-icon">lock</span>
+                        <span class="icon secret-lock-icon" data-lucide="lock" aria-hidden="true"></span>
                         <div class="secret-lock-title" id="secret-lock-title">该文档的正文已加密</div>
                         <div class="secret-lock-desc">正文以 AES-256-GCM 加密保存，输入密码后可在本次运行中查看与编辑。</div>
                         <button class="settings-btn primary" id="btn-secret-unlock">输入密码</button>
@@ -270,20 +294,20 @@
 
 <aside class="fm-panel hidden fm-collapsed" id="fm-panel">
                 <div class="fm-panel-header">
-                    <span class="ms-icon sm">folder_open</span>
+                    <span class="icon sm" data-lucide="folder-open" aria-hidden="true"></span>
                     <span class="fm-panel-title">文件管理</span>
                     <span class="fm-file-count" id="fm-file-count">0 个文件</span>
                     <div class="fm-panel-spacer"></div>
                     <button class="btn-action-icon" id="btn-fm-explorer" title="在资源管理器中打开">
-                        <span class="ms-icon sm">open_in_new</span>
+                        <span class="icon sm" data-lucide="external-link" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-fm-close" title="关闭">
-                        <span class="ms-icon sm">close</span>
+                        <span class="icon sm" data-lucide="x" aria-hidden="true"></span>
                     </button>
                 </div>
                 <div class="fm-file-list-wrap">
                     <div class="fm-empty" id="fm-empty">
-                        <span class="ms-icon">note_stack_add</span>
+                        <span class="icon" data-lucide="files" aria-hidden="true"></span>
                         <p>暂无附件</p>
                     </div>
                     <div class="fm-file-list" id="fm-file-list"></div>
@@ -303,27 +327,8 @@
 
 <div class="settings-view hidden" id="settings-view">
 
-                <div class="settings-topbar">
-                    <span class="ms-icon sm settings-topbar-icon">settings</span>
-                    <span class="settings-topbar-title">设置</span>
-                    <span class="settings-topbar-sep">/</span>
-                    <span class="settings-topbar-current" id="settings-topbar-current">编辑器</span>
-                    <div class="settings-topbar-drag" aria-hidden="true"></div>
-                </div>
-
+                <div class="settings-main">
                 <div class="settings-content">
-                    <div class="settings-header">
-                        <div class="settings-title">
-                            <span class="ms-icon md">settings</span>
-                            <span id="settings-header-text">设置</span>
-                            <label class="switch settings-ai-toggle" id="settings-ai-toggle" title="启用 AI 助手">
-                                <input type="checkbox" id="setting-ai-enabled-header">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                        <div class="settings-desc" id="settings-header-desc">管理 EsprinNemo 的偏好设置与编辑器行为</div>
-                    </div>
-
 <div class="settings-panel hidden" data-settings-panel="editor">
                         <div class="settings-section">
                             <div class="settings-section-title">编辑器与文本</div>
@@ -433,6 +438,20 @@
                             </div>
                         </div>
 
+                        <div class="settings-section" id="setting-blur-row">
+                            <div class="settings-section-title">窗口</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">背景模糊</span>
+                                    <span class="settings-row-desc">macOS 上让标题栏使用系统材质透出桌面；关闭后窗口外框改为纯色表面。仅影响本机窗口材质，不改变主题</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-blur-enabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
 <div class="settings-section">
                             <div class="settings-section-title">主题色</div>
 
@@ -451,7 +470,7 @@
                                 <span class="accent-preview-label">预览</span>
                                 <div class="accent-preview-row">
                                     <button class="accent-preview-btn" type="button" tabindex="-1">新建笔记</button>
-                                    <span class="accent-preview-chip"><span class="ms-icon xs">description</span>已选中</span>
+                                    <span class="accent-preview-chip"><span class="icon xs" data-lucide="file-text" aria-hidden="true"></span>已选中</span>
                                     <span class="accent-preview-link">链接文字</span>
                                 </div>
                             </div>
@@ -541,7 +560,7 @@
                                     <div class="ai-input-group">
                                         <input type="password" class="settings-input mono" id="setting-ai-apikey" spellcheck="false" placeholder="sk-…" autocomplete="off">
                                         <button class="settings-btn icon-only" id="btn-ai-key-toggle" title="显示 / 隐藏输入的 API Key">
-                                            <span class="ms-icon xs">visibility</span>
+                                            <span class="icon xs" data-lucide="eye" aria-hidden="true"></span>
                                         </button>
                                         <button class="settings-btn hidden" id="btn-ai-key-clear" title="清除已保存的 API Key">清除</button>
                                     </div>
@@ -693,7 +712,7 @@
                                     <div class="sync-input-group">
                                         <input type="text" class="settings-input mono sync-device-id" id="setting-sync-device-id" readonly spellcheck="false" placeholder="尚未生成">
                                         <button class="settings-btn icon-only" id="btn-sync-device-id-copy" title="复制设备 ID">
-                                            <span class="ms-icon xs">content_copy</span>
+                                            <span class="icon xs" data-lucide="copy" aria-hidden="true"></span>
                                         </button>
                                     </div>
                                     <span class="sync-hint" id="sync-device-id-hint">只读；复制后可在服务端绑定到访问令牌</span>
@@ -742,7 +761,7 @@
                                     <div class="sync-input-group">
                                         <input type="password" class="settings-input mono" id="setting-sync-token" spellcheck="false" placeholder="令牌" autocomplete="off">
                                         <button class="settings-btn icon-only" id="btn-sync-token-toggle" title="显示 / 隐藏输入的令牌">
-                                            <span class="ms-icon xs">visibility</span>
+                                            <span class="icon xs" data-lucide="eye" aria-hidden="true"></span>
                                         </button>
                                         <button class="settings-btn hidden" id="btn-sync-token-clear" title="清除已保存的令牌">清除</button>
                                     </div>
@@ -838,6 +857,20 @@
                                 </label>
                             </div>
                             <div class="settings-row-desc" id="tray-status">正在读取托盘状态…</div>
+                        </div>
+
+                        <div class="settings-section" id="setting-background-running-row">
+                            <div class="settings-section-title">运行</div>
+                            <div class="settings-row">
+                                <div class="settings-row-info">
+                                    <span class="settings-row-label">后台运行</span>
+                                    <span class="settings-row-desc">关闭主窗口后是否让应用继续留在后台；关闭后关闭主窗口即退出应用（仅 macOS）</span>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="setting-background-running">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
                         </div>
 
 <div class="settings-section" id="sticky-settings-section">
@@ -1005,6 +1038,7 @@
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
             </main>
             </div>
@@ -1013,35 +1047,35 @@
 
                 <div class="ai-panel-drag-strip" aria-hidden="true"></div>
                 <div class="ai-panel-header">
-                    <span class="ms-icon sm">chat_bubble</span>
+                    <span class="icon sm" data-lucide="message-circle" aria-hidden="true"></span>
                     <span class="ai-panel-title">AI 助手</span>
                     <span class="ai-panel-model" id="ai-panel-model">未配置模型</span>
                     <div class="ai-panel-spacer"></div>
                     <button class="btn-action-icon" id="btn-ai-new-chat" title="新建对话">
-                        <span class="ms-icon sm">add</span>
+                        <span class="icon sm" data-lucide="plus" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-ai-history" title="对话记录">
-                        <span class="ms-icon sm">history</span>
+                        <span class="icon sm" data-lucide="history" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-ai-clear" title="清空当前对话">
-                        <span class="ms-icon sm">delete_sweep</span>
+                        <span class="icon sm" data-lucide="trash-2" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-ai-close" title="关闭">
-                        <span class="ms-icon sm">close</span>
+                        <span class="icon sm" data-lucide="x" aria-hidden="true"></span>
                     </button>
                 </div>
 
 <div class="ai-drawer hidden" id="ai-drawer">
                     <div class="ai-drawer-header">
-                        <span class="ms-icon sm">history</span>
+                        <span class="icon sm" data-lucide="history" aria-hidden="true"></span>
                         <span class="ai-drawer-title">对话记录</span>
                         <div class="ai-panel-spacer"></div>
                         <button class="ai-drawer-new" id="btn-ai-drawer-new">
-                            <span class="ms-icon xs">add</span>
+                            <span class="icon xs" data-lucide="plus" aria-hidden="true"></span>
                             <span>新建对话</span>
                         </button>
                         <button class="btn-action-icon" id="btn-ai-drawer-close" title="收起列表">
-                            <span class="ms-icon sm">close</span>
+                            <span class="icon sm" data-lucide="x" aria-hidden="true"></span>
                         </button>
                     </div>
                     <div class="ai-chat-list" id="ai-chat-list"></div>
@@ -1050,7 +1084,7 @@
 
 <div class="ai-messages" id="ai-messages">
                     <div class="ai-empty" id="ai-empty">
-                        <span class="ms-icon">forum</span>
+                        <span class="icon" data-lucide="messages-square" aria-hidden="true"></span>
                         <p>问点什么吧，AI 会结合你的笔记回答</p>
                         <div class="ai-example">
                             <button class="ai-example-chip" data-prompt="帮我总结一下当前笔记的要点">总结当前笔记</button>
@@ -1078,18 +1112,18 @@
 
                                 <button class="btn-action-icon" id="ai-agent-toggle" title="Agent 模式：开启后 AI 可以新建与修改笔记（正文、标题、文件夹、标签、置顶与废纸篓），每一步都能撤销" aria-pressed="false">
 
-                                    <span class="ms-icon sm">smart_toy</span>
+                                    <span class="icon sm" data-lucide="bot" aria-hidden="true"></span>
                                 </button>
 
                                 <button class="btn-action-icon" id="btn-ai-attach" title="添加图片或文本文件（也可直接拖入、粘贴）">
-                                    <span class="ms-icon sm">attach_file</span>
+                                    <span class="icon sm" data-lucide="paperclip" aria-hidden="true"></span>
                                 </button>
 
                                 <button class="ai-send-btn hidden" id="btn-ai-stop" title="停止生成" aria-label="停止生成">
-                                    <span class="ms-icon">stop_circle</span>
+                                    <span class="icon" data-lucide="circle-stop" aria-hidden="true"></span>
                                 </button>
                                 <button class="ai-send-btn" id="btn-ai-send" title="发送（Enter）" aria-label="发送">
-                                    <span class="ms-icon">send</span>
+                                    <span class="icon" data-lucide="send" aria-hidden="true"></span>
                                 </button>
                             </div>
                         </div>
@@ -1111,6 +1145,8 @@
 
 <div class="toast-box" id="toast-container"></div>
 
+    <script src="../../../node_modules/lucide/dist/umd/lucide.min.js"></script>
+    <script src="./scripts/icons.js"></script>
     <script src="./scripts/state.js"></script>
     <script src="./scripts/storage.js"></script>
     <script src="./scripts/markdown.js"></script>
@@ -1139,10 +1175,12 @@
     <script src="./scripts/journal_file.js"></script>
     <script src="./scripts/team_notes.js"></script>
     <script src="./scripts/tray.js"></script>
+    <script src="./scripts/background_running.js"></script>
     <script src="./scripts/auto_launch.js"></script>
     <script src="./scripts/update.js"></script>
     <script src="./scripts/render.js"></script>
     <script src="./scripts/filter.js"></script>
+    <script src="./scripts/native_menu.js"></script>
     <script src="./scripts/context_menu.js"></script>
     <script src="./scripts/events.js"></script>
     <script src="./scripts/app.js"></script>

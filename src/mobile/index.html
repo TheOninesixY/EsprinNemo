@@ -11,7 +11,6 @@
     <meta name="format-detection" content="telephone=no">
     <title>EsprinNemo</title>
     <link rel="manifest" href="./manifest.webmanifest">
-    <link rel="stylesheet" href="/node_modules/material-symbols/rounded.css">
     <link rel="stylesheet" href="./styles/tokens.css">
     <link rel="stylesheet" href="./styles/base.css">
     <link rel="stylesheet" href="./styles/list.css">
@@ -29,13 +28,13 @@
                 </div>
                 <div class="topbar-actions">
                     <button class="btn-action-icon" id="btn-sync" type="button" title="立即同步" hidden>
-                        <span class="ms-icon ms-s16">sync</span>
+                        <span class="icon icon-s16" data-lucide="refresh-cw" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-search" type="button" title="搜索">
-                        <span class="ms-icon ms-s16">search</span>
+                        <span class="icon icon-s16" data-lucide="search" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-menu" type="button" title="菜单" aria-expanded="false">
-                        <span class="ms-icon ms-s16">menu</span>
+                        <span class="icon icon-s16" data-lucide="menu" aria-hidden="true"></span>
                     </button>
                 </div>
             </header>
@@ -59,21 +58,21 @@
                     </div>
                 </div>
                 <button class="menu-pop-item" id="menu-filter" type="button" role="menuitem">
-                    <span class="ms-icon ms-s18">filter_list</span>
+                    <span class="icon icon-s18" data-lucide="list-filter" aria-hidden="true"></span>
                     <span id="filter-label">筛选</span>
-                    <span class="ms-icon ms-s16 menu-pop-arrow">chevron_right</span>
+                    <span class="icon icon-s16 menu-pop-arrow" data-lucide="chevron-right" aria-hidden="true"></span>
                 </button>
                 <button class="menu-pop-item" id="menu-settings" type="button" role="menuitem">
-                    <span class="ms-icon ms-s18">settings</span>
+                    <span class="icon icon-s18" data-lucide="settings" aria-hidden="true"></span>
                     <span>设置</span>
-                    <span class="ms-icon ms-s16 menu-pop-arrow">chevron_right</span>
+                    <span class="icon icon-s16 menu-pop-arrow" data-lucide="chevron-right" aria-hidden="true"></span>
                 </button>
             </div>
 
             <div class="list-scroll" id="list-scroll">
                 <div class="cards" id="cards"></div>
                 <div class="list-empty" id="list-empty" hidden>
-                    <span class="ms-icon ms-s48" id="list-empty-icon">description</span>
+                    <span class="icon icon-s48" id="list-empty-icon" data-lucide="file-text" aria-hidden="true"></span>
                     <span class="list-empty-title" id="list-empty-title">还没有笔记</span>
                     <span class="list-empty-text" id="list-empty-text">点 + 开始记录</span>
                 </div>
@@ -82,25 +81,25 @@
             <nav class="tabbar" id="tabbar" aria-label="分类">
                 <button class="tab" type="button" data-filter="notes">
                     <span class="tab-icon">
-                        <span class="ms-icon ms-s20">description</span>
+                        <span class="icon icon-s20" data-lucide="file-text" aria-hidden="true"></span>
                     </span>
                     <span class="tab-label">笔记</span>
                 </button>
                 <button class="tab" type="button" data-filter="todos">
                     <span class="tab-icon">
-                        <span class="ms-icon ms-s20">check_box</span>
+                        <span class="icon icon-s20" data-lucide="square-check" aria-hidden="true"></span>
                     </span>
                     <span class="tab-label">待办</span>
                 </button>
                 <button class="tab" type="button" data-filter="pinned">
                     <span class="tab-icon">
-                        <span class="ms-icon ms-s20">keep</span>
+                        <span class="icon icon-s20" data-lucide="pin" aria-hidden="true"></span>
                     </span>
                     <span class="tab-label">置顶</span>
                 </button>
                 <button class="tab" type="button" data-filter="trash">
                     <span class="tab-icon">
-                        <span class="ms-icon ms-s20">delete</span>
+                        <span class="icon icon-s20" data-lucide="trash-2" aria-hidden="true"></span>
                     </span>
                     <span class="tab-label">废纸篓</span>
                 </button>
@@ -109,16 +108,16 @@
             <div class="compose" id="compose">
                 <div class="compose-actions" id="compose-actions">
                     <button class="compose-action" id="btn-new-note" type="button">
-                        <span class="compose-circle"><span class="ms-icon ms-s18">description</span></span>
+                        <span class="compose-circle"><span class="icon icon-s18" data-lucide="file-text" aria-hidden="true"></span></span>
                         <span class="compose-label">新建笔记</span>
                     </button>
                     <button class="compose-action" id="btn-new-todo" type="button">
-                        <span class="compose-circle"><span class="ms-icon ms-s18">check_box</span></span>
+                        <span class="compose-circle"><span class="icon icon-s18" data-lucide="square-check" aria-hidden="true"></span></span>
                         <span class="compose-label">新建待办</span>
                     </button>
                 </div>
                 <button class="fab" id="btn-compose" type="button" title="新建" aria-expanded="false">
-                    <span class="ms-icon ms-s24">add</span>
+                    <span class="icon icon-s24" data-lucide="plus" aria-hidden="true"></span>
                 </button>
             </div>
         </section>
@@ -126,30 +125,30 @@
         <section class="pane pane-editor" id="pane-editor">
             <header class="topbar editor-topbar">
                 <button class="btn-action-icon" id="btn-editor-back" type="button" title="返回列表">
-                    <span class="ms-icon ms-s18">arrow_back</span>
+                    <span class="icon icon-s18" data-lucide="arrow-left" aria-hidden="true"></span>
                 </button>
                 <div class="editor-head">
                     <span class="editor-kind">
-                        <span class="ms-icon ms-s13" id="editor-kind-icon">description</span>
+                        <span class="icon icon-s13" id="editor-kind-icon" data-lucide="file-text" aria-hidden="true"></span>
                         <span id="editor-kind">笔记</span>
                     </span>
                     <span class="editor-saved" id="editor-saved">已保存</span>
                 </div>
                 <div class="topbar-actions">
                     <button class="btn-action-icon" id="btn-editor-pin" type="button" title="置顶">
-                        <span class="ms-icon ms-s16">keep</span>
+                        <span class="icon icon-s16" data-lucide="pin" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-editor-tag" type="button" title="标签">
-                        <span class="ms-icon ms-s16">label</span>
+                        <span class="icon icon-s16" data-lucide="tag" aria-hidden="true"></span>
                     </button>
                     <button class="btn-action-icon" id="btn-editor-more" type="button" title="更多">
-                        <span class="ms-icon ms-s16">more_vert</span>
+                        <span class="icon icon-s16" data-lucide="ellipsis-vertical" aria-hidden="true"></span>
                     </button>
                 </div>
             </header>
 
             <div class="editor-empty" id="editor-empty">
-                <span class="ms-icon ms-s48">edit_note</span>
+                <span class="icon icon-s48" data-lucide="file-pen-line" aria-hidden="true"></span>
                 <p>从左侧选一条笔记，或点 + 新建</p>
             </div>
 
@@ -168,11 +167,11 @@
             <footer class="editor-footer" id="editor-foot" hidden>
                 <div class="footer-actions">
                     <button class="footer-btn" id="btn-editor-mode" type="button">
-                        <span class="ms-icon ms-s13" id="editor-mode-icon">visibility</span>
+                        <span class="icon icon-s13" id="editor-mode-icon" data-lucide="eye" aria-hidden="true"></span>
                         <span id="editor-mode-label">预览</span>
                     </button>
                     <button class="footer-btn" id="btn-editor-folder" type="button">
-                        <span class="ms-icon ms-s13">folder</span>
+                        <span class="icon icon-s13" data-lucide="folder" aria-hidden="true"></span>
                         <span id="editor-folder-label">默认</span>
                     </button>
                 </div>
@@ -184,10 +183,10 @@
             <div class="settings-dialog" role="dialog" aria-modal="true" aria-label="设置">
                 <header class="topbar">
                     <button class="btn-action-icon" id="btn-settings-back" type="button" title="返回">
-                        <span class="ms-icon ms-s18">arrow_back</span>
+                        <span class="icon icon-s18" data-lucide="arrow-left" aria-hidden="true"></span>
                     </button>
                     <div class="topbar-title">
-                        <span class="ms-icon ms-s16">settings</span>
+                        <span class="icon icon-s16" data-lucide="settings" aria-hidden="true"></span>
                         <span>设置</span>
                     </div>
                     <div class="topbar-actions"></div>
@@ -195,19 +194,19 @@
 
                 <nav class="settings-nav" id="settings-nav" aria-label="设置分类">
                     <button class="settings-nav-item active" type="button" data-section="appearance">
-                        <span class="ms-icon ms-s16">palette</span>
+                        <span class="icon icon-s16" data-lucide="palette" aria-hidden="true"></span>
                         <span>外观</span>
                     </button>
                     <button class="settings-nav-item" type="button" data-section="sync">
-                        <span class="ms-icon ms-s16">sync</span>
+                        <span class="icon icon-s16" data-lucide="refresh-cw" aria-hidden="true"></span>
                         <span>同步</span>
                     </button>
                     <button class="settings-nav-item" type="button" data-section="data">
-                        <span class="ms-icon ms-s16">storage</span>
+                        <span class="icon icon-s16" data-lucide="database" aria-hidden="true"></span>
                         <span>数据</span>
                     </button>
                     <button class="settings-nav-item" type="button" data-section="about">
-                        <span class="ms-icon ms-s16">info</span>
+                        <span class="icon icon-s16" data-lucide="info" aria-hidden="true"></span>
                         <span>关于</span>
                     </button>
                 </nav>
@@ -215,7 +214,7 @@
                 <div class="settings-scroll" id="settings-scroll">
                     <div class="settings-header">
                         <span class="settings-title">
-                            <span class="ms-icon ms-s20" id="settings-title-icon">palette</span>
+                            <span class="icon icon-s20" id="settings-title-icon" data-lucide="palette" aria-hidden="true"></span>
                             <span id="settings-title">外观</span>
                         </span>
                         <span class="settings-desc" id="settings-desc">主题与排序</span>
@@ -272,11 +271,11 @@
                                 <div class="settings-status" id="sync-status">尚未配置</div>
                                 <div class="settings-actions">
                                     <button class="settings-btn primary" id="btn-sync-login" type="button">
-                                        <span class="ms-icon ms-s14">login</span>
+                                        <span class="icon icon-s14" data-lucide="log-in" aria-hidden="true"></span>
                                         <span>登录</span>
                                     </button>
                                     <button class="settings-btn" id="btn-sync-now" type="button">
-                                        <span class="ms-icon ms-s14">sync</span>
+                                        <span class="icon icon-s14" data-lucide="refresh-cw" aria-hidden="true"></span>
                                         <span>立即同步</span>
                                     </button>
                                 </div>
@@ -337,14 +336,14 @@
         <section class="search-overlay" id="search-overlay" hidden>
             <header class="topbar search-topbar">
                 <button class="btn-action-icon" id="btn-search-back" type="button" title="返回">
-                    <span class="ms-icon ms-s18">arrow_back</span>
+                    <span class="icon icon-s18" data-lucide="arrow-left" aria-hidden="true"></span>
                 </button>
                 <div class="search-field">
-                    <span class="ms-icon ms-s16">search</span>
+                    <span class="icon icon-s16" data-lucide="search" aria-hidden="true"></span>
                     <input id="search-input" type="text" placeholder="搜索标题、正文、标签…"
                            autocomplete="off" spellcheck="false">
                     <button class="search-clear" id="btn-search-clear" type="button" title="清除" hidden>
-                        <span class="ms-icon ms-s13">close</span>
+                        <span class="icon icon-s13" data-lucide="x" aria-hidden="true"></span>
                     </button>
                 </div>
             </header>
@@ -353,7 +352,7 @@
                 <p class="search-summary" id="search-summary" hidden></p>
                 <div class="cards" id="search-cards"></div>
                 <div class="list-empty" id="search-empty" hidden>
-                    <span class="ms-icon ms-s48">search_off</span>
+                    <span class="icon icon-s48" data-lucide="search-x" aria-hidden="true"></span>
                     <span class="list-empty-title">没有找到结果</span>
                     <span class="list-empty-text" id="search-empty-text"></span>
                 </div>
@@ -370,6 +369,7 @@
         <div class="toast" id="toast" role="status" hidden></div>
     </div>
 
+    <script src="/node_modules/lucide/dist/umd/lucide.min.js"></script>
     <script type="module" src="./scripts/app.js"></script>
 </body>
 </html>

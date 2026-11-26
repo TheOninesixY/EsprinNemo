@@ -152,7 +152,7 @@ function readItemsFromDisk(dir) {
     });
     return result;
   } catch (error) {
-    console.error('[EsprinNemo] 读取桌面便利贴记录失败:', error);
+    console.error('[Desktop:ERROR] 读取桌面便利贴记录失败:', error);
     return [];
   }
 }
@@ -172,7 +172,7 @@ function writeState() {
     syncDesktopMenu();
     return true;
   } catch (error) {
-    console.error('[EsprinNemo] 保存桌面便利贴记录失败:', error);
+    console.error('[Desktop:ERROR] 保存桌面便利贴记录失败:', error);
     return false;
   }
 }
@@ -315,7 +315,7 @@ function applyStickyWindowTraits(win) {
       if (typeof win.setHiddenInMissionControl === 'function') win.setHiddenInMissionControl(true);
       win.excludedFromShownWindowsMenu = true;
     } catch (error) {
-      console.warn('[WARN] [Nemo] 设置便利贴桌面行为失败:', error.message);
+      console.warn('[Desktop:WARN] 设置便利贴桌面行为失败:', error.message);
       win.setAlwaysOnTop(false);
     }
   } else {
@@ -428,7 +428,7 @@ win.on('close', (event) => {
   });
 
   win.loadFile(STICKY_HTML).catch((error) => {
-    console.error('[EsprinNemo] 加载桌面便利贴页面失败:', error);
+    console.error('[Desktop:ERROR] 加载桌面便利贴页面失败:', error);
     if (!win.isDestroyed()) win.destroy();
   });
 
@@ -570,7 +570,7 @@ function restoreStickyNotes() {
   const visible = items.filter((entry) => !entry.hidden);
   visible.forEach((item) => createWindowForItem(item));
   if (visible.length) {
-    console.log(`[INFO] [StickyNotes] Restored ${visible.length} desktop note(s)`);
+    console.log(`[Desktop:INFO] Restored ${visible.length} desktop note(s)`);
   }
   return visible.length;
 }
@@ -787,7 +787,7 @@ ipcMain.on('sticky:flush', (event, payload) => {
     const id = typeof data.id === 'string' ? data.id : '';
     if (!id) return;
     saveStickyNote(id, data).catch((error) => {
-      console.error('[EsprinNemo] 便利贴关窗保存失败:', error);
+      console.error('[Desktop:ERROR] 便利贴关窗保存失败:', error);
     });
   });
 }

@@ -25,6 +25,7 @@
 - 笔记与待办共用一个数据目录、一个废纸篓；待办多一个勾选状态。
 - 支持文件夹、标签、置顶、搜索、批量导入 `.md / .markdown / .txt` 与导出 Markdown。
 - 附件保存在条目自己的目录里，正文可以插入图片与文件链接。
+- 编辑器工具栏覆盖 H1–H6、加粗 / 斜体 / 删除线 / 行内代码 / 链接、无序 / 有序 / 待办列表、引用、代码块、表格与分割线；标题与低频的插入动作用下拉收纳，预览模式下会改正文的控件自动置灰。
 - 条目文件是纯 Markdown；`items/<id>.md` 的开头是一段 `<!--EsprinData ... -->` 注释，正文保持干净。
 - 废纸篓支持恢复、彻底删除与按保留天数自动清理。
 
@@ -34,8 +35,9 @@
 - 浏览器式标签：打开多篇、拖动排序、中键关闭，关闭标签不影响文件。
 - `Ctrl + K` 即时搜索，标题、正文与标签一起匹配。
 - 浅色 / 深色 / 跟随系统，主题色、四档圆角、界面字体与文档字体均可调。
-- 设置以 Tab 形式打开，分类为：编辑器 / 外观 / AI 助手 / 秘密本 / 数据与同步 / 系统 / 关于。
-- Windows / Linux 使用自绘窗口按钮；macOS 使用系统原生红绿灯。macOS 的开发者选项里可以临时切回 Windows 样式，切换只作用于本次运行。macOS 主窗口的 ChromeBar 使用系统毛玻璃透出桌面，内容区保持不透明。
+- 设置以独立窗口打开，分类为：编辑器 / 外观 / AI 助手 / 秘密本 / 数据与同步 / 系统 / 关于。
+- Windows / Linux 使用自绘窗口按钮；macOS 使用系统原生红绿灯。macOS 的开发者选项里可以临时切回 Windows 样式，切换只作用于本次运行。macOS 主窗口的 ChromeBar 使用系统毛玻璃透出桌面，内容区保持不透明；可在「外观 → 窗口」关闭背景模糊，外框回到纯色表面。
+- macOS 默认关闭主窗口后应用继续留在后台；可在「系统 → 运行」关闭后台运行，关闭窗口即退出应用。macOS 的右键菜单与下拉菜单使用系统原生菜单。
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="about/screenshot_dark.png">
@@ -67,6 +69,7 @@
 
 - Windows / Linux：托盘常驻，关窗不退出；可切换托盘图标显隐。
 - macOS：不创建托盘图标，相关入口放在屏幕顶部菜单栏；关窗后停留在 Dock。
+- macOS 右键菜单使用系统原生菜单（`Menu.popup`），Windows / Linux 保持自绘菜单。
 - 三平台均支持开机自启、单实例运行与外部链接用系统浏览器打开。
 - 窗口的外观（主题、主题色、圆角、字体）与主窗口保持一致。
 
@@ -221,8 +224,8 @@ macOS 上把 `Ctrl` 换成 `⌘`。
 
 | 按键 | 范围 | 功能 |
 | --- | --- | --- |
-| `Ctrl + N` | 主窗口 | 新建笔记 |
-| `Ctrl + Shift + N` | 主窗口 | 新建待办 |
+| `Ctrl + N` | 主窗口 | 新建笔记（草稿标签，写入后才落盘） |
+| `Ctrl + Shift + N` | 主窗口 | 新建待办（草稿标签，写入后才落盘） |
 | `Ctrl + K` | 主窗口 | 聚焦搜索 |
 | `Ctrl + S` | 主窗口 | 保存当前条目 |
 | `Ctrl + Tab` | 主窗口 | 切换打开的标签 |
@@ -277,6 +280,6 @@ macOS 上把 `Ctrl` 换成 `⌘`。
 
 - 项目代码以 **GPL-3.0** 发布，全文见 [`LICENSE`](LICENSE)。
 - 品牌字体 [Mohave](assets/Mohave.ttf) 遵循 SIL Open Font License，授权全文见 `assets/Mohave_OFL.txt`。
-- 图标来自 [Material Symbols](https://fonts.google.com/icons)（Apache-2.0）。
+- 图标来自 [Lucide](https://lucide.dev)（ISC）。
 
 问题与建议请提交 [Issue](https://github.com/TheOninesixY/EsprinNemo/issues)。

@@ -46,7 +46,7 @@ function resolvePortableDir() {
       portableDir = dir;
       portableDirWritable = ensureDirUsable(dir);
       if (!portableDirWritable) {
-        console.warn('[EsprinNemo] 便携版运行目录不可写:', dir);
+        console.warn('[Desktop:WARN] 便携版运行目录不可写:', dir);
       }
     }
   }
@@ -118,7 +118,7 @@ function getIsolatedUserDataDir(appLike = null) {
   if (!configDir) return null;
   const dir = path.join(configDir, DEV_USER_DATA_DIR_NAME);
   if (!ensureDirUsable(dir)) {
-    console.warn('[EsprinNemo] 开发运行的独立运行时目录不可用，沿用默认 profile:', dir);
+    console.warn('[Desktop:WARN] 开发运行的独立运行时目录不可用，沿用默认 profile:', dir);
     return null;
   }
   return dir;
@@ -149,18 +149,18 @@ function readStoredDataDir(appLike = null) {
     const text = decodeTextFile(fs.readFileSync(file)).replace(/\uFEFF/g, '');
     const dir = parseDataDirRecord(text);
     if (!dir) {
-      console.warn('[EsprinNemo] 数据位置记录无法解析:', file);
+      console.warn('[Desktop:WARN] 数据位置记录无法解析:', file);
       return null;
     }
 
     if (dir.includes('\uFFFD')) {
-      console.warn('[EsprinNemo] 数据位置记录无法解码，已回退到默认位置:', file);
+      console.warn('[Desktop:WARN] 数据位置记录无法解码，已回退到默认位置:', file);
       return null;
     }
 
     return path.resolve(dir);
   } catch (error) {
-    console.warn('[EsprinNemo] 读取数据位置记录失败:', error);
+    console.warn('[Desktop:WARN] 读取数据位置记录失败:', error);
     return null;
   }
 }
@@ -184,7 +184,7 @@ function writeFileAtomic(filePath, text) {
 function writeStoredDataDir(dir, appLike = null) {
 
   if (isDevRun(appLike)) {
-    console.warn('[EsprinNemo] 开发运行下忽略数据位置记录的写入');
+    console.warn('[Desktop:WARN] 开发运行下忽略数据位置记录的写入');
     return false;
   }
   const file = getLocationFile(appLike);
@@ -199,7 +199,7 @@ function writeStoredDataDir(dir, appLike = null) {
     writeFileAtomic(file, `${JSON.stringify(record, null, 2)}\n`);
     return true;
   } catch (error) {
-    console.error('[EsprinNemo] 保存数据位置失败:', error);
+    console.error('[Desktop:ERROR] 保存数据位置失败:', error);
     return false;
   }
 }
@@ -217,7 +217,7 @@ function ensureDirUsable(dir) {
     fs.writeFileSync(probe, '');
     return true;
   } catch (error) {
-    console.warn(`[EsprinNemo] 数据目录不可用 ${dir}:`, error.message);
+    console.warn(`[Desktop:WARN] 数据目录不可用 ${dir}:`, error.message);
     return false;
   } finally {
     try {
@@ -257,7 +257,7 @@ if (isDevRun(appLike)) return getDefaultDataDir(baseDir, appLike);
 const stored = readStoredDataDir(appLike);
   if (stored) {
     if (ensureDirUsable(stored)) return stored;
-    console.warn('[EsprinNemo] 记录的数据位置不可用，已回退到默认位置:', stored);
+    console.warn('[Desktop:WARN] 记录的数据位置不可用，已回退到默认位置:', stored);
   }
 
 return getDefaultDataDir(baseDir, appLike);
@@ -277,7 +277,7 @@ if (readStoredDataDir(appLike)) return;
       fs.cpSync(legacyDir, dir, { recursive: true, force: true });
     }
   } catch (error) {
-    console.warn('[EsprinNemo] 迁移旧数据失败:', error);
+    console.warn('[Desktop:WARN] 迁移旧数据失败:', error);
   }
 }
 

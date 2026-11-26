@@ -101,7 +101,7 @@ function sha256Text(text) {
 }
 
 function log(level, component, message) {
-    const line = `[${level}] [${component}] ${message}\n`;
+    const line = `[Sync:${level}] ${component}：${message}\n`;
     if (level === 'WARN' || level === 'ERROR') process.stderr.write(line);
     else process.stdout.write(line);
 }

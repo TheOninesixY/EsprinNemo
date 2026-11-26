@@ -20,7 +20,7 @@ function safeResolve(resolver, fallback, label) {
     const value = resolver();
     return value == null ? fallback : value;
   } catch (error) {
-    console.error(`[EsprinNemo] 读取${label}失败:`, error);
+    console.error(`[Desktop:ERROR] 读取${label}失败:`, error);
     return fallback;
   }
 }

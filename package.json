@@ -106,7 +106,7 @@
     }
   },
   "dependencies": {
-    "material-symbols": "^0.47.4",
+    "lucide": "^1.80.0",
     "ui-ux-pro-max-cli": "^2.15.0"
   }
 }

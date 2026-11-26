@@ -60,7 +60,7 @@ function renderFilterDrawer() {
             chip.className = 'filter-chip';
             chip.dataset.kind = 'folder';
             chip.dataset.value = folder;
-            chip.innerHTML = `<span class="ms-icon xs">folder</span><span>${escapeHTML(folder)}</span>`;
+            chip.innerHTML = `<span class="icon xs" data-lucide="folder" aria-hidden="true"></span><span>${escapeHTML(folder)}</span>`;
             chip.onclick = () => setFilterSelection('folder', folder);
             chip.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
@@ -83,7 +83,7 @@ function renderFilterDrawer() {
             chip.className = 'filter-chip';
             chip.dataset.kind = 'tag';
             chip.dataset.value = tag;
-            chip.innerHTML = `<span class="ms-icon xs">sell</span><span>#${escapeHTML(tag)}</span>`;
+            chip.innerHTML = `<span class="icon xs" data-lucide="tag" aria-hidden="true"></span><span>#${escapeHTML(tag)}</span>`;
             chip.onclick = () => setFilterSelection('tag', tag);
             tagBox.appendChild(chip);
         });

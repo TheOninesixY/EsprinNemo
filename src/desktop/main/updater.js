@@ -1,4 +1,4 @@
-const { app, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
@@ -182,26 +182,30 @@ function snapshot() {
   };
 }
 
+function mainWindows() {
+  return BrowserWindow.getAllWindows().filter((win) => {
+    if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return false;
+    return win.webContents.getURL().includes('main.html');
+  });
+}
+
 function broadcast() {
-  const win = getOwnerWindow();
-  if (!win || win.isDestroyed()) return;
-  const contents = win.webContents;
-  if (!contents || contents.isDestroyed()) return;
-  contents.send('update:state', snapshot());
+  const state = snapshot();
+  mainWindows().forEach((win) => {
+    win.webContents.send('update:state', state);
+  });
 }
 
 function notifyAutoUpdateDisabled() {
-  const win = getOwnerWindow();
-  if (!win || win.isDestroyed()) return;
-  const contents = win.webContents;
-  if (!contents || contents.isDestroyed()) return;
-  contents.send('update:auto-disabled', { reason: 'muted' });
+  mainWindows().forEach((win) => {
+    win.webContents.send('update:auto-disabled', { reason: 'muted' });
+  });
 }
 
 function disableAutoUpdate() {
   stopAutoChecks();
   const saved = writeUserConfig({ autoUpdate: false });
-  if (!saved) console.error('[EsprinNemo] 关闭自动更新失败：配置未能写入');
+  if (!saved) console.error('[Desktop:ERROR] 关闭自动更新失败：配置未能写入');
   notifyAutoUpdateDisabled();
   broadcast();
 }
@@ -605,7 +609,7 @@ function finishDownload(target, version, total, received, { auto = false } = {})
 if (auto) {
     setTimeout(() => {
       promptInstallReady().catch((error) => {
-        console.error('[EsprinNemo] 提示安装更新失败:', error);
+        console.error('[Desktop:ERROR] 提示安装更新失败:', error);
       });
     }, 0);
   }
@@ -721,7 +725,7 @@ async function installUpdate() {
     });
     child.unref();
   } catch (error) {
-    console.error('[EsprinNemo] 启动更新安装程序失败:', error);
+    console.error('[Desktop:ERROR] 启动更新安装程序失败:', error);
     return { ok: false, error: `启动安装程序失败：${asString(error && error.message)}` };
   }
 
@@ -745,9 +749,9 @@ async function promptInstallReady() {
   const version = state.update ? state.update.version : '';
   const installable = canAutoInstall();
 
-  const choice = await showDialogWindow(getOwnerWindow(), {
+  const choice = await showDialogWindow(BrowserWindow.getFocusedWindow() || getOwnerWindow(), {
     type: 'info',
-    icon: 'system_update',
+    icon: 'circle-arrow-down',
     title: '更新已就绪',
     message: `EsprinNemo ${version} 已下载完成`,
     detail: installable
@@ -853,14 +857,14 @@ ipcMain.handle('update:set-gh-proxy', () => snapshot());
   ipcMain.handle('update:open-release', (event) => {
     const url = state.update && state.update.releaseUrl ? state.update.releaseUrl : RELEASE_PAGE_URL;
     shell.openExternal(url).catch((error) => {
-      console.error('[EsprinNemo] 打开发布页失败:', error);
+      console.error('[Desktop:ERROR] 打开发布页失败:', error);
     });
     return true;
   });
 
 ipcMain.handle('update:open-repo', () => {
     shell.openExternal(REPO_URL).catch((error) => {
-      console.error('[EsprinNemo] 打开项目主页失败:', error);
+      console.error('[Desktop:ERROR] 打开项目主页失败:', error);
     });
     return true;
   });

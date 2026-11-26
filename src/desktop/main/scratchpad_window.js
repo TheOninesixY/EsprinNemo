@@ -90,7 +90,7 @@ const legacy = path.join(resolveDataDir(), LEGACY_FILE_NAME);
       return { noteId: '', title: '', content: fs.readFileSync(legacy, 'utf8') };
     }
   } catch (error) {
-    console.error('[EsprinNemo] 读取小本本状态失败:', error);
+    console.error('[Desktop:ERROR] 读取小本本状态失败:', error);
   }
   return { noteId: '', title: '', content: '' };
 }
@@ -103,7 +103,7 @@ function writeNoteState(raw) {
     writeFileAtomic(stateFilePath(), JSON.stringify(state, null, 2));
     return { ok: true };
   } catch (error) {
-    console.error('[EsprinNemo] 保存小本本状态失败:', error);
+    console.error('[Desktop:ERROR] 保存小本本状态失败:', error);
     return { ok: false, error: String(error && error.message ? error.message : error) };
   }
 }
@@ -220,7 +220,7 @@ const appearance = currentAppearance();
   });
 
   win.loadFile(NOTE_HTML).catch((error) => {
-    console.error('[EsprinNemo] 加载小本本页面失败:', error);
+    console.error('[Desktop:ERROR] 加载小本本页面失败:', error);
     if (!win.isDestroyed()) win.destroy();
   });
 

@@ -248,7 +248,7 @@
     text-align: center;
     color: var(--text-muted);
 }
-.ai-empty > .ms-icon {
+.ai-empty > .icon {
     font-size: 34px;
     color: var(--text-muted);
     opacity: 0.6;
@@ -446,7 +446,7 @@
     color: var(--accent);
     transition: color 0.15s, opacity 0.15s;
 }
-.ai-send-btn .ms-icon {
+.ai-send-btn .icon {
     font-size: 20px;
 }
 .ai-send-btn:hover:not(:disabled) {
@@ -569,15 +569,15 @@
     align-items: flex-start;
     gap: 6px;
 }
-.ai-step > .ms-icon {
+.ai-step > .icon {
     margin-top: 2px;
     color: var(--accent);
 }
-.ai-step.running > .ms-icon {
+.ai-step.running > .icon {
     color: var(--text-muted);
     animation: aiStepSpin 1s linear infinite;
 }
-.ai-step.failed > .ms-icon {
+.ai-step.failed > .icon {
     color: var(--danger);
 }
 @keyframes aiStepSpin {
@@ -762,7 +762,7 @@
     text-align: center;
 }
 
-.fm-empty .ms-icon {
+.fm-empty .icon {
     font-size: 32px;
     opacity: 0.4;
 }

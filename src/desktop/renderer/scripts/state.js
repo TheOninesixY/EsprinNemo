@@ -2,6 +2,7 @@ const State = {
     notes: [],
 
     todos: [],
+    drafts: {},
     folders: ['默认'],
     activeNoteId: null,
     openNoteIds: [],
@@ -33,6 +34,10 @@ filterFolder: '',
     autoLaunch: false,
 
     trayEnabled: true,
+
+    backgroundBlur: true,
+
+    backgroundRunning: true,
 
     stickyNotes: { enabled: true, color: 'yellow' },
 

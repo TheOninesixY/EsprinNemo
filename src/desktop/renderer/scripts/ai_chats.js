@@ -154,7 +154,7 @@ async function deleteAiConversation(id) {
         title: '删除对话',
         detail: `${rounds ? `其中的 ${rounds} 轮问答将` : '该对话将'}连同 ai_chats 下的对话文件一并从本机永久移除，此操作无法撤销。`,
         type: 'warning',
-        icon: 'delete_forever',
+        icon: 'trash',
         confirmLabel: '删除',
         danger: true
     });
@@ -218,9 +218,9 @@ function toggleAiDrawer() {
 function createAiChatActionButton(icon, title, handler) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `ai-chat-action${icon === 'delete' ? ' danger' : ''}`;
+    btn.className = `ai-chat-action${icon === 'trash-2' ? ' danger' : ''}`;
     btn.title = title;
-    btn.innerHTML = `<span class="ms-icon xs">${icon}</span>`;
+    btn.innerHTML = `<span class="icon xs" data-lucide="${icon}" aria-hidden="true"></span>`;
     btn.onclick = (event) => {
         event.stopPropagation();
         handler();
@@ -271,8 +271,8 @@ function renderAiChatList() {
 
         const actions = document.createElement('div');
         actions.className = 'ai-chat-item-actions';
-        actions.appendChild(createAiChatActionButton('edit', '重命名', () => renameAiConversation(chat.id)));
-        actions.appendChild(createAiChatActionButton('delete', '删除', () => deleteAiConversation(chat.id)));
+        actions.appendChild(createAiChatActionButton('pencil', '重命名', () => renameAiConversation(chat.id)));
+        actions.appendChild(createAiChatActionButton('trash-2', '删除', () => deleteAiConversation(chat.id)));
         item.appendChild(actions);
 
         list.appendChild(item);

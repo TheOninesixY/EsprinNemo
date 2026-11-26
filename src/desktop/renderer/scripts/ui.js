@@ -56,7 +56,7 @@ function showToast(msg) {
     if (!container) return;
     const item = document.createElement('div');
     item.className = 'toast-item';
-    item.innerHTML = `<span class="ms-icon sm">info</span><span>${escapeHTML(msg)}</span>`;
+    item.innerHTML = `<span class="icon sm" data-lucide="info" aria-hidden="true"></span><span>${escapeHTML(msg)}</span>`;
     container.appendChild(item);
 
 setTimeout(() => {
@@ -82,7 +82,7 @@ timeoutMs: options.timeoutMs || 0,
         });
         return !!result && result.id === 'confirm';
     } catch (err) {
-        console.error('打开确认窗口失败:', err);
+        console.error('[Desktop:ERROR] 打开确认窗口失败:', err);
         return false;
     }
 }
@@ -103,7 +103,7 @@ async function runInputDialog(message, options, inputConfig, defaultTitle) {
             ]
         });
     } catch (err) {
-        console.error('打开输入窗口失败:', err);
+        console.error('[Desktop:ERROR] 打开输入窗口失败:', err);
         return null;
     }
 }

@@ -72,7 +72,7 @@ async function refreshAiKeyStatus() {
     try {
         applyAiKeyStatus(await ipcRenderer.invoke('ai:key-status'));
     } catch (err) {
-        console.error('读取 API Key 状态失败:', err);
+        console.error('[Desktop:ERROR] 读取 API Key 状态失败:', err);
     }
 }
 
@@ -94,7 +94,7 @@ async function commitAiKeyFromForm() {
         showToast('API Key 已保存');
         return true;
     } catch (err) {
-        console.error('保存 API Key 失败:', err);
+        console.error('[Desktop:ERROR] 保存 API Key 失败:', err);
         setAiStatus('保存 API Key 失败：与主进程通信异常，请重试', 'error');
         return false;
     }
@@ -119,7 +119,7 @@ async function clearAiApiKey() {
         refreshAiConfigViews();
         showToast('已清除 API Key');
     } catch (err) {
-        console.error('清除 API Key 失败:', err);
+        console.error('[Desktop:ERROR] 清除 API Key 失败:', err);
         setAiStatus('清除 API Key 失败：与主进程通信异常，请重试', 'error');
     }
 }
@@ -162,7 +162,7 @@ const keyInput = document.getElementById('setting-ai-apikey');
     keyInput.value = '';
     keyInput.type = 'password';
     const keyToggle = document.getElementById('btn-ai-key-toggle');
-    if (keyToggle) keyToggle.innerHTML = '<span class="ms-icon xs">visibility</span>';
+    if (keyToggle) keyToggle.innerHTML = '<span class="icon xs" data-lucide="eye" aria-hidden="true"></span>';
     applyAiKeyStatus({ hasKey: State.aiHasApiKey, encrypted: State.aiKeyStorage === 'encrypted', strong: State.aiKeyStorage === 'keychain' });
     refreshAiKeyStatus();
 
@@ -245,7 +245,7 @@ async function fetchAiModels() {
         setAiStatus(`已获取 ${result.models.length} 个模型：可在模型输入框中输入，或从候选列表中选择`, 'ok');
         showToast(`已获取 ${result.models.length} 个模型`);
     } catch (err) {
-        console.error('获取模型列表失败:', err);
+        console.error('[Desktop:ERROR] 获取模型列表失败:', err);
         setAiStatus('获取模型列表失败：与主进程通信异常，请重试', 'error');
     } finally {
         setAiButtonBusy('btn-ai-models', false);
@@ -274,7 +274,7 @@ async function testAiConnection() {
         setAiStatus(`连接正常，模型回复：${reply}`, 'ok');
         showToast('AI 连接测试通过');
     } catch (err) {
-        console.error('AI 连接测试失败:', err);
+        console.error('[Desktop:ERROR] AI 连接测试失败:', err);
         setAiStatus('连接测试失败：与主进程通信异常，请重试', 'error');
     } finally {
         setAiButtonBusy('btn-ai-test', false);
@@ -342,7 +342,7 @@ const keyInput = document.getElementById('setting-ai-apikey');
             const keyInput = document.getElementById('setting-ai-apikey');
             const reveal = keyInput.type === 'password';
             keyInput.type = reveal ? 'text' : 'password';
-            keyToggle.innerHTML = `<span class="ms-icon xs">${reveal ? 'visibility_off' : 'visibility'}</span>`;
+            keyToggle.innerHTML = `<span class="icon xs" data-lucide="${reveal ? 'eye-off' : 'eye'}" aria-hidden="true"></span>`;
         };
     }
 

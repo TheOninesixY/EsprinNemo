@@ -22,7 +22,7 @@ const INTERMEDIATES = [
 ];
 
 function log(level, message) {
-    const line = `[${level}] [${MODULE}] ${message}`;
+    const line = `[Desktop:${level}] ${MODULE}：${message}`;
     if (level === 'ERROR' || level === 'WARN') console.error(line);
     else console.log(line);
 }

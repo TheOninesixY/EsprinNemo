@@ -53,7 +53,7 @@ function readAiSettings() {
   try {
     if (fs.existsSync(configFile)) config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
   } catch (error) {
-    console.error('[EsprinNemo] 读取 AI 配置失败:', error);
+    console.error('[Desktop:ERROR] 读取 AI 配置失败:', error);
   }
 
   const ai = config && typeof config === 'object' && config.ai && typeof config.ai === 'object' ? config.ai : {};
@@ -232,7 +232,7 @@ function ensureAiFilesDir() {
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch (error) {
-    console.error('[EsprinNemo] 创建 AI 附件目录失败:', error);
+    console.error('[Desktop:ERROR] 创建 AI 附件目录失败:', error);
   }
   return dir;
 }

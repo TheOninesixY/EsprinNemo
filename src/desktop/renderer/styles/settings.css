@@ -1,5 +1,6 @@
 .settings-view {
     flex: 1;
+    min-width: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -8,51 +9,23 @@
 }
 
 .settings-sidebar {
-    position: absolute;
-    inset: 0;
-    display: flex;
+    display: none;
     flex-direction: column;
+    flex-shrink: 0;
+    width: 200px;
     min-height: 0;
-    width: 100%;
     box-sizing: border-box;
     padding: 0;
     background-color: transparent;
     overflow: hidden;
 }
 
-.settings-topbar {
-    flex-shrink: 0;
-    height: 40px;
+.settings-main {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 16px;
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--bg-titlebar);
-}
-
-.settings-topbar-drag {
-    display: none;
-}
-
-.settings-topbar-icon {
-    color: var(--accent);
-}
-
-.settings-topbar-title {
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.settings-topbar-sep {
-    font-size: 12px;
-    color: var(--text-muted);
-}
-
-.settings-topbar-current {
-    font-size: 12.5px;
-    color: var(--text-secondary);
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
 }
 
 .settings-nav {
@@ -96,31 +69,6 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
-}
-.settings-header {
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 16px;
-}
-.settings-title {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.settings-ai-toggle {
-    margin-left: auto;
-    margin-top: 20px;
-    display: none !important;
-}
-.settings-ai-toggle.visible {
-    display: inline-block !important;
-}
-.settings-desc {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin-top: 4px;
 }
 .settings-section {
     display: flex;
@@ -801,15 +749,20 @@ input:checked + .slider:before {
     }
 }
 
-@container settings-view (max-width: 1024px) {
+@media (max-width: 820px) {
+    .settings-sidebar {
+        width: 56px;
+    }
+
     .settings-nav-item .settings-nav-label {
         display: none;
     }
 
-    .settings-view .settings-sidebar .settings-nav-item {
+    .settings-sidebar .settings-nav-item {
         padding: 7px 8px;
+        justify-content: center;
     }
-    .settings-view .settings-sidebar .settings-nav-item .nav-item-left {
+    .settings-sidebar .settings-nav-item .nav-item-left {
         gap: 0;
     }
 }
@@ -850,4 +803,9 @@ input:checked + .slider:before {
 .about-version {
     font-size: 12px;
     color: var(--text-muted);
+}
+
+html:not(.mac-platform) #setting-blur-row,
+html:not(.mac-platform) #setting-background-running-row {
+    display: none;
 }

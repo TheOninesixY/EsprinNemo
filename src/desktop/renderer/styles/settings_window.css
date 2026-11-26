@@ -1,0 +1,164 @@
+.settings-window-bar {
+    display: none;
+    flex-shrink: 0;
+    height: 40px;
+    align-items: stretch;
+    background-color: var(--bg-titlebar);
+    -webkit-app-region: drag;
+    user-select: none;
+}
+
+html.settings-window .settings-window-bar {
+    display: flex;
+}
+
+html.mac-vibrancy.settings-window .settings-window-bar {
+    background-color: var(--chrome-vibrancy-tint);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    html.mac-vibrancy.settings-window .settings-window-bar {
+        background-color: var(--bg-titlebar);
+    }
+}
+
+.settings-window-corner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--modern-rail-width);
+    box-sizing: border-box;
+    -webkit-app-region: drag;
+}
+
+.settings-window-corner svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+    color: var(--accent);
+    pointer-events: none;
+}
+
+.settings-window-corner svg path {
+    fill: currentColor;
+}
+
+html.settings-window.window-controls-mac .settings-window-corner {
+    width: 78px;
+}
+
+html.settings-window.window-controls-mac .settings-window-corner svg {
+    display: none;
+}
+
+html.mac-platform.settings-window .settings-window-title {
+    display: none;
+}
+
+.settings-window-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    -webkit-app-region: drag;
+}
+
+.settings-window-drag {
+    flex: 1;
+    align-self: stretch;
+    min-width: 0;
+    -webkit-app-region: drag;
+}
+
+.settings-window-bar .window-controls {
+    -webkit-app-region: no-drag;
+}
+
+#settings-win-max .icon {
+    font-size: 12px;
+}
+
+html.settings-window .app-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+html.settings-window.modern-layout.desktop-runtime .app-chrome {
+    display: flex;
+    align-items: stretch;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    background-color: var(--bg-titlebar);
+}
+
+html.mac-vibrancy.settings-window.modern-layout.desktop-runtime .app-chrome {
+    background-color: var(--chrome-vibrancy-tint);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    html.mac-vibrancy.settings-window.modern-layout.desktop-runtime .app-chrome {
+        background-color: var(--bg-titlebar);
+    }
+}
+
+html.settings-window .app-chrome > .topbar,
+html.settings-window .app-chrome > .sidebar,
+html.settings-window .app-chrome > .ai-panel {
+    display: none !important;
+}
+
+html.settings-window .app-chrome > .settings-sidebar {
+    display: flex;
+    width: 200px;
+    padding: 0 6px;
+    -webkit-app-region: drag;
+}
+
+html.settings-window .settings-sidebar .settings-nav {
+    padding: 10px 2px;
+}
+
+html.settings-window .settings-sidebar .settings-nav-item {
+    padding: 7px 10px;
+}
+
+html.settings-window .settings-sidebar .settings-nav-item .nav-item-left {
+    gap: 8px;
+}
+
+html.settings-window.modern-layout.desktop-runtime .app-chrome > .content-card {
+    grid-column: auto;
+    grid-row: auto;
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    margin: 0 var(--modern-content-gap) var(--modern-content-gap) 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--modern-card-radius);
+    background-color: var(--bg-editor);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+html.settings-window .app-chrome > .content-card > .notes-panel {
+    display: none !important;
+}
+
+html.settings-window .app-chrome > .content-card > .workspace {
+    flex: 1;
+    min-width: 0;
+    border-top: none;
+}
+
+html.settings-window.desktop-runtime .settings-view .settings-content {
+    padding: 20px 28px 32px;
+}

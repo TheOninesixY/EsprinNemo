@@ -40,19 +40,21 @@ function readAppIconSvg() {
 }
 
 function renderAppCornerIcon() {
-    const corner = document.querySelector('.app-corner');
-    if (!corner) return;
+    const corners = document.querySelectorAll('.app-corner');
+    if (!corners.length) return;
 
     const svgText = readAppIconSvg();
     if (!svgText) {
-        console.warn('未找到应用图标 tray.svg');
+        console.warn('[Desktop:WARN] 未找到应用图标 tray.svg');
         return;
     }
     const themed = svgText
         .replace(/fill="(?!none)[^"]*"/g, 'fill="currentColor"')
         .replace(/<svg([^>]*)>/, '<svg$1 class="app-corner-icon" aria-hidden="true">');
 
-    corner.innerHTML = themed;
+    corners.forEach((corner) => {
+        corner.innerHTML = themed;
+    });
 }
 
 renderAppCornerIcon();

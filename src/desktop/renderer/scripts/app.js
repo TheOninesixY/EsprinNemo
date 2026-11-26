@@ -6,7 +6,7 @@ function reportUiFailure(label, error) {
     const detail = error && error.message ? error.message : String(error);
     UI_FAILURES.push(`${label}：${detail}`);
     try {
-        console.error(`[ERROR] [Boot] step=${label} msg=${detail}`);
+        console.error(`[Desktop:ERROR] step=${label} msg=${detail}`);
     } catch (e) {}
 }
 
@@ -29,7 +29,7 @@ window.addEventListener('unhandledrejection', (event) => {
 function showUiFailures() {
     if (!UI_FAILURES.length) return;
     try {
-        console.error(`[ERROR] [Boot] failures=${UI_FAILURES.length}\n` + UI_FAILURES.join('\n'));
+        console.error(`[Desktop:ERROR] failures=${UI_FAILURES.length}\n` + UI_FAILURES.join('\n'));
     } catch (e) {}
     if (typeof showToast !== 'function') return;
     const more = UI_FAILURES.length > 1 ? `（共 ${UI_FAILURES.length} 处，详情见开发者工具）` : '';
@@ -62,6 +62,8 @@ let saved = {};
     State.ghProxyEnabled = saved.ghProxyEnabled === true;
     State.autoLaunch = saved.autoLaunch === true;
     State.trayEnabled = saved.trayEnabled !== false;
+    State.backgroundBlur = saved.backgroundBlur !== false;
+    State.backgroundRunning = saved.backgroundRunning !== false;
     State.stickyNotes = normalizeStickyConfig(saved.stickyNotes);
     State.fonts = normalizeFonts(saved.fonts);
     State.ai = normalizeAiConfig(saved.ai);
@@ -79,31 +81,32 @@ const cleanup = saved.dataCleanup;
     if (cleanup) {
         if (cleanup.foldersChanged) saveConfig();
         if (cleanup.legacyIndex && cleanup.legacyIndex.found) {
-            console.warn(`索引迁移：已把 index.json 中的元数据并入 ${cleanup.legacyIndex.merged} 篇笔记文件`
+            console.warn(`[Desktop:WARN] 索引迁移：已把 index.json 中的元数据并入 ${cleanup.legacyIndex.merged} 篇笔记文件`
                 + (cleanup.legacyIndex.archived ? '，原文件保留为 index.json.bak' : '，原文件归档失败'));
         }
         if (cleanup.legacyAiChats && cleanup.legacyAiChats.found) {
-            console.warn(`对话迁移：已把 ai_chats.json 中的 ${cleanup.legacyAiChats.merged} 份对话拆分为 ai_chats/{id}.json`
+            console.warn(`[Desktop:WARN] 对话迁移：已把 ai_chats.json 中的 ${cleanup.legacyAiChats.merged} 份对话拆分为 ai_chats/{id}.json`
                 + (cleanup.legacyAiChats.archived ? '，原文件保留为 ai_chats.json.bak' : '，原文件归档失败'));
         }
         if (cleanup.repairedNotes > 0) {
-            console.warn(`笔记格式：已为 ${cleanup.repairedNotes} 篇笔记写回内嵌元数据`);
+            console.warn(`[Desktop:WARN] 笔记格式：已为 ${cleanup.repairedNotes} 篇笔记写回内嵌元数据`);
         }
         if (cleanup.repairedTodos > 0) {
-            console.warn(`待办格式：已为 ${cleanup.repairedTodos} 项待办写回内嵌元数据`);
+            console.warn(`[Desktop:WARN] 待办格式：已为 ${cleanup.repairedTodos} 项待办写回内嵌元数据`);
         }
         if (cleanup.skippedFiles > 0) {
-            console.warn(`条目目录：已忽略 ${cleanup.skippedFiles} 个非笔记文件`);
+            console.warn(`[Desktop:WARN] 条目目录：已忽略 ${cleanup.skippedFiles} 个非笔记文件`);
         }
         if (cleanup.skippedTodoFiles > 0) {
-            console.warn(`待办目录：已忽略 ${cleanup.skippedTodoFiles} 个非待办文件`);
+            console.warn(`[Desktop:WARN] 待办目录：已忽略 ${cleanup.skippedTodoFiles} 个非待办文件`);
         }
     }
 
-const purgedTrashItems = runBootStep('清理废纸篓', purgeExpiredTrashItems) || 0;
+const purgedTrashItems = IS_SETTINGS_WINDOW ? 0 : (runBootStep('清理废纸篓', purgeExpiredTrashItems) || 0);
 
 runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('主题', initTheme);
+    runBootStep('背景模糊', initBackgroundBlur);
     runBootStep('明暗模式', initThemeMode);
     runBootStep('主题色', initAccentColor);
     runBootStep('圆角尺度', initCornerRadius);
@@ -114,10 +117,12 @@ runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('设置分类', initSettingsNav);
     runBootStep('界面布局', initUiMode);
     runBootStep('AI 接口设置', initAiSettings);
-    runBootStep('AI 对话记录', initAiChats);
-    runBootStep('AI Agent', initAiAgent);
-    runBootStep('AI 附件', initAiFiles);
-    runBootStep('AI 面板', initAiPanel);
+    if (!IS_SETTINGS_WINDOW) {
+        runBootStep('AI 对话记录', initAiChats);
+        runBootStep('AI Agent', initAiAgent);
+        runBootStep('AI 附件', initAiFiles);
+        runBootStep('AI 面板', initAiPanel);
+    }
 
     runBootStep('事件绑定', setupEvents);
     runBootStep('废纸篓保留期限', syncTrashRetentionSelect);
@@ -130,12 +135,25 @@ runBootStep('自绘下拉菜单', initCustomDropdowns);
     runBootStep('秘密本设置', initSecretSettings);
     runBootStep('更新设置', initUpdateSettings);
     runBootStep('托盘设置', initTraySettings);
+    runBootStep('后台运行设置', initBackgroundRunningSettings);
     runBootStep('开机自启设置', initAutoLaunchSettings);
 
     runBootStep('桌面便利贴设置', initStickyNoteSettings);
 
-State.openNoteIds = [];
-    State.activeNoteId = null;
+if (IS_SETTINGS_WINDOW) {
+        State.openNoteIds = ['settings'];
+        State.activeNoteId = 'settings';
+        window.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const tag = e.target && e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+            if (document.querySelector('.context-menu:not(.hidden), .dropdown-menu:not(.hidden)')) return;
+            ipcRenderer.invoke('window:close').catch(() => {});
+        });
+    } else {
+        State.openNoteIds = [];
+        State.activeNoteId = null;
+    }
 
     runBootStep('首次渲染', renderApp);
 
@@ -159,13 +177,15 @@ State.openNoteIds = [];
         showToast('API Key 已改存到本机安全存储（不再明文写入 config.json）');
     }
 
-trashPurgeTimer = setInterval(() => {
-        if (document.hidden) return;
-        runTrashAutoPurge();
-    }, TRASH_PURGE_INTERVAL_MS);
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) runTrashAutoPurge();
-    });
+if (!IS_SETTINGS_WINDOW) {
+        trashPurgeTimer = setInterval(() => {
+            if (document.hidden) return;
+            runTrashAutoPurge();
+        }, TRASH_PURGE_INTERVAL_MS);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) runTrashAutoPurge();
+        });
+    }
 
 updateNarrowLayout();
 };
@@ -179,3 +199,51 @@ function updateNarrowLayout() {
 }
 
 window.addEventListener('resize', updateNarrowLayout);
+
+let dataDirReloadPending = false;
+
+function reloadItemsFromDisk(options = {}) {
+    try {
+        if (dataDirReloadPending) return;
+        if (typeof flushPendingSave === 'function') flushPendingSave();
+        const saved = loadData();
+        State.notes = Array.isArray(saved.notes) ? saved.notes : [];
+        State.todos = Array.isArray(saved.todos) ? saved.todos : [];
+        markItemKinds(State.notes, State.todos);
+        State.folders = Array.isArray(saved.folders) && saved.folders.length ? saved.folders : ['默认'];
+
+        State.openNoteIds = State.openNoteIds.filter((id) => !!getItemById(id));
+        if (!State.openNoteIds.includes(State.activeNoteId)) {
+            State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
+        }
+
+        renderApp();
+        if (!options.silent) showToast('数据已更新');
+    } catch (err) {
+        console.error('[Desktop:ERROR] 重新读取数据失败:', err);
+    }
+}
+
+ipcRenderer.on('settings:data-dir-changed', () => {
+    if (IS_SETTINGS_WINDOW) return;
+    dataDirReloadPending = true;
+    window.location.reload();
+});
+
+ipcRenderer.on('settings:data-changed', () => {
+    if (IS_SETTINGS_WINDOW) return;
+    reloadItemsFromDisk({ silent: true });
+});
+
+ipcRenderer.on('settings:window-closed', () => {
+    if (IS_SETTINGS_WINDOW) return;
+    reloadItemsFromDisk({ silent: true });
+});
+
+ipcRenderer.on('settings:open-note', (event, noteId) => {
+    if (IS_SETTINGS_WINDOW) return;
+    if (typeof noteId !== 'string' || !noteId) return;
+    if (!getItemById(noteId)) reloadItemsFromDisk({ silent: true });
+    openTab(noteId);
+    renderApp();
+});

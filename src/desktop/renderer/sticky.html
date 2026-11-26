@@ -7,8 +7,8 @@
 
     <script src="./window_appearance.js"></script>
     <script>window.applyWindowAppearance(window.readWindowAppearanceFromArgs());</script>
-    <link rel="stylesheet" href="../../../node_modules/material-symbols/rounded.css">
-
+    <script src="../../../node_modules/lucide/dist/umd/lucide.min.js"></script>
+    <script src="./scripts/icons.js"></script>
     <link rel="stylesheet" href="./styles/tokens.css">
     <link rel="stylesheet" href="./styles/window_shell.css">
     <link rel="stylesheet" href="./styles/radius.css">
@@ -361,7 +361,7 @@ body {
             <div class="sticky-grip"></div>
             <div class="window-controls">
                 <button class="win-btn" id="sticky-edit" title="编辑">
-                    <span class="ms-icon xs">edit</span>
+                    <span class="icon xs" data-lucide="pencil" aria-hidden="true"></span>
                 </button>
             </div>
         </header>
@@ -376,13 +376,14 @@ body {
 
 <div class="sticky-menu hidden" id="sticky-menu">
             <button class="sticky-menu-item" id="sticky-menu-close">
-                <span class="ms-icon xs">delete</span>
+                <span class="icon xs" data-lucide="trash-2" aria-hidden="true"></span>
                 <span>关闭并移除</span>
             </button>
         </div>
     </div>
 
 <script src="./scripts/markdown.js"></script>
+    <script src="./scripts/native_menu.js"></script>
     <script src="./scripts/sticky_window.js"></script>
 </body>
 </html>

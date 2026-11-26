@@ -1,4 +1,5 @@
 import { renderMarkdown } from './markdown.js';
+import { setIcon } from './icons.js';
 import {
     buildItem, displayTitle, itemIdFromPath, snippet, serializeItem, formatRelative, byteLength, formatBytes
 } from './format.js';
@@ -100,8 +101,8 @@ const SETTINGS_SECTIONS = ['appearance', 'sync', 'data', 'about'];
 
 const SETTINGS_META = {
     appearance: { icon: 'palette', label: '外观', desc: '主题与排序' },
-    sync: { icon: 'sync', label: '同步', desc: '服务器地址、账户与本机令牌' },
-    data: { icon: 'storage', label: '数据', desc: '本机占用与清空' },
+    sync: { icon: 'refresh-cw', label: '同步', desc: '服务器地址、账户与本机令牌' },
+    data: { icon: 'database', label: '数据', desc: '本机占用与清空' },
     about: { icon: 'info', label: '关于', desc: '与桌面端共用的数据格式' }
 };
 
@@ -196,11 +197,11 @@ function confirmSheet({ title, message, confirmText = '确认', danger = false, 
         html: `
             <p class="sheet-note">${esc(message)}</p>
             <button class="sheet-item ${danger ? 'danger' : ''}" data-confirm="yes">
-                <span class="ms-icon ms-s18">${danger ? 'delete' : 'check'}</span>
+                <span class="icon icon-s18" data-lucide="${danger ? 'trash-2' : 'check'}" aria-hidden="true"></span>
                 <span>${esc(confirmText)}</span>
             </button>
             <button class="sheet-item" data-confirm="no">
-                <span class="ms-icon ms-s18">close</span>
+                <span class="icon icon-s18" data-lucide="x" aria-hidden="true"></span>
                 <span>取消</span>
             </button>
         `,
@@ -243,7 +244,7 @@ async function loadItems() {
         try {
             items.push(buildItem({ id, path, raw: record.data, time: record.time }));
         } catch (err) {
-            console.warn('[Nemo] 条目解析失败：', path, err && err.message);
+            console.warn('[Mobile:WARN] 条目解析失败：', path, err && err.message);
         }
     }
     state.items = items;
@@ -377,7 +378,7 @@ function selectSettingsSection(name) {
     const section = SETTINGS_SECTIONS.includes(name) ? name : SETTINGS_SECTIONS[0];
     state.settingsSection = section;
     const meta = SETTINGS_META[section] || SETTINGS_META[SETTINGS_SECTIONS[0]];
-    settingsTitleIcon.textContent = meta.icon;
+    setIcon(settingsTitleIcon, meta.icon);
     settingsTitle.textContent = meta.label;
     settingsDesc.textContent = meta.desc;
     settingsNav.querySelectorAll('[data-section]').forEach((button) => {
@@ -467,9 +468,9 @@ function openFilterSheet() {
                 <span class="sheet-section-title">文件夹</span>
                 ${folderRows.map((row, index) => `
                     <button class="sheet-item${(state.folder || '') === row.name ? ' selected' : ''}" data-folder-row="${index}">
-                        <span class="ms-icon ms-s18">${row.name ? 'folder' : 'folder_open'}</span>
+                        <span class="icon icon-s18" data-lucide="${row.name ? 'folder' : 'folder-open'}" aria-hidden="true"></span>
                         <span>${esc(row.label)}</span>
-                        ${(state.folder || '') === row.name ? '<span class="ms-icon ms-s16 sheet-check">check</span>' : ''}
+                        ${(state.folder || '') === row.name ? '<span class="icon icon-s16 sheet-check" data-lucide="check" aria-hidden="true"></span>' : ''}
                     </button>
                 `).join('')}
             </div>
@@ -527,12 +528,12 @@ function cardHtml(item) {
 
     const check = item.type === 'todo'
         ? `<button class="card-check${done ? ' done' : ''}" type="button" data-action="toggle-done" data-id="${esc(item.id)}">
-               <span class="ms-icon ms-s18">${done ? 'check_box' : 'check_box_outline_blank'}</span>
+               <span class="icon icon-s18" data-lucide="${done ? 'square-check' : 'square'}" aria-hidden="true"></span>
            </button>`
         : '';
 
-    const pin = item.isPinned ? '<span class="ms-icon ms-s14">keep</span>' : '';
-    const lock = locked ? '<span class="ms-icon ms-s14">lock</span>' : '';
+    const pin = item.isPinned ? '<span class="icon icon-s14" data-lucide="pin" aria-hidden="true"></span>' : '';
+    const lock = locked ? '<span class="icon icon-s14" data-lucide="lock" aria-hidden="true"></span>' : '';
 
     const inner = `
         <div class="card-title-row">
@@ -561,21 +562,21 @@ function cardHtml(item) {
 
 function emptyState() {
     if (state.filter === 'trash') {
-        return { icon: 'delete', title: '废纸篓是空的', text: '删除的笔记会先进入废纸篓' };
+        return { icon: 'trash-2', title: '废纸篓是空的', text: '删除的笔记会先进入废纸篓' };
     }
     if (state.filter === 'pinned') {
-        return { icon: 'keep', title: '还没有置顶', text: '在编辑器里点置顶，笔记会出现在这里' };
+        return { icon: 'pin', title: '还没有置顶', text: '在编辑器里点置顶，笔记会出现在这里' };
     }
     if (state.filter === 'todos') {
-        return { icon: 'check_box', title: '还没有待办', text: '点 + 新建一条待办' };
+        return { icon: 'square-check', title: '还没有待办', text: '点 + 新建一条待办' };
     }
     if (state.folder) {
         return { icon: 'folder', title: '这个文件夹是空的', text: '换一个文件夹，或点 + 新建' };
     }
     if (state.tag) {
-        return { icon: 'label', title: '没有这个标签的条目', text: '再点一次标签即可清除筛选' };
+        return { icon: 'tag', title: '没有这个标签的条目', text: '再点一次标签即可清除筛选' };
     }
-    return { icon: 'description', title: '还没有笔记', text: '点 + 开始记录' };
+    return { icon: 'file-text', title: '还没有笔记', text: '点 + 开始记录' };
 }
 
 function renderList() {
@@ -588,7 +589,7 @@ function renderList() {
     if (!list.length) {
         cards.innerHTML = '';
         const message = emptyState();
-        listEmptyIcon.textContent = message.icon;
+        setIcon(listEmptyIcon, message.icon);
         listEmptyTitle.textContent = message.title;
         listEmptyText.textContent = message.text;
         listEmpty.hidden = false;
@@ -642,14 +643,14 @@ function renderMeta() {
 
     if (draft.type === 'todo') {
         parts.push(`<button class="meta-chip${draft.isDone ? ' done' : ''}" type="button" data-meta="toggle-done">
-            <span class="ms-icon ms-s13">${draft.isDone ? 'check_box' : 'check_box_outline_blank'}</span>
+            <span class="icon icon-s13" data-lucide="${draft.isDone ? 'square-check' : 'square'}" aria-hidden="true"></span>
             <span>${draft.isDone ? '已完成' : '未完成'}</span>
         </button>`);
     }
 
     draft.tags.forEach((tag) => {
         parts.push(`<span class="meta-chip accent">#${esc(tag)}<button type="button" data-remove-tag="${esc(tag)}">
-            <span class="ms-icon ms-s12">close</span>
+            <span class="icon icon-s12" data-lucide="x" aria-hidden="true"></span>
         </button></span>`);
     });
 
@@ -684,7 +685,7 @@ function renderEditor({ force = false } = {}) {
     editorFoot.hidden = false;
 
     const isTodo = draft.type === 'todo';
-    editorKindIcon.textContent = isTodo ? 'check_box' : 'description';
+    setIcon(editorKindIcon, isTodo ? 'square-check' : 'file-text');
     editorKind.textContent = isTodo ? '待办' : '笔记';
     btnEditorPin.classList.toggle('active', !!draft.isPinned);
     editorSaved.textContent = state.dirty ? '未保存' : '已保存';
@@ -709,7 +710,7 @@ function renderEditor({ force = false } = {}) {
         editorBody.hidden = true;
         editorPreview.hidden = false;
         editorPreview.innerHTML = `<div class="locked-note">
-            <span class="ms-icon ms-s24">lock</span>
+            <span class="icon icon-s24" data-lucide="lock" aria-hidden="true"></span>
             <p>这是一条加密笔记。<br>内容由桌面端加密，移动端暂不支持解密与编辑。</p>
         </div>`;
         editorFoot.hidden = true;
@@ -721,13 +722,13 @@ function renderEditor({ force = false } = {}) {
         editorPreview.hidden = false;
         editorPreview.innerHTML = renderMarkdown(draft.content) || '<p class="md-placeholder">没有内容</p>';
         editorModeLabel.textContent = '编辑';
-        editorModeIcon.textContent = 'edit';
+        setIcon(editorModeIcon, 'pencil');
         btnEditorMode.classList.add('active');
     } else {
         editorPreview.hidden = true;
         editorBody.hidden = false;
         editorModeLabel.textContent = '预览';
-        editorModeIcon.textContent = 'visibility';
+        setIcon(editorModeIcon, 'eye');
         btnEditorMode.classList.remove('active');
     }
 
@@ -941,23 +942,23 @@ function openMoreSheet() {
     if (!draft) return;
 
     const rows = [
-        { icon: 'keep', label: draft.isPinned ? '取消置顶' : '置顶', run: () => togglePin() },
+        { icon: 'pin', label: draft.isPinned ? '取消置顶' : '置顶', run: () => togglePin() },
         { icon: 'folder', label: '移动到文件夹', run: () => openFolderSheet() },
-        { icon: 'content_copy', label: '复制正文', run: () => copyBody(draft) }
+        { icon: 'copy', label: '复制正文', run: () => copyBody(draft) }
     ];
 
     if (draft.isTrashed) {
-        rows.push({ icon: 'restore_from_trash', label: '恢复到笔记列表', run: () => setTrashed(false) });
+        rows.push({ icon: 'undo-2', label: '恢复到笔记列表', run: () => setTrashed(false) });
     } else {
-        rows.push({ icon: 'delete', label: '移到废纸篓', run: () => setTrashed(true) });
+        rows.push({ icon: 'trash-2', label: '移到废纸篓', run: () => setTrashed(true) });
     }
-    rows.push({ icon: 'delete_forever', label: '永久删除', danger: true, run: () => deleteForever() });
+    rows.push({ icon: 'trash', label: '永久删除', danger: true, run: () => deleteForever() });
 
     openSheet({
         title: displayTitle(draft),
         html: rows.map((row, index) => `
             <button class="sheet-item${row.danger ? ' danger' : ''}" data-row="${index}">
-                <span class="ms-icon ms-s18">${row.icon}</span>
+                <span class="icon icon-s18" data-lucide="${row.icon}" aria-hidden="true"></span>
                 <span>${esc(row.label)}</span>
             </button>
         `).join(''),
@@ -1058,9 +1059,9 @@ function openFolderSheet() {
         html: `
             ${rows.map((row, index) => `
                 <button class="sheet-item" data-folder-row="${index}">
-                    <span class="ms-icon ms-s18">${row.name ? 'folder' : 'folder_open'}</span>
+                    <span class="icon icon-s18" data-lucide="${row.name ? 'folder' : 'folder-open'}" aria-hidden="true"></span>
                     <span>${esc(row.label)}</span>
-                    ${(draft.folder || '') === row.name ? '<span class="ms-icon ms-s16" style="margin-left:auto;color:var(--accent)">check</span>' : ''}
+                    ${(draft.folder || '') === row.name ? '<span class="icon icon-s16" style="margin-left:auto;color:var(--accent)" data-lucide="check" aria-hidden="true"></span>' : ''}
                 </button>
             `).join('')}
             <input class="sheet-field" id="folder-input" type="text" placeholder="新建文件夹后回车" autocomplete="off" spellcheck="false">
@@ -1570,7 +1571,7 @@ async function loadBrandIcon() {
             .replace(/fill="(?!none)[^"]*"/g, 'fill="currentColor"')
             .replace(/<svg([^>]*)>/, '<svg$1 class="app-brand-icon" aria-hidden="true">');
     } catch (err) {
-        console.warn('[Nemo] 读取品牌图标失败：', err && err.message);
+        console.warn('[Mobile:WARN] 读取品牌图标失败：', err && err.message);
     }
 }
 
@@ -1613,6 +1614,6 @@ async function boot() {
 }
 
 boot().catch((error) => {
-    console.error('[Nemo] 启动失败：', error);
+    console.error('[Mobile:ERROR] 启动失败：', error);
     toast('启动失败：' + (error && error.message ? error.message : '未知错误'));
 });

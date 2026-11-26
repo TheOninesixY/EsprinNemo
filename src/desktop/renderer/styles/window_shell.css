@@ -16,31 +16,22 @@ html, body {
     -webkit-font-smoothing: antialiased;
 }
 
-.ms-icon {
-    font-family: 'Material Symbols Rounded';
-    font-weight: normal;
-    font-style: normal;
-    font-size: 18px;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
+.icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+    line-height: 1;
     vertical-align: middle;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: 'liga';
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
-.ms-icon.xs { font-size: 14px; }
-.ms-icon.sm { font-size: 16px; }
-
-.ms-icon.fill { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+.icon > svg {
+    display: block;
+    width: 1em;
+    height: 1em;
+}
+.icon.xs { font-size: 14px; }
+.icon.sm { font-size: 16px; }
 
 button {
     border: none;

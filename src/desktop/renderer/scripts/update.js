@@ -235,7 +235,7 @@ async function refreshUpdateInfo() {
     try {
         adoptUpdateState(await ipcRenderer.invoke('update:get-info'));
     } catch (err) {
-        console.error('读取更新状态失败:', err);
+        console.error('[Desktop:ERROR] 读取更新状态失败:', err);
     }
     renderUpdateUI();
 }
@@ -254,7 +254,7 @@ async function checkUpdatesNow() {
             showToast('已是最新版本');
         }
     } catch (err) {
-        console.error('检查更新失败:', err);
+        console.error('[Desktop:ERROR] 检查更新失败:', err);
         adoptUpdateState({ status: 'error', error: '检查更新失败', checking: false });
     }
 }
@@ -272,7 +272,7 @@ async function downloadUpdate() {
             showToast(result.error || '下载更新失败');
         }
     } catch (err) {
-        console.error('下载更新失败:', err);
+        console.error('[Desktop:ERROR] 下载更新失败:', err);
         updateManualDownload = false;
         adoptUpdateState({ status: 'error', error: '下载更新失败', downloading: false });
     }
@@ -283,7 +283,7 @@ async function cancelUpdateDownload() {
         adoptUpdateState(await ipcRenderer.invoke('update:cancel-download'));
         showToast('已取消下载');
     } catch (err) {
-        console.error('取消下载失败:', err);
+        console.error('[Desktop:ERROR] 取消下载失败:', err);
     }
 }
 
@@ -292,7 +292,7 @@ async function openDownloadedPackage() {
         await ipcRenderer.invoke('update:open-file');
         showToast('已打开安装包所在文件夹');
     } catch (err) {
-        console.error('打开安装包失败:', err);
+        console.error('[Desktop:ERROR] 打开安装包失败:', err);
     }
 }
 
@@ -317,20 +317,20 @@ flushPendingSave();
             showToast(result.error || '启动安装程序失败：请手动运行已下载的安装包');
         }
     } catch (err) {
-        console.error('安装更新失败:', err);
+        console.error('[Desktop:ERROR] 安装更新失败:', err);
         showToast('启动安装程序失败：请手动运行已下载的安装包');
     }
 }
 
 function openUpdatePage() {
     ipcRenderer.invoke('update:open-release').catch((err) => {
-        console.error('打开发布页失败:', err);
+        console.error('[Desktop:ERROR] 打开发布页失败:', err);
     });
 }
 
 function openProjectPage() {
     ipcRenderer.invoke('update:open-repo').catch((err) => {
-        console.error('打开项目主页失败:', err);
+        console.error('[Desktop:ERROR] 打开项目主页失败:', err);
     });
 }
 
@@ -376,7 +376,7 @@ function initUpdateSettings() {
             saveConfig();
             ipcRenderer.invoke('update:set-auto', { enabled: State.autoUpdate })
                 .then((payload) => adoptUpdateState(payload))
-                .catch((err) => console.error('同步自动更新开关失败:', err));
+                .catch((err) => console.error('[Desktop:ERROR] 同步自动更新开关失败:', err));
             showToast(State.autoUpdate ? '已开启自动更新' : '已关闭自动更新');
         };
     }
@@ -388,7 +388,7 @@ const proxyToggle = updateEl('setting-gh-proxy');
             saveConfig();
             ipcRenderer.invoke('update:set-gh-proxy')
                 .then((payload) => adoptUpdateState(payload))
-                .catch((err) => console.error('同步 gh-proxy 加速开关失败:', err));
+                .catch((err) => console.error('[Desktop:ERROR] 同步 gh-proxy 加速开关失败:', err));
             showToast(State.ghProxyEnabled ? '已开启 gh-proxy 加速' : '已关闭 gh-proxy 加速');
         };
     }

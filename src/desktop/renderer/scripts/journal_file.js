@@ -40,7 +40,7 @@ async function pickJournalFile() {
         if (!picked || picked.canceled || !picked.path) return '';
         return picked.path;
     } catch (err) {
-        console.error('打开日志文件选择框失败:', err);
+        console.error('[Desktop:ERROR] 打开日志文件选择框失败:', err);
         setJournalStatus('打开文件选择框失败', 'error');
         return '';
     }
@@ -51,7 +51,7 @@ async function inspectJournalFile(filePath) {
     try {
         info = await ipcRenderer.invoke('journal:inspect', { filePath });
     } catch (err) {
-        console.error('读取日志失败:', err);
+        console.error('[Desktop:ERROR] 读取日志失败:', err);
         setJournalStatus('读取日志失败：与主进程通信异常，请重试', 'error');
         return null;
     }
@@ -99,14 +99,17 @@ flushPendingSave();
             return;
         }
 
-if (result.written || result.deleted) adoptDataDir(DATA_DIR, { message: result.summary });
+if (result.written || result.deleted) {
+            adoptDataDir(DATA_DIR, { message: result.summary });
+            ipcRenderer.send('settings:data-changed');
+        }
         const failures = result.errors && result.errors.length
             ? `；有失败项，例如 ${result.errors[0]}`
             : '';
         setJournalStatus(`${result.summary}${failures}`, failures ? 'error' : 'ok');
         showToast(result.summary);
     } catch (err) {
-        console.error('导入文件日志失败:', err);
+        console.error('[Desktop:ERROR] 导入文件日志失败:', err);
         setJournalStatus('导入失败：与主进程通信异常，请重试', 'error');
     } finally {
         setJournalBusy(false);
@@ -142,7 +145,7 @@ async function exportJournalFolder() {
         try {
             picked = await ipcRenderer.invoke('journal:pick-folder');
         } catch (err) {
-            console.error('打开文件夹选择框失败:', err);
+            console.error('[Desktop:ERROR] 打开文件夹选择框失败:', err);
             setJournalStatus('打开文件夹选择框失败', 'error');
             return;
         }
@@ -164,7 +167,7 @@ async function exportJournalFolder() {
         setJournalStatus(`${result.summary}，位置：${result.targetDir}${failures}`, failures ? 'error' : 'ok');
         showToast(`已导出 ${result.files} 个文件`);
     } catch (err) {
-        console.error('文件日志转为文件夹失败:', err);
+        console.error('[Desktop:ERROR] 文件日志转为文件夹失败:', err);
         setJournalStatus('导出失败：与主进程通信异常，请重试', 'error');
     } finally {
         setJournalBusy(false);

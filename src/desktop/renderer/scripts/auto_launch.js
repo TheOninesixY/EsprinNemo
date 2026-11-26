@@ -46,7 +46,7 @@ function applyAutoLaunchState(result, options = {}) {
 function syncAutoLaunchSetting(options = {}) {
     return ipcRenderer.invoke('app:set-auto-launch', { enabled: State.autoLaunch === true })
         .then((result) => applyAutoLaunchState(result, options))
-        .catch((err) => console.error('同步开机自启失败:', err));
+        .catch((err) => console.error('[Desktop:ERROR] 同步开机自启失败:', err));
 }
 
 function initAutoLaunchSettings() {
@@ -63,7 +63,7 @@ function initAutoLaunchSettings() {
 
 ipcRenderer.invoke('app:get-auto-launch')
         .then((result) => applyAutoLaunchState(result))
-        .catch((err) => console.error('读取开机自启状态失败:', err));
+        .catch((err) => console.error('[Desktop:ERROR] 读取开机自启状态失败:', err));
 
     syncAutoLaunchStatusText(null);
 }

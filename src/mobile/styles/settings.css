@@ -40,7 +40,7 @@
     transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.settings-nav-item .ms-icon {
+.settings-nav-item .icon {
     flex-shrink: 0;
     color: currentColor;
 }
@@ -83,7 +83,7 @@
     color: var(--text-primary);
 }
 
-.settings-title .ms-icon {
+.settings-title .icon {
     color: var(--accent);
 }
 

@@ -17,7 +17,7 @@
 
 .nav-section-main {
     flex-shrink: 0;
-    gap: 6px;
+    gap: 8px;
     position: relative;
     isolation: isolate;
 }
@@ -29,7 +29,7 @@
     top: 10px;
     left: 8px;
     right: 8px;
-    height: calc((100% - 26px) / 3);
+    height: calc((100% - 30px) / 3);
     border-radius: var(--radius-sm);
     background-color: var(--item-active);
     opacity: 0;
@@ -44,12 +44,12 @@
 
 .nav-section-main:has(.nav-item[data-filter="todos"].active)::before {
     opacity: 1;
-    transform: translateY(calc(100% + 6px));
+    transform: translateY(calc(100% + 8px));
 }
 
 .nav-section-main:has(.nav-item[data-filter="trash"].active)::before {
     opacity: 1;
-    transform: translateY(calc(200% + 12px));
+    transform: translateY(calc(200% + 16px));
 }
 
 .nav-section-title {
@@ -83,30 +83,13 @@
     flex-shrink: 0;
     line-height: 0;
 }
-.nav-icon > .ms-icon {
+.nav-icon > .icon {
     grid-area: 1 / 1;
 }
 .nav-item-left .nav-icon,
-.nav-item-left .nav-icon > .ms-icon {
+.nav-item-left .nav-icon > .icon {
     overflow: visible;
     text-overflow: clip;
-}
-.nav-icon-line,
-.nav-icon-solid {
-    transition: clip-path var(--motion-base) var(--ease-out);
-}
-.nav-icon-line {
-    clip-path: inset(0 0 0 0);
-}
-.nav-item.active .nav-icon-line {
-    clip-path: inset(100% 0 0 0);
-}
-.nav-icon-solid {
-    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
-    clip-path: inset(0 0 100% 0);
-}
-.nav-item.active .nav-icon-solid {
-    clip-path: inset(0 0 0 0);
 }
 .nav-item:hover {
     background-color: var(--item-hover);
@@ -115,7 +98,6 @@
 .nav-item.active {
     background-color: transparent;
     color: var(--text-primary);
-    font-weight: 500;
 }
 .nav-item.active:hover {
     background-color: transparent;
@@ -189,7 +171,7 @@
     color: var(--text-secondary);
 }
 
-.btn-sidebar-settings .ms-icon {
+.btn-sidebar-settings .icon {
     font-size: 18px;
 }
 
@@ -236,8 +218,8 @@ html.sidebar-collapsed .sidebar .nav-item-left {
     gap: 0;
 }
 
-html.sidebar-collapsed .sidebar .nav-item .ms-icon {
-    font-size: 18px;
+html.sidebar-collapsed .sidebar .nav-item .icon {
+    font-size: 17px;
 }
 
 html.sidebar-collapsed .sidebar .btn-sidebar-bottom {
@@ -293,7 +275,7 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     height: 28px;
     overflow: hidden;
 }
-.search-box > .ms-icon,
+.search-box > .icon,
 .search-box .btn-clear {
     flex-shrink: 0;
 }
@@ -390,7 +372,7 @@ html.sidebar-collapsed .sidebar .btn-sidebar-settings {
     gap: 4px;
     flex-shrink: 0;
 }
-.note-card-title-meta .ms-icon {
+.note-card-title-meta .icon {
     flex-shrink: 0;
 }
 .note-card-folder-slot {

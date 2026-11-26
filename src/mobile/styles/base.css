@@ -28,40 +28,30 @@ textarea {
     display: none !important;
 }
 
-.ms-icon {
-    font-family: 'Material Symbols Rounded';
-    font-weight: normal;
-    font-style: normal;
-    font-size: 18px;
-    line-height: 1;
-    letter-spacing: normal;
-    text-transform: none;
+.icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    font-size: 18px;
+    line-height: 1;
     vertical-align: middle;
-    white-space: nowrap;
-    word-wrap: normal;
-    direction: ltr;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: 'liga';
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
-.ms-icon.fill {
-    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+.icon > svg {
+    display: block;
+    width: 1em;
+    height: 1em;
 }
 
-.ms-s12 { font-size: 12px; }
-.ms-s13 { font-size: 13px; }
-.ms-s14 { font-size: 14px; }
-.ms-s16 { font-size: 16px; }
-.ms-s18 { font-size: 18px; }
-.ms-s20 { font-size: 20px; }
-.ms-s24 { font-size: 24px; }
-.ms-s48 { font-size: 48px; }
+.icon-s12 { font-size: 12px; }
+.icon-s13 { font-size: 13px; }
+.icon-s14 { font-size: 14px; }
+.icon-s16 { font-size: 16px; }
+.icon-s18 { font-size: 18px; }
+.icon-s20 { font-size: 20px; }
+.icon-s24 { font-size: 24px; }
+.icon-s48 { font-size: 48px; }
 
 button {
     border: none;
@@ -188,7 +178,7 @@ select {
     text-overflow: ellipsis;
 }
 
-.topbar-title .ms-icon {
+.topbar-title .icon {
     color: var(--accent);
     flex-shrink: 0;
 }
@@ -223,7 +213,7 @@ select {
     opacity: 0.4;
 }
 
-.btn-action-icon.spinning .ms-icon {
+.btn-action-icon.spinning .icon {
     animation: spin 0.9s linear infinite;
 }
 
@@ -261,7 +251,7 @@ select {
     border-color: var(--accent);
 }
 
-.search-box .ms-icon {
+.search-box .icon {
     flex-shrink: 0;
     color: var(--text-muted);
 }
@@ -343,7 +333,7 @@ select {
     color: var(--accent);
 }
 
-.menu-pop-item.active .ms-icon {
+.menu-pop-item.active .icon {
     color: var(--accent);
 }
 
@@ -406,7 +396,7 @@ select {
     border-color: var(--accent);
 }
 
-.search-field .ms-icon {
+.search-field .icon {
     flex-shrink: 0;
     color: var(--text-muted);
 }
@@ -504,7 +494,7 @@ select {
     background-color: var(--item-active);
 }
 
-.menu-pop-item .ms-icon {
+.menu-pop-item .icon {
     flex-shrink: 0;
     color: var(--text-secondary);
 }
@@ -596,13 +586,13 @@ select {
     background-color: var(--item-active);
 }
 
-.sheet-item .ms-icon {
+.sheet-item .icon {
     color: var(--text-secondary);
     flex-shrink: 0;
 }
 
 .sheet-item.danger,
-.sheet-item.danger .ms-icon {
+.sheet-item.danger .icon {
     color: var(--danger);
 }
 
@@ -728,7 +718,7 @@ select {
         transform: none !important;
     }
 
-    .btn-action-icon.spinning .ms-icon {
+    .btn-action-icon.spinning .icon {
         animation-duration: 1.6s;
     }
 }

@@ -38,7 +38,7 @@ async function loadTeamNotes() {
             setTeamNotesStatus(`读取共享列表失败：${(result && result.error) || '与主进程通信异常'}`, 'error');
         }
     } catch (err) {
-        console.error('读取共享列表失败:', err);
+        console.error('[Desktop:ERROR] 读取共享列表失败:', err);
         teamNotesData = null;
         setTeamNotesStatus('读取共享列表失败：与主进程通信异常，请重试', 'error');
     }
@@ -91,8 +91,8 @@ function createTeamRow({ icon, title, meta }) {
     const main = document.createElement('div');
     main.className = 'team-item-main';
     const iconEl = document.createElement('span');
-    iconEl.className = 'ms-icon sm';
-    iconEl.textContent = icon;
+    iconEl.className = 'icon sm';
+    setLucideIcon(iconEl, icon);
     const text = document.createElement('div');
     text.className = 'team-item-text';
     const titleEl = document.createElement('span');
@@ -165,7 +165,7 @@ if (!data.incoming.length) {
     } else {
         data.incoming.forEach((record) => {
             const { row, actions } = createTeamRow({
-                icon: 'mark_email_unread',
+                icon: 'mail',
                 title: `${record.ownerName} 请求共享《${teamNoteTitle(record, false)}》`,
                 meta: `来自账户 ${record.owner} · 同意后这篇笔记会同时出现在双方的笔记列表里`
             });
@@ -184,7 +184,7 @@ const rows = [];
         rows.push({
             record,
             isOwner: false,
-            icon: 'group',
+            icon: 'users',
             title: `来自 ${record.ownerName}：《${teamNoteTitle(record, false)}》`,
             meta: local ? '共享笔记：正文可以直接编辑，改动会同步给所有者' : '尚未同步到本地：同步一次后即可打开'
         });
@@ -193,7 +193,7 @@ const rows = [];
         rows.push({
             record,
             isOwner: true,
-            icon: 'share',
+            icon: 'share-2',
             title: `《${teamNoteTitle(record, true)}》 → ${record.targetName}`,
             meta: record.status === 'accepted' ? '已共享：对方可以编辑这篇笔记' : '等待对方同意'
         });
@@ -229,6 +229,7 @@ function applyTeamShareResult(result, message) {
     const synced = result && result.synced;
     if (synced && (synced.written || synced.deleted)) {
         adoptDataDir(DATA_DIR, { message: synced.summary || message });
+        ipcRenderer.send('settings:data-changed');
     }
     if (result && result.syncError) {
         setTeamNotesStatus(`${message}；但同步未成功：${result.syncError}`, 'error');
@@ -257,7 +258,7 @@ async function runTeamShareAction(channel, payload, pendingText) {
         }
         return result;
     } catch (err) {
-        console.error('共享操作失败:', err);
+        console.error('[Desktop:ERROR] 共享操作失败:', err);
         setTeamNotesStatus('操作失败：与主进程通信异常，请重试', 'error');
         return null;
     } finally {
@@ -272,7 +273,7 @@ async function respondTeamShare(record, accept) {
             title: '拒绝共享',
             detail: `${record.ownerName} 会看到这条请求被拒绝；对方可以再次发出请求。`,
             type: 'warning',
-            icon: 'block',
+            icon: 'ban',
             confirmLabel: '拒绝',
             danger: true
         });
@@ -290,7 +291,7 @@ async function revokeTeamShare(record) {
         title: '撤销共享',
         detail: `撤销后《${teamNoteTitle(record, true)}》会从对方的数据里移除；对方此前改过的内容仍留在笔记里。`,
         type: 'warning',
-        icon: 'link_off',
+        icon: 'unlink',
         confirmLabel: '撤销共享',
         danger: true
     });
@@ -306,7 +307,7 @@ async function leaveTeamShare(record) {
         title: '退出共享',
         detail: `这篇笔记由 ${record.ownerName} 共享过来；退出后它会从本地列表中移除，对方那份不受影响。`,
         type: 'warning',
-        icon: 'link_off',
+        icon: 'unlink',
         confirmLabel: '退出共享',
         danger: true
     });
@@ -347,7 +348,7 @@ async function shareNoteFromMenu(itemId) {
 
     const target = await showPrompt(`把《${itemDisplayTitle(item)}》共享给谁？`, {
         title: '共享笔记',
-        icon: 'share',
+        icon: 'share-2',
         label: '对方的用户 ID',
         placeholder: '例如：alice',
         confirmLabel: '发送请求',
@@ -369,7 +370,7 @@ async function shareNoteFromMenu(itemId) {
         flushPendingSave();
         await ipcRenderer.invoke('sync:now');
     } catch (err) {
-        console.error('共享前同步失败:', err);
+        console.error('[Desktop:ERROR] 共享前同步失败:', err);
     } finally {
         teamNotesBusy = false;
     }

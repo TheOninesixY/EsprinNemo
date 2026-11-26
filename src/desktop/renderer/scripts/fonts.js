@@ -23,7 +23,7 @@ async function queryFontsViaApi() {
         });
         return families.length ? families : null;
     } catch (err) {
-        console.warn('Local Font Access API 不可用，改用主进程枚举字体:', err);
+        console.warn('[Desktop:WARN] Local Font Access API 不可用，改用主进程枚举字体:', err);
         return null;
     }
 }
@@ -33,7 +33,7 @@ async function queryFontsViaMainProcess() {
         const families = await ipcRenderer.invoke('fonts:list');
         return Array.isArray(families) && families.length ? families : null;
     } catch (err) {
-        console.warn('主进程字体枚举失败:', err);
+        console.warn('[Desktop:WARN] 主进程字体枚举失败:', err);
         return null;
     }
 }
@@ -164,7 +164,7 @@ async function loadFontList() {
                 : `已读取本机字体 ${families.length} 个（西文与 CJK 共用同一列表）`;
         }
     } catch (err) {
-        console.error('读取本机字体列表失败:', err);
+        console.error('[Desktop:ERROR] 读取本机字体列表失败:', err);
         const status = document.getElementById('font-list-status');
         if (status) status.textContent = '读取本机字体列表失败：已回退到内置常用字体';
         populateFontSelects(normalizeFamilyList(COMMON_FONT_FAMILIES));

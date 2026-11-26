@@ -46,13 +46,13 @@ function spawnHelper() {
 process_.stderr.setEncoding('utf8');
   process_.stderr.on('data', (chunk) => {
     const text = String(chunk).trim();
-    if (text) console.warn(`[WARN] [DesktopLayer] ${text.split(/\r?\n/)[0]}`);
+    if (text) console.warn(`[Desktop:WARN] ${text.split(/\r?\n/)[0]}`);
   });
 
 process_.stdin.on('error', () => {});
 
   process_.on('error', (error) => {
-    console.warn('[WARN] [DesktopLayer] 子进程启动失败，便利贴退回普通窗口层级:', error.message);
+    console.warn('[Desktop:WARN] 子进程启动失败，便利贴退回普通窗口层级:', error.message);
     unavailable = true;
     child = null;
   });
@@ -64,10 +64,10 @@ process_.stdin.on('error', () => {});
     restarts++;
     if (restarts >= MAX_RESTARTS) {
       unavailable = true;
-      console.warn(`[WARN] [DesktopLayer] 子进程已退出 ${restarts} 次，停用置底 (code=${code})`);
+      console.warn(`[Desktop:WARN] 子进程已退出 ${restarts} 次，停用置底 (code=${code})`);
       return;
     }
-    console.warn(`[WARN] [DesktopLayer] 子进程退出，下次请求时重启 (code=${code})`);
+    console.warn(`[Desktop:WARN] 子进程退出，下次请求时重启 (code=${code})`);
   });
 
   return process_;
@@ -79,7 +79,7 @@ function ensureChild() {
 
   if (!isSupportedPlatform()) {
     unavailable = true;
-    console.warn('[WARN] [DesktopLayer] 当前平台没有可用的 Windows PowerShell，停用置底');
+    console.warn('[Desktop:WARN] 当前平台没有可用的 Windows PowerShell，停用置底');
     return null;
   }
 
@@ -88,7 +88,7 @@ function ensureChild() {
     return child;
   } catch (error) {
     unavailable = true;
-    console.warn('[WARN] [DesktopLayer] 启动子进程失败，便利贴退回普通窗口层级:', error);
+    console.warn('[Desktop:WARN] 启动子进程失败，便利贴退回普通窗口层级:', error);
     return null;
   }
 }
@@ -101,7 +101,7 @@ function setDesktopLevel(win) {
       win.setAlwaysOnTop(true, 'normal', -1);
       return true;
     } catch (error) {
-      console.warn('[WARN] [Nemo] 设置 macOS 便利贴置底失败:', error.message);
+      console.warn('[Desktop:WARN] 设置 macOS 便利贴置底失败:', error.message);
       return false;
     }
   }
@@ -118,7 +118,7 @@ function setDesktopLevel(win) {
     helper.stdin.write(`${handle}\n`);
     return true;
   } catch (error) {
-    console.warn('[WARN] [DesktopLayer] 写入置底请求失败:', error.message);
+    console.warn('[Desktop:WARN] 写入置底请求失败:', error.message);
     return false;
   }
 }
@@ -131,7 +131,7 @@ function raiseAboveDesktop(win) {
       win.setAlwaysOnTop(false);
       win.moveTop();
     } catch (error) {
-      console.warn('[WARN] [Nemo] 抬升 macOS 便利贴失败:', error.message);
+      console.warn('[Desktop:WARN] 抬升 macOS 便利贴失败:', error.message);
     }
     return;
   }

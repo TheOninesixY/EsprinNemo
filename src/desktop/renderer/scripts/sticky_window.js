@@ -121,8 +121,8 @@ function renderPreview() {
 }
 
 function setEditButtonState(isEditing) {
-    const icon = editBtn.querySelector('.ms-icon');
-    if (icon) icon.textContent = isEditing ? 'check' : 'edit';
+    const icon = editBtn.querySelector('.icon');
+    if (icon) setLucideIcon(icon, isEditing ? 'check' : 'pencil');
     editBtn.title = isEditing ? '完成' : '编辑';
 }
 
@@ -209,7 +209,7 @@ async function saveNow() {
     try {
         result = await ipcRenderer.invoke('sticky:save', { title, content, isDone });
     } catch (err) {
-        console.error('保存便利贴失败:', err);
+        console.error('[Desktop:ERROR] 保存便利贴失败:', err);
     }
 
     if (result && result.ok) {
@@ -272,7 +272,7 @@ colorsEl.addEventListener('click', async (e) => {
     try {
         result = await ipcRenderer.invoke('sticky:set-color', { color });
     } catch (err) {
-        console.error('更改便利贴颜色失败:', err);
+        console.error('[Desktop:ERROR] 更改便利贴颜色失败:', err);
     }
     if (!result || !result.ok) return;
 
@@ -303,6 +303,17 @@ menuCloseEl.onclick = () => {
 document.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     setColorsOpen(false);
+
+    if (nativeMenuBridge.isMac) {
+        setContextMenuOpen(false);
+        nativeMenuBridge.popup([
+            { action: 'close', icon: 'trash-2', label: '关闭并移除' }
+        ]).then((action) => {
+            if (action === 'close') requestClose();
+        });
+        return;
+    }
+
     setContextMenuOpen(true, e.clientX, e.clientY);
 });
 
@@ -332,7 +343,7 @@ async function requestClose() {
         try {
             choice = await ipcRenderer.invoke('dialog:message', {
                 type: 'question',
-                icon: 'help',
+                icon: 'circle-help',
                 title: '桌面便利贴',
                 message: '关闭并移除这张便利贴？',
                 detail: '这张便利贴没有关联任何笔记或待办，纸上的内容只属于它自己，移除后无法恢复。',
@@ -342,7 +353,7 @@ async function requestClose() {
                 ]
             });
         } catch (err) {
-            console.error('打开确认窗口失败:', err);
+            console.error('[Desktop:ERROR] 打开确认窗口失败:', err);
             return;
         }
         if (!choice || choice.id !== 'remove') return;
@@ -365,7 +376,7 @@ doneEl.addEventListener('change', async () => {
     try {
         result = await ipcRenderer.invoke('sticky:toggle-done', { isDone: doneEl.checked });
     } catch (err) {
-        console.error('更改完成状态失败:', err);
+        console.error('[Desktop:ERROR] 更改完成状态失败:', err);
     }
 
     if (!result || !result.ok) {
@@ -466,7 +477,7 @@ async function boot() {
     try {
         result = await ipcRenderer.invoke('sticky:resolve');
     } catch (err) {
-        console.error('载入便利贴失败:', err);
+        console.error('[Desktop:ERROR] 载入便利贴失败:', err);
     }
 
     if (!result || !result.ok) {

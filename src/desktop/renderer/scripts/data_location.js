@@ -88,7 +88,7 @@ async function refreshDataDirInfo() {
             }
         }
     } catch (err) {
-        console.error('读取数据存放位置失败:', err);
+        console.error('[Desktop:ERROR] 读取数据存放位置失败:', err);
         dataDirInfo = { ...dataDirInfo, dataDir: DATA_DIR };
     }
     updateDataDirUI();
@@ -210,7 +210,7 @@ if (State.currentFilter.startsWith('folder:')) {
 
     syncUpdateSettingsUI();
     ipcRenderer.invoke('update:set-auto', { enabled: State.autoUpdate !== false }).catch((err) => {
-        console.error('同步自动更新开关失败:', err);
+        console.error('[Desktop:ERROR] 同步自动更新开关失败:', err);
     });
 
     syncTraySetting();
@@ -258,8 +258,11 @@ async function changeDataDir() {
         const result = await ipcRenderer.invoke('data:choose-dir');
         await handleDataDirResult(result, '数据存放位置已切换');
         await refreshDataDirInfo();
+        if (result && !result.canceled && !result.error && !result.unchanged) {
+            ipcRenderer.send('settings:data-dir-changed');
+        }
     } catch (err) {
-        console.error('切换数据存放位置失败:', err);
+        console.error('[Desktop:ERROR] 切换数据存放位置失败:', err);
         showToast('切换数据存放位置失败：与主进程通信异常，请重试');
     } finally {
         setDataDirButtonsDisabled(false);
@@ -280,8 +283,11 @@ async function resetDataDir() {
 const message = result && result.isCustom === false ? '已恢复默认数据存放位置' : '数据存放位置已切换';
         await handleDataDirResult(result, message);
         await refreshDataDirInfo();
+        if (result && !result.canceled && !result.error && !result.unchanged) {
+            ipcRenderer.send('settings:data-dir-changed');
+        }
     } catch (err) {
-        console.error('恢复默认数据存放位置失败:', err);
+        console.error('[Desktop:ERROR] 恢复默认数据存放位置失败:', err);
         showToast('恢复默认数据存放位置失败：与主进程通信异常，请重试');
     } finally {
         setDataDirButtonsDisabled(false);
@@ -293,7 +299,7 @@ async function openDataDir() {
         const error = await ipcRenderer.invoke('data:open-dir');
         if (error) showToast(`打开数据文件夹失败：${error}`);
     } catch (err) {
-        console.error('打开数据文件夹失败:', err);
+        console.error('[Desktop:ERROR] 打开数据文件夹失败:', err);
         showToast('打开数据文件夹失败：与主进程通信异常，请重试');
     }
 }

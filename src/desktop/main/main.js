@@ -25,6 +25,13 @@ const {
 } = require('./desktop_menu.js');
 const { configureScratchpadWindow, isScratchpadWindowOpen, openScratchpadWindow, registerScratchpadIpc } = require('./scratchpad_window.js');
 const {
+  closeSettingsWindow,
+  configureSettingsWindow,
+  hideSettingsWindow,
+  openSettingsWindow,
+  registerSettingsIpc
+} = require('./settings_window.js');
+const {
   configureStickyNotes,
   closeStickyNote,
   createStickyNote,
@@ -42,6 +49,7 @@ const { configureTray, isTrayEnabled, registerTrayIpc } = require('./tray.js');
 const { configureAutoLaunch, registerAutoLaunchIpc } = require('./auto_launch.js');
 const { registerUiDefaults } = require('./ui_defaults.js');
 const { installAppMenu } = require('./app_menu.js');
+const { registerNativeMenuIpc } = require('./native_menu.js');
 const { configureAiService, registerAiIpc } = require('./ai_service.js');
 const { adoptLegacyKeyFile, migrateApiKeyFromConfig } = require('./ai_secret.js');
 const { configureSyncServer, registerSyncIpc, applyAutoSyncRuntime } = require('./sync_server.js');
@@ -72,7 +80,7 @@ if (ISOLATED_USER_DATA_DIR) {
 
 fs.mkdirSync(ISOLATED_USER_DATA_DIR, { recursive: true });
   } catch (error) {
-    console.warn('[EsprinNemo] 创建独立运行时目录失败:', error.message);
+    console.warn('[Desktop:WARN] 创建独立运行时目录失败:', error.message);
   }
 
   for (const name of ['userData', 'sessionData', 'crashDumps']) {
@@ -81,13 +89,13 @@ fs.mkdirSync(ISOLATED_USER_DATA_DIR, { recursive: true });
       app.setPath(name, name === 'crashDumps' ? path.join(ISOLATED_USER_DATA_DIR, 'Crashpad') : ISOLATED_USER_DATA_DIR);
     } catch (error) {
 
-      console.warn(`[EsprinNemo] 设置 ${name} 路径失败:`, error.message);
+      console.warn(`[Desktop:WARN] 设置 ${name} 路径失败:`, error.message);
     }
   }
   try {
     app.setAppLogsPath(path.join(ISOLATED_USER_DATA_DIR, 'logs'));
   } catch (error) {
-    console.warn('[EsprinNemo] 设置日志目录失败:', error.message);
+    console.warn('[Desktop:WARN] 设置日志目录失败:', error.message);
   }
 }
 
@@ -133,7 +141,7 @@ stat = fs.statSync(configFile, { bigint: true });
     configCacheValue = (config && typeof config === 'object' && !Array.isArray(config)) ? config : {};
     return configCacheValue;
   } catch (error) {
-    console.error('[EsprinNemo] 读取用户配置失败:', error);
+    console.error('[Desktop:ERROR] 读取用户配置失败:', error);
     return {};
   }
 }
@@ -152,7 +160,7 @@ function updateUserConfig(patch) {
     fs.renameSync(tempFile, configFile);
     return true;
   } catch (error) {
-    console.error('[EsprinNemo] 写入用户配置失败:', error);
+    console.error('[Desktop:ERROR] 写入用户配置失败:', error);
     return false;
   }
 }
@@ -161,6 +169,36 @@ function resolveEffectiveTheme() {
   const theme = readUserConfig().theme || 'system';
   const isLight = theme === 'light' || (theme === 'system' && !nativeTheme.shouldUseDarkColors);
   return isLight ? 'light' : 'dark';
+}
+
+function applyNativeThemeSource(theme) {
+  const value = typeof theme === 'string' ? theme : (readUserConfig().theme || 'system');
+  nativeTheme.themeSource = value === 'light' ? 'light' : (value === 'dark' ? 'dark' : 'system');
+}
+
+function resolveBackgroundBlur() {
+  return process.platform === 'darwin' && readUserConfig().backgroundBlur !== false;
+}
+
+function isBackgroundRunningEnabled() {
+  return readUserConfig().backgroundRunning !== false;
+}
+
+function windowSurfaceColor(theme) {
+  const effective = theme === 'light' || theme === 'dark' ? theme : resolveEffectiveTheme();
+  return effective === 'light' ? '#ffffff' : '#0d1117';
+}
+
+function applyWindowSurface(blurOverride, themeOverride) {
+  if (process.platform !== 'darwin') return;
+  const blur = typeof blurOverride === 'boolean' ? blurOverride : readUserConfig().backgroundBlur !== false;
+  const background = blur ? '#00000000' : windowSurfaceColor(themeOverride);
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+    if (!win.webContents.getURL().includes('main.html')) return;
+    if (typeof win.setVibrancy === 'function') win.setVibrancy(blur ? 'under-window' : null);
+    win.setBackgroundColor(background);
+  });
 }
 
 function normalizeAccentHex(raw) {
@@ -244,6 +282,18 @@ configureScratchpadWindow({
   onClosed: handleScratchpadClosed
 });
 
+configureSettingsWindow({
+  getTheme: resolveEffectiveTheme,
+  getAccent: resolveAccentColor,
+  getRadius: resolveCornerRadius,
+  getFonts: resolveWindowFonts,
+  getUiScale: resolveUiScale,
+  getBackgroundBlur: resolveBackgroundBlur,
+
+  getOwner: () => mainWindow,
+  icon: APP_ICON_PATH
+});
+
 configureStickyNotes({
   getTheme: resolveEffectiveTheme,
   getAccent: resolveAccentColor,
@@ -272,8 +322,11 @@ configureSyncServer({
   getDataDir: resolveDataDir,
   getConfig: readUserConfig,
   onRendererMessage: (channel, payload) => {
-    if (mainWindowClosed || !mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.send(channel, payload);
+    BrowserWindow.getAllWindows().forEach((win) => {
+      if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+      if (!win.webContents.getURL().includes('main.html')) return;
+      win.webContents.send(channel, payload);
+    });
   }
 });
 
@@ -310,14 +363,14 @@ function runQuitStep(label, run) {
   try {
     return run();
   } catch (error) {
-    console.error(`[ERROR] [Nemo] 退出步骤「${label}」失败:`, error);
+    console.error(`[Desktop:ERROR] 退出步骤「${label}」失败:`, error);
     return null;
   }
 }
 
 function reportProcessError(kind, error) {
   const detail = error && error.stack ? error.stack : error;
-  console.error(`[ERROR] [Nemo] ${kind}:`, detail);
+  console.error(`[Desktop:ERROR] ${kind}:`, detail);
   if (quitRequested || isQuitting) process.exitCode = 0;
 }
 
@@ -337,6 +390,7 @@ function setupTray() {
     onShowMainWindow: showMainWindow,
 
     onOpenScratchpad: openScratchpadWindow,
+    onOpenSettings: () => { openSettingsWindow(); },
     onNewStickyNote: () => { createStickyNote({ kind: 'free' }); },
     onShowStickyNotes: showAllStickyNotes,
     onHideStickyNotes: hideAllStickyNotes,
@@ -395,8 +449,8 @@ function appMenuActions() {
     onOpenScratchpad: () => { openScratchpadWindow(); },
     onNewNote: () => sendRendererAction('new-note'),
     onNewTodo: () => sendRendererAction('new-todo'),
-    onOpenSettings: () => sendRendererAction('open-settings'),
-    onOpenAbout: () => sendRendererAction('open-about'),
+    onOpenSettings: () => { openSettingsWindow(); },
+    onOpenAbout: () => { openSettingsWindow('about'); },
     onPickStickyNote: () => sendRendererAction('pick-sticky-note'),
     onShowStickyNotes: () => { showAllStickyNotes(); },
     onHideStickyNotes: () => { hideAllStickyNotes(); }
@@ -405,7 +459,7 @@ function appMenuActions() {
 
 function quitIfNoVisibleWindow() {
   if (isQuitting || isTrayEnabled()) return;
-  if (process.platform === 'darwin') return;
+  if (process.platform === 'darwin' && isBackgroundRunningEnabled()) return;
   if (isScratchpadWindowOpen() || isStickyNoteOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
   requestQuit();
@@ -414,7 +468,7 @@ function quitIfNoVisibleWindow() {
 function handleScratchpadClosed() {
   if (isQuitting) return;
   if (isTrayEnabled()) return;
-  if (process.platform === 'darwin') return;
+  if (process.platform === 'darwin' && isBackgroundRunningEnabled()) return;
 
   if (isStickyNoteOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
@@ -424,7 +478,7 @@ function handleScratchpadClosed() {
 function handleStickyNoteClosed() {
   if (isQuitting) return;
   if (isTrayEnabled()) return;
-  if (process.platform === 'darwin') return;
+  if (process.platform === 'darwin' && isBackgroundRunningEnabled()) return;
   if (isScratchpadWindowOpen()) return;
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindowClosed) return;
   requestQuit();
@@ -456,7 +510,7 @@ function openExternalUrl(targetUrl) {
   const value = String(targetUrl || '');
   if (!/^https?:\/\//i.test(value)) return;
   shell.openExternal(value).catch((error) => {
-    console.error('[EsprinNemo] 打开外部链接失败:', error);
+    console.error('[Desktop:ERROR] 打开外部链接失败:', error);
   });
 }
 
@@ -471,7 +525,7 @@ app.on('web-contents-created', (event, contents) => {
     const source = details ? details.sourceId : args[3];
     if (level !== 'error' && level !== 3) return;
     const where = source ? ` (${source}:${line})` : '';
-    console.error(`[ERROR] [Renderer] ${message}${where}`);
+    console.error(`[Desktop:ERROR] ${message}${where}`);
   });
 
   contents.setWindowOpenHandler(({ url }) => {
@@ -493,6 +547,15 @@ contents.on('will-attach-webview', (event) => {
 function isPathInside(parent, child) {
   const rel = path.relative(parent, child);
   return !!rel && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+function resolveAssetPath(itemId, relative) {
+  const dataDir = resolveDataDir();
+  const itemsRoot = path.join(dataDir, 'items');
+  const hasItemId = typeof itemId === 'string' && itemId.length > 0;
+  const base = hasItemId ? path.join(itemsRoot, itemId) : dataDir;
+  const target = path.resolve(base, String(relative || ''));
+  return isPathInside(hasItemId ? itemsRoot : dataDir, target) ? target : '';
 }
 
 function isDirWritable(dir) {
@@ -556,7 +619,7 @@ async function applyDataDirChange(targetPath, win, { persist = true, confirmExis
     try {
       fs.cpSync(current, target, { recursive: true, force: true });
     } catch (error) {
-      console.error('[EsprinNemo] 迁移数据失败:', error);
+      console.error('[Desktop:ERROR] 迁移数据失败:', error);
       return { error: `迁移数据失败：${error.message}` };
     }
   }
@@ -600,9 +663,17 @@ ipcMain.handle('window:toggle-fullscreen', (event) => {
 ipcMain.handle('window:ui-scale', (event, scale) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win || win.isDestroyed()) return;
-  const size = scaleMinWindowSize(Number(scale));
-  win.setMinimumSize(size.width, size.height);
+  if (win === mainWindow) {
+    const size = scaleMinWindowSize(Number(scale));
+    win.setMinimumSize(size.width, size.height);
+  }
   setTrafficLightScale(Number(scale));
+});
+
+ipcMain.handle('app:set-background-blur', (event, payload) => {
+  const enabled = !(payload && payload.enabled === false);
+  applyWindowSurface(enabled);
+  return { ok: true, enabled };
 });
 
 let cachedSystemFonts = null;
@@ -611,7 +682,7 @@ ipcMain.handle('fonts:list', () => {
     try {
       cachedSystemFonts = listSystemFonts();
     } catch (error) {
-      console.error('[EsprinNemo] 读取系统字体失败:', error);
+      console.error('[Desktop:ERROR] 读取系统字体失败:', error);
       cachedSystemFonts = [];
     }
   }
@@ -668,12 +739,8 @@ ipcMain.handle('assets:open-file', async (event, payload) => {
   const itemId = payload && payload.itemId;
   if (!relative || typeof relative !== 'string') return { ok: false, error: '无效路径' };
 
-  let fullPath;
-  if (itemId && typeof itemId === 'string') {
-    fullPath = path.join(resolveDataDir(), 'items', itemId, relative);
-  } else {
-    fullPath = path.join(resolveDataDir(), relative);
-  }
+  const fullPath = resolveAssetPath(itemId, relative);
+  if (!fullPath) return { ok: false, error: '无效路径' };
   if (!fs.existsSync(fullPath)) return { ok: false, error: '文件不存在' };
   try {
     const errorMsg = await shell.openPath(fullPath);
@@ -690,7 +757,8 @@ ipcMain.handle('fm:save-file', async (event, payload) => {
   if (!itemId || !filename || typeof itemId !== 'string' || typeof filename !== 'string') {
     return { ok: false, error: '参数无效' };
   }
-  const sourcePath = path.join(resolveDataDir(), 'items', itemId, filename);
+  const sourcePath = resolveAssetPath(itemId, filename);
+  if (!sourcePath) return { ok: false, error: '参数无效' };
   if (!fs.existsSync(sourcePath)) return { ok: false, error: '文件不存在' };
 
   const win = BrowserWindow.fromWebContents(event.sender);
@@ -716,7 +784,8 @@ ipcMain.handle('fm:open-folder', async (event, payload) => {
   if (!itemId || typeof itemId !== 'string') {
     return { ok: false, error: '参数无效' };
   }
-  const dir = path.join(resolveDataDir(), 'items', itemId);
+  const dir = resolveAssetPath(itemId, '');
+  if (!dir) return { ok: false, error: '参数无效' };
   try {
     fs.mkdirSync(dir, { recursive: true });
     const errorMsg = await shell.openPath(dir);
@@ -801,7 +870,7 @@ ipcMain.handle('data:open-dir', async () => {
     fs.mkdirSync(dir, { recursive: true });
     return await shell.openPath(dir);
   } catch (error) {
-    console.error('[EsprinNemo] 打开数据目录失败:', error);
+    console.error('[Desktop:ERROR] 打开数据目录失败:', error);
     return String(error && error.message ? error.message : error);
   }
 });
@@ -919,23 +988,23 @@ dataDir = blocker.dataDir;
     if (!picked) continue;
 
 if (writeStoredDataDir(picked, app)) {
-      console.log('[EsprinNemo] 数据位置已改为:', picked);
+      console.log('[Desktop:INFO] 数据位置已改为:', picked);
       return picked;
     }
 
     if (blocker.kind === 'portable-dir') {
 
-      console.warn('[EsprinNemo] 程序目录不可写，本次运行临时使用数据位置:', picked);
+      console.warn('[Desktop:WARN] 程序目录不可写，本次运行临时使用数据位置:', picked);
       return picked;
     }
 
-console.error('[EsprinNemo] 位置记录写入失败，新的数据位置无法保存:', picked);
+console.error('[Desktop:ERROR] 位置记录写入失败，新的数据位置无法保存:', picked);
     blocker = { ...blocker, kind: 'portable-dir', reason: '位置记录无法写入', dataDir: picked };
   }
 }
 
 function abortStartup(blocker) {
-  console.error('[ERROR] [Nemo] 便携版启动失败:', blocker.reason, blocker.dir);
+  console.error('[Desktop:ERROR] 便携版启动失败:', blocker.reason, blocker.dir);
 
   if (!dataDir) dataDir = blocker.dataDir;
 
@@ -991,9 +1060,11 @@ function createWindow() {
   if (IS_MAC) {
     windowOptions.titleBarStyle = 'hidden';
     windowOptions.trafficLightPosition = trafficLightPosition(resolveUiScale());
-    windowOptions.vibrancy = 'under-window';
-    windowOptions.visualEffectState = 'active';
-    windowOptions.backgroundColor = 'rgba(0, 0, 0, 0)';
+    if (resolveBackgroundBlur()) {
+      windowOptions.vibrancy = 'under-window';
+      windowOptions.visualEffectState = 'active';
+      windowOptions.backgroundColor = 'rgba(0, 0, 0, 0)';
+    }
   } else {
     windowOptions.frame = false;
   }
@@ -1008,7 +1079,7 @@ function createWindow() {
     if (revealed || win.isDestroyed()) return;
     revealed = true;
     if (reason !== 'did-finish-load') {
-      console.warn(`[WARN] [Nemo] did-finish-load 未到达，已按「${reason}」显示主窗口`);
+      console.warn(`[Desktop:WARN] did-finish-load 未到达，已按「${reason}」显示主窗口`);
     }
     win.show();
   };
@@ -1024,7 +1095,7 @@ function createWindow() {
   win.once('closed', () => clearTimeout(revealTimer));
 
 win.webContents.on('render-process-gone', (event, details) => {
-    console.error('[ERROR] [Nemo] 主窗口渲染进程已退出:', details && details.reason);
+    console.error('[Desktop:ERROR] 主窗口渲染进程已退出:', details && details.reason);
   });
 
 win.on('close', (event) => {
@@ -1032,11 +1103,13 @@ win.on('close', (event) => {
     if (!isTrayEnabled() && !isScratchpadWindowOpen() && !isStickyNoteOpen()) return;
     event.preventDefault();
     mainWindowClosed = true;
+    hideSettingsWindow();
     win.hide();
   });
 
   win.once('closed', () => {
     if (mainWindow === win) mainWindow = null;
+    closeSettingsWindow();
   });
 
   win.on('enter-full-screen', () => {
@@ -1057,7 +1130,7 @@ win.loadURL(pathToFileURL(path.join(APP_ROOT, 'src', 'desktop', 'renderer', 'mai
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {
 
-  console.warn('[EsprinNemo] 已有实例在运行（单实例锁被占用），本次启动已交给它，进程退出');
+  console.warn('[Desktop:WARN] 已有实例在运行（单实例锁被占用），本次启动已交给它，进程退出');
   app.exit(0);
 }
 
@@ -1078,7 +1151,7 @@ function runStartupStep(label, run) {
   try {
     return run();
   } catch (error) {
-    console.error(`[EsprinNemo] 启动步骤「${label}」失败:`, error);
+    console.error(`[Desktop:ERROR] 启动步骤「${label}」失败:`, error);
     return null;
   }
 }
@@ -1099,7 +1172,7 @@ const startupBlocker = getStartupBlocker(APP_ROOT, app);
       pickedDir = await resolveStartupBlock(startupBlocker);
     } catch (error) {
 
-      console.error('[EsprinNemo] 显示启动失败弹窗失败:', error);
+      console.error('[Desktop:ERROR] 显示启动失败弹窗失败:', error);
       dialog.showErrorBox('EsprinNemo 无法启动', `${startupBlocker.reason}：\n${startupBlocker.dataDir}`);
     }
 
@@ -1121,10 +1194,12 @@ const ALLOWED_PERMISSIONS = new Set(['local-fonts']);
       return ALLOWED_PERMISSIONS.has(permission);
     });
   } catch (error) {
-    console.error('[EsprinNemo] 注册字体权限处理器失败:', error);
+    console.error('[Desktop:ERROR] 注册字体权限处理器失败:', error);
   }
 
 registerDialogIpc();
+
+registerNativeMenuIpc();
 
 registerScratchpadIpc();
 
@@ -1156,12 +1231,28 @@ runStartupStep('界面默认值', () => registerUiDefaults());
 
 runStartupStep('窗口控件', () => registerWindowControlsIpc());
 
+runStartupStep('设置窗口', () => registerSettingsIpc());
+
+runStartupStep('原生主题', () => {
+    applyNativeThemeSource();
+    nativeTheme.on('updated', () => {
+      if (process.platform === 'darwin') applyWindowSurface();
+    });
+    ipcMain.on('settings:config-changed', (event, payload) => {
+      const config = payload && payload.config;
+      if (config && typeof config.theme === 'string') applyNativeThemeSource(config.theme);
+      if (process.platform === 'darwin' && config) {
+        applyWindowSurface(typeof config.backgroundBlur === 'boolean' ? config.backgroundBlur : undefined, config.theme);
+      }
+    });
+  });
+
 if (!IS_PORTABLE_RUN) runStartupStep('应用更新', () => registerUpdateIpc());
 
 runStartupStep('启动信息', () => {
     const flavor = IS_PORTABLE_DATA_RUN ? '便携版' : (IS_DEV_RUN ? '开发运行' : '安装版');
     const platform = process.platform === 'linux' ? 'Linux' : (process.platform === 'win32' ? 'Windows' : (process.platform === 'darwin' ? 'macOS' : process.platform));
-    console.log(`[INFO] [Nemo] 启动：${flavor}·${platform}，数据目录 ${resolveDataDir()}`);
+    console.log(`[Desktop:INFO] 启动：${flavor}·${platform}，数据目录 ${resolveDataDir()}`);
   });
 
   try {
@@ -1179,7 +1270,7 @@ runStartupStep('启动信息', () => {
 try {
     createWindow();
   } catch (error) {
-    console.error('[EsprinNemo] 创建主窗口失败:', error);
+    console.error('[Desktop:ERROR] 创建主窗口失败:', error);
     dialog.showErrorBox('EsprinNemo 无法打开窗口', `创建主窗口时出错：\n${(error && error.message) || error}`);
     app.exit(1);
     return;
@@ -1197,7 +1288,7 @@ if (process.platform === 'win32') {
 
   if (!IS_PORTABLE_RUN) scheduleAutoChecks();
 }).catch((error) => {
-  console.error('[ERROR] [Nemo] 启动流程失败:', error);
+  console.error('[Desktop:ERROR] 启动流程失败:', error);
 });
 
 app.on('before-quit', () => {
@@ -1218,12 +1309,12 @@ app.on('will-quit', () => {
   runQuitStep('桌面右键菜单', unregisterDesktopMenu);
 
   process.exitCode = 0;
-  console.log('[INFO] [Nemo] 资源清理完成，正常退出');
+  console.log('[Desktop:INFO] 资源清理完成，正常退出');
 });
 
 app.on('window-all-closed', () => {
   if (isTrayEnabled()) return;
-  if (process.platform === 'darwin') return;
+  if (process.platform === 'darwin' && isBackgroundRunningEnabled()) return;
   requestQuit();
 });
 

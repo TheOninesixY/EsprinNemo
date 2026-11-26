@@ -15,7 +15,7 @@ function replyToHost(payload) {
     try {
         ipcRenderer.send('scratchpad:reply', payload);
     } catch (err) {
-        console.error('回复小本本请求失败:', err);
+        console.error('[Desktop:ERROR] 回复小本本请求失败:', err);
     }
 }
 

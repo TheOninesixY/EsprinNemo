@@ -65,13 +65,13 @@ applyAccentColor();
     const themeIcon = document.getElementById('theme-icon');
     const themeBtn = document.getElementById('btn-theme-toggle');
     if (State.theme === 'system') {
-        if (themeIcon) themeIcon.textContent = 'computer';
+        if (themeIcon) setLucideIcon(themeIcon, 'monitor');
         if (themeBtn) themeBtn.title = '主题：跟随系统（点击切换到浅色）';
     } else if (State.theme === 'light') {
-        if (themeIcon) themeIcon.textContent = 'light_mode';
+        if (themeIcon) setLucideIcon(themeIcon, 'sun');
         if (themeBtn) themeBtn.title = '主题：浅色模式（点击切换到深色）';
     } else {
-        if (themeIcon) themeIcon.textContent = 'dark_mode';
+        if (themeIcon) setLucideIcon(themeIcon, 'moon');
         if (themeBtn) themeBtn.title = '主题：深色模式（点击切换到跟随系统）';
     }
 
@@ -89,7 +89,7 @@ function syncScratchpadAppearance() {
             fonts: typeof normalizeFonts === 'function' ? normalizeFonts(State.fonts) : {}
         });
     } catch (err) {
-        console.error('同步小本本外观失败:', err);
+        console.error('[Desktop:ERROR] 同步小本本外观失败:', err);
     }
 
     if (typeof syncStickyNotesAppearance === 'function') syncStickyNotesAppearance();
@@ -283,7 +283,7 @@ function applyUiScale() {
     try {
         webFrame.setZoomFactor(scale);
     } catch (err) {
-        console.error('应用界面尺寸失败:', err);
+        console.error('[Desktop:ERROR] 应用界面尺寸失败:', err);
     }
 
 ipcRenderer.invoke('window:ui-scale', scale).catch(() => {});
@@ -445,4 +445,32 @@ function initTheme() {
             });
         }
     }
+}
+
+function applyBackgroundBlur() {
+    if (process.platform !== 'darwin') return;
+    document.documentElement.classList.toggle('mac-vibrancy', State.backgroundBlur !== false);
+}
+
+function syncBackgroundBlurControl() {
+    const row = document.getElementById('setting-blur-row');
+    if (row) row.classList.toggle('hidden', process.platform !== 'darwin');
+    const toggle = document.getElementById('setting-blur-enabled');
+    if (toggle) toggle.checked = State.backgroundBlur !== false;
+}
+
+function setBackgroundBlur(value) {
+    State.backgroundBlur = value !== false;
+    applyBackgroundBlur();
+    syncBackgroundBlurControl();
+    saveConfig();
+    ipcRenderer.invoke('app:set-background-blur', { enabled: State.backgroundBlur }).catch(() => {});
+}
+
+function initBackgroundBlur() {
+    applyBackgroundBlur();
+    syncBackgroundBlurControl();
+    if (process.platform !== 'darwin') return;
+    const toggle = document.getElementById('setting-blur-enabled');
+    if (toggle) toggle.onchange = () => setBackgroundBlur(!!toggle.checked);
 }

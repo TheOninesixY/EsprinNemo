@@ -73,7 +73,7 @@ function readRaw() {
       if (!head.startsWith(header)) return { mode: '', payload: '' };
       return { mode: head.slice(header.length).trim(), payload: text.slice(separator + 1).replace(/\r?\n+$/, '') };
     } catch (error) {
-      console.error('[EsprinNemo] 读取密钥文件失败:', error);
+      console.error('[Desktop:ERROR] 读取密钥文件失败:', error);
       return { mode: '', payload: '' };
     }
   }
@@ -86,7 +86,7 @@ function decode(stored) {
     try {
       return safeStorage.decryptString(Buffer.from(stored.payload, 'base64')).trim();
     } catch (error) {
-      console.error('[EsprinNemo] 解密密钥失败（可能更换了系统账户或密钥环）:', error);
+      console.error('[Desktop:ERROR] 解密密钥失败（可能更换了系统账户或密钥环）:', error);
       return '';
     }
   }
@@ -111,7 +111,7 @@ function clear() {
     try {
       if (file && fs.existsSync(file)) fs.unlinkSync(file);
     } catch (error) {
-      console.error('[EsprinNemo] 删除密钥文件失败:', error);
+      console.error('[Desktop:ERROR] 删除密钥文件失败:', error);
       return { ok: false, error: `清除 ${label} 失败：${error.message}` };
     }
     return { ok: true, ...status() };
@@ -133,13 +133,13 @@ function write(value) {
           payload = safeStorage.encryptString(text).toString('base64');
           mode = MODE_ENCRYPTED;
         } catch (error) {
-          console.warn(`[EsprinNemo] 加密 ${label} 失败，改用仅本机可读的明文文件保存:`, error);
+          console.warn(`[Desktop:WARN] 加密 ${label} 失败，改用仅本机可读的明文文件保存:`, error);
         }
       }
       writeFileAtomic(file, `${header} ${mode}\n${payload}\n`, PLAIN_FILE_MODE);
       return { ok: true, ...status() };
     } catch (error) {
-      console.error('[EsprinNemo] 保存密钥失败:', error);
+      console.error('[Desktop:ERROR] 保存密钥失败:', error);
       return { ok: false, error: `保存 ${label} 失败：${error.message}` };
     }
   }

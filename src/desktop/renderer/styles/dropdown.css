@@ -114,6 +114,9 @@
 .dropdown-option.active .dropdown-check {
     visibility: visible;
 }
+.dropdown-option[data-value=""] .dropdown-check {
+    visibility: hidden;
+}
 
 .dropdown-group-label {
     padding: 6px 10px 2px;

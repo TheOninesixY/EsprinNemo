@@ -1,15 +1,5 @@
 function setupEvents() {
 
-const leaveActiveItem = () => {
-        if (!State.activeNoteId) return;
-        flushPendingSave();
-        State.activeNoteId = null;
-        renderApp();
-    };
-
-const tabsBack = document.getElementById('btn-tabs-back');
-    if (tabsBack) tabsBack.onclick = leaveActiveItem;
-
 document.getElementById('btn-new-item').onclick = () => createItemForCurrentFilter();
 
     if (typeof initFilterDrawer === 'function') initFilterDrawer();
@@ -71,7 +61,7 @@ contentTextarea.addEventListener('paste', async (event) => {
                     if (asset) saved.push(asset);
                 }
             } catch (err) {
-                console.error('粘贴文件保存失败:', err);
+                console.error('[Desktop:ERROR] 粘贴文件保存失败:', err);
             }
         }
 
@@ -122,7 +112,7 @@ const editorPane = document.getElementById('editor-pane');
                         if (asset) saved.push(asset);
                     }
                 } catch (err) {
-                    console.error('拖拽文件保存失败:', err);
+                    console.error('[Desktop:ERROR] 拖拽文件保存失败:', err);
                 }
             }
 
@@ -173,6 +163,7 @@ const settingTrashRetention = document.getElementById('setting-trash-retention')
 
             const removed = purgeExpiredTrashItems();
             renderApp();
+            if (removed > 0) ipcRenderer.send('settings:data-changed');
             if (!State.trashRetentionDays) {
                 showToast('已关闭废纸篓自动清理');
             } else if (removed > 0) {
@@ -281,7 +272,7 @@ const importIds = new Set();
                         showToast('导入失败，文件格式错误');
                     }
                 } catch (err) {
-                    console.error('导入备份失败:', err);
+                    console.error('[Desktop:ERROR] 导入备份失败:', err);
                     showToast('导入失败，文件格式错误');
                 }
             };
@@ -331,9 +322,23 @@ const importIds = new Set();
         btn.onclick = () => formatMarkdown(btn.getAttribute('data-fmt'));
     });
 
-    const btnInsertFile = document.getElementById('btn-insert-file');
-    if (btnInsertFile) {
-        btnInsertFile.onclick = () => pickAndInsertAssets();
+    const fmtHeadingMenu = document.getElementById('fmt-heading-menu');
+    if (fmtHeadingMenu) {
+        fmtHeadingMenu.onchange = () => {
+            const value = fmtHeadingMenu.value;
+            if (value) formatMarkdown(value);
+            fmtHeadingMenu.value = '';
+        };
+    }
+
+    const fmtInsertMenu = document.getElementById('fmt-insert-menu');
+    if (fmtInsertMenu) {
+        fmtInsertMenu.onchange = () => {
+            const value = fmtInsertMenu.value;
+            if (value === 'asset') pickAndInsertAssets();
+            else if (value) formatMarkdown(value);
+            fmtInsertMenu.value = '';
+        };
     }
 
     const btnFileManager = document.getElementById('btn-file-manager');
@@ -386,6 +391,7 @@ document.getElementById('btn-add-folder').onclick = async () => {
 
     window.onkeydown = (e) => {
 
+        if (typeof IS_SETTINGS_WINDOW !== 'undefined' && IS_SETTINGS_WINDOW) return;
         if (typeof e.key !== 'string') return;
         if (!e.ctrlKey && !e.metaKey) return;
         const key = e.key.toLowerCase();

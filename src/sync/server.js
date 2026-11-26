@@ -52,6 +52,21 @@ function sameOrigin(req) {
     }
 }
 
+function isLoopbackAddress(address) {
+    const value = String(address || '').trim().toLowerCase();
+    if (!value) return false;
+    if (value === '::1' || value === 'localhost') return true;
+    if (value.startsWith('::ffff:')) return isLoopbackAddress(value.slice(7));
+    return value === '127.0.0.1' || value.startsWith('127.');
+}
+
+function clientIp(req) {
+    const remote = String(req.socket.remoteAddress || '');
+    if (!isLoopbackAddress(remote)) return remote;
+    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    return forwarded || remote;
+}
+
 function readJsonBody(req, body) {
     if (!body.length || body.length > lib.MAX_BODY_BYTES) return null;
     try {
@@ -239,14 +254,14 @@ function createRequestHandler(users, token) {
                 sendJson(res, 400, { ok: false, error: '管理密码已经设置过了，请用现有密码登录' });
                 return;
             }
-            const sessionId = users.createSession(lib.DEFAULT_ACCOUNT_ID, req.socket.remoteAddress || '');
+            const sessionId = users.createSession(lib.DEFAULT_ACCOUNT_ID, clientIp(req));
             lib.log('INFO', 'Auth', `内置账户已设密码: name=${lib.DEFAULT_ACCOUNT_NAME}`);
             sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(sessionId) });
             return;
         }
 
         if (pathname === `${lib.API_PREFIX}/login`) {
-            const ip = req.socket.remoteAddress || '';
+            const ip = clientIp(req);
             if (!users.loginAllowed(ip)) {
                 sendJson(res, 429, { ok: false, error: '尝试次数过多，请稍后再试' });
                 return;
@@ -271,7 +286,7 @@ function createRequestHandler(users, token) {
         }
 
         if (pathname === `${lib.API_PREFIX}/tokens/generate`) {
-            const ip = req.socket.remoteAddress || '';
+            const ip = clientIp(req);
             if (!users.loginAllowed(ip)) {
                 sendJson(res, 429, { ok: false, error: '尝试次数过多，请稍后再试' });
                 return;
@@ -321,7 +336,7 @@ function createRequestHandler(users, token) {
                 sendJson(res, 400, { ok: false, error: '当前密码不正确' });
                 return;
             }
-            const sessionId = users.createSession(current.id, req.socket.remoteAddress || '');
+            const sessionId = users.createSession(current.id, clientIp(req));
             sendJson(res, 200, { ok: true }, { 'Set-Cookie': sessionCookie(sessionId) });
             return;
         }
@@ -498,8 +513,7 @@ function createRequestHandler(users, token) {
             return;
         }
 
-        if (pathname === '/node_modules/material-symbols/rounded.css'
-            || pathname === '/node_modules/material-symbols/material-symbols-rounded.woff2') {
+        if (pathname.startsWith('/node_modules/lucide/')) {
             sendStaticAsset(res, assets.webBase(), pathname.replace(/^\/+/, ''));
             return;
         }
@@ -711,12 +725,14 @@ function createRequestHandler(users, token) {
         let size = 0;
 
         const origin = String(req.headers.origin || '');
-        res.setHeader('Access-Control-Allow-Origin', origin || '*');
-        res.setHeader('Vary', 'Origin');
-        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
-        if (origin) res.setHeader('Access-Control-Max-Age', '600');
+        if (origin && sameOrigin(req)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+            res.setHeader('Vary', 'Origin');
+            res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+            res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+            res.setHeader('Access-Control-Max-Age', '600');
+        }
 
         if (req.method === 'OPTIONS') {
             res.writeHead(204);

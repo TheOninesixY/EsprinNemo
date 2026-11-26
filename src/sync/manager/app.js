@@ -926,7 +926,7 @@ function bindEvents() {
     });
     $('user-create').addEventListener('click', () => {
         createUser().catch((error) => {
-            console.error('新建账户失败:', error);
+            console.error('[Sync:ERROR] 新建账户失败:', error);
             toast('新建账户失败，请检查网络后重试', 'error');
         });
     });
@@ -941,7 +941,7 @@ function bindEvents() {
 
 const runGenerate = () => {
         clickTokenButton().catch((error) => {
-            console.error('生成令牌失败:', error);
+            console.error('[Sync:ERROR] 生成令牌失败:', error);
             setMessage('login-msg', '生成失败，请检查网络后重试', 'error');
         });
     };
@@ -970,13 +970,13 @@ const submitGate = () => (tokenMode ? runGenerate() : submitLogin());
     });
     $('journal-compact').addEventListener('click', () => {
         compactJournal().catch((error) => {
-            console.error('整理日志失败:', error);
+            console.error('[Sync:ERROR] 整理日志失败:', error);
             setMessage('journal-status', '整理失败，请检查网络后重试', 'error');
         });
     });
     $('journal-download').addEventListener('click', () => {
         downloadJournal().catch((error) => {
-            console.error(error);
+            console.error('[Sync:ERROR]', error);
             setMessage('journal-status', '下载失败，请检查网络后重试', 'error');
         });
     });

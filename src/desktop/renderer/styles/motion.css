@@ -39,7 +39,7 @@
 #empty-state {
     animation: fadeIn var(--motion-slow) var(--ease-out);
 }
-#empty-state > .ms-icon {
+#empty-state > .icon {
     animation: popIn var(--motion-slow) var(--ease-out) 60ms backwards;
 }
 
@@ -120,7 +120,7 @@ html.appearance-fading {
     .editor-content-area,
     .editor-footer,
     #empty-state,
-    #empty-state > .ms-icon,
+    #empty-state > .icon,
     #notes-list-box.list-enter > *,
     .tab-item.is-sliding-in,
     .tab-item.is-flying-down,
@@ -136,9 +136,7 @@ html.appearance-fading {
     }
     .editor-view-modes::before,
     .view-btn,
-    .nav-section-main::before,
-    .nav-icon-line,
-    .nav-icon-solid {
+    .nav-section-main::before {
         transition: none !important;
     }
 }

@@ -4,7 +4,7 @@ function replyToStickyHost(payload) {
     try {
         ipcRenderer.send('sticky:reply', payload);
     } catch (err) {
-        console.error('回复便利贴请求失败:', err);
+        console.error('[Desktop:ERROR] 回复便利贴请求失败:', err);
     }
 }
 
@@ -92,15 +92,29 @@ function stickyMenuEntries() {
     const active = getActiveItem();
     const entries = [];
     if (active) {
-        entries.push({ action: 'stick-current', icon: 'keep', label: `把当前${itemKindLabel(active)}贴到桌面` });
+        entries.push({ action: 'stick-current', icon: 'pin', label: `把当前${itemKindLabel(active)}贴到桌面` });
     }
-    entries.push({ action: 'pick-note', icon: 'note_add', label: '贴上便利贴…' });
-    entries.push({ action: 'show-all', icon: 'visibility', label: '显示全部便利贴' });
-    entries.push({ action: 'hide-all', icon: 'visibility_off', label: '收起全部便利贴' });
+    entries.push({ action: 'pick-note', icon: 'file-plus', label: '贴上便利贴…' });
+    entries.push({ action: 'show-all', icon: 'eye', label: '显示全部便利贴' });
+    entries.push({ action: 'hide-all', icon: 'eye-off', label: '收起全部便利贴' });
     return entries;
 }
 
+function runStickyMenuAction(action) {
+    if (action === 'stick-current') stickActiveItemToDesktop();
+    else if (action === 'pick-note' || action === 'new') pickNoteToStick();
+    else if (action === 'show-all') showAllStickyNotes();
+    else if (action === 'hide-all') hideAllStickyNotes();
+}
+
 function showStickyMenu(anchor) {
+    if (typeof nativeMenuBridge !== 'undefined' && nativeMenuBridge.isMac) {
+        nativeMenuBridge.popup(stickyMenuEntries()).then((action) => {
+            if (typeof action === 'string') runStickyMenuAction(action);
+        });
+        return;
+    }
+
     const menu = document.getElementById('sticky-notes-menu');
     menu.innerHTML = '';
 
@@ -111,8 +125,8 @@ function showStickyMenu(anchor) {
         el.dataset.action = entry.action;
 
         const icon = document.createElement('span');
-        icon.className = 'ms-icon sm';
-        icon.textContent = entry.icon;
+        icon.className = 'icon sm';
+        setLucideIcon(icon, entry.icon);
 
         const label = document.createElement('span');
         label.className = 'dropdown-option-text';
@@ -170,7 +184,7 @@ function refreshStickyList() {
     return ipcRenderer.invoke('sticky:list')
         .then((result) => applyStickyList(result))
         .catch((err) => {
-            console.error('读取桌面便利贴列表失败:', err);
+            console.error('[Desktop:ERROR] 读取桌面便利贴列表失败:', err);
             return [];
         });
 }
@@ -225,6 +239,10 @@ async function stickItemToDesktop(itemId) {
 
     const item = getItemById(itemId);
     if (!item) return;
+    if (isDraftId(itemId)) {
+        showToast('先写入内容并保存，才能贴到桌面');
+        return;
+    }
     if (isSecretHidden(item)) {
         showToast('隐藏的条目不在列表中，无法贴到桌面');
         return;
@@ -246,7 +264,7 @@ if (State.activeNoteId === itemId) flushPendingSave();
             isDone: item.isDone === true
         });
     } catch (err) {
-        console.error('贴到桌面失败:', err);
+        console.error('[Desktop:ERROR] 贴到桌面失败:', err);
     }
 
     if (!result || !result.ok) {
@@ -270,7 +288,7 @@ async function showAllStickyNotes() {
         showToast(count ? `已显示 ${count} 张便利贴` : '还没有贴出的便利贴');
         await refreshStickyList();
     } catch (err) {
-        console.error('显示桌面便利贴失败:', err);
+        console.error('[Desktop:ERROR] 显示桌面便利贴失败:', err);
     }
 }
 
@@ -281,7 +299,7 @@ async function hideAllStickyNotes() {
         showToast(count ? `已收起 ${count} 张便利贴` : '还没有贴出的便利贴');
         await refreshStickyList();
     } catch (err) {
-        console.error('收起桌面便利贴失败:', err);
+        console.error('[Desktop:ERROR] 收起桌面便利贴失败:', err);
     }
 }
 
@@ -290,7 +308,7 @@ async function clearAllStickyNotes() {
         title: '清除桌面便利贴',
         detail: '所有贴出的便利贴会被移除，记录一并删除。便利贴上关联的笔记与待办本身不会被删除；只属于便利贴自己的内容会随之丢失。',
         type: 'warning',
-        icon: 'delete_forever',
+        icon: 'trash',
         confirmLabel: '全部移除',
         danger: true
     });
@@ -302,7 +320,7 @@ async function clearAllStickyNotes() {
         showToast(count ? `已移除 ${count} 张便利贴` : '还没有贴出的便利贴');
         await refreshStickyList();
     } catch (err) {
-        console.error('清除桌面便利贴失败:', err);
+        console.error('[Desktop:ERROR] 清除桌面便利贴失败:', err);
     }
 }
 
@@ -315,7 +333,7 @@ function syncStickyNotesAppearance() {
             fonts: typeof normalizeFonts === 'function' ? normalizeFonts(State.fonts) : {}
         });
     } catch (err) {
-        console.error('同步桌面便利贴外观失败:', err);
+        console.error('[Desktop:ERROR] 同步桌面便利贴外观失败:', err);
     }
 }
 
@@ -358,7 +376,7 @@ function setStickyEnabled(enabled) {
             else showToast(count ? `已收起 ${count} 张便利贴，记录保留` : '已关闭桌面便利贴');
             return refreshStickyList();
         })
-        .catch((err) => console.error('同步桌面便利贴开关失败:', err));
+        .catch((err) => console.error('[Desktop:ERROR] 同步桌面便利贴开关失败:', err));
 }
 
 function initStickyNoteSettings() {
@@ -411,10 +429,7 @@ const btn = document.getElementById('btn-sticky-notes');
             if (!target) return;
             const action = target.getAttribute('data-action');
             hideStickyMenu();
-            if (action === 'stick-current') stickActiveItemToDesktop();
-            else if (action === 'pick-note' || action === 'new') pickNoteToStick();
-            else if (action === 'show-all') showAllStickyNotes();
-            else if (action === 'hide-all') hideAllStickyNotes();
+            runStickyMenuAction(action);
         };
     }
 

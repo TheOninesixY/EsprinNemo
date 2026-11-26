@@ -9,18 +9,16 @@ const MOBILE_DIR = path.join(ROOT, 'src', 'mobile');
 const SCRIPT_DIR = path.join(MOBILE_DIR, 'scripts');
 const STYLE_DIR = path.join(MOBILE_DIR, 'styles');
 const ASSETS_DIR = path.join(ROOT, 'assets');
-const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
+const LUCIDE_DIR = path.join(ROOT, 'node_modules', 'lucide');
 const DIST_DIR = path.join(ROOT, 'dist');
-const CACHE_DIR = path.join(DIST_DIR, 'cache', 'mobile');
-const MATERIAL_CACHE_FILE = path.join(CACHE_DIR, 'material.css');
-const MATERIAL_CACHE_META = path.join(CACHE_DIR, 'material.json');
 
 const ENTRY_NAME = 'app.js';
-const FONT_NAME = 'material-symbols-rounded.woff2';
+const LUCIDE_FILE = path.join(LUCIDE_DIR, 'dist', 'umd', 'lucide.min.js');
+const LUCIDE_TAG = '<script src="/node_modules/lucide/dist/umd/lucide.min.js"></script>';
 const STYLE_ORDER = ['tokens.css', 'base.css', 'list.css', 'editor.css', 'settings.css'];
 
 function log(level, message) {
-    const line = `[${level}] [${MODULE}] ${message}`;
+    const line = `[Mobile:${level}] ${MODULE}：${message}`;
     if (level === 'ERROR' || level === 'WARN') console.error(line);
     else console.log(line);
 }
@@ -162,47 +160,16 @@ function buildBundle(modules) {
     return parts.join('\n').replace(/<\/script/gi, '<\\/script');
 }
 
-function materialCacheKey(fontFile, cssFile) {
-    const font = fs.statSync(fontFile);
-    const css = fs.statSync(cssFile);
-    return `${font.size}:${Math.round(font.mtimeMs)}:${css.size}:${Math.round(css.mtimeMs)}`;
-}
-
-function materialStyles() {
-    const fontFile = path.join(MATERIAL_DIR, FONT_NAME);
-    const cssFile = path.join(MATERIAL_DIR, 'rounded.css');
-    if (!fs.existsSync(fontFile) || !fs.existsSync(cssFile)) {
-        log('ERROR', '缺少 material-symbols 字体或样式');
+function lucideRuntime() {
+    if (!fs.existsSync(LUCIDE_FILE)) {
+        log('ERROR', `缺少 lucide 运行时 (path=${LUCIDE_FILE})`);
         return '';
     }
-
-    const key = materialCacheKey(fontFile, cssFile);
-    try {
-        const meta = JSON.parse(readText(MATERIAL_CACHE_META));
-        if (meta && meta.key === key && fs.existsSync(MATERIAL_CACHE_FILE)) {
-            log('INFO', '使用字体缓存 (dist/cache/mobile/material.css)');
-            return readText(MATERIAL_CACHE_FILE);
-        }
-    } catch (error) {
-    }
-
-    const fontData = `data:font/woff2;base64,${readBase64(fontFile)}`;
-    const css = readText(cssFile)
-        .replace(/url\(\s*["']?\.\/material-symbols-rounded\.woff2["']?\s*\)/g, `url("${fontData}")`);
-
-    try {
-        fs.mkdirSync(CACHE_DIR, { recursive: true });
-        fs.writeFileSync(MATERIAL_CACHE_FILE, css, 'utf8');
-        fs.writeFileSync(MATERIAL_CACHE_META, JSON.stringify({ key }), 'utf8');
-    } catch (error) {
-        log('WARN', `写入字体缓存失败: ${error.message}`);
-    }
-    return css;
+    return readText(LUCIDE_FILE).replace(/<\/script/gi, '<\\/script');
 }
 
 function buildStyles() {
-    const materialCss = materialStyles();
-    const blocks = [`<style data-part="material-symbols">\n${materialCss}\n</style>`];
+    const blocks = [];
 
     for (const name of STYLE_ORDER) {
         const file = path.join(STYLE_DIR, name);
@@ -244,7 +211,6 @@ function buildHtml() {
     let html = readText(entry);
 
     html = html.replace(/\s*<link rel="manifest"[^>]*>\n?/i, '\n    ');
-    html = html.replace(/\s*<link rel="stylesheet" href="\/node_modules\/material-symbols\/rounded\.css">\n?/i, '\n    ');
     for (const name of STYLE_ORDER) {
         const pattern = new RegExp(`\\s*<link rel="stylesheet" href="\\./styles/${name.replace('.', '\\.')}">\\n?`, 'i');
         html = html.replace(pattern, '\n    ');
@@ -267,6 +233,11 @@ function buildHtml() {
 
     const scriptTag = new RegExp(`\\s*<script type="module" src="\\./scripts/${ENTRY_NAME.replace('.', '\\.')}"></script>\\n?`, 'i');
     html = html.replace(scriptTag, '\n    <script>\n' + buildBundle(modules) + '\n    </script>\n');
+
+    const runtime = lucideRuntime();
+    if (runtime) {
+        html = html.replace(LUCIDE_TAG, `<script>\n${runtime}\n    </script>`);
+    }
 
     html = html.replace('</head>', `${buildStyles()}\n</head>`);
 

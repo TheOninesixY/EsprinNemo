@@ -164,7 +164,7 @@ function undoAiAgentStep(stepId) {
         aiAgentUndoEntries.delete(stepId);
         showToast(`已撤销：${entry.label}`);
     } catch (err) {
-        console.error('撤销 Agent 操作失败:', err);
+        console.error('[Desktop:ERROR] 撤销 Agent 操作失败:', err);
         showToast('撤销失败');
     }
 }
@@ -482,7 +482,7 @@ const confirmed = await showConfirm(`将《${note.title || '未命名笔记'}》
         title: 'AI 请求移入废纸篓',
         detail: '这是 AI 发起的操作。移入废纸篓后仍可在废纸篓中恢复。',
         type: 'question',
-        icon: 'delete',
+        icon: 'trash-2',
         confirmLabel: '移入废纸篓'
     });
     if (!confirmed) return toolFail('用户取消了移入废纸篓的操作');
@@ -527,7 +527,7 @@ async function executeAiAgentTool(name, rawArguments) {
             default: return toolFail(`不支持的工具：${name}`);
         }
     } catch (err) {
-        console.error(`执行工具 ${name} 失败:`, err);
+        console.error(`[Desktop:ERROR] 执行工具 ${name} 失败:`, err);
         return toolFail(`执行失败：${err && err.message ? err.message : '未知错误'}`);
     }
 }

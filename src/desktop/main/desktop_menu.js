@@ -96,7 +96,7 @@ function ensureMenuIcon() {
     fs.writeFileSync(file, buildIco(images, sizes));
     menuIcon = file;
   } catch (error) {
-    console.error('[ERROR] [DesktopMenu] 生成菜单图标失败:', error);
+    console.error('[Desktop:ERROR] 生成菜单图标失败:', error);
   }
   return menuIcon;
 }
@@ -185,7 +185,7 @@ function applyMenu(items) {
     file = path.join(app.getPath('temp'), TEMP_FILE_NAME);
     fs.writeFileSync(file, Buffer.from(`\ufeff${buildRegFile(items)}`, 'utf16le'));
   } catch (error) {
-    console.error('[ERROR] [DesktopMenu] 写入注册表脚本失败:', error);
+    console.error('[Desktop:ERROR] 写入注册表脚本失败:', error);
     return false;
   }
 
@@ -196,7 +196,7 @@ function applyMenu(items) {
     const detail = [error && error.stdout, error && error.stderr, error && error.message]
       .map((part) => String(part || '').trim().split(/\r?\n/).filter(Boolean).pop() || '')
       .find(Boolean) || '';
-    console.warn(`[WARN] [DesktopMenu] 注册桌面右键菜单失败: ${detail} (script=${file})`);
+    console.warn(`[Desktop:WARN] 注册桌面右键菜单失败: ${detail} (script=${file})`);
     return false;
   }
 
@@ -212,7 +212,7 @@ function currentItems() {
     const items = getItems();
     return Array.isArray(items) ? items : [];
   } catch (error) {
-    console.error('[ERROR] [DesktopMenu] 读取便利贴清单失败:', error);
+    console.error('[Desktop:ERROR] 读取便利贴清单失败:', error);
     return [];
   }
 }
@@ -240,7 +240,7 @@ function syncDesktopMenu() {
 }
 function registerDesktopMenu() {
   if (!isSupported()) {
-    console.warn('[WARN] [DesktopMenu] 当前平台没有可用的 reg.exe，跳过桌面右键菜单注册');
+    console.warn('[Desktop:WARN] 当前平台没有可用的 reg.exe，跳过桌面右键菜单注册');
     return false;
   }
 
@@ -252,7 +252,7 @@ function registerDesktopMenu() {
   }
 
   lastSignature = signatureOf(items);
-  console.log(`[INFO] [DesktopMenu] Registered desktop context menu (items=${items.length} icon=${menuIcon ? 'generated' : 'exe'})`);
+  console.log(`[Desktop:INFO] Registered desktop context menu (items=${items.length} icon=${menuIcon ? 'generated' : 'exe'})`);
   return true;
 }
 function unregisterDesktopMenu() {
@@ -265,7 +265,7 @@ function unregisterDesktopMenu() {
   [MENU_KEY_FULL, ITEMS_KEY_FULL].forEach((key) => {
     try {
       execFileSync(REG_EXE, ['delete', key, '/f'], { windowsHide: true, stdio: 'ignore' });
-      console.log(`[INFO] [DesktopMenu] Removed desktop context menu (key=${key})`);
+      console.log(`[Desktop:INFO] Removed desktop context menu (key=${key})`);
     } catch (error) {
 
     }
@@ -284,7 +284,7 @@ function handleDesktopMenuArgv(argv) {
   try {
     onAction(action, readArg(argv, ID_PREFIX));
   } catch (error) {
-    console.error('[ERROR] [DesktopMenu] 执行桌面菜单动作失败:', error);
+    console.error('[Desktop:ERROR] 执行桌面菜单动作失败:', error);
   }
   return true;
 }

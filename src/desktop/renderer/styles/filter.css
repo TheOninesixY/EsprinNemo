@@ -79,7 +79,7 @@
     transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.filter-chip span:not(.ms-icon) {
+.filter-chip span:not(.icon) {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -96,7 +96,7 @@
     color: var(--accent);
 }
 
-.filter-chip .ms-icon {
+.filter-chip .icon {
     font-size: 14px;
     flex-shrink: 0;
 }

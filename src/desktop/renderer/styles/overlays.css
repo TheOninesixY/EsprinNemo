@@ -13,6 +13,12 @@
 
     animation: dropdownIn 0.12s ease-out;
 }
+.context-menu-separator {
+    height: 1px;
+    margin: 3px 2px;
+    background: var(--border-color);
+    flex: none;
+}
 .context-menu-item {
     padding: 6px 10px;
     border-radius: var(--radius-sm);

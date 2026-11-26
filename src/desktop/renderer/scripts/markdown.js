@@ -59,6 +59,85 @@ function resolveMediaSrc(raw) {
     return escapeLinkAttribute(decoded);
 }
 
+const LIST_ITEM_PATTERN = /^([ \t]*)([-*+]|\d+[.)])([ \t]+)(.*)$/;
+
+function parseListItem(line) {
+    const match = LIST_ITEM_PATTERN.exec(line);
+    if (!match) return null;
+    const indent = match[1].replace(/\t/g, '    ').length;
+    const ordered = /^\d/.test(match[2]);
+    let content = match[4];
+    let task = null;
+    const taskMatch = /^\[([ xX])\][ \t]+(.*)$/.exec(content);
+    if (taskMatch) {
+        task = taskMatch[1].toLowerCase() === 'x';
+        content = taskMatch[2];
+    }
+    return { indent, ordered, task, content };
+}
+
+function renderListBlocks(text) {
+    const lines = text.split(/\r?\n/);
+    const output = [];
+    let index = 0;
+
+    while (index < lines.length) {
+        const first = parseListItem(lines[index]);
+        if (!first) {
+            output.push(lines[index]);
+            index += 1;
+            continue;
+        }
+
+        output.push('');
+        const stack = [];
+        let current = first;
+
+        while (current) {
+            const tag = current.ordered ? 'ol' : 'ul';
+            while (stack.length && current.indent < stack[stack.length - 1].indent) {
+                output.push(`</li></${stack.pop().tag}>`);
+            }
+            if (!stack.length) {
+                stack.push({ indent: current.indent, tag, liOpen: false });
+                output.push(`<${tag}>`);
+            } else if (current.indent > stack[stack.length - 1].indent) {
+                stack.push({ indent: current.indent, tag, liOpen: false });
+                output.push(`<${tag}>`);
+            } else if (stack[stack.length - 1].tag !== tag) {
+                output.push(`</li></${stack.pop().tag}>`);
+                stack.push({ indent: current.indent, tag, liOpen: false });
+                output.push(`<${tag}>`);
+            } else if (stack[stack.length - 1].liOpen) {
+                output.push('</li>');
+            }
+            stack[stack.length - 1].liOpen = true;
+            if (current.task !== null) {
+                output.push(`<li class="task-item"><input type="checkbox" ${current.task ? 'checked ' : ''}disabled> ${current.content}`);
+            } else {
+                output.push(`<li${current.ordered ? ' class="ordered"' : ''}>${current.content}`);
+            }
+
+            index += 1;
+            let next = index < lines.length ? parseListItem(lines[index]) : null;
+            if (!next) {
+                let lookahead = index;
+                while (lookahead < lines.length && !lines[lookahead].trim()) lookahead += 1;
+                next = lookahead < lines.length ? parseListItem(lines[lookahead]) : null;
+                if (next) index = lookahead;
+            }
+            current = next;
+        }
+
+        while (stack.length) {
+            output.push(`</li></${stack.pop().tag}>`);
+        }
+        output.push('');
+    }
+
+    return output.join('\n');
+}
+
 const marked = {
     parse(value = '') {
         if (!value) return '';
@@ -93,13 +172,10 @@ const marked = {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
 
-text = text
-            .replace(/^###### (.*)$/gm, '<h6>$1</h6>')
-            .replace(/^##### (.*)$/gm, '<h5>$1</h5>')
-            .replace(/^#### (.*)$/gm, '<h4>$1</h4>')
-            .replace(/^### (.*)$/gm, '<h3>$1</h3>')
-            .replace(/^## (.*)$/gm, '<h2>$1</h2>')
-            .replace(/^# (.*)$/gm, '<h1>$1</h1>');
+text = text.replace(/^(#{1,6})[ \t]+(.*?)(?:[ \t]+#+)?[ \t]*$/gm, (match, hashes, heading) => {
+            const level = hashes.length;
+            return `<h${level}>${heading}</h${level}>`;
+        });
 
 text = text.replace(/^(?:---|\*\*\*|___)\s*$/gm, '<hr>');
 
@@ -143,13 +219,7 @@ text = text.replace(/(?:^&gt; ?[^\r\n]*(?:\r?\n|$))+/gm, (block) => {
             return `<blockquote><p>${inner}</p></blockquote>\n`;
         });
 
-text = text.replace(/^- \[ \] (.*)$/gm, '<li class="task-item"><input type="checkbox" disabled> $1</li>');
-        text = text.replace(/^- \[x\] (.*)$/gm, '<li class="task-item"><input type="checkbox" checked disabled> $1</li>');
-        text = text.replace(/^[-*+] (.*)$/gm, '<li>$1</li>');
-        text = text.replace(/^\d+\. (.*)$/gm, '<li class="ordered">$1</li>');
-
-text = text.replace(/(?:<li class="ordered">.*?<\/li>\s*)+/g, '<ol>$&</ol>');
-        text = text.replace(/(?:<li>.*?<\/li>\s*|<li class="task-item">.*?<\/li>\s*)+/g, '<ul>$&</ul>');
+text = renderListBlocks(text);
 
 text = text
             .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
@@ -160,7 +230,7 @@ text = text
 .replace(/(^|[^\w])_([^_\n]+?)_(?![A-Za-z0-9_])/g, '$1<em>$2</em>')
             .replace(/~~(.+?)~~/g, '<del>$1</del>')
 
-            .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
+            .replace(/!\[([^\]]*)\]\(((?:[^()\n]|\([^()\n]*\))+)\)/g, (match, alt, url) => {
                 const src = resolveMediaSrc(url);
                 const safeAlt = escapeLinkAttribute(alt || '');
                 const rawUrl = escapeLinkAttribute(url || '');
@@ -169,7 +239,7 @@ text = text
                     : safeAlt;
             })
 
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+            .replace(/\[([^\]]+)\]\(((?:[^()\n]|\([^()\n]*\))+)\)/g, (match, label, url) => {
                 const safeUrl = sanitizeLinkUrl(url);
                 return safeUrl
                     ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer nofollow" data-raw-href="${escapeLinkAttribute(url)}">${label}</a>`

@@ -11,7 +11,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const SYNC_DIR = path.join(ROOT, 'src', 'sync');
 const MOBILE_DIR = path.join(ROOT, 'src', 'mobile');
 const ASSETS_DIR = path.join(ROOT, 'assets');
-const MATERIAL_DIR = path.join(ROOT, 'node_modules', 'material-symbols');
+const VENDOR_DIR = path.join(ROOT, 'node_modules', 'lucide');
 const MANAGER_DIR = path.join(SYNC_DIR, 'manager');
 const DIST_DIR = path.join(ROOT, 'dist');
 const CACHE_DIR = path.join(DIST_DIR, 'cache', 'sync_build');
@@ -20,7 +20,7 @@ const EMBED_CACHE_META = path.join(BUILD_DIR, 'manifest.json');
 
 const WEB_FILES = ['index.html', 'manifest.webmanifest'];
 const WEB_DIRS = ['styles', 'scripts'];
-const MATERIAL_FILES = ['rounded.css', 'material-symbols-rounded.woff2'];
+const VENDOR_FILES = ['dist/umd/lucide.min.js'];
 const MAIN_FILES = ['data_path.js', 'secret_store.js', 'sync_server.js'];
 function readOption(name, fallback) {
     const index = process.argv.indexOf(`--${name}`);
@@ -33,7 +33,7 @@ function hasFlag(name) {
 }
 
 function log(level, message) {
-    const line = `[${level}] [${MODULE}] ${message}`;
+    const line = `[Sync:${level}] ${MODULE}：${message}`;
     if (level === 'ERROR' || level === 'WARN') console.error(line);
     else console.log(line);
 }
@@ -72,7 +72,7 @@ function embeddedSources() {
         if (!fs.existsSync(source)) continue;
         for (const item of collectFiles(source, dir)) add(item.absolute);
     }
-    for (const name of MATERIAL_FILES) add(path.join(MATERIAL_DIR, name));
+    for (const name of VENDOR_FILES) add(path.join(VENDOR_DIR, name));
     for (const name of MAIN_FILES) add(path.join(ROOT, 'src', 'desktop', 'main', name));
     if (fs.existsSync(MANAGER_DIR)) {
         for (const item of collectFiles(MANAGER_DIR, 'manager')) add(item.absolute);

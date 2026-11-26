@@ -9,7 +9,7 @@ const TARGET = 'background_bmk = Bookmark.for_file(background_file)';
 const PATCHED = 'background_bmk = None';
 
 function log(level, message) {
-    const line = `[${level}] [${MODULE}] ${message}`;
+    const line = `[Desktop:${level}] ${MODULE}：${message}`;
     if (level === 'ERROR' || level === 'WARN') console.error(line);
     else console.log(line);
 }

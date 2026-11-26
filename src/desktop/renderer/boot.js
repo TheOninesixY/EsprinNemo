@@ -6,6 +6,12 @@ const SIDEBAR_COLLAPSED_CLASS = 'sidebar-collapsed';
 
 const MODERN_LAYOUT_CLASS = 'modern-layout';
 
+const SETTINGS_WINDOW_CLASS = 'settings-window';
+
+const SETTINGS_WINDOW_ARG = '--esprin-nemo-settings-window';
+
+const IS_SETTINGS_WINDOW = (process.argv || []).includes(SETTINGS_WINDOW_ARG);
+
 const NARROW_WINDOW_THRESHOLD = 900;
 
 const UI_SCALE_MIN = 0.5;
@@ -28,12 +34,17 @@ const IS_WEB_RUNTIME = false;
 document.documentElement.classList.add('desktop-runtime');
 
 if (process.platform === 'darwin') {
+    document.documentElement.classList.add('mac-platform');
     document.documentElement.classList.add('mac-vibrancy');
 }
 
 document.documentElement.classList.add(SIDEBAR_COLLAPSED_CLASS);
 
 document.documentElement.classList.add(MODERN_LAYOUT_CLASS);
+
+if (IS_SETTINGS_WINDOW) {
+    document.documentElement.classList.add(SETTINGS_WINDOW_CLASS);
+}
 
 function readWindowControlsArg() {
     try {
@@ -110,6 +121,7 @@ try {
         if (config && typeof config.accentColor === 'string') accentColor = config.accentColor;
         if (config && typeof config.cornerRadius === 'string') cornerRadius = config.cornerRadius;
         if (config && config.uiScale !== undefined) uiScale = config.uiScale;
+        if (config && config.backgroundBlur === false) document.documentElement.classList.remove('mac-vibrancy');
     }
     webFrame.setZoomFactor(normalizeUiScale(uiScale));
     const isLight = theme === 'light' || (theme === 'system' && window.matchMedia && !window.matchMedia('(prefers-color-scheme: dark)').matches);

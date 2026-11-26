@@ -4,7 +4,7 @@ const { buildWindowAppearance, safeResolve } = require('./window_appearance.js')
 
 const DIALOG_HTML = path.join(__dirname, '..', 'renderer', 'dialog.html');
 
-const TYPE_ICONS = { info: 'info', question: 'help', warning: 'warning', error: 'error' };
+const TYPE_ICONS = { info: 'info', question: 'circle-help', warning: 'triangle-alert', error: 'circle-alert' };
 
 const MIN_WIDTH = 300;
 const MAX_WIDTH = 640;
@@ -35,7 +35,7 @@ function macSheetInset() {
     const measured = frameHeight - contentHeight;
     if (measured > 0 && measured <= MAX_SHEET_INSET) cachedSheetInset = measured;
   } catch (error) {
-    console.error('[ERROR] [Nemo] 测量 macOS 标题栏高度失败:', error && error.message ? error.message : error);
+    console.error('[Desktop:ERROR] 测量 macOS 标题栏高度失败:', error && error.message ? error.message : error);
   } finally {
     if (probe && !probe.isDestroyed()) probe.destroy();
   }
@@ -330,7 +330,7 @@ if (parentWin) {
     });
 
     win.loadFile(DIALOG_HTML).catch((error) => {
-      console.error('[EsprinNemo] 加载弹窗页面失败:', error);
+      console.error('[Desktop:ERROR] 加载弹窗页面失败:', error);
       finishDialog(entry, canceledResult(entry));
     });
   });

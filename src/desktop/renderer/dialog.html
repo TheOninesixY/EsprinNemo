@@ -7,8 +7,8 @@
 
     <script src="./window_appearance.js"></script>
     <script>window.applyWindowAppearance(window.readWindowAppearanceFromArgs());</script>
-    <link rel="stylesheet" href="../../../node_modules/material-symbols/rounded.css">
-
+    <script src="../../../node_modules/lucide/dist/umd/lucide.min.js"></script>
+    <script src="./scripts/icons.js"></script>
     <link rel="stylesheet" href="./styles/tokens.css">
     <link rel="stylesheet" href="./styles/window_shell.css">
     <link rel="stylesheet" href="./styles/radius.css">
@@ -134,7 +134,7 @@
             font-size: 11.5px;
             transition: background-color 0.15s, color 0.15s;
         }
-        .dialog-choice .ms-icon {
+        .dialog-choice .icon {
             font-size: 13px;
             opacity: 0;
             transition: opacity 0.15s;
@@ -148,7 +148,7 @@
             color: var(--accent);
             font-weight: 500;
         }
-        .dialog-choice.selected .ms-icon {
+        .dialog-choice.selected .icon {
             opacity: 1;
         }
 
@@ -222,7 +222,7 @@
     <div class="dialog-container">
         <main class="dialog-body">
             <div class="dialog-head">
-                <span class="ms-icon dialog-icon" id="dialog-icon">info</span>
+                <span class="icon dialog-icon" id="dialog-icon" data-lucide="info" aria-hidden="true"></span>
                 <div class="dialog-text">
                     <div class="dialog-title hidden" id="dialog-title"></div>
                     <div class="dialog-message" id="dialog-message"></div>
@@ -309,8 +309,8 @@ function syncChoices() {
                 el.dataset.value = value;
 
                 const icon = document.createElement('span');
-                icon.className = 'ms-icon';
-                icon.textContent = 'check';
+                icon.className = 'icon';
+                setLucideIcon(icon, 'check');
 
                 const label = document.createElement('span');
                 label.textContent = value;
@@ -358,7 +358,7 @@ function startCountdown() {
                 detailEl.classList.remove('hidden');
             }
 
-            setText(iconEl, data.icon || 'info');
+            setLucideIcon(iconEl, data.icon || 'info');
             iconEl.classList.remove('warning', 'error');
             if (data.type === 'warning') iconEl.classList.add('warning');
             if (data.type === 'error') iconEl.classList.add('error');
@@ -450,7 +450,7 @@ inputEl.addEventListener('keydown', (event) => {
             }
             if (!options) {
                 options = {
-                    title: '', message: '无法加载弹窗内容', detail: '', type: 'error', icon: 'error',
+                    title: '', message: '无法加载弹窗内容', detail: '', type: 'error', icon: 'circle-alert',
                     buttons: [{ id: 'ok', label: '确定', variant: 'primary' }], defaultIndex: 0, cancelIndex: 0,
                     input: null, checkbox: null, timeoutMs: 0
                 };

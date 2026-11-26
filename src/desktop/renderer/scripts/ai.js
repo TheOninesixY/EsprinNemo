@@ -208,7 +208,7 @@ function createAiActionButton(label, icon, handler) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'ai-msg-action';
-    btn.innerHTML = `<span class="ms-icon xs">${icon}</span><span>${escapeHTML(label)}</span>`;
+    btn.innerHTML = `<span class="icon xs" data-lucide="${icon}" aria-hidden="true"></span><span>${escapeHTML(label)}</span>`;
     btn.onclick = handler;
     return btn;
 }
@@ -217,17 +217,17 @@ function createAiMessageActions(msg) {
     const bar = document.createElement('div');
     bar.className = 'ai-msg-actions';
 
-    bar.appendChild(createAiActionButton('复制', 'content_copy', () => {
+    bar.appendChild(createAiActionButton('复制', 'copy', () => {
         try {
             require('electron').clipboard.writeText(msg.content || '');
             showToast('已复制回答');
         } catch (err) {
-            console.error('复制回答失败:', err);
+            console.error('[Desktop:ERROR] 复制回答失败:', err);
             showToast('复制失败');
         }
     }));
-    bar.appendChild(createAiActionButton('插入当前内容', 'playlist_add', () => insertAiAnswerToItem(msg.content || '')));
-    bar.appendChild(createAiActionButton('存为新笔记', 'note_add', () => saveAiAnswerAsNote(msg.content || '')));
+    bar.appendChild(createAiActionButton('插入当前内容', 'list-plus', () => insertAiAnswerToItem(msg.content || '')));
+    bar.appendChild(createAiActionButton('存为新笔记', 'file-plus', () => saveAiAnswerAsNote(msg.content || '')));
     return bar;
 }
 
@@ -237,7 +237,7 @@ function createAiAgentStepElement(msg, toolResults) {
 
     const role = document.createElement('div');
     role.className = 'ai-msg-role';
-    role.innerHTML = '<span class="ms-icon xs">smart_toy</span><span>AI 操作</span>';
+    role.innerHTML = '<span class="icon xs" data-lucide="bot" aria-hidden="true"></span><span>AI 操作</span>';
     wrap.appendChild(role);
 
     const body = document.createElement('div');
@@ -258,8 +258,8 @@ if (msg.content) {
         step.className = `ai-step${failed ? ' failed' : ''}${result ? '' : ' running'}`;
 
         const icon = document.createElement('span');
-        icon.className = 'ms-icon xs';
-        icon.textContent = !result ? 'progress_activity' : (failed ? 'error' : 'check_circle');
+        icon.className = 'icon xs';
+        setLucideIcon(icon, !result ? 'loader-circle' : (failed ? 'circle-alert' : 'circle-check'));
         step.appendChild(icon);
 
         const info = document.createElement('div');
@@ -282,7 +282,7 @@ if (msg.content) {
             const undoBtn = document.createElement('button');
             undoBtn.type = 'button';
             undoBtn.className = 'ai-msg-action';
-            undoBtn.innerHTML = '<span class="ms-icon xs">undo</span><span>撤销</span>';
+            undoBtn.innerHTML = '<span class="icon xs" data-lucide="undo-2" aria-hidden="true"></span><span>撤销</span>';
             undoBtn.onclick = () => {
                 undoAiAgentStep(result.stepId);
                 renderAiMessages();
@@ -311,8 +311,8 @@ function createAiMessageElement(msg, index, toolResults) {
     const role = document.createElement('div');
     role.className = 'ai-msg-role';
     role.innerHTML = msg.role === 'user'
-        ? '<span class="ms-icon xs">person</span><span>你</span>'
-        : '<span class="ms-icon xs">chat_bubble</span><span>AI 助手</span>';
+        ? '<span class="icon xs" data-lucide="user" aria-hidden="true"></span><span>你</span>'
+        : '<span class="icon xs" data-lucide="message-circle" aria-hidden="true"></span><span>AI 助手</span>';
     if (msg.role === 'user' && msg.contextLabel) {
         const meta = document.createElement('span');
         meta.className = 'ai-msg-context';
@@ -542,8 +542,7 @@ function setAiPanelOpen(open) {
 
 function openAiSettingsPanel() {
     setAiPanelOpen(false);
-    openSettingsTab();
-    switchSettingsCategory('ai');
+    openSettingsWindow('ai');
 }
 
 function toggleAiAssistant() {
@@ -576,7 +575,7 @@ async function clearAiConversation() {
     const confirmed = await showConfirm('清空当前对话？', {
         title: '清空对话',
         detail: `${chat.messages.length} 条消息将从本机对话文件中移除，此操作无法撤销。`,
-        icon: 'delete_sweep',
+        icon: 'trash-2',
         confirmLabel: '清空'
     });
     if (!confirmed) return;
@@ -599,7 +598,7 @@ function stopAiGeneration() {
 
     const requestId = State.aiRequestId;
     ipcRenderer.invoke('ai:abort', { requestId }).catch((err) => {
-        console.error('停止生成失败:', err);
+        console.error('[Desktop:ERROR] 停止生成失败:', err);
     });
 }
 
@@ -679,7 +678,7 @@ async function requestAiAnswer(chat, messages) {
             tools: buildAiAgentToolPayload()
         });
     } catch (err) {
-        console.error('AI 请求失败:', err);
+        console.error('[Desktop:ERROR] AI 请求失败:', err);
         result = { ok: false, error: '请求失败：无法与主进程通信' };
     }
 

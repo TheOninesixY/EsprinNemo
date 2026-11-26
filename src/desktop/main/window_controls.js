@@ -71,7 +71,7 @@ function applyTrafficLightPosition(win) {
       win.setWindowButtonPosition(trafficLightPosition(trafficLightScale));
     }
   } catch (error) {
-    console.warn('[WARN] [Nemo] 设置 macOS 红绿灯位置失败:', error.message);
+    console.warn('[Desktop:WARN] 设置 macOS 红绿灯位置失败:', error.message);
   }
 }
 
@@ -83,7 +83,7 @@ function applyWindowControlStyle(win) {
         win.setWindowButtonVisibility(usesNativeTrafficLights());
       }
     } catch (error) {
-      console.warn('[WARN] [Nemo] 设置 macOS 窗口按钮失败:', error.message);
+      console.warn('[Desktop:WARN] 设置 macOS 窗口按钮失败:', error.message);
     }
     applyTrafficLightPosition(win);
   }
@@ -100,7 +100,7 @@ function setWindowControlStyle(value) {
   if (next === controlStyle) return windowControlsSnapshot();
   controlStyle = next;
   applyWindowControlStyle(getMainWindow());
-  console.log(`[INFO] [Nemo] 窗口控件已切换为 ${controlStyle === 'mac' ? 'macOS 红绿灯' : 'Windows 样式'}`);
+  console.log(`[Desktop:INFO] 窗口控件已切换为 ${controlStyle === 'mac' ? 'macOS 红绿灯' : 'Windows 样式'}`);
   return windowControlsSnapshot();
 }
 

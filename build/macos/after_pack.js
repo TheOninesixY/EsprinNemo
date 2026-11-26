@@ -21,9 +21,9 @@ module.exports = async function afterPack(context) {
 
   try {
     execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', appPath], { stdio: 'inherit' });
-    console.log(`[INFO] [Nemo] 已对 ${productFilename}.app 做 ad-hoc 签名（${archLabel}）`);
+    console.log(`[Desktop:INFO] 已对 ${productFilename}.app 做 ad-hoc 签名（${archLabel}）`);
   } catch (error) {
-    console.error(`[ERROR] [Nemo] ad-hoc 签名失败（${archLabel}）：${error.message}`);
+    console.error(`[Desktop:ERROR] ad-hoc 签名失败（${archLabel}）：${error.message}`);
     throw error;
   }
 };

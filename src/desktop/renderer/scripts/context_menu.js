@@ -1,104 +1,138 @@
 let contextItemId = null;
 
+const MENU_SEPARATOR = { type: 'separator' };
+
+function appendMenuGroup(items, entries) {
+    const group = entries.filter(entry => !!entry);
+    if (!group.length) return;
+    if (items.length) items.push(MENU_SEPARATOR);
+    items.push(...group);
+}
+
 function contextMenuItems(item) {
     const label = itemKindLabel(item);
 
     if (item.isTrashed) {
         const items = [
-            { action: 'open', icon: 'open_in_new', label: '在标签页打开' },
-            { action: 'restore', icon: 'restore_from_trash', label: `恢复${label}` },
-            { action: 'export', icon: 'file_download', label: '导出 Markdown' }
+            { action: 'open', icon: 'external-link', label: '在标签页打开' }
         ];
 
-        if (isSharedItem(item)) {
-            items.push({ action: 'leave-share', icon: 'link_off', label: '退出共享', danger: true });
-        } else {
-            items.push({ action: 'purge', icon: 'delete_forever', label: '彻底删除', danger: true });
-        }
+        appendMenuGroup(items, [
+            { action: 'restore', icon: 'undo-2', label: `恢复${label}` },
+            { action: 'export', icon: 'download', label: '导出 Markdown' }
+        ]);
+
+        appendMenuGroup(items, [
+            isSharedItem(item)
+                ? { action: 'leave-share', icon: 'unlink', label: '退出共享', danger: true }
+                : { action: 'purge', icon: 'trash', label: '彻底删除', danger: true }
+        ]);
+
         return items;
     }
 
     const items = [
-        { action: 'open', icon: 'open_in_new', label: '在标签页打开' }
+        { action: 'open', icon: 'external-link', label: '在标签页打开' }
     ];
 
-if (isTodoItem(item)) {
-        items.push({
+    appendMenuGroup(items, [
+        isTodoItem(item) ? {
             action: 'toggle-done',
-            icon: item.isDone ? 'check_box_outline_blank' : 'check_circle',
+            icon: item.isDone ? 'square' : 'circle-check',
             label: item.isDone ? '标记为未完成' : '标记为已完成'
-        });
-    }
+        } : null,
+        {
+            action: 'pin',
+            icon: item.isPinned ? 'pin-off' : 'pin',
+            label: item.isPinned ? '取消置顶' : `置顶${label}`
+        },
+        { action: 'stick', icon: 'pin', label: '贴到桌面' }
+    ]);
 
-    items.push({
-        action: 'pin',
-        icon: item.isPinned ? 'keep_off' : 'push_pin',
-        label: item.isPinned ? '取消置顶' : `置顶${label}`
-    });
-
-items.push({ action: 'stick', icon: 'keep', label: '贴到桌面' });
-
-if (isSharedItem(item)) {
-        items.push(
-            { action: 'export', icon: 'file_download', label: '导出 Markdown' },
-            { action: 'leave-share', icon: 'link_off', label: '退出共享', danger: true }
-        );
+    if (isSharedItem(item)) {
+        appendMenuGroup(items, [
+            { action: 'export', icon: 'download', label: '导出 Markdown' }
+        ]);
+        appendMenuGroup(items, [
+            { action: 'leave-share', icon: 'unlink', label: '退出共享', danger: true }
+        ]);
         return items;
     }
 
-    items.push(
-
+    appendMenuGroup(items, [
         {
             action: 'hide',
-            icon: item.isHidden === true ? 'visibility' : 'visibility_off',
+            icon: item.isHidden === true ? 'eye' : 'eye-off',
             label: item.isHidden === true ? '取消隐藏' : '隐藏文档'
         },
         {
             action: item.locked === true ? 'remove-password' : 'set-password',
-            icon: item.locked === true ? 'key_off' : 'lock',
+            icon: item.locked === true ? 'key-round' : 'lock',
             label: item.locked === true ? '解除密码' : '设置密码'
-        }
-    );
+        },
+        item.locked === true && item.unlocked === true
+            ? { action: 'lock-now', icon: 'lock', label: '立即锁定' }
+            : null
+    ]);
 
-if (item.locked === true && item.unlocked === true) {
-        items.push({ action: 'lock-now', icon: 'lock', label: '立即锁定' });
-    }
+    appendMenuGroup(items, [
+        !isTodoItem(item) && !isSecretItem(item)
+            ? { action: 'share', icon: 'share-2', label: '共享…' }
+            : null,
+        { action: 'export', icon: 'download', label: '导出 Markdown' }
+    ]);
 
-if (!isTodoItem(item) && !isSecretItem(item)) {
-        items.push({ action: 'share', icon: 'share', label: '共享…' });
-    }
-
-    items.push(
-        { action: 'export', icon: 'file_download', label: '导出 Markdown' },
-        { action: 'delete', icon: 'delete', label: '移入废纸篓', danger: true }
-    );
+    appendMenuGroup(items, [
+        { action: 'delete', icon: 'trash-2', label: '移入废纸篓', danger: true }
+    ]);
 
     return items;
+}
+
+function fillContextMenu(menu, entries) {
+    menu.innerHTML = '';
+    entries.forEach(entry => {
+        if (entry.type === 'separator') {
+            const line = document.createElement('div');
+            line.className = 'context-menu-separator';
+            menu.appendChild(line);
+            return;
+        }
+
+        const el = document.createElement('div');
+        el.className = `context-menu-item${entry.danger ? ' danger' : ''}`;
+        el.dataset.action = entry.action;
+
+        const icon = document.createElement('span');
+        icon.className = 'icon sm';
+        setLucideIcon(icon, entry.icon);
+
+        const text = document.createElement('span');
+        text.textContent = entry.label;
+
+        el.append(icon, text);
+        menu.appendChild(el);
+    });
 }
 
 function showContextMenu(x, y, itemId) {
     const item = getItemById(itemId);
     if (!item) return;
     hideFolderContextMenu();
+    hideContextMenu();
     contextItemId = itemId;
 
+    const entries = contextMenuItems(item);
+    if (nativeMenuBridge.isMac) {
+        nativeMenuBridge.popup(entries).then((action) => {
+            if (!action || contextItemId !== itemId) return;
+            runContextMenuAction(action);
+        });
+        return;
+    }
+
     const menu = document.getElementById('note-context-menu');
-    menu.innerHTML = '';
-    contextMenuItems(item).forEach(entry => {
-        const el = document.createElement('div');
-        el.className = `context-menu-item${entry.danger ? ' danger' : ''}`;
-        el.dataset.action = entry.action;
-
-        const icon = document.createElement('span');
-        icon.className = 'ms-icon sm';
-        icon.textContent = entry.icon;
-
-        const label = document.createElement('span');
-        label.textContent = entry.label;
-
-        el.append(icon, label);
-        menu.appendChild(el);
-    });
+    fillContextMenu(menu, entries);
 
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
@@ -113,67 +147,72 @@ function hideContextMenu() {
     document.getElementById('note-context-menu').classList.add('hidden');
 }
 
+function runContextMenuAction(action) {
+    const itemId = contextItemId;
+    if (!itemId) return;
+    if (action === 'open') {
+        openTab(itemId);
+        renderApp();
+    } else if (action === 'toggle-done') {
+        toggleTodoDone(itemId);
+    } else if (action === 'pin') {
+        togglePin(itemId);
+    } else if (action === 'stick') {
+        stickItemToDesktop(itemId);
+    } else if (action === 'hide') {
+        toggleItemHidden(itemId);
+    } else if (action === 'set-password') {
+        setItemPassword(itemId);
+    } else if (action === 'remove-password') {
+        removeItemPassword(itemId);
+    } else if (action === 'lock-now') {
+        lockItemNow(itemId);
+    } else if (action === 'share') {
+        shareNoteFromMenu(itemId);
+    } else if (action === 'leave-share') {
+        leaveSharedNoteFromMenu(itemId);
+    } else if (action === 'export') {
+        exportItemMarkdown(itemId);
+    } else if (action === 'delete') {
+        moveToTrash(itemId);
+    } else if (action === 'restore') {
+        restoreFromTrash(itemId);
+    } else if (action === 'purge') {
+        purgeItem(itemId);
+    }
+}
+
 document.getElementById('note-context-menu').onclick = (e) => {
     const target = e.target.closest('[data-action]');
     if (!target || !contextItemId) return;
-    const action = target.getAttribute('data-action');
-    if (action === 'open') {
-        openTab(contextItemId);
-        renderApp();
-    } else if (action === 'toggle-done') {
-        toggleTodoDone(contextItemId);
-    } else if (action === 'pin') {
-        togglePin(contextItemId);
-    } else if (action === 'stick') {
-        stickItemToDesktop(contextItemId);
-    } else if (action === 'hide') {
-        toggleItemHidden(contextItemId);
-    } else if (action === 'set-password') {
-        setItemPassword(contextItemId);
-    } else if (action === 'remove-password') {
-        removeItemPassword(contextItemId);
-    } else if (action === 'lock-now') {
-        lockItemNow(contextItemId);
-    } else if (action === 'share') {
-        shareNoteFromMenu(contextItemId);
-    } else if (action === 'leave-share') {
-        leaveSharedNoteFromMenu(contextItemId);
-    } else if (action === 'export') {
-        exportItemMarkdown(contextItemId);
-    } else if (action === 'delete') {
-        moveToTrash(contextItemId);
-    } else if (action === 'restore') {
-        restoreFromTrash(contextItemId);
-    } else if (action === 'purge') {
-        purgeItem(contextItemId);
-    }
+    runContextMenuAction(target.getAttribute('data-action'));
     hideContextMenu();
 };
+
+function folderContextMenuItems() {
+    return [
+        { action: 'rename-folder', icon: 'pencil', label: '重命名文件夹' },
+        { type: 'separator' },
+        { action: 'delete-folder', icon: 'trash-2', label: '删除文件夹', danger: true }
+    ];
+}
 
 function showFolderContextMenu(x, y, folder) {
     if (folder === '默认') return;
     hideContextMenu();
+    hideFolderContextMenu();
+
+    const entries = folderContextMenuItems();
+    if (nativeMenuBridge.isMac) {
+        nativeMenuBridge.popup(entries).then((action) => {
+            if (action === 'rename-folder') renameFolder(folder);
+            else if (action === 'delete-folder') deleteFolder(folder);
+        });
+        return;
+    }
 
     const menu = document.getElementById('folder-context-menu');
-    menu.innerHTML = '';
-    [
-        { action: 'rename-folder', icon: 'edit', label: '重命名文件夹' },
-        { action: 'delete-folder', icon: 'delete', label: '删除文件夹', danger: true }
-    ].forEach(entry => {
-        const el = document.createElement('div');
-        el.className = `context-menu-item${entry.danger ? ' danger' : ''}`;
-        el.dataset.action = entry.action;
-
-        const icon = document.createElement('span');
-        icon.className = 'ms-icon sm';
-        icon.textContent = entry.icon;
-
-        const label = document.createElement('span');
-        label.textContent = entry.label;
-
-        el.append(icon, label);
-        menu.appendChild(el);
-    });
+    fillContextMenu(menu, entries);
 
     menu.dataset.folder = folder;
     menu.style.left = `${x}px`;

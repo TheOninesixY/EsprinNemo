@@ -47,7 +47,7 @@ function syncTraySetting(options = {}) {
     if (isMacPlatform()) return Promise.resolve();
     return ipcRenderer.invoke('tray:set-enabled', { enabled: State.trayEnabled !== false })
         .then((result) => applyTrayState(result, options))
-        .catch((err) => console.error('同步托盘开关失败:', err));
+        .catch((err) => console.error('[Desktop:ERROR] 同步托盘开关失败:', err));
 }
 
 function initTraySettings() {
@@ -74,7 +74,7 @@ function initTraySettings() {
 
     ipcRenderer.invoke('tray:get-state')
         .then((result) => applyTrayState(result))
-        .catch((err) => console.error('读取托盘状态失败:', err));
+        .catch((err) => console.error('[Desktop:ERROR] 读取托盘状态失败:', err));
 
     syncTrayStatusText();
 }

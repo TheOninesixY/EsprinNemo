@@ -79,7 +79,7 @@ export function initSync({ settings: settingsRef, persist: persistFn, onChange }
     if (unsubscribe) unsubscribe();
     unsubscribe = onFileChange((path) => {
         queueLocalChange('put', path).catch((err) => {
-            console.warn('[Nemo] 排队同步失败：', err && err.message);
+            console.warn('[Mobile:WARN] 排队同步失败：', err && err.message);
         });
     });
 }
@@ -211,7 +211,7 @@ export function schedulePush() {
     clearTimeout(pushTimer);
     pushTimer = setTimeout(() => {
         pushTimer = null;
-        pushOutbox().catch((error) => console.warn('[Nemo] 推送本地改动失败：', error && error.message));
+        pushOutbox().catch((error) => console.warn('[Mobile:WARN] 推送本地改动失败：', error && error.message));
     }, PUSH_DEBOUNCE_MS);
 }
 

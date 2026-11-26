@@ -198,7 +198,8 @@ State.openNoteIds = State.openNoteIds.filter(id => id === 'settings' || !!getIte
 const signature = `${State.activeNoteId}\u0001${State.openNoteIds.map(id => {
         const item = id === 'settings' ? null : getItemById(id);
         const secret = item && item.locked === true ? (item.unlocked === true ? 2 : 1) : 0;
-        return `${id}\u0002${item ? (item.title || '') : ''}\u0002${secret}`;
+        const draft = isDraftId(id) ? 1 : 0;
+        return `${id}\u0002${item ? (item.title || '') : ''}\u0002${secret}\u0002${draft}`;
     }).join('\u0001')}`;
     if (renderSignatures.tabs === signature) return;
     renderSignatures.tabs = signature;
@@ -225,26 +226,26 @@ if (!knownTabIds.has(id)) {
 
         if (id === 'settings') {
             tab.innerHTML = `
-                <span class="ms-icon xs" style="opacity: 0.7;">settings</span>
+                <span class="icon xs" style="opacity: 0.7;" data-lucide="settings" aria-hidden="true"></span>
                 <span class="tab-title">设置</span>
                 <button class="tab-close-btn" title="关闭设置">
-                    <span class="ms-icon xs">close</span>
+                    <span class="icon xs" data-lucide="x" aria-hidden="true"></span>
                 </button>
             `;
         } else {
             const item = getItemById(id);
             if (!item) return;
 
-            const icon = isTodoItem(item) ? 'check_box' : 'description';
+            const icon = isTodoItem(item) ? 'square-check' : 'file-text';
             const secretIcon = item.locked === true
-                ? `<span class="ms-icon xs" style="opacity: 0.7;">${item.unlocked === true ? 'lock_open' : 'lock'}</span>`
+                ? `<span class="icon xs" style="opacity: 0.7;" data-lucide="${item.unlocked === true ? 'lock-open' : 'lock'}" aria-hidden="true"></span>`
                 : '';
             tab.innerHTML = `
-                <span class="ms-icon xs" style="opacity: 0.7;">${icon}</span>
+                <span class="icon xs" style="opacity: 0.7;" data-lucide="${icon}" aria-hidden="true"></span>
                 ${secretIcon}
                 <span class="tab-title">${escapeHTML(itemDisplayTitle(item))}</span>
                 <button class="tab-close-btn" title="关闭标签">
-                    <span class="ms-icon xs">close</span>
+                    <span class="icon xs" data-lucide="x" aria-hidden="true"></span>
                 </button>
             `;
         }
@@ -706,7 +707,7 @@ function createCardTagChip(tag, { removable = false, itemId = '' } = {}) {
         removeBtn.type = 'button';
         removeBtn.className = 'note-card-tag-remove';
         removeBtn.title = '移除标签';
-        removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
+        removeBtn.innerHTML = '<span class="icon xs" data-lucide="x" aria-hidden="true"></span>';
         removeBtn.addEventListener('click', (event) => {
             event.stopPropagation();
             removeItemTag(itemId, tag);
@@ -737,7 +738,7 @@ function createCardTagAddButton(item) {
     btn.className = 'note-card-tag-add';
     btn.title = '添加标签';
     btn.setAttribute('aria-label', '添加标签');
-    btn.innerHTML = '<span class="ms-icon xs">add</span>';
+    btn.innerHTML = '<span class="icon xs" data-lucide="plus" aria-hidden="true"></span>';
 
     btn.addEventListener('click', async (event) => {
         event.stopPropagation();
@@ -810,9 +811,9 @@ function createNoteCard(note) {
         <div class="note-card-title">
             <span class="note-card-title-text">${escapeHTML(note.title || '未命名笔记')}</span>
             <div class="note-card-title-meta">
-                ${isSharedItem(note) ? `<span class="ms-icon xs" title="来自账户 ${escapeHTML(note.shared.owner)} 的共享笔记">group</span>` : ''}
-                ${note.locked === true ? `<span class="ms-icon xs fill" style="color: var(--accent);">${note.unlocked === true ? 'lock_open' : 'lock'}</span>` : ''}
-                ${note.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+                ${isSharedItem(note) ? `<span class="icon xs" title="来自账户 ${escapeHTML(note.shared.owner)} 的共享笔记" data-lucide="users" aria-hidden="true"></span>` : ''}
+                ${note.locked === true ? `<span class="icon xs" style="color: var(--accent);" data-lucide="${note.unlocked === true ? 'lock-open' : 'lock'}" aria-hidden="true"></span>` : ''}
+                ${note.isPinned ? '<span class="icon xs" style="color: var(--text-secondary);" data-lucide="pin" aria-hidden="true"></span>' : ''}
                 <div class="note-card-folder-slot"></div>
             </div>
         </div>
@@ -855,17 +856,15 @@ function renderWorkspace() {
     const contentArea = document.querySelector('.editor-content-area');
     const footer = document.querySelector('.editor-footer');
     const editorBody = document.querySelector('.editor-body');
-    const settingsSidebar = document.getElementById('settings-sidebar');
     const notesList = document.getElementById('notes-list-box');
     const notesHeader = document.querySelector('.notes-panel-header');
 
 if (State.activeNoteId === 'settings') {
         document.documentElement.classList.add(SETTINGS_OPEN_CLASS);
         if (sidebar) sidebar.classList.remove('hidden');
-        if (notesPanel) notesPanel.classList.remove('hidden');
+        if (notesPanel) notesPanel.classList.add('hidden');
         if (workspace) workspace.classList.remove('hidden');
         if (settingsView) settingsView.classList.remove('hidden');
-        if (settingsSidebar) settingsSidebar.classList.remove('hidden');
         if (notesList) notesList.classList.add('hidden');
         if (notesHeader) notesHeader.classList.add('hidden');
         if (editorBody) editorBody.classList.add('hidden');
@@ -903,7 +902,6 @@ if (typeof refreshTeamNotesSoon === 'function') refreshTeamNotesSoon();
     if (workspace) workspace.classList.remove('hidden');
     if (settingsView) settingsView.classList.add('hidden');
     document.documentElement.classList.remove(SETTINGS_OPEN_CLASS);
-    if (settingsSidebar) settingsSidebar.classList.add('hidden');
     if (notesList) notesList.classList.remove('hidden');
     if (notesHeader) notesHeader.classList.remove('hidden');
     if (editorBody) editorBody.classList.remove('hidden');
@@ -976,7 +974,7 @@ if (typeof refreshTeamNotesSoon === 'function') refreshTeamNotesSoon();
             if (!readOnly) {
                 const removeBtn = document.createElement('button');
                 removeBtn.title = '移除标签';
-                removeBtn.innerHTML = '<span class="ms-icon xs">close</span>';
+                removeBtn.innerHTML = '<span class="icon xs" data-lucide="x" aria-hidden="true"></span>';
 
                 removeBtn.onclick = () => {
                     const active = getActiveItem();
@@ -998,7 +996,7 @@ if (typeof refreshTeamNotesSoon === 'function') refreshTeamNotesSoon();
 const doneBtn = document.getElementById('btn-todo-done');
     doneBtn.classList.toggle('hidden', !todoItem);
     if (todoItem) {
-        doneBtn.querySelector('.ms-icon').textContent = item.isDone ? 'check_circle' : 'radio_button_unchecked';
+        setLucideIcon(doneBtn.querySelector('.icon'), item.isDone ? 'circle-check' : 'circle');
         doneBtn.style.color = item.isDone ? 'var(--accent)' : 'var(--text-secondary)';
         doneBtn.title = item.isDone ? '标记为未完成' : '标记为已完成';
         doneBtn.disabled = readOnly;

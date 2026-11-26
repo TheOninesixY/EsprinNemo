@@ -76,7 +76,7 @@ function ensureItemAssetsDir(itemId) {
     try {
         fs.mkdirSync(dir, { recursive: true });
     } catch (err) {
-        console.error('创建条目附件目录失败:', err);
+        console.error('[Desktop:ERROR] 创建条目附件目录失败:', err);
     }
     return dir;
 }
@@ -102,7 +102,7 @@ function listItemAssetFiles(itemId) {
             }
         });
     } catch (err) {
-        console.error('列出条目附件失败:', err);
+        console.error('[Desktop:ERROR] 列出条目附件失败:', err);
     }
     result.sort((a, b) => a.name.localeCompare(b.name));
     return result;
@@ -125,7 +125,7 @@ function ensureStorageDirs() {
         fs.mkdirSync(AI_CHATS_DIR, { recursive: true });
         storageDirsReady = true;
     } catch (err) {
-        console.error('创建数据目录失败:', err);
+        console.error('[Desktop:ERROR] 创建数据目录失败:', err);
     }
 }
 
@@ -363,7 +363,7 @@ function readItemFiles(dir, label) {
         entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch (err) {
 
-        if (!err || err.code !== 'ENOENT') console.error(`读取${label}目录失败:`, err);
+        if (!err || err.code !== 'ENOENT') console.error(`[Desktop:ERROR] 读取${label}目录失败:`, err);
         return { files, skipped };
     }
 
@@ -373,7 +373,7 @@ function readItemFiles(dir, label) {
         if (isStaleTempFile(entry.name)) return;
         const matched = entry.name.match(NOTE_FILE_PATTERN);
         if (!matched) {
-            console.warn(`${label}目录中已忽略非${label}文件：${entry.name}`);
+            console.warn(`[Desktop:WARN] ${label}目录中已忽略非${label}文件：${entry.name}`);
             skipped++;
             return;
         }
@@ -391,7 +391,7 @@ function readItemFiles(dir, label) {
                 content: parsed.content
             });
         } catch (err) {
-            console.error(`读取${label}文件 ${entry.name} 失败:`, err);
+            console.error(`[Desktop:ERROR] 读取${label}文件 ${entry.name} 失败:`, err);
             skipped++;
         }
     });
@@ -508,7 +508,7 @@ function readSharedNoteFiles() {
                     content: parsed.content
                 });
             } catch (err) {
-                console.error(`读取共享笔记 ${entry.name} 失败:`, err);
+                console.error(`[Desktop:ERROR] 读取共享笔记 ${entry.name} 失败:`, err);
                 skipped++;
             }
         });
@@ -572,7 +572,7 @@ function readLegacyIndex() {
             result.notes.push(entry);
         });
     } catch (err) {
-        console.error('读取旧索引 index.json 失败:', err);
+        console.error('[Desktop:ERROR] 读取旧索引 index.json 失败:', err);
     }
     return result;
 }
@@ -582,10 +582,10 @@ function archiveLegacyFile(file, note) {
         const backup = `${file}.bak`;
         if (fs.existsSync(backup)) fs.unlinkSync(backup);
         fs.renameSync(file, backup);
-        console.warn(`${note}，原文件保留为 ${path.basename(backup)}`);
+        console.warn(`[Desktop:WARN] ${note}，原文件保留为 ${path.basename(backup)}`);
         return true;
     } catch (err) {
-        console.error(`归档 ${path.basename(file)} 失败:`, err);
+        console.error(`[Desktop:ERROR] 归档 ${path.basename(file)} 失败:`, err);
         return false;
     }
 }
@@ -728,7 +728,7 @@ function readAiChatFiles() {
     try {
         if (fs.existsSync(AI_CHATS_DIR)) entries = fs.readdirSync(AI_CHATS_DIR, { withFileTypes: true });
     } catch (err) {
-        console.error('读取 ai_chats 目录失败:', err);
+        console.error('[Desktop:ERROR] 读取 ai_chats 目录失败:', err);
         return { conversations, raws };
     }
 
@@ -738,7 +738,7 @@ function readAiChatFiles() {
         if (isStaleTempFile(entry.name)) return;
         const matched = entry.name.match(AI_CHAT_FILE_PATTERN);
         if (!matched) {
-            console.warn(`ai_chats 目录中已忽略非对话文件：${entry.name}`);
+            console.warn(`[Desktop:WARN] ai_chats 目录中已忽略非对话文件：${entry.name}`);
             return;
         }
         const filePath = path.join(AI_CHATS_DIR, entry.name);
@@ -750,7 +750,7 @@ function readAiChatFiles() {
             conversations.push(chat);
             raws.set(chat.id, raw);
         } catch (err) {
-            console.error(`读取对话文件 ${entry.name} 失败:`, err);
+            console.error(`[Desktop:ERROR] 读取对话文件 ${entry.name} 失败:`, err);
         }
     });
 
@@ -778,7 +778,7 @@ function saveAiChat(chat) {
         writeFileAtomic(path.join(AI_CHATS_DIR, `${chat.id}.json`), json);
         savedAiChatFiles.set(chat.id, json);
     } catch (err) {
-        console.error(`保存对话 ${chat.id} 失败:`, err);
+        console.error(`[Desktop:ERROR] 保存对话 ${chat.id} 失败:`, err);
     }
 }
 
@@ -792,7 +792,7 @@ function deleteAiChatFile(chatId) {
             notifyRemoteDelete(filePath);
         }
     } catch (err) {
-        console.error(`删除对话文件 ${chatId}.json 失败:`, err);
+        console.error(`[Desktop:ERROR] 删除对话文件 ${chatId}.json 失败:`, err);
     }
 }
 
@@ -807,7 +807,7 @@ function readLegacyAiChats() {
         result.conversations = parsed.conversations;
         result.activeId = parsed.activeId;
     } catch (err) {
-        console.error('读取旧版 ai_chats.json 失败:', err);
+        console.error('[Desktop:ERROR] 读取旧版 ai_chats.json 失败:', err);
     }
     return result;
 }
@@ -830,7 +830,7 @@ const existingIds = new Set(conversations.map(chat => chat.id));
 
 const dropped = conversations.splice(AI_CHAT_LIMIT);
     dropped.forEach((chat) => {
-        console.warn(`对话记录超出 ${AI_CHAT_LIMIT} 份上限，已清理《${chat.title || '未命名对话'}》`);
+        console.warn(`[Desktop:WARN] 对话记录超出 ${AI_CHAT_LIMIT} 份上限，已清理《${chat.title || '未命名对话'}》`);
         deleteAiChatFile(chat.id);
     });
 
@@ -842,7 +842,7 @@ let rewriteFailed = 0;
         try {
             writeFileAtomic(path.join(AI_CHATS_DIR, `${chat.id}.json`), json);
         } catch (err) {
-            console.error(`写入对话 ${chat.id} 失败:`, err);
+            console.error(`[Desktop:ERROR] 写入对话 ${chat.id} 失败:`, err);
             rewriteFailed++;
         }
     });
@@ -933,12 +933,12 @@ function adoptLegacyApiKey(config) {
     try {
         const result = ipcRenderer.sendSync('ai:set-key-sync', { apiKey: legacyKey });
         if (result && result.ok) {
-            console.warn('API Key 迁移：config.json 中的明文密钥已收进本机安全存储');
+            console.warn('[Desktop:WARN] API Key 迁移：config.json 中的明文密钥已收进本机安全存储');
         } else {
-            console.warn('API Key 迁移失败：', (result && result.error) || '未知原因');
+            console.warn('[Desktop:WARN] API Key 迁移失败：', (result && result.error) || '未知原因');
         }
     } catch (err) {
-        console.error('API Key 迁移失败:', err);
+        console.error('[Desktop:ERROR] API Key 迁移失败:', err);
     }
 }
 
@@ -947,14 +947,14 @@ function readAiKeyStatus() {
     try {
         return ipcRenderer.sendSync('ai:key-status-sync') || empty;
     } catch (err) {
-        console.error('读取 API Key 状态失败:', err);
+        console.error('[Desktop:ERROR] 读取 API Key 状态失败:', err);
         return empty;
     }
 }
 
 function loadData() {
     ensureStorageDirs();
-    let config = { theme: 'system', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, folders: [], aiActiveChat: '', fonts: {}, ai: {}, syncServer: {} };
+    let config = { theme: 'system', accentColor: 'system', cornerRadius: 'default', uiScale: 1, spellcheck: false, sidebarCollapsed: false, trashRetentionDays: 0, autoUpdate: true, ghProxyEnabled: false, backgroundBlur: true, backgroundRunning: true, folders: [], aiActiveChat: '', fonts: {}, ai: {}, syncServer: {} };
 
 try {
         if (fs.existsSync(CONFIG_FILE)) {
@@ -968,7 +968,18 @@ try {
             writeFileAtomic(CONFIG_FILE, JSON.stringify(config, null, 2));
         }
     } catch (err) {
-        console.error('读取 config.json 失败:', err);
+        const message = err && err.message ? err.message : String(err);
+        let backupPath = '';
+        try {
+            if (fs.existsSync(CONFIG_FILE)) {
+                backupPath = `${CONFIG_FILE}.broken-${Date.now()}`;
+                fs.copyFileSync(CONFIG_FILE, backupPath);
+            }
+        } catch (copyError) {
+            backupPath = '';
+        }
+        const backupText = backupPath ? `已备份到 ${backupPath}` : '备份失败';
+        console.error(`[Desktop:ERROR] 读取配置：config.json 无法解析或读取，${backupText}，本次使用默认配置 (${message})`);
     }
 
 adoptLegacyApiKey(config);
@@ -1056,7 +1067,7 @@ const serialized = new Map();
                 writeFileAtomic(targetPath, text);
                 repairedNotes++;
             } catch (err) {
-                console.error(`写入笔记 ${note.id} 失败:`, err);
+                console.error(`[Desktop:ERROR] 写入笔记 ${note.id} 失败:`, err);
                 rewriteFailed++;
             }
         }
@@ -1089,7 +1100,7 @@ const serializedTodos = new Map();
                 writeFileAtomic(targetPath, text);
                 repairedTodos++;
             } catch (err) {
-                console.error(`写入待办 ${todo.id} 失败:`, err);
+                console.error(`[Desktop:ERROR] 写入待办 ${todo.id} 失败:`, err);
             }
         }
 
@@ -1130,6 +1141,10 @@ const aiChats = loadAiChats(config.aiActiveChat);
         autoLaunch: config.autoLaunch === true,
 
         trayEnabled: config.trayEnabled !== false,
+
+        backgroundBlur: config.backgroundBlur !== false,
+
+        backgroundRunning: config.backgroundRunning !== false,
 
         stickyNotes: normalizeStickyConfig(config.stickyNotes),
         fonts: normalizeFonts(config.fonts),
@@ -1185,6 +1200,10 @@ function saveConfig() {
 
             trayEnabled: State.trayEnabled !== false,
 
+            backgroundBlur: State.backgroundBlur !== false,
+
+            backgroundRunning: State.backgroundRunning !== false,
+
             stickyNotes: normalizeStickyConfig(State.stickyNotes),
 
             aiActiveChat: typeof State.aiActiveConversationId === 'string' ? State.aiActiveConversationId : '',
@@ -1199,8 +1218,13 @@ if (State.syncServerLoaded) config.syncServer = normalizeSyncServerConfig(State.
         if (json === savedConfigJSON) return;
         writeFileAtomic(CONFIG_FILE, json);
         savedConfigJSON = json;
+        try {
+            ipcRenderer.send('settings:config-changed', { config });
+        } catch (err) {
+
+        }
     } catch (err) {
-        console.error('保存 config.json 失败:', err);
+        console.error('[Desktop:ERROR] 保存 config.json 失败:', err);
     }
 }
 
@@ -1216,7 +1240,7 @@ function saveNote(note) {
         writeFileAtomic(file, text);
         savedItemFiles.set(note.id, text);
     } catch (err) {
-        console.error(`保存笔记 ${note.id} 失败:`, err);
+        console.error(`[Desktop:ERROR] 保存笔记 ${note.id} 失败:`, err);
     }
 }
 
@@ -1238,7 +1262,7 @@ function deleteNoteFile(noteId) {
             if (!shared) notifyRemoteDelete(legacyNotePath);
         }
     } catch (err) {
-        console.error(`删除笔记文件 ${noteId}.md 失败:`, err);
+        console.error(`[Desktop:ERROR] 删除笔记文件 ${noteId}.md 失败:`, err);
     }
 
     if (typeof notifyStickyItemRemoved === 'function') notifyStickyItemRemoved(noteId);
@@ -1254,7 +1278,7 @@ function saveTodo(todo) {
         writeFileAtomic(file, text);
         savedItemFiles.set(todo.id, text);
     } catch (err) {
-        console.error(`保存待办 ${todo.id} 失败:`, err);
+        console.error(`[Desktop:ERROR] 保存待办 ${todo.id} 失败:`, err);
     }
 }
 
@@ -1274,13 +1298,14 @@ function deleteTodoFile(todoId) {
             notifyRemoteDelete(legacyTodoPath);
         }
     } catch (err) {
-        console.error(`删除待办文件 ${todoId}.md 失败:`, err);
+        console.error(`[Desktop:ERROR] 删除待办文件 ${todoId}.md 失败:`, err);
     }
 
     if (typeof notifyStickyItemRemoved === 'function') notifyStickyItemRemoved(todoId);
 }
 
 function saveItem(item) {
+    if (typeof isDraftId === 'function' && isDraftId(item && item.id)) return;
     if (isTodoItem(item)) saveTodo(item);
     else saveNote(item);
 

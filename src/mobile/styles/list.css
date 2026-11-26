@@ -152,7 +152,7 @@
     color: var(--text-muted);
 }
 
-.card-title-meta .ms-icon {
+.card-title-meta .icon {
     flex-shrink: 0;
 }
 
@@ -240,7 +240,7 @@
     color: var(--text-muted);
 }
 
-.list-empty .ms-icon {
+.list-empty .icon {
     color: var(--text-muted);
     opacity: 0.35;
 }
@@ -358,11 +358,11 @@
     transform: scale(0.94);
 }
 
-.fab .ms-icon {
+.fab .icon {
     transition: transform 0.2s var(--ease-out);
 }
 
-.compose.open .fab .ms-icon {
+.compose.open .fab .icon {
     transform: rotate(135deg);
 }
 

@@ -164,7 +164,7 @@ export async function openStore() {
             const db = await openIndexedDb();
             backend = createIdbBackend(db);
         } catch (err) {
-            console.warn('[Nemo] IndexedDB 不可用，改用 localStorage：', err && err.message);
+            console.warn('[Mobile:WARN] IndexedDB 不可用，改用 localStorage：', err && err.message);
             backend = createLocalStorageBackend();
         }
         return backend;
@@ -225,7 +225,7 @@ function notify(path) {
         try {
             listener(path);
         } catch (err) {
-            console.warn('[Nemo] 文件变更回调失败：', err && err.message);
+            console.warn('[Mobile:WARN] 文件变更回调失败：', err && err.message);
         }
     });
 }

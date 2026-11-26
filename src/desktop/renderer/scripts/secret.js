@@ -162,6 +162,7 @@ function toggleItemHidden(itemId) {
     }
     item.isHidden = !isSecretHidden(item);
     saveItem(item);
+    ipcRenderer.send('settings:data-changed');
     renderApp();
     showToast(item.isHidden ? '已隐藏：可在「设置 → 秘密本」中找回' : '已取消隐藏');
 }
@@ -187,6 +188,7 @@ item.locked = true;
     item.unlocked = false;
     item.content = sealed.envelope;
     saveItem(item);
+    ipcRenderer.send('settings:data-changed');
 
     secretUnlocked.set(item.id, { key: sealed.key, salt: sealed.salt, iterations: SECRET_ITERATIONS });
     item.content = plaintext;
@@ -202,7 +204,7 @@ async function unlockItem(itemId) {
 
     const password = await showPasswordPrompt(`输入《${itemDisplayTitle(item)}》的密码`, {
         title: '解锁文档',
-        icon: 'lock_open',
+        icon: 'lock-open',
         label: '密码',
         placeholder: '输入密码...',
         confirmLabel: '解锁'
@@ -242,6 +244,7 @@ function lockItemNow(itemId) {
     item.unlocked = false;
     secretUnlocked.delete(item.id);
     saveItem(item);
+    ipcRenderer.send('settings:data-changed');
     renderApp();
     showToast('已锁定');
 }
@@ -258,7 +261,7 @@ async function removeItemPassword(itemId) {
     } else {
         const password = await showPasswordPrompt(`解除《${itemDisplayTitle(item)}》的密码`, {
             title: '解除密码',
-            icon: 'key_off',
+            icon: 'key-round',
             label: '密码',
             placeholder: '输入密码...',
             confirmLabel: '解除密码',
@@ -279,6 +282,7 @@ async function removeItemPassword(itemId) {
     item.unlocked = false;
     secretUnlocked.delete(item.id);
     saveItem(item);
+    ipcRenderer.send('settings:data-changed');
     renderApp();
     showToast('已解除密码：正文恢复为明文保存');
 }
@@ -307,8 +311,8 @@ function createSecretRow(item) {
     main.className = 'secret-item-main';
 
     const icon = document.createElement('span');
-    icon.className = 'ms-icon sm';
-    icon.textContent = item.locked === true ? (item.unlocked === true ? 'lock_open' : 'lock') : 'visibility_off';
+    icon.className = 'icon sm';
+    setLucideIcon(icon, item.locked === true ? (item.unlocked === true ? 'lock-open' : 'lock') : 'eye-off');
 
     const text = document.createElement('div');
     text.className = 'secret-item-text';

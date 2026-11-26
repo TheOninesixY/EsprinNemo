@@ -10,37 +10,7 @@ function newTodoDefaults() {
 }
 
 function createNewTodo() {
-    const defaults = newTodoDefaults();
-    const newTodo = {
-        id: generateUniqueItemId('todo'),
-        title: '',
-        content: '',
-        folder: defaults.folder,
-        tags: defaults.tags,
-        isPinned: false,
-        isTrashed: false,
-        isDone: false,
-
-        isHidden: false,
-        locked: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-    };
-
-saveTodo(newTodo);
-    markItemKind(newTodo, 'todo');
-    State.todos.unshift(newTodo);
-
-if (State.currentFilter === 'all') State.currentFilter = 'todos';
-    openTab(newTodo.id);
-    renderApp();
-
-    setTimeout(() => {
-        const titleInput = document.getElementById('input-note-title');
-        if (titleInput) titleInput.focus();
-    }, 50);
-
-    showToast('已创建新待办');
+    createDraft('todo');
 }
 
 function toggleTodoDone(todoId) {
@@ -59,18 +29,18 @@ function createTodoCard(todo, { isTrashView = false } = {}) {
     const isActive = todo.id === State.activeNoteId;
     card.className = `note-card todo-card${todo.isDone ? ' done' : ''}${isActive ? ' active' : ''}`;
 
-const checkIcon = todo.isDone ? 'check_box' : 'check_box_outline_blank';
+const checkIcon = todo.isDone ? 'square-check' : 'square';
     card.innerHTML = `
         ${isTrashView ? '' : `
             <button class="todo-check" title="${todo.isDone ? '标记为未完成' : '标记为已完成'}">
-                <span class="ms-icon sm">${checkIcon}</span>
+                <span class="icon sm" data-lucide="${checkIcon}" aria-hidden="true"></span>
             </button>
         `}
         <div class="todo-card-body">
             <div class="note-card-title">
                 <span class="note-card-title-text">${escapeHTML(itemDisplayTitle(todo))}</span>
                 <div class="note-card-title-meta">
-                    ${todo.isPinned ? '<span class="ms-icon xs fill" style="color: var(--accent);">push_pin</span>' : ''}
+                    ${todo.isPinned ? '<span class="icon xs" style="color: var(--text-secondary);" data-lucide="pin" aria-hidden="true"></span>' : ''}
                     <div class="note-card-folder-slot"></div>
                 </div>
             </div>

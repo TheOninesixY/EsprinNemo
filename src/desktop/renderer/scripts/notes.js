@@ -98,37 +98,7 @@ async function promptAddItemTags(item) {
 }
 
 function createNewNote() {
-    const defaults = newNoteDefaults();
-    const newNote = {
-        id: generateUniqueItemId('note'),
-        title: '',
-        content: '',
-        folder: defaults.folder,
-        tags: defaults.tags,
-        isPinned: false,
-        isTrashed: false,
-
-        isHidden: false,
-        locked: false,
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-    };
-
-saveNote(newNote);
-
-    markItemKind(newNote, 'note');
-    State.notes.unshift(newNote);
-
-    if (State.currentFilter === 'todos') State.currentFilter = 'all';
-    openTab(newNote.id);
-    renderApp();
-
-    setTimeout(() => {
-        const titleInput = document.getElementById('input-note-title');
-        if (titleInput) titleInput.focus();
-    }, 50);
-
-    showToast('已创建新笔记');
+    createDraft('note');
 }
 
 function createItemForCurrentFilter() {
@@ -180,7 +150,7 @@ async function importNoteFiles() {
     try {
         picked = await ipcRenderer.invoke('notes:pick-import');
     } catch (err) {
-        console.error('打开导入文件选择框失败:', err);
+        console.error('[Desktop:ERROR] 打开导入文件选择框失败:', err);
         showToast('打开文件选择框失败');
         return;
     }
@@ -199,7 +169,7 @@ async function importNoteFiles() {
             markItemKind(note, 'note');
             notes.push(note);
         } catch (err) {
-            console.error(`导入文件失败: ${filePath}`, err);
+            console.error(`[Desktop:ERROR] 导入文件失败: ${filePath}`, err);
             failed++;
         }
     });
@@ -221,10 +191,21 @@ State.notes.unshift(...notes);
     if (failed) summary += `，另有 ${failed} 个失败`;
     if (overflow) summary += `，${overflow} 个超出单次上限未导入`;
     showToast(summary);
+    ipcRenderer.send('settings:data-changed');
 }
 
 function openTab(noteId) {
     if (!noteId) return;
+    if (typeof IS_SETTINGS_WINDOW !== 'undefined' && IS_SETTINGS_WINDOW) {
+        ipcRenderer.send('settings:open-note', noteId);
+        return;
+    }
+    if (State.activeNoteId && State.activeNoteId !== noteId) {
+        const leavingId = State.activeNoteId;
+        flushPendingSave();
+        const leaving = getDraft(leavingId);
+        if (leaving && !hasDraftContent(leaving)) discardDraft(leavingId);
+    }
     if (!State.openNoteIds.includes(noteId)) {
         State.openNoteIds.push(noteId);
     }
@@ -232,11 +213,34 @@ function openTab(noteId) {
 }
 
 function openSettingsTab() {
-    State.activeNoteId = 'settings';
-    renderApp();
+    openSettingsWindow();
 }
 
 function closeTab(noteId) {
+
+if (isDraftId(noteId)) {
+        const draft = getDraft(noteId);
+        if (draft && pendingSave && pendingSave.itemId === noteId) {
+            draft.title = pendingSave.title;
+            draft.content = pendingSave.content;
+            pendingSave = null;
+        }
+        if (State.autoSaveTimer) {
+            clearTimeout(State.autoSaveTimer);
+            State.autoSaveTimer = null;
+        }
+        const committed = draft && hasDraftContent(draft) ? commitDraft(noteId, { force: true }) : null;
+        if (committed) {
+            State.openNoteIds = State.openNoteIds.filter(id => id !== committed.id);
+            if (State.activeNoteId === committed.id) {
+                State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
+            }
+        } else {
+            discardDraft(noteId);
+        }
+        renderApp();
+        return;
+    }
 
 playTabCloseFlyAway(noteId);
     State.openNoteIds = State.openNoteIds.filter(id => id !== noteId);
@@ -246,7 +250,9 @@ playTabCloseFlyAway(noteId);
 }
 
 function switchTabByStep(step) {
-    const ids = State.openNoteIds;
+    flushPendingSave();
+
+    const ids = State.openNoteIds.filter(id => isOpenTabId(id));
     if (ids.length < 2) return;
 
     const current = ids.indexOf(State.activeNoteId);
@@ -255,7 +261,6 @@ function switchTabByStep(step) {
         : (current + step + ids.length) % ids.length;
     if (ids[next] === State.activeNoteId) return;
 
-flushPendingSave();
     State.activeNoteId = ids[next];
     renderApp();
 }
@@ -270,16 +275,153 @@ function getActiveTodo() {
     return State.todos.find(t => t.id === State.activeNoteId) || null;
 }
 
+function getActiveDraft() {
+    return getDraft(State.activeNoteId);
+}
+
 function getActiveItem() {
-    return getActiveTodo() || getActiveNote();
+    return getActiveDraft() || getActiveTodo() || getActiveNote();
 }
 
 function getItemById(itemId) {
+    if (isDraftId(itemId)) return getDraft(itemId);
     return State.todos.find(t => t.id === itemId) || State.notes.find(n => n.id === itemId) || null;
+}
+
+const DRAFT_PREFIX = 'draft:';
+const DRAFT_KINDS = ['note', 'todo'];
+
+function isDraftId(itemId) {
+    return typeof itemId === 'string' && itemId.startsWith(DRAFT_PREFIX);
+}
+
+function draftIdOf(kind) {
+    return `${DRAFT_PREFIX}${kind}`;
+}
+
+function draftKindOf(itemId) {
+    const kind = String(itemId || '').slice(DRAFT_PREFIX.length);
+    return DRAFT_KINDS.includes(kind) ? kind : '';
+}
+
+function getDraft(itemId) {
+    if (!isDraftId(itemId)) return null;
+    return State.drafts[itemId] || null;
+}
+
+function hasDraftContent(draft) {
+    if (!draft) return false;
+    return !!(String(draft.title || '').trim() || String(draft.content || '').trim());
+}
+
+function createDraft(kind) {
+    flushPendingSave();
+
+    const isTodo = kind === 'todo';
+    const defaults = isTodo ? newTodoDefaults() : newNoteDefaults();
+    const id = draftIdOf(isTodo ? 'todo' : 'note');
+    const now = Date.now();
+
+    const existing = State.drafts[id];
+    if (!existing || hasDraftContent(existing)) {
+        State.drafts[id] = {
+            id,
+            kind: isTodo ? 'todo' : 'note',
+            title: '',
+            content: '',
+            folder: defaults.folder,
+            tags: defaults.tags,
+            isPinned: false,
+            isTrashed: false,
+            isDone: false,
+            isHidden: false,
+            locked: false,
+            createdAt: now,
+            updatedAt: now
+        };
+    }
+
+    openTab(id);
+    renderApp();
+
+    setTimeout(() => {
+        const titleInput = document.getElementById('input-note-title');
+        if (titleInput) titleInput.focus();
+    }, 50);
+}
+
+function discardDraft(draftId) {
+    if (!isDraftId(draftId)) return;
+    if (State.autoSaveTimer) {
+        clearTimeout(State.autoSaveTimer);
+        State.autoSaveTimer = null;
+    }
+    if (pendingSave && pendingSave.itemId === draftId) pendingSave = null;
+    delete State.drafts[draftId];
+    State.openNoteIds = State.openNoteIds.filter(id => id !== draftId);
+    if (State.activeNoteId === draftId) {
+        State.activeNoteId = State.openNoteIds[State.openNoteIds.length - 1] || null;
+    }
+}
+
+function commitDraft(draftId, options = {}) {
+    const draft = getDraft(draftId);
+    if (!draft) return null;
+    if (!hasDraftContent(draft) && options.force !== true) return null;
+
+    const isTodo = draft.kind === 'todo';
+    const now = Date.now();
+    const item = {
+        id: generateUniqueItemId(isTodo ? 'todo' : 'note'),
+        title: draft.title,
+        content: draft.content,
+        folder: draft.folder,
+        tags: Array.isArray(draft.tags) ? draft.tags.slice() : [],
+        isPinned: draft.isPinned,
+        isTrashed: false,
+        isHidden: false,
+        locked: false,
+        createdAt: draft.createdAt,
+        updatedAt: now
+    };
+    if (isTodo) item.isDone = draft.isDone;
+
+    markItemKind(item, isTodo ? 'todo' : 'note');
+    if (isTodo) {
+        State.todos.unshift(item);
+        saveTodo(item);
+    } else {
+        State.notes.unshift(item);
+        saveNote(item);
+    }
+
+    delete State.drafts[draftId];
+
+    State.openNoteIds = State.openNoteIds.map(id => (id === draftId ? item.id : id));
+    if (State.activeNoteId === draftId) State.activeNoteId = item.id;
+    renderSignatures.tabs = null;
+    renderSignatures.list = null;
+
+    return item;
+}
+
+function commitActiveDraft() {
+    const draft = getActiveDraft();
+    if (!draft) return null;
+    const item = commitDraft(draft.id);
+    if (item) renderApp();
+    return item;
+}
+
+function isOpenTabId(itemId) {
+    if (itemId === 'settings') return true;
+    if (isDraftId(itemId)) return !!getDraft(itemId);
+    return !!getItemById(itemId);
 }
 
 function isTodoItem(item) {
     if (!item || typeof item !== 'object') return false;
+    if (isDraftId(item.id)) return draftKindOf(item.id) === 'todo';
     const kind = item[ITEM_KIND_KEY];
     if (kind === 'todo') return true;
     if (kind === 'note') return false;
@@ -324,6 +466,9 @@ function sharedItemOwner(item) {
 }
 
 function itemDisplayTitle(item) {
+    if (isDraftId(item && item.id)) {
+        return isTodoItem(item) ? '新建待办' : '新建笔记';
+    }
     return item.title || `未命名${itemKindLabel(item)}`;
 }
 
@@ -348,11 +493,15 @@ function autoSaveActiveItem() {
 
     State.autoSaveTimer = setTimeout(() => {
         State.autoSaveTimer = null;
-        commitPendingSave();
+        const result = commitPendingSave();
 
-        renderTabs();
-        renderListPanel();
-        updateStats();
+        if (result === 'draft') {
+            renderApp();
+        } else {
+            renderTabs();
+            renderListPanel();
+            updateStats();
+        }
         document.getElementById('save-status').textContent = '已保存';
     }, 300);
 }
@@ -369,8 +518,16 @@ function commitPendingSave() {
     item.content = pending.content;
     item.updatedAt = Date.now();
 
+    if (isDraftId(item.id)) {
+        if (!hasDraftContent(item)) return false;
+        const committed = commitDraft(item.id);
+        if (!committed) return false;
+        showToast(committed.kind === 'todo' ? '已创建新待办' : '已创建新笔记');
+        return 'draft';
+    }
+
 saveItem(item);
-    return true;
+    return 'saved';
 }
 
 function flushPendingSave() {
@@ -378,9 +535,11 @@ function flushPendingSave() {
         clearTimeout(State.autoSaveTimer);
         State.autoSaveTimer = null;
     }
-    if (commitPendingSave()) {
+    const result = commitPendingSave();
+    if (result) {
         document.getElementById('save-status').textContent = '已保存';
     }
+    return result;
 }
 
 function togglePin(itemId) {
@@ -448,7 +607,7 @@ async function purgeItem(itemId) {
         title: `彻底删除${label}`,
         detail: `该${label}将从磁盘上永久移除，此操作无法撤销。`,
         type: 'warning',
-        icon: 'delete_forever',
+        icon: 'trash',
         confirmLabel: '彻底删除',
         danger: true
     });
@@ -471,7 +630,7 @@ async function clearTrash() {
         title: '清空废纸篓',
         detail: '废纸篓中的所有笔记与待办将被永久删除，此操作无法撤销。',
         type: 'warning',
-        icon: 'delete_forever',
+        icon: 'trash',
         confirmLabel: '清空',
         danger: true
     });
@@ -489,7 +648,7 @@ async function renameFolder(folder) {
     const name = await showPrompt('请输入新的文件夹名称', {
         title: '重命名文件夹',
         detail: '文件夹中的笔记与待办会一并跟随新名称，内容本身不变。',
-        icon: 'edit',
+        icon: 'pencil',
         placeholder: '文件夹名称...',
         value: folder,
         confirmLabel: '重命名'
@@ -523,7 +682,7 @@ async function deleteFolder(folder) {
         title: '删除文件夹',
         detail: '该文件夹中的笔记与待办将移入“默认”文件夹，内容本身不会被删除。',
         type: 'warning',
-        icon: 'delete',
+        icon: 'trash-2',
         confirmLabel: '删除',
         danger: true
     });

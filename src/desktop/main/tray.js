@@ -5,7 +5,6 @@ const TOOLTIP = 'EsprinNemo';
 
 const ACTION_NEW_NOTE = 'new-note';
 const ACTION_NEW_TODO = 'new-todo';
-const ACTION_OPEN_SETTINGS = 'open-settings';
 
 let tray = null;
 
@@ -17,6 +16,7 @@ let getOwnerWindow = () => null;
 let iconPath = '';
 let onShowMainWindow = () => null;
 let onOpenScratchpad = () => {};
+let onOpenSettings = () => {};
 let onNewStickyNote = () => {};
 let onShowStickyNotes = () => 0;
 let onHideStickyNotes = () => 0;
@@ -33,6 +33,7 @@ function configureTray(options = {}) {
   if (typeof options.icon === 'string' && options.icon) iconPath = options.icon;
   if (typeof options.onShowMainWindow === 'function') onShowMainWindow = options.onShowMainWindow;
   if (typeof options.onOpenScratchpad === 'function') onOpenScratchpad = options.onOpenScratchpad;
+  if (typeof options.onOpenSettings === 'function') onOpenSettings = options.onOpenSettings;
   if (typeof options.onNewStickyNote === 'function') onNewStickyNote = options.onNewStickyNote;
   if (typeof options.onShowStickyNotes === 'function') onShowStickyNotes = options.onShowStickyNotes;
   if (typeof options.onHideStickyNotes === 'function') onHideStickyNotes = options.onHideStickyNotes;
@@ -43,7 +44,7 @@ function configureTray(options = {}) {
 
   if (isMacPlatform()) {
     trayEnabled = false;
-    console.log('[INFO] [Nemo] macOS 不创建托盘图标，相关入口放在顶部菜单栏');
+    console.log('[Desktop:INFO] macOS 不创建托盘图标，相关入口放在顶部菜单栏');
     return;
   }
 
@@ -56,7 +57,7 @@ function readConfiguredEnabled() {
     const config = getConfig();
     if (config && typeof config === 'object') return config.trayEnabled !== false;
   } catch (error) {
-    console.error('[EsprinNemo] 读取托盘设置失败:', error);
+    console.error('[Desktop:ERROR] 读取托盘设置失败:', error);
   }
   return true;
 }
@@ -92,7 +93,7 @@ function buildTrayMenu() {
   template.push(
     { label: '新建笔记', click: () => { sendAction(ACTION_NEW_NOTE); } },
     { label: '新建待办', click: () => { sendAction(ACTION_NEW_TODO); } },
-    { label: '设置', click: () => { sendAction(ACTION_OPEN_SETTINGS); } },
+    { label: '设置', click: () => { onOpenSettings(); } },
     { type: 'separator' },
     { label: '退出', click: () => { onQuit(); } }
   );
@@ -105,7 +106,7 @@ function createTray() {
   try {
     tray = new Tray(trayIcon());
   } catch (error) {
-    console.error('[EsprinNemo] 创建托盘图标失败:', error);
+    console.error('[Desktop:ERROR] 创建托盘图标失败:', error);
     tray = null;
     return false;
   }
